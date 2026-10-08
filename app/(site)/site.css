@@ -375,6 +375,13 @@
     animation: ecDrift 18s ease-out both;
   }
 
+  @media (max-width: 767px) {
+    .hero-img {
+      object-position: 50% 70%;
+      filter: saturate(0.8) contrast(1.05) brightness(0.95);
+    }
+  }
+
   .motion-subtle .hero-img,
   .motion-off .hero-img {
     animation: none;

@@ -5,9 +5,9 @@ export function Hero() {
     <section className="overflow-hidden flex flex-col justify-center min-h-[calc(-77px_+_100svh)] relative md:min-h-[860px]" id="top">
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
         <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/3b00bbaea002c5bc3c19878670191ab0.jpg" alt="Ecram Execs electric Mercedes van on a Dutch polder road at blue hour" fill priority sizes="100vw" />
-        <div className="inset-0 bg-[radial-gradient(at_50%_45%,rgba(10,10,11,0.55)_0%,rgba(10,10,11,0.85)_70%,#0a0a0b_100%)] absolute"></div>
-        {/* Phones: extra scrim so the copy stays legible over the vehicle */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.35)_0%,rgba(0,0,0,0.65)_35%,rgba(0,0,0,0.65)_75%,rgba(0,0,0,0.4)_100%)] md:hidden"></div>
+        <div className="inset-0 bg-[radial-gradient(at_50%_45%,rgba(10,10,11,0.55)_0%,rgba(10,10,11,0.85)_70%,#0a0a0b_100%)] absolute hidden md:block"></div>
+        {/* Phones: darker behind the headline, lighter lower down so the vehicle stays visible */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.75)_0%,rgba(10,10,11,0.6)_45%,rgba(10,10,11,0.15)_75%,rgba(10,10,11,0.55)_100%)] md:hidden"></div>
       </div>
       <div className="px-5 pt-12 pb-10 my-0 mx-auto gap-[22px] items-center box-border flex flex-col max-w-[1280px] relative text-center w-full md:px-6 md:pt-20 md:pb-24 md:gap-7 2xl:max-w-[1440px]">
         <div className="emblem max-w-[min(300px,80vw)] md:max-w-[520px]">
@@ -20,7 +20,7 @@ export function Hero() {
             of the experience.
           </em>
         </h1>
-        <p className="rise d3 m-0 text-ink-150 text-[16px] font-normal max-w-[620px] md:text-ink-300 md:text-[17px] md:font-light">
+        <p className="rise d3 m-0 text-ink-150 text-[16px] font-normal max-w-[620px] [text-shadow:0_1px_12px_rgba(0,0,0,0.85)] md:[text-shadow:none] md:text-ink-300 md:text-[17px] md:font-light">
           Private executive chauffeurs across the Netherlands, in a fully electric fleet. Calm, discreet and effortless — from the moment you are collected to the moment you arrive.
         </p>
         <div className="rise d4 mt-2 gap-3 items-stretch flex flex-col flex-wrap justify-center max-w-[360px] w-full md:gap-4 md:items-stretch md:flex-row md:max-w-none md:w-auto">
