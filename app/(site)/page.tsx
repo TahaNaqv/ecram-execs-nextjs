@@ -1,5 +1,6 @@
 import { siteConfig, socialLinks } from "@/lib/site-config";
 import { NavAutoClose } from "./_components/nav-auto-close";
+import { BackToTop } from "./_components/back-to-top";
 import {
   Concierge,
   Destinations,
@@ -70,6 +71,7 @@ export default function HomePage() {
       </main>
       <SiteFooter />
       <NavAutoClose />
+      <BackToTop />
     </div>
   );
 }
