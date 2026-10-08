@@ -9,24 +9,24 @@ async function CopyrightYear() {
 
 export function SiteFooter() {
   return (
-    <footer style={{ borderTop: "1px solid #1f1f23", background: "#070708" }}>
-      <div className="sx-padding-72px-24px-40px sx-gap-56px wrap-xl" style={{ maxWidth: "1280px", margin: "0 auto", padding: "72px 24px 40px", display: "flex", flexDirection: "column", gap: "56px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "48px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "360px" }}>
-            <span className="chrome sx-font-size-26px" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "26px", letterSpacing: "0.32em", fontWeight: "500" }}>
+    <footer className="border-t border-t-ink-850 bg-ink-975">
+      <div className="px-5 pt-14 pb-8 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:px-6 md:pt-18 md:pb-10 md:gap-14 2xl:max-w-[1440px]">
+        <div className="gap-12 flex flex-wrap justify-between">
+          <div className="gap-[10px] flex flex-col max-w-[360px]">
+            <span className="chrome font-display text-[22px] font-medium tracking-[0.32em] md:text-[26px]">
               ECRAM EXECS
             </span>
             {" "}
-            <span className="sx-letter-spacing-0-42em" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "10px", letterSpacing: "0.42em", color: "#8e8e96" }}>
+            <span className="text-ink-450 font-display text-[10px] tracking-[0.3em] md:tracking-[0.42em]">
               THE ART OF EXECUTIVE HOSPITALITY
             </span>
-            <p style={{ margin: "12px 0 0", fontSize: "14px", color: "#8e8e96", fontWeight: "300" }}>
+            <p className="mx-0 mt-3 mb-0 text-ink-450 text-[14px] font-light">
               Executive chauffeur services throughout the Netherlands, in a fully electric fleet.
             </p>
           </div>
-          <div className="sx-minmax-160px" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "40px", flex: "0 1 640px" }}>
-            <nav aria-label="Services" style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "14px" }}>
-              <span style={{ fontSize: "11px", letterSpacing: "0.24em", color: "#8e8e96" }}>
+          <div className="flex-[0_1_100%] gap-x-5 grid grid-cols-[1fr_1fr] gap-y-8 md:gap-10 md:flex-[0_1_640px] md:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+            <nav className="gap-[10px] flex flex-col text-[14px]" aria-label="Services">
+              <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 SERVICES
               </span>
               <a className="navlink" href="#services">
@@ -42,8 +42,8 @@ export function SiteFooter() {
                 Private occasions
               </a>
             </nav>
-            <nav aria-label="Company" style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "14px" }}>
-              <span style={{ fontSize: "11px", letterSpacing: "0.24em", color: "#8e8e96" }}>
+            <nav className="gap-[10px] flex flex-col text-[14px]" aria-label="Company">
+              <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 COMPANY
               </span>
               <a className="navlink" href="#experience">
@@ -59,37 +59,37 @@ export function SiteFooter() {
                 Contact
               </a>
             </nav>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "14px", color: "#c9c9cf" }}>
-              <span style={{ fontSize: "11px", letterSpacing: "0.24em", color: "#8e8e96" }}>
+            <div className="gap-[10px] col-[1/-1] text-ink-250 flex flex-col text-[14px] md:col-auto">
+              <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 CONTACT
               </span>
               {siteConfig.contact.phone && (
-                <a className="navlink" href={telHref(siteConfig.contact.phone)} style={{ alignSelf: "flex-start" }}>
+                <a className="navlink self-start" href={telHref(siteConfig.contact.phone)}>
                   {siteConfig.contact.phone}
                 </a>
               )}
               {siteConfig.contact.email && (
-                <a className="navlink" href={`mailto:${siteConfig.contact.email}`} style={{ alignSelf: "flex-start" }}>
+                <a className="navlink self-start" href={`mailto:${siteConfig.contact.email}`}>
                   {siteConfig.contact.email}
                 </a>
               )}
               <span>{siteConfig.contact.address ? `${siteConfig.contact.address}, Netherlands` : "Serving the whole of the Netherlands"}</span>
-              <a className="navlink" href="#enquire" style={{ alignSelf: "flex-start" }}>
+              <a className="navlink self-start" href="#enquire">
                 Request a quotation
               </a>
             </div>
           </div>
         </div>
-        <div className="sx-justify-content-space-between-align-items-center" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "20px", paddingTop: "28px", borderTop: "1px solid #1f1f23", fontSize: "12px", color: "#6b6b73" }}>
+        <div className="pt-7 gap-5 border-t border-t-ink-850 items-start text-ink-500 flex flex-col flex-wrap text-[12px] justify-between md:items-center md:flex-row">
           <span>
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}
-            <a href="/privacy" style={{ color: "inherit" }}>
+            <a className="text-inherit" href="/privacy">
               Privacy
             </a>
           </span>
-          <nav aria-label="Social" style={{ display: "flex", flexWrap: "wrap", gap: "24px", fontSize: "11px", letterSpacing: "0.24em", textTransform: "uppercase" }}>
+          <nav className="gap-6 flex flex-wrap text-[11px] tracking-[0.24em] uppercase" aria-label="Social">
             {socialLinks.map(([label, url]) => (
-              <a key={label} className="navlink" href={url} target="_blank" rel="noopener noreferrer">
+              <a className="navlink" key={label} href={url} target="_blank" rel="noopener noreferrer">
                 {label}
               </a>
             ))}

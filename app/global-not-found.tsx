@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { fontVariables } from "@/lib/fonts";
+import "./(site)/site.css";
 
 export const metadata: Metadata = {
   title: "Page not found — Ecram Execs",
@@ -10,54 +11,16 @@ export const metadata: Metadata = {
 export default function GlobalNotFound() {
   return (
     <html lang="en" className={fontVariables}>
-      <body style={{ margin: 0, background: "#0a0a0b", color: "#e4e4e7", fontFamily: "var(--font-manrope), sans-serif" }}>
-        <main
-          style={{
-            minHeight: "100svh",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "24px",
-            padding: "48px 20px",
-            textAlign: "center",
-            boxSizing: "border-box",
-          }}
-        >
-          <span style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "12px", letterSpacing: "0.42em", color: "#8e8e96" }}>
-            ECRAM EXECS · 404
-          </span>
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-cormorant), serif",
-              fontWeight: 300,
-              fontSize: "clamp(36px, 7vw, 64px)",
-              lineHeight: 1.1,
-              color: "#ffffff",
-              textWrap: "balance",
-            }}
-          >
-            This road doesn&apos;t lead <em style={{ fontStyle: "italic", color: "#c9c9cf" }}>anywhere.</em>
+      <body className="bg-ink-950 font-sans text-ink-150">
+        <main className="box-border flex min-h-svh flex-col items-center justify-center gap-6 px-5 py-12 text-center">
+          <span className="font-display text-[12px] tracking-[0.42em] text-ink-450">ECRAM EXECS · 404</span>
+          <h1 className="m-0 font-serif text-[clamp(36px,7vw,64px)] leading-[1.1] font-light text-white">
+            This road doesn&apos;t lead <em className="text-ink-250 italic">anywhere.</em>
           </h1>
-          <p style={{ margin: 0, maxWidth: "460px", color: "#a6a6ad", fontWeight: 400 }}>
-            The page you were looking for has moved or no longer exists.
-          </p>
+          <p className="m-0 max-w-[460px] text-ink-400">The page you were looking for has moved or no longer exists.</p>
           <Link
             href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              minHeight: "52px",
-              padding: "0 34px",
-              background: "#f4f4f5",
-              color: "#0a0a0b",
-              textDecoration: "none",
-              fontSize: "12px",
-              letterSpacing: "0.24em",
-              textTransform: "uppercase",
-              fontWeight: 600,
-            }}
+            className="btn-fill inline-flex min-h-[52px] items-center bg-ink-50 px-[34px] text-[12px] font-semibold tracking-[0.24em] text-ink-950 no-underline uppercase"
           >
             Return home
           </Link>

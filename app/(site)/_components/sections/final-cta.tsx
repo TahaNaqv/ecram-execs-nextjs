@@ -2,27 +2,27 @@ import { siteConfig, telHref } from "@/lib/site-config";
 
 export function FinalCta() {
   return (
-    <section style={{ position: "relative" }}>
-      <div className="sx-padding-160px-24px" style={{ maxWidth: "1080px", margin: "0 auto", padding: "160px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "28px" }}>
-        <span className="reveal sx-letter-spacing-0-42em" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "12px", letterSpacing: "0.42em", color: "#8e8e96" }}>
+    <section className="relative">
+      <div className="py-20 px-5 my-0 mx-auto gap-7 items-center flex flex-col max-w-[1080px] text-center md:py-40 md:px-6">
+        <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
           TAILORED TO YOUR JOURNEY
         </span>
-        <h2 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "300", fontSize: "clamp(40px, 5vw, 72px)", lineHeight: "1.05", color: "#ffffff" }}>
+        <h2 className="m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.05] md:text-[clamp(40px,5vw,72px)]">
           Allow us to take care{" "}
           <br />
-          <em className="chrome" style={{ fontStyle: "italic" }}>
+          <em className="chrome italic">
             of the rest.
           </em>
         </h2>
-        <p style={{ margin: "0", maxWidth: "540px", color: "#a6a6ad", fontWeight: "300" }}>
+        <p className="m-0 text-ink-400 font-light max-w-[540px]">
           Every journey is different, so every quotation is personal. Tell us where, when and how — we will respond promptly.
         </p>
-        <div className="cta-row" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "16px" }}>
-          <a className="btn-fill" href="#enquire" style={{ display: "inline-flex", alignItems: "center", minHeight: "52px", padding: "0 34px", background: "#f4f4f5", color: "#0a0a0b", textDecoration: "none", fontSize: "12px", letterSpacing: "0.24em", textTransform: "uppercase", fontWeight: "600" }}>
+        <div className="gap-3 items-stretch flex flex-col flex-wrap justify-center max-w-[360px] w-full md:gap-4 md:items-stretch md:flex-row md:max-w-none md:w-auto">
+          <a className="btn-fill py-0 px-5 no-underline items-center bg-ink-50 text-ink-950 inline-flex text-[12px] font-semibold justify-center tracking-[0.24em] min-h-[52px] uppercase md:py-0 md:px-[34px] md:justify-normal" href="#enquire">
             Request a quotation
           </a>
           {siteConfig.contact.phone && (
-          <a className="btn-line" href={telHref(siteConfig.contact.phone)} style={{ display: "inline-flex", alignItems: "center", minHeight: "52px", padding: "0 30px", border: "1px solid #3a3a40", color: "#ffffff", textDecoration: "none", fontSize: "12px", letterSpacing: "0.24em", textTransform: "uppercase" }}>
+          <a className="btn-line py-0 px-5 border border-ink-700 no-underline items-center text-white inline-flex text-[12px] justify-center tracking-[0.24em] min-h-[52px] uppercase md:py-0 md:px-[30px] md:justify-normal" href={telHref(siteConfig.contact.phone)}>
             Call {siteConfig.contact.phone}
           </a>
           )}

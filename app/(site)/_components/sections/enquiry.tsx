@@ -2,13 +2,13 @@ import { QuoteForm } from "../quote-form";
 
 export function Enquiry() {
   return (
-    <section id="enquire" style={{ background: "#f4f4f5", color: "#0a0a0b" }}>
-      <div className="sx-padding-48px-24px wrap-xl" style={{ maxWidth: "1280px", margin: "0 auto", padding: "48px 24px", display: "flex", flexDirection: "column", gap: "24px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
-          <h2 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "34px", lineHeight: "1.1" }}>
+    <section className="bg-ink-50 text-ink-950" id="enquire">
+      <div className="py-10 px-5 my-0 mx-auto gap-6 flex flex-col max-w-[1280px] md:py-12 md:px-6 2xl:max-w-[1440px]">
+        <div className="gap-3 items-baseline flex flex-wrap justify-between">
+          <h2 className="m-0 font-serif text-[30px] font-normal leading-[1.1] md:text-[34px]">
             Plan your journey
           </h2>
-          <p style={{ margin: "0", fontSize: "14px", color: "#52525b" }}>
+          <p className="m-0 text-ink-600 text-[14px]">
             Every journey is quoted personally — usually within the hour.
           </p>
         </div>

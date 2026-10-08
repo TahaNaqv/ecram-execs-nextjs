@@ -2,54 +2,54 @@ import { ConciergeInput } from "../concierge-input";
 
 export function Concierge() {
   return (
-    <section style={{ borderBottom: "1px solid #1f1f23" }}>
-      <div className="sx-padding-120px-24px sx-gap-80px wrap-xl concierge-row" style={{ maxWidth: "1280px", margin: "0 auto", padding: "120px 24px", display: "flex", flexWrap: "wrap", gap: "80px", alignItems: "center" }}>
-        <div style={{ flex: "1 1 380px", minWidth: "0", display: "flex", flexDirection: "column", gap: "24px" }}>
-          <span className="reveal sx-letter-spacing-0-42em" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "12px", letterSpacing: "0.42em", color: "#8e8e96" }}>
+    <section className="border-b border-b-ink-850">
+      <div className="py-20 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-30 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
+        <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0">
+          <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             VII — ECRAM CONCIERGE
           </span>
-          <h2 className="reveal" style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "300", fontSize: "clamp(36px, 4vw, 52px)", lineHeight: "1.08", color: "#ffffff" }}>
+          <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.08] md:text-[clamp(36px,4vw,52px)]">
             Immediate answers.{" "}
             <br />
-            <em className="chrome" style={{ fontStyle: "italic" }}>
+            <em className="chrome italic">
               A personal touch, always.
             </em>
           </h2>
-          <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300" }}>
+          <p className="m-0 text-ink-400 font-light">
             Our digital concierge answers questions, explains our services and begins your quotation at any hour. When a request deserves a personal conversation, it hands you to a member of our team — seamlessly.
           </p>
         </div>
-        <div className="sx-flex-1-1-440px" style={{ flex: "1 1 440px", minWidth: "0", maxWidth: "520px", border: "1px solid #2e2e33", background: "#111113", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid #26262a" }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "13px", letterSpacing: "0.3em", color: "#ffffff" }}>
+        <div className="border border-ink-750 flex-[1_1_100%] bg-ink-900 flex flex-col max-w-none min-w-0 xl:flex-[1_1_440px] xl:max-w-[520px]">
+          <div className="py-[18px] px-[22px] border-b border-b-ink-800 items-center flex justify-between">
+            <div className="flex flex-col">
+              <span className="text-white font-display text-[13px] tracking-[0.3em]">
                 ECRAM CONCIERGE
               </span>
-              <span style={{ fontSize: "12px", color: "#8e8e96" }}>
+              <span className="text-ink-450 text-[12px]">
                 Replies instantly · Team on hand 24/7
               </span>
             </div>
-            <span className="live" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#e4e4e7" }}></span>
+            <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
           </div>
-          <div className="sx-padding-24px-22px" style={{ padding: "24px 22px", display: "flex", flexDirection: "column", gap: "14px", fontSize: "14px" }}>
-            <div style={{ alignSelf: "flex-end", maxWidth: "80%", background: "#e4e4e7", color: "#0a0a0b", padding: "12px 16px" }}>
+          <div className="py-5 px-4 gap-[14px] flex flex-col text-[14px] md:py-6 md:px-[22px]">
+            <div className="py-3 px-4 self-end bg-ink-150 text-ink-950 max-w-[80%]">
               I land at Schiphol on Thursday at 07:40 and need to be in Eindhoven by 10:00.
             </div>
-            <div style={{ alignSelf: "flex-start", maxWidth: "85%", border: "1px solid #2e2e33", color: "#e4e4e7", padding: "12px 16px" }}>
+            <div className="py-3 px-4 border border-ink-750 self-start text-ink-150 max-w-[85%]">
               Certainly. Your chauffeur will track your flight and meet you in arrivals. May I ask how many passengers, and roughly how much luggage?
             </div>
-            <div style={{ alignSelf: "flex-end", maxWidth: "80%", background: "#e4e4e7", color: "#0a0a0b", padding: "12px 16px" }}>
+            <div className="py-3 px-4 self-end bg-ink-150 text-ink-950 max-w-[80%]">
               Two of us, two cases. Can the car wait and bring us back in the evening?
             </div>
-            <div style={{ alignSelf: "flex-start", maxWidth: "85%", border: "1px solid #2e2e33", color: "#e4e4e7", padding: "12px 16px" }}>
+            <div className="py-3 px-4 border border-ink-750 self-start text-ink-150 max-w-[85%]">
               Of course. For a return with waiting time, I&apos;ll pass you to our reservations team for a tailored quotation — they&apos;ll reply shortly.
             </div>
-            <div style={{ alignSelf: "center", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", color: "#8e8e96", paddingTop: "4px" }}>
+            <div className="pt-1 self-center text-ink-450 text-[11px] tracking-[0.2em] uppercase">
               — Connecting you with our team —
             </div>
-            <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "12px", border: "1px solid #2e2e33", padding: "12px 16px", fontSize: "12px", color: "#8e8e96" }}>
+            <div className="py-3 px-4 gap-3 border border-ink-750 items-center self-start text-ink-450 flex text-[12px]">
               Sophie, reservations{" "}
-              <span className="typing" aria-label="is typing" style={{ display: "inline-flex", gap: "4px" }}>
+              <span className="typing gap-1 inline-flex" aria-label="is typing">
                 <span></span>
                 <span></span>
                 <span></span>

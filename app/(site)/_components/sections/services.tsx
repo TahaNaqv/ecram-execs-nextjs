@@ -1,84 +1,84 @@
 export function Services() {
   return (
-    <section id="services" style={{ borderBottom: "1px solid #1f1f23" }}>
-      <div className="sx-padding-120px-24px sx-gap-56px wrap-xl" style={{ maxWidth: "1280px", margin: "0 auto", padding: "120px 24px", display: "flex", flexDirection: "column", gap: "56px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: "24px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxWidth: "640px" }}>
-            <span className="reveal sx-letter-spacing-0-42em" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "12px", letterSpacing: "0.42em", color: "#8e8e96" }}>
+    <section className="border-b border-b-ink-850" id="services">
+      <div className="py-20 px-5 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:py-30 md:px-6 md:gap-14 2xl:max-w-[1440px]">
+        <div className="gap-6 items-end flex flex-wrap justify-between">
+          <div className="gap-4 flex flex-col max-w-[640px]">
+            <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
               I — SERVICES
             </span>
-            <h2 className="reveal" style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "300", fontSize: "clamp(36px, 4vw, 56px)", lineHeight: "1.08", color: "#ffffff" }}>
+            <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.08] md:text-[clamp(36px,4vw,56px)]">
               Executive chauffeur services, end to end.
             </h2>
           </div>
-          <p style={{ margin: "0", maxWidth: "420px", color: "#a6a6ad", fontWeight: "300" }}>
+          <p className="m-0 text-ink-400 font-light max-w-[420px]">
             Professionalism, punctuality, discretion and attention to detail — whether you are travelling for business or for leisure.
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1px", background: "#232327", border: "1px solid #232327" }}>
-          <article className="card reveal" style={{ background: "#0a0a0b", padding: "40px 36px", display: "flex", flexDirection: "column", gap: "16px", minHeight: "280px" }}>
-            <span className="chrome" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "22px" }}>
+        <div className="gap-px border border-ink-825 bg-ink-825 grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
+          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+            <span className="chrome font-display text-[22px]">
               I
             </span>
-            <h3 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "30px", color: "#ffffff" }}>
+            <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
               Airport transfers
             </h3>
-            <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300", fontSize: "15px" }}>
+            <p className="m-0 text-ink-400 text-[15px] font-light">
               Flight-tracked collections at Schiphol, Rotterdam The Hague and Eindhoven. Met in arrivals, luggage handled, straight to the cabin.
             </p>
           </article>
-          <article className="card reveal" style={{ background: "#0a0a0b", padding: "40px 36px", display: "flex", flexDirection: "column", gap: "16px", minHeight: "280px" }}>
-            <span className="chrome" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "22px" }}>
+          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+            <span className="chrome font-display text-[22px]">
               II
             </span>
-            <h3 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "30px", color: "#ffffff" }}>
+            <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
               Business travel
             </h3>
-            <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300", fontSize: "15px" }}>
+            <p className="m-0 text-ink-400 text-[15px] font-light">
               Meetings, roadshows and site visits, with a chauffeur who waits as directed. A quiet cabin in which to prepare, call or rest.
             </p>
           </article>
-          <article className="card reveal" style={{ background: "#0a0a0b", padding: "40px 36px", display: "flex", flexDirection: "column", gap: "16px", minHeight: "280px" }}>
-            <span className="chrome" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "22px" }}>
+          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+            <span className="chrome font-display text-[22px]">
               III
             </span>
-            <h3 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "30px", color: "#ffffff" }}>
+            <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
               Corporate accounts
             </h3>
-            <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300", fontSize: "15px" }}>
+            <p className="m-0 text-ink-400 text-[15px] font-light">
               A single point of contact for your organisation, consolidated invoicing and dependable cover for executives and guests.
             </p>
           </article>
-          <article className="card reveal" style={{ background: "#0a0a0b", padding: "40px 36px", display: "flex", flexDirection: "column", gap: "16px", minHeight: "280px" }}>
-            <span className="chrome" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "22px" }}>
+          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+            <span className="chrome font-display text-[22px]">
               IV
             </span>
-            <h3 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "30px", color: "#ffffff" }}>
+            <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
               Private occasions
             </h3>
-            <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300", fontSize: "15px" }}>
+            <p className="m-0 text-ink-400 text-[15px] font-light">
               Weddings, celebrations and evenings out, attended to with the same composure as a board meeting.
             </p>
           </article>
-          <article className="card reveal" style={{ background: "#0a0a0b", padding: "40px 36px", display: "flex", flexDirection: "column", gap: "16px", minHeight: "280px" }}>
-            <span className="chrome" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "22px" }}>
+          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+            <span className="chrome font-display text-[22px]">
               V
             </span>
-            <h3 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "30px", color: "#ffffff" }}>
+            <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
               Hotels &amp; concierge
             </h3>
-            <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300", fontSize: "15px" }}>
+            <p className="m-0 text-ink-400 text-[15px] font-light">
               A trusted partner for hotels and concierge desks welcoming international guests to the Netherlands.
             </p>
           </article>
-          <article className="card reveal" style={{ background: "#0a0a0b", padding: "40px 36px", display: "flex", flexDirection: "column", gap: "16px", minHeight: "280px" }}>
-            <span className="chrome" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "22px" }}>
+          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+            <span className="chrome font-display text-[22px]">
               VI
             </span>
-            <h3 style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "400", fontSize: "30px", color: "#ffffff" }}>
+            <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
               Bespoke programmes
             </h3>
-            <p style={{ margin: "0", color: "#a6a6ad", fontWeight: "300", fontSize: "15px" }}>
+            <p className="m-0 text-ink-400 text-[15px] font-light">
               Multi-day delegations, events and itineraries planned around your requirements, not ours.
             </p>
           </article>

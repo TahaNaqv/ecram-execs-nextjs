@@ -43,20 +43,12 @@ const jsonLd = {
 
 export default function HomePage() {
   return (
-    <div
-      className="motion-full"
-      style={{
-        width: "100%",
-        background: "#0a0a0b",
-        color: "#e4e4e7",
-        fontFamily: "var(--font-manrope), sans-serif",
-        fontWeight: 400,
-        fontSize: "16px",
-        lineHeight: 1.6,
-      }}
+    <div className="motion-full bg-ink-950 text-ink-150 font-sans text-[16px] font-normal leading-[1.6] w-full"
+     
+     
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <a href="#main" className="skip-link">
+      <a className="skip-link" href="#main">
         Skip to content
       </a>
       <SiteHeader />

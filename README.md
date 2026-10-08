@@ -11,7 +11,7 @@ Next.js 16 app containing:
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16 (App Router, Cache Components), React 19, TypeScript |
-| Styling | Homepage: ported design CSS (`app/(site)/site.css`) · Admin: Tailwind CSS v4 |
+| Styling | Tailwind CSS v4 everywhere (site and admin) |
 | Database | PostgreSQL (Supabase in production) via Drizzle ORM |
 | Validation | Zod |
 | Email | Resend (optional — skipped and logged if not configured) |
@@ -64,6 +64,15 @@ npm run dev        # http://localhost:3000 and http://localhost:3000/admin
 ```
 
 Running `admin:create` again for an existing email resets that admin's password and signs them out everywhere.
+
+## Styling
+
+Everything is styled with **Tailwind CSS v4** utility classes.
+
+- **Website theme** — `app/(site)/site.css` defines the design tokens: the `ink` colour scale (`ink-50` paper white → `ink-975` deep black, plus `error`), the fonts (`font-display` Cinzel, `font-serif` Cormorant Garamond, `font-sans` Manrope) and the breakpoints the design was built on: `xs` 381px · `sm` 481px · `md` 761px · `lg` 1001px · `xl` 1101px · `2xl` 1800px (mobile-first — e.g. `md:` applies from 761px up).
+- **Effects** — the same file keeps the few things utilities can't express: the chrome text gradient, logo sheen, marquee, reveal-on-scroll, button hover fills, and the CSS-only mobile menu. Use them as classes (`chrome`, `btn-fill`, `reveal`, …).
+- **Admin** — `app/(admin)/admin.css` uses Tailwind's defaults.
+- The website doesn't load Tailwind's Preflight reset, because the design was built on browser defaults.
 
 ## Business details (phone, email, socials…)
 

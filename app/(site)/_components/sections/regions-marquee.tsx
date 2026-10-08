@@ -1,66 +1,66 @@
 export function RegionsMarquee() {
   return (
-    <section aria-label="Cities we serve" style={{ borderBottom: "1px solid #1f1f23", overflow: "hidden", padding: "40px 0" }}>
-      <div className="marquee cities" style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", fontWeight: "300", fontSize: "46px", lineHeight: "1", whiteSpace: "nowrap" }}>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+    <section className="py-10 px-0 overflow-hidden border-b border-b-ink-850" aria-label="Cities we serve">
+      <div className="marquee font-serif text-[34px] italic font-light leading-[1] text-nowrap md:text-[46px]">
+        <span className="pr-11 text-ink-50 md:pr-18">
           Amsterdam
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Rotterdam
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           The Hague
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Utrecht
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Eindhoven
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Maastricht
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Haarlem
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Groningen
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Delft
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Schiphol
         </span>
         {" "}
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Amsterdam
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Rotterdam
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           The Hague
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Utrecht
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Eindhoven
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Maastricht
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Haarlem
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Groningen
         </span>
-        <span style={{ paddingRight: "72px", color: "#f4f4f5" }}>
+        <span className="pr-11 text-ink-50 md:pr-18">
           Delft
         </span>
-        <span style={{ paddingRight: "72px", color: "#6b6b73" }}>
+        <span className="pr-11 text-ink-500 md:pr-18">
           Schiphol
         </span>
       </div>

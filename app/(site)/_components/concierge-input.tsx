@@ -21,24 +21,24 @@ export function ConciergeInput() {
   }
 
   return (
-    <form onSubmit={onSubmit} style={{ display: "flex", borderTop: "1px solid #26262a" }}>
-      <label style={{ flex: "1", display: "flex" }}>
-        <span style={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+    <form className="border-t border-t-ink-800 flex" onSubmit={onSubmit}>
+      <label className="flex-1 flex">
+        <span className="overflow-hidden [clip:rect(0px,0px,0px,0px)] h-px absolute w-px">
           Message the concierge
         </span>
-        <input
+        <input className="py-0 px-[22px] border-none flex-1 outline-none bg-transparent text-white text-[16px] min-h-[56px] min-w-0 md:text-[14px]"
           name="message"
           type="text"
           placeholder="Ask about a journey…"
           maxLength={500}
           autoComplete="off"
-          style={{ flex: "1", minWidth: 0, minHeight: "56px", border: "none", outline: "none", background: "transparent", color: "#ffffff", padding: "0 22px", fontSize: "14px" }}
+         
         />
       </label>
-      <button
+      <button className="border-0 border-l border-l-ink-800 items-center bg-transparent text-white cursor-pointer flex justify-center w-14"
         type="submit"
         aria-label="Send message"
-        style={{ width: "56px", border: "none", borderLeft: "1px solid #26262a", background: "transparent", color: "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+       
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
           <path d="M5 12h14M13 6l6 6-6 6"></path>

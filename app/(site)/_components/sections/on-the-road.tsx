@@ -1,10 +1,10 @@
 export function OnTheRoad() {
   return (
-    <section style={{ borderBottom: "1px solid #1f1f23" }}>
-      <div className="qr-row sx-padding-100px-24px" style={{ maxWidth: "1080px", margin: "0 auto", padding: "100px 24px", display: "flex", flexWrap: "wrap", gap: "48px", alignItems: "center", justifyContent: "center", textAlign: "left" }}>
-        <div style={{ position: "relative", width: "160px", height: "160px", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
+    <section className="border-b border-b-ink-850">
+      <div className="py-18 px-5 my-0 mx-auto gap-8 items-center flex flex-col flex-wrap justify-center max-w-[1080px] text-center md:py-25 md:px-6 md:gap-12 md:text-left md:flex-row">
+        <div className="flex-none items-center flex h-40 justify-center relative w-40">
           <span className="orbit" aria-hidden="true"></span>
-          <div style={{ width: "112px", height: "112px", borderRadius: "50%", border: "1px solid #3a3a40", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="border border-ink-700 rounded-full items-center flex h-28 justify-center w-28">
             <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" strokeWidth="1.1" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7"></rect>
               <rect x="14" y="3" width="7" height="7"></rect>
@@ -13,11 +13,11 @@ export function OnTheRoad() {
             </svg>
           </div>
         </div>
-        <div style={{ flex: "1 1 420px", minWidth: "0", display: "flex", flexDirection: "column", gap: "14px" }}>
-          <span className="reveal sx-letter-spacing-0-42em" style={{ fontFamily: "var(--font-cinzel), serif", fontSize: "12px", letterSpacing: "0.42em", color: "#8e8e96" }}>
+        <div className="gap-[14px] flex-auto items-center flex flex-col min-w-0 md:flex-[1_1_420px] md:items-stretch">
+          <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             SEEN US ON THE ROAD?
           </span>
-          <p className="qr-text" style={{ margin: "0", fontFamily: "var(--font-cormorant), serif", fontWeight: "300", fontSize: "32px", lineHeight: "1.2", color: "#ffffff" }}>
+          <p className="m-0 text-white font-serif text-[26px] font-light leading-[1.2] md:text-[32px]">
             Welcome. You found us through the emblem at the heart of our wings — every Ecram vehicle carries one.
           </p>
         </div>
