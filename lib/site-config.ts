@@ -38,11 +38,11 @@ export const siteConfig: SiteConfig = {
 
   /** Full profile URLs (https://…); leave "" to hide that network */
   social: {
-    instagram: "#", // DEMO — "#" shows the link without leaving the page
-    tiktok: "#", // DEMO
-    linkedin: "#", // DEMO
-    youtube: "#", // DEMO
-    x: "#", // DEMO
+    instagram: "https://www.instagram.com/ecramexecs/",
+    tiktok: "https://www.tiktok.com/@ecramexecs",
+    linkedin: "", // not provided by client — hidden
+    youtube: "https://www.youtube.com/@ecramexecs",
+    x: "https://x.com/EcramExecs",
   },
 };
 
