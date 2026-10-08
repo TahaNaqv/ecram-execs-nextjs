@@ -6,10 +6,15 @@ export function Hero() {
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
         <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/3b00bbaea002c5bc3c19878670191ab0.jpg" alt="Ecram Execs electric Mercedes van on a Dutch polder road at blue hour" fill priority sizes="100vw" />
         <div className="inset-0 bg-[radial-gradient(at_50%_45%,rgba(10,10,11,0.55)_0%,rgba(10,10,11,0.85)_70%,#0a0a0b_100%)] absolute"></div>
+        {/* Phones: extra scrim so the copy stays legible over the vehicle */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.35)_0%,rgba(0,0,0,0.65)_35%,rgba(0,0,0,0.65)_75%,rgba(0,0,0,0.4)_100%)] md:hidden"></div>
       </div>
       <div className="px-5 pt-12 pb-10 my-0 mx-auto gap-[22px] items-center box-border flex flex-col max-w-[1280px] relative text-center w-full md:px-6 md:pt-20 md:pb-24 md:gap-7 2xl:max-w-[1440px]">
-        <div className="emblem max-w-[min(300px,82vw)] md:max-w-[520px]">
-          <Image className="block h-auto w-full" src="/assets/ecram-execs-logo-transparent.webp" alt="Ecram Execs luxury chrome emblem with QR code" width={1040} height={416} priority sizes="(max-width: 760px) 82vw, 520px" />
+        <span className="rise d1 font-display text-[10px] tracking-[0.34em] text-ink-400 md:hidden">
+          THE ART OF EXECUTIVE HOSPITALITY
+        </span>
+        <div className="emblem hidden md:block md:max-w-[520px]">
+          <Image className="block h-auto w-full" src="/assets/ecram-execs-logo-transparent.webp" alt="Ecram Execs luxury chrome emblem with QR code" width={1040} height={416} priority sizes="520px" />
         </div>
         <h1 className="rise d2 mx-0 mt-2 mb-0 text-white font-serif text-[clamp(36px,10.4vw,46px)] font-light tracking-[-0.01em] leading-[1.05] md:text-[clamp(40px,5.4vw,76px)]">
           Every journey is part{" "}
@@ -18,7 +23,7 @@ export function Hero() {
             of the experience.
           </em>
         </h1>
-        <p className="rise d3 m-0 text-ink-300 text-[16px] font-light max-w-[620px] md:text-[17px]">
+        <p className="rise d3 m-0 text-ink-150 text-[16px] font-normal max-w-[620px] md:text-ink-300 md:text-[17px] md:font-light">
           Private executive chauffeurs across the Netherlands, in a fully electric fleet. Calm, discreet and effortless — from the moment you are collected to the moment you arrive.
         </p>
         <div className="rise d4 mt-2 gap-3 items-stretch flex flex-col flex-wrap justify-center max-w-[360px] w-full md:gap-4 md:items-stretch md:flex-row md:max-w-none md:w-auto">
@@ -26,7 +31,7 @@ export function Hero() {
             Request a quotation
           </a>
           {" "}
-          <a className="btn-line py-0 px-5 gap-3 border border-ink-700 no-underline items-center text-white inline-flex text-[12px] justify-center tracking-[0.24em] min-h-[52px] uppercase md:py-0 md:px-[30px] md:justify-normal" href="#experience">
+          <a className="btn-line py-0 px-5 gap-3 no-underline items-center text-ink-250 inline-flex text-[11px] justify-center tracking-[0.24em] min-h-[44px] uppercase md:border md:border-ink-700 md:text-white md:text-[12px] md:min-h-[52px] md:py-0 md:px-[30px] md:justify-normal" href="#experience">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <path d="M7 4l13 8-13 8z"></path>
             </svg>

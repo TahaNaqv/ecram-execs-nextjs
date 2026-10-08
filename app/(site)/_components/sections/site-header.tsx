@@ -9,7 +9,7 @@ export function SiteHeader() {
             ECRAM EXECS
           </span>
           {" "}
-          <span className="text-ink-450 font-display text-[8px] tracking-[0.3em] md:text-[9px] md:tracking-[0.42em]">
+          <span className="hidden text-ink-450 font-display text-[9px] tracking-[0.42em] md:block">
             THE ART OF EXECUTIVE HOSPITALITY
           </span>
         </a>
