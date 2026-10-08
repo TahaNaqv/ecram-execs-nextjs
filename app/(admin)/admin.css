@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cinzel), serif;
+}
+
+body {
+  background: #fafafa;
+  color: #0a0a0b;
+}

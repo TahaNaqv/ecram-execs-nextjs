@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ecram Execs — website, quote requests & admin
 
-## Getting Started
+Next.js 16 app containing:
 
-First, run the development server:
+- **`/`** — the public homepage (ported from the design export in `../Ecram-Execs-Website`), fully server-rendered.
+- **Quote form** — the "Plan your journey" form saves each request to Postgres and emails the team.
+- **`/admin`** — password-protected panel to review requests, set status, record the quoted amount and keep internal notes. Every change is logged in the request's history.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router, Cache Components), React 19, TypeScript |
+| Styling | Homepage: ported design CSS (`app/(site)/site.css`) · Admin: Tailwind CSS v4 |
+| Database | PostgreSQL (Supabase in production) via Drizzle ORM |
+| Validation | Zod |
+| Email | Resend (optional — skipped and logged if not configured) |
+| Hosting | Vercel |
+
+## Project layout
+
+```
+app/
+  (site)/                 public website (own root layout, fonts, CSS)
+    _components/sections/ one component per homepage section
+    _components/quote-form.tsx
+  (admin)/admin/          admin panel (own root layout, Tailwind)
+    login/  requests/[id]/  actions.ts
+lib/
+  db/        schema.ts (tables), index.ts (connection)
+  quotes/    validation + the public submitQuote server action
+  auth/      password hashing and database sessions
+  admin/     admin-only queries (each checks the session)
+  site-config.ts  business details shown on the website
+drizzle/     SQL migrations (generated — commit them)
+scripts/     create-admin.mts
+tests/e2e/   Playwright end-to-end tests
+proxy.ts     redirects signed-out visitors away from /admin
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Requires Node 20+ and Docker (or any Postgres).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
 
-## Learn More
+# 1. A local Postgres
+docker run -d --name ecram-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ecram \
+  -p 127.0.0.1:54329:5432 postgres:17-alpine
 
-To learn more about Next.js, take a look at the following resources:
+# 2. Environment
+cp .env.example .env.local
+#    set DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/ecram
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 3. Create the tables
+npm run db:migrate
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 4. Create your admin login (prompts for a password, min 12 characters)
+npm run admin:create -- you@example.com "Your Name"
 
-## Deploy on Vercel
+# 5. Run
+npm run dev        # http://localhost:3000 and http://localhost:3000/admin
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Running `admin:create` again for an existing email resets that admin's password and signs them out everywhere.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Business details (phone, email, socials…)
+
+Edit **`lib/site-config.ts`**. Every field is optional: anything left empty is hidden on the site, so no placeholder text ever reaches visitors. Phone, email, address, KvK number, fleet seating/amenities and social links all live there and flow into the footer, call buttons, privacy policy and search-engine data.
+
+## Tests
+
+```bash
+npm run lint
+npm run typecheck
+npm run build && npm run test:e2e   # Playwright, against the production build
+```
+
+The end-to-end suite checks the homepage at six screen sizes (320px → 1920px), the mobile menu, the quote form (validation and a full submit → admin → quote → delete flow), admin login, the 404 page, security headers and robots/sitemap. It creates its own admin user and cleans up after itself. Locally it uses your installed Google Chrome.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs all of the above with a throwaway Postgres on every push and pull request.
+
+## Changing the database
+
+1. Edit `lib/db/schema.ts`
+2. `npm run db:generate` — writes a new SQL file to `drizzle/`
+3. `npm run db:migrate` — applies it (run against production too, see below)
+
+`npm run db:studio` opens a browser view of the data.
+
+## Production setup
+
+### 1. Supabase (database)
+
+1. Create a project at [supabase.com](https://supabase.com) — choose an **EU region (Frankfurt)**.
+2. *Project Settings → Database → Connection string*:
+   - **Transaction pooler** (port 6543) → `DATABASE_URL`
+   - **Session pooler** (port 5432) → `DATABASE_URL_DIRECT`
+3. From your machine, with those two values in `.env.local`:
+   ```bash
+   npm run db:migrate
+   npm run admin:create -- owner@ecramexecs.nl "Owner Name"
+   ```
+
+### 2. Resend (email alerts) — optional but recommended
+
+1. Create an account at [resend.com](https://resend.com), add and verify your domain.
+2. Create an API key.
+3. Set `RESEND_API_KEY`, `EMAIL_FROM` (an address on the verified domain) and `NOTIFY_EMAIL_TO` (comma-separate several recipients).
+
+### 3. Vercel
+
+1. Push this folder to its own GitHub repository and import it at [vercel.com/new](https://vercel.com/new) (framework: Next.js, defaults are fine).
+2. *Settings → Environment Variables*: add everything from `.env.example`. Generate `IP_HASH_SALT` with `openssl rand -hex 32`.
+3. *Settings → Functions → Function Region*: pick **Frankfurt (fra1)** to sit next to the database.
+4. Deploy. Commercial sites need the Vercel **Pro** plan.
+
+## Launch checklist
+
+- [ ] Fill in `lib/site-config.ts` (phone, email, address, KvK, seating, amenities, socials)
+- [ ] Review the privacy policy text in `app/(site)/privacy/page.tsx` (retention period, processors)
+- [ ] Supabase on the **Pro** plan (daily backups, no pausing), EU region, migrations run
+- [ ] Admin accounts created with `npm run admin:create`
+- [ ] Resend domain verified; `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_EMAIL_TO` set — submit a test request and confirm both emails arrive
+- [ ] Vercel **Pro**, function region `fra1`, all env vars set, `SITE_URL` = the final domain
+- [ ] Custom domain connected (HTTPS is automatic)
+- [ ] Brand film added (the play button is disabled until then)
+
+## Security notes
+
+- Admin passwords are hashed with scrypt; sessions are random tokens stored hashed in the database (httpOnly, secure cookie, 7 days).
+- Five wrong passwords lock an account for 15 minutes.
+- Every admin page, query and server action re-checks the session (`requireAdmin`); `proxy.ts` is only a fast pre-check.
+- The quote form has a honeypot field and allows 5 submissions per visitor per 15 minutes. Visitor IPs are stored only as salted hashes.
+- `/admin` is marked `noindex`, excluded in robots.txt and sent with `Cache-Control: private, no-store`.
+- Security headers on every response: Content-Security-Policy, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy. When adding a third-party service (analytics, video embeds), extend the CSP in `next.config.ts`.
+- Admins can permanently delete a request (and its history) for GDPR erasure requests.
