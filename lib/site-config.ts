@@ -1,7 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  Business details shown on the website.
-//  Fill these in before launch. Anything left empty is simply hidden on the site
-//  (no "[PHONE]"-style placeholders are ever shown to visitors).
+//
+//  ⚠ DEMO VALUES — the entries marked "DEMO" are sample data for client previews.
+//  Replace them with the real details before launch. Anything set to "" is simply
+//  hidden on the site (no "[PHONE]"-style placeholders are ever shown to visitors).
 // ─────────────────────────────────────────────────────────────────────────────
 type SiteConfig = {
   name: string;
@@ -18,29 +20,29 @@ export const siteConfig: SiteConfig = {
 
   contact: {
     /** Display format, e.g. "+31 20 123 4567" */
-    phone: "",
-    email: "",
+    phone: "+31 20 123 4567", // DEMO
+    email: "reservations@ecramexecs.nl", // DEMO
     /** e.g. "Herengracht 1, 1015 BA Amsterdam" ("Netherlands" is added automatically) */
-    address: "",
+    address: "Gustav Mahlerplein, Amsterdam Zuidas", // DEMO
   },
 
   /** Kamer van Koophandel registration number */
-  kvk: "",
+  kvk: "12345678", // DEMO
 
   fleet: {
     /** e.g. "Up to 6 passengers" */
-    passengers: "",
+    passengers: "Up to 6 passengers", // DEMO — confirm seating configuration
     /** e.g. "Wi-Fi, chilled water, device charging" */
-    amenities: "",
+    amenities: "Wi-Fi, chilled water, device charging", // DEMO — confirm
   },
 
-  /** Full profile URLs; leave empty to hide that network */
+  /** Full profile URLs (https://…); leave "" to hide that network */
   social: {
-    instagram: "",
-    tiktok: "",
-    linkedin: "",
-    youtube: "",
-    x: "",
+    instagram: "#", // DEMO — "#" shows the link without leaving the page
+    tiktok: "#", // DEMO
+    linkedin: "#", // DEMO
+    youtube: "#", // DEMO
+    x: "#", // DEMO
   },
 };
 

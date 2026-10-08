@@ -19,6 +19,7 @@ import {
 } from "./_components/sections";
 
 const siteUrl = process.env.SITE_URL ?? "https://ecramexecs.vercel.app";
+const profileUrls = socialLinks.map(([, url]) => url).filter((url) => url.startsWith("http"));
 
 // Structured data so search engines understand the business (fields are only included once filled in)
 const jsonLd = {
@@ -38,7 +39,7 @@ const jsonLd = {
   ...(siteConfig.contact.address
     ? { address: { "@type": "PostalAddress", streetAddress: siteConfig.contact.address, addressCountry: "NL" } }
     : {}),
-  ...(socialLinks.length ? { sameAs: socialLinks.map(([, url]) => url) } : {}),
+  ...(profileUrls.length ? { sameAs: profileUrls } : {}),
 };
 
 export default function HomePage() {

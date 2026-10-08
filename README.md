@@ -74,6 +74,11 @@ Everything is styled with **Tailwind CSS v4** utility classes.
 - **Admin** — `app/(admin)/admin.css` uses Tailwind's defaults.
 - The website doesn't load Tailwind's Preflight reset, because the design was built on browser defaults.
 
+## Demo data (for client previews)
+
+- **Website:** `lib/site-config.ts` currently holds sample business details, each marked `// DEMO`. Replace them with the real ones before launch.
+- **Admin panel:** `npm run db:seed-demo` adds 12 fictional quote requests across every status, with history. Running it again replaces them. `npm run db:seed-demo -- --clear` removes them. Demo rows are tagged `source = 'demo'`, so real requests are never touched.
+
 ## Business details (phone, email, socials…)
 
 Edit **`lib/site-config.ts`**. Every field is optional: anything left empty is hidden on the site, so no placeholder text ever reaches visitors. Phone, email, address, KvK number, fleet seating/amenities and social links all live there and flow into the footer, call buttons, privacy policy and search-engine data.
@@ -127,7 +132,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs all of the above with a throwaw
 
 ## Launch checklist
 
-- [ ] Fill in `lib/site-config.ts` (phone, email, address, KvK, seating, amenities, socials)
+- [ ] Replace the `// DEMO` values in `lib/site-config.ts` (phone, email, address, KvK, seating, amenities, socials)
+- [ ] Remove the demo requests: `npm run db:seed-demo -- --clear` (against the production database)
 - [ ] Review the privacy policy text in `app/(site)/privacy/page.tsx` (retention period, processors)
 - [ ] Supabase on the **Pro** plan (daily backups, no pausing), EU region, migrations run
 - [ ] Admin accounts created with `npm run admin:create`

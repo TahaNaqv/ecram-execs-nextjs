@@ -89,7 +89,7 @@ export function SiteFooter() {
           </span>
           <nav className="gap-6 flex flex-wrap text-[11px] tracking-[0.24em] uppercase" aria-label="Social">
             {socialLinks.map(([label, url]) => (
-              <a className="navlink" key={label} href={url} target="_blank" rel="noopener noreferrer">
+              <a className="navlink" key={label} href={url} {...(url.startsWith("http") && { target: "_blank", rel: "noopener noreferrer" })}>
                 {label}
               </a>
             ))}
