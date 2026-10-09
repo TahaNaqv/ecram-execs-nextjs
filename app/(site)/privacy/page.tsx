@@ -67,8 +67,10 @@ export default function PrivacyPage() {
             When you apply to drive with us we collect your name, email address, phone number, KvK number, years of driving experience, your
             car&apos;s licence plate and any notes you add. We look the plate up in the public register of the RDW (the Dutch vehicle
             authority) to check the car against our criteria, and store the make, model, colour, seating, registration dates and taxi
-            registration it returns. We use this only to assess your application and, if it is approved, to work with you. The legal basis
-            is taking steps at your request before entering into a contract (Article 6(1)(b) GDPR).
+            registration it returns. You also upload copies of your chauffeur card, KvK extract, certificate of conduct (VOG) and insurance;
+            these are stored in a private storage area that only our team can open. We use this only to assess your application and, if it
+            is approved, to work with you. The legal basis is taking steps at your request before entering into a contract (Article 6(1)(b)
+            GDPR).
           </p>
           <p className="m-0">
             To protect the forms against abuse we also store a one-way, salted hash of your IP address and your browser&apos;s user-agent
@@ -88,7 +90,7 @@ export default function PrivacyPage() {
           <p className="m-0">We use carefully selected service providers who process data on our behalf under data processing agreements:</p>
           <ul className="m-0 list-disc pl-5">
             <li>Vercel — website hosting</li>
-            <li>Supabase — database hosting, in the European Union</li>
+            <li>Supabase — database and document storage, in the European Union</li>
             <li>Resend — delivery of email notifications about your request</li>
           </ul>
           <p className="m-0">We do not sell your data or share it with third parties for marketing.</p>
@@ -97,7 +99,7 @@ export default function PrivacyPage() {
         <Section title="How long we keep it">
           <p className="m-0">
             Quotation requests are kept for up to 24 months after our last contact with you, so we can handle follow-up questions and repeat
-            bookings. Driver applications that do not lead to a partnership are kept for up to 12 months. Information that forms part of our financial records is kept for seven years, as Dutch tax law requires. You can ask us
+            bookings. Driver applications that do not lead to a partnership, including the documents uploaded with them, are kept for up to 12 months. Information that forms part of our financial records is kept for seven years, as Dutch tax law requires. You can ask us
             to delete your request at any time.
           </p>
         </Section>

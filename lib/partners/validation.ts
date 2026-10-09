@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DECLARATIONS, DRIVER_CRITERIA } from "./criteria";
+import { DECLARATIONS, DRIVER_CRITERIA, type DocumentName } from "./criteria";
 
 const text = (label: string, max: number) =>
   z
@@ -37,3 +37,5 @@ export const applicationSchema = z.object({
 
 export type ApplicationInput = z.infer<typeof applicationSchema>;
 export type ApplicationField = keyof ApplicationInput;
+/** Everything the form can flag an error on */
+export type FormField = ApplicationField | DocumentName;

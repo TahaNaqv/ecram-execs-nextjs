@@ -2,8 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { E2E_ADMIN } from "./helpers";
 
 // These plates are real RDW records (the check runs against the live register):
-// a black, electric 2024 Mercedes-Benz EQB taxi that meets the criteria, and a Toyota Prius that doesn't.
-const QUALIFYING_PLATE = "GHL-93-X";
+// a 2026 BMW i5 taxi that meets the criteria, a 2024 Mercedes-Benz EQB taxi that isn't an approved model,
+// and a Toyota Prius that fails on several counts.
+const QUALIFYING_PLATE = "KXD-26-R";
+const UNAPPROVED_MODEL_PLATE = "GHL-93-X";
 const FAILING_PLATE = "13-TFN-3";
 
 async function fillApplication(page: Page, name: string, plate: string) {
@@ -21,10 +23,19 @@ test("a car that doesn't meet the criteria is turned away with the reasons", asy
   await page.goto("/drive-with-us");
   await fillApplication(page, `E2E Driver Rejected ${Date.now()}`, FAILING_PLATE);
   const alert = page.getByRole("alert").filter({ hasText: "According to the RDW register" });
-  await expect(alert).toContainText("doesn't meet our criteria");
+  // The RDW register can take several seconds to answer
+  await expect(alert).toContainText("doesn't meet our criteria", { timeout: 15_000 });
   await expect(alert).toContainText("fully electric");
   // The form keeps what was entered
   await expect(page.getByLabel("Licence plate")).toHaveValue(FAILING_PLATE);
+});
+
+test("an electric taxi that isn't on the approved model list is turned away", async ({ page }) => {
+  await page.goto("/drive-with-us");
+  await fillApplication(page, `E2E Driver Model ${Date.now()}`, UNAPPROVED_MODEL_PLATE);
+  const alert = page.getByRole("alert").filter({ hasText: "According to the RDW register" });
+  await expect(alert).toContainText("isn't on our approved model list", { timeout: 15_000 });
+  await expect(alert).not.toContainText("fully electric");
 });
 
 test("an independent driver applies with their own car and an admin approves them onto the drivers board", async ({ page }) => {
@@ -33,6 +44,7 @@ test("an independent driver applies with their own car and an admin approves the
   // 1. Apply
   await page.goto("/drive-with-us");
   await expect(page.getByRole("heading", { name: /What we ask of your car/ })).toBeVisible();
+  await expect(page.getByText("Model S, Model X")).toBeVisible();
   await fillApplication(page, name, QUALIFYING_PLATE);
   await expect(page.getByRole("status")).toContainText("Your car meets our criteria", { timeout: 15_000 });
   const reference = (await page.getByRole("status").innerText()).match(/AP-[A-Z0-9]{6}/)![0];
@@ -50,7 +62,7 @@ test("an independent driver applies with their own car and an admin approves the
   await expect(page.getByRole("heading", { name: "Driver applications" })).toBeVisible();
   await page.getByRole("link").filter({ hasText: name }).click();
   await expect(page.getByText(reference)).toBeVisible();
-  await expect(page.locator("dd", { hasText: "Mercedes-Benz EQB" })).toBeVisible();
+  await expect(page.locator("dd", { hasText: "BMW I5 EDRIVE40" })).toBeVisible();
   await expect(page.getByText("Meets criteria")).toBeVisible({ timeout: 15_000 });
 
   // 4. Approve: the driver joins the board as a partner with their car
@@ -61,6 +73,6 @@ test("an independent driver applies with their own car and an admin approves the
   await page.goto("/admin/drivers");
   const row = page.getByRole("listitem").filter({ hasText: name });
   await expect(row).toContainText("Partner");
-  await expect(row).toContainText("GHL93X");
+  await expect(row).toContainText("KXD26R");
   await expect(row.getByRole("button", { name: "Start shift" })).toBeVisible();
 });

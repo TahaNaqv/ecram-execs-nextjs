@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -13,7 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { isNull } from "drizzle-orm";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
-import { APPLICATION_STATUSES } from "@/lib/partners/criteria";
+import { APPLICATION_STATUSES, type ApplicationDocument } from "@/lib/partners/criteria";
 
 export { REQUEST_STATUSES, SERVICES, type RequestStatus } from "@/lib/quotes/constants";
 export { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/partners/criteria";
@@ -155,6 +156,8 @@ export const driverApplications = pgTable(
     openRecall: boolean("open_recall"),
     // Null when the RDW couldn't be reached at submission; the team checks the plate by hand
     rdwCheckedAt: timestamp("rdw_checked_at", { withTimezone: true }),
+    // Uploaded to the private Supabase Storage bucket; null on applications made before uploads existed
+    documents: jsonb("documents").$type<ApplicationDocument[]>(),
 
     internalNotes: text("internal_notes"),
     driverId: uuid("driver_id").references(() => drivers.id, { onDelete: "set null" }),

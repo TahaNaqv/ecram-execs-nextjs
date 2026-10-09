@@ -88,6 +88,7 @@ export async function notifyNewApplication(a: DriverApplication) {
     ["Vehicle", vehicle ?? "Not verified — the RDW could not be reached, please check the plate by hand"],
     ["Colour", a.colour && colourLabel(a.colour)],
     ["First registered", a.firstRegistered],
+    ["Documents", a.documents ? `${a.documents.length} uploaded — open them from the application in the admin` : null],
     ["Notes", a.notes],
   ];
   const html = teamAlert(`New driver application <strong>${esc(a.reference)}</strong>`, rows, site && `${site}/admin/drivers/applications/${a.id}`);
@@ -116,7 +117,7 @@ export async function confirmApplication(a: DriverApplication) {
         <tr><td style="color:#71717a">Licence plate</td><td>${esc(a.plate)}</td></tr>
         ${a.make ? `<tr><td style="color:#71717a">Vehicle</td><td>${esc(`${makeLabel(a.make)} ${a.model ?? ""}`)}</td></tr>` : ""}
       </table>
-      <p>Please have your chauffeurskaart, Kiwa licence and insurance documents to hand. If you have any questions, simply reply to this email.</p>
+      <p>Please bring the originals of your documents and your Kiwa licence to the introduction. If you have any questions, simply reply to this email.</p>
       <p>Kind regards,<br>Ecram Execs</p>
     </div>`;
   await send("application", a.reference, "applicant confirmation", {

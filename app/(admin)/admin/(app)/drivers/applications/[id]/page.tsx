@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getApplication } from "@/lib/admin/applications";
 import { formatDate, formatRelative, formatTimestamp } from "@/lib/admin/format";
-import { amsterdamToday, colourLabel, DECLARATIONS, makeLabel, vehicleChecks } from "@/lib/partners/criteria";
+import { amsterdamToday, colourLabel, DECLARATIONS, DOCUMENTS, makeLabel, vehicleChecks, type ApplicationDocument } from "@/lib/partners/criteria";
 import { lookupVehicle } from "@/lib/partners/rdw";
+import { signedDownloadUrl } from "@/lib/storage";
 import { DeleteRecord } from "../../../../_components/delete-record";
 import {
   AlertIcon,
@@ -175,6 +176,12 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
             <LiveCheck plate={a.plate} />
           </Suspense>
 
+          {a.documents && (
+            <Suspense fallback={<Skeleton className="h-48 rounded-xl" />}>
+              <Documents documents={a.documents} />
+            </Suspense>
+          )}
+
           {/* Driver */}
           <Card>
             <CardHeader title="Driver" icon={<BriefcaseIcon />} />
@@ -252,6 +259,52 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
         </div>
       </div>
     </div>
+  );
+}
+
+const fileSize = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
+
+/** The uploaded documents, as links that expire after ten minutes (the bucket is private). */
+async function Documents({ documents }: { documents: ApplicationDocument[] }) {
+  const links = await Promise.all(
+    documents.map((d) =>
+      signedDownloadUrl(d.path).catch((err) => {
+        console.error(`[admin] could not sign ${d.path}`, err);
+        return null;
+      }),
+    ),
+  );
+  return (
+    <Card>
+      <CardHeader title="Documents" description="Uploaded by the applicant — compare with the originals in person" icon={<NoteIcon />} />
+      <ul className="divide-y divide-zinc-100">
+        {DOCUMENTS.map((d) => {
+          const i = documents.findIndex((doc) => doc.name === d.name);
+          const doc = documents[i];
+          return (
+            <li key={d.name} className="flex items-center gap-3 px-5 py-2.5">
+              <span className="flex-1 text-sm text-zinc-900">
+                {d.label} <span className="text-zinc-500">· {d.hint}</span>
+              </span>
+              {!doc ? (
+                <span className="text-[13px] text-zinc-400">Not uploaded</span>
+              ) : links[i] ? (
+                <a
+                  href={links[i]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[13px] font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-900"
+                >
+                  Open {doc.path.split(".").pop()?.toUpperCase()} · {fileSize(doc.size)}
+                </a>
+              ) : (
+                <span className="text-[13px] text-red-700">Unavailable — reload to try again</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 

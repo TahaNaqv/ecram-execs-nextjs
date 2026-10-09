@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { APPLICATION_STATUSES, makeLabel } from "@/lib/partners/criteria";
 import { lookupVehicle } from "@/lib/partners/rdw";
+import { removeFiles } from "@/lib/storage";
 
 const { driverApplications: a, drivers, driverShifts } = schema;
 
@@ -100,12 +101,15 @@ export async function refreshVehicle(formData: FormData) {
   refresh();
 }
 
-/** Permanently removes an application (e.g. a GDPR erasure request). A partner driver it created stays on the board. */
+/** Permanently removes an application and its documents (e.g. a GDPR erasure request). A partner driver it created stays on the board. */
 export async function deleteApplication(formData: FormData) {
   await requireAdmin();
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) return;
-  const [deleted] = await db.delete(a).where(eq(a.id, id.data)).returning({ reference: a.reference });
-  if (deleted) console.info(`[admin] application ${deleted.reference} deleted`);
+  const [deleted] = await db.delete(a).where(eq(a.id, id.data)).returning({ reference: a.reference, documents: a.documents });
+  if (deleted) {
+    await removeFiles(deleted.documents?.map((d) => d.path) ?? []);
+    console.info(`[admin] application ${deleted.reference} deleted`);
+  }
   redirect("/admin/drivers/applications");
 }

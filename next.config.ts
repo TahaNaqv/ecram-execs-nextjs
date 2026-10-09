@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
+// Driver application documents upload from the browser straight to Supabase Storage
+const supabaseOrigin = process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : "";
 
 // Inline styles are used throughout the ported design and Next.js injects inline
 // bootstrap scripts, so 'unsafe-inline' is required; everything else is locked to this origin.
@@ -11,7 +13,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  `connect-src 'self' ${supabaseOrigin}`.trim(),
   "media-src 'self'",
   "frame-src 'none'",
   "frame-ancestors 'none'",

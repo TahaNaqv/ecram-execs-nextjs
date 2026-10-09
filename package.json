@@ -11,6 +11,7 @@
     "db:migrate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "db:studio": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs studio",
     "admin:create": "node --env-file-if-exists=.env.local scripts/create-admin.mts",
+    "storage:setup": "node --env-file-if-exists=.env.local scripts/setup-storage.mts",
     "typecheck": "next typegen && tsc --noEmit",
     "test:e2e": "playwright test",
     "db:seed-demo": "node --env-file-if-exists=.env.local scripts/seed-demo.mts"

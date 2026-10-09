@@ -1,21 +1,39 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import Link from "next/link";
-import { CRITERIA_TEXT } from "@/lib/partners/criteria";
+import { amsterdamToday, APPROVED_MODELS_BY_MAKE, criteriaText } from "@/lib/partners/criteria";
+import { storageConfigured } from "@/lib/storage";
 import { ApplicationForm } from "../_components/application-form";
 import { SiteFooter } from "../_components/sections";
 
 export const metadata: Metadata = {
   title: "Drive with us — Ecram Execs",
   description:
-    "Independent chauffeur with your own fully electric executive car? Apply to join the Ecram Execs platform — we check your car against our criteria instantly.",
+    "Independent chauffeur with your own fully electric luxury car? Apply to join the Ecram Execs platform — we check your car against our criteria instantly.",
   alternates: { canonical: "/drive-with-us" },
 };
 
 const STEPS = [
-  ["Apply", "Enter your licence plate and details. We check your car against the RDW register instantly."],
+  ["Apply", "Enter your licence plate and details, and upload your documents. We check your car against the RDW register instantly."],
   ["Meet the team", "We arrange a short introduction and inspect your car and documents in person."],
   ["Start driving", "Once approved you join our platform and receive executive journeys across the Netherlands."],
 ] as const;
+
+/** The age rule names a year, so the list is cached for a day rather than fixed at build time. */
+async function Criteria() {
+  "use cache";
+  cacheLife("days");
+  return (
+    <ul className="m-0 flex list-none flex-col p-0">
+      {criteriaText(amsterdamToday()).map((c) => (
+        <li key={c} className="flex gap-4 border-t border-ink-800 py-3.5 text-[14px] text-ink-150 first:border-t-0">
+          <span aria-hidden="true" className="mt-[9px] size-[5px] shrink-0 rotate-45 bg-ink-300" />
+          {c}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function DriveWithUsPage() {
   return (
@@ -67,17 +85,22 @@ export default function DriveWithUsPage() {
             <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-6 self-start border border-ink-800 bg-ink-900 p-6 md:p-10">
               <span className="font-display text-[12px] tracking-[0.3em] text-ink-450 md:tracking-[0.42em]">THE CRITERIA</span>
               <h2 className="m-0 font-serif text-[30px] leading-[1.1] font-light text-white">What we ask of your car and of you</h2>
-              <ul className="m-0 flex list-none flex-col p-0">
-                {CRITERIA_TEXT.map((c) => (
-                  <li key={c} className="flex gap-4 border-t border-ink-800 py-3.5 text-[14px] text-ink-150 first:border-t-0">
-                    <span aria-hidden="true" className="mt-[9px] size-[5px] shrink-0 rotate-45 bg-ink-300" />
-                    {c}
-                  </li>
-                ))}
-              </ul>
+              <Criteria />
+              <div className="flex flex-col gap-3">
+                <span className="font-display text-[12px] tracking-[0.3em] text-ink-450">APPROVED MODELS</span>
+                <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[14px]">
+                  {APPROVED_MODELS_BY_MAKE.map(({ make, models }) => (
+                    <div key={make} className="contents">
+                      <dt className="text-ink-450">{make}</dt>
+                      <dd className="m-0 text-ink-150">{models}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
               <p className="m-0 text-[13px] text-ink-450">
-                You will also need a valid chauffeurskaart, a Kiwa taxi transport licence and insurance for paid passenger transport. We
-                check these in person before you start.
+                With your application you upload your chauffeur card (chauffeurskaart / taxipas), a KvK extract, a VOG (profile 70) and
+                proof of insurance for paid passenger transport. You will also need a Kiwa taxi transport licence. We check the originals in
+                person before you start.
               </p>
             </div>
           </div>
@@ -89,7 +112,7 @@ export default function DriveWithUsPage() {
               <h2 className="m-0 font-serif text-[30px] leading-[1.1] font-normal md:text-[34px]">Apply to join</h2>
               <p className="m-0 text-[14px] text-ink-600">Takes about two minutes.</p>
             </div>
-            <ApplicationForm />
+            <ApplicationForm documents={storageConfigured()} />
           </div>
         </section>
       </main>
