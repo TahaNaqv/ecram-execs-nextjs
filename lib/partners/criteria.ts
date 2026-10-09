@@ -1,9 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  Criteria an independent driver's car must meet to join the platform.
 //
-//  ⚠ TO CONFIRM WITH THE CLIENT — these values are a proposal based on the current
-//  fleet (fully electric, executive, black). Edit them here: the "Drive with us"
-//  page, the automatic check at submission and the admin review all read this file.
+//  Client-confirmed: any colour, fully electric luxury vehicles only.
+//  ⚠ PENDING — David is sending the vehicle specification; the makes (and possibly an
+//  approved model list), age, seats and driver experience may change once it arrives.
+//  Edit them here: the "Drive with us" page, the automatic check at submission and
+//  the admin review all read this file.
 //
 //  Shared by the database schema, server code and client components (no server-only imports).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14,8 +16,8 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const VEHICLE_CRITERIA = {
   /** Makes as the RDW registers them (upper case) */
   makes: ["MERCEDES-BENZ", "BMW", "AUDI", "PORSCHE"],
-  /** Body colours as the RDW registers them: ZWART = black */
-  colours: ["ZWART"],
+  /** Body colours as the RDW registers them (ZWART = black); null accepts any colour */
+  colours: null as string[] | null,
   /** Counted from the date of first registration */
   maxAgeYears: 5,
   /** Including the driver's seat, as the RDW counts them */
@@ -63,7 +65,7 @@ const list = (items: string[]) =>
 export const CRITERIA_TEXT = [
   `${VEHICLE_CRITERIA.electricOnly ? "Fully electric " : ""}${list(VEHICLE_CRITERIA.makes.map(makeLabel))}`,
   `No more than ${VEHICLE_CRITERIA.maxAgeYears} years since first registration`,
-  `${list(VEHICLE_CRITERIA.colours.map(colourLabel))} exterior`,
+  ...(VEHICLE_CRITERIA.colours ? [`${list(VEHICLE_CRITERIA.colours.map(colourLabel))} exterior`] : []),
   `At least ${VEHICLE_CRITERIA.minSeats - 1} passenger seats`,
   ...(VEHICLE_CRITERIA.taxiRegistration ? ["Registered as a taxi with the RDW (blue plates) and a valid APK"] : ["A valid APK"]),
   `At least ${DRIVER_CRITERIA.minExperienceYears} years of professional driving experience`,
@@ -113,12 +115,6 @@ export function vehicleChecks(v: RdwVehicle, today: string): VehicleCheck[] {
       issue: `The car must be no more than ${c.maxAgeYears} years old.`,
     },
     {
-      label: "Colour",
-      ok: c.colours.includes(v.colour),
-      found: colourLabel(v.colour),
-      issue: `The car must be ${list(c.colours.map((x) => colourLabel(x).toLowerCase()))} (the RDW lists it as ${colourLabel(v.colour).toLowerCase()}).`,
-    },
-    {
       label: `At least ${c.minSeats - 1} passenger seats`,
       // Not every record lists seats; the team checks those in person
       ok: v.seats === null || v.seats >= c.minSeats,
@@ -144,6 +140,14 @@ export function vehicleChecks(v: RdwVehicle, today: string): VehicleCheck[] {
       issue: "The RDW has no valid insurance on record for this car.",
     },
   ];
+  if (c.colours) {
+    checks.push({
+      label: "Colour",
+      ok: c.colours.includes(v.colour),
+      found: colourLabel(v.colour),
+      issue: `The car must be ${list(c.colours.map((x) => colourLabel(x).toLowerCase()))} (the RDW lists it as ${colourLabel(v.colour).toLowerCase()}).`,
+    });
+  }
   return checks;
 }
 
