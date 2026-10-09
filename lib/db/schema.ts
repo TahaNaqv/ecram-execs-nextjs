@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   numeric,
@@ -6,8 +7,10 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { isNull } from "drizzle-orm";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
 export { REQUEST_STATUSES, SERVICES, type RequestStatus } from "@/lib/quotes/constants";
@@ -89,5 +92,35 @@ export const adminSessions = pgTable("admin_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const drivers = pgTable("drivers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  // Archived drivers are hidden from the board but keep their shift history
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A shift is open while ended_at is null; the countdown runs from started_at
+export const driverShifts = pgTable(
+  "driver_shifts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => drivers.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    startedBy: uuid("started_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    endedBy: uuid("ended_by").references(() => adminUsers.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    // At most one open shift per driver
+    uniqueIndex("driver_shifts_one_open_idx").on(t.driverId).where(isNull(t.endedAt)),
+    index("driver_shifts_driver_started_idx").on(t.driverId, t.startedAt),
+  ],
+);
+
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
+export type Driver = typeof drivers.$inferSelect;
