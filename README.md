@@ -109,8 +109,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs all of the above with a throwaw
 
 1. Create a project at [supabase.com](https://supabase.com) — choose an **EU region (Frankfurt)**.
 2. *Project Settings → Database → Connection string*:
-   - **Transaction pooler** (port 6543) → `DATABASE_URL`
-   - **Session pooler** (port 5432) → `DATABASE_URL_DIRECT`
+   - **Session pooler** (port 5432) → both `DATABASE_URL` and `DATABASE_URL_DIRECT`
+   - Don't use the transaction pooler (port 6543): admin pages run several queries in parallel and it hangs on them
 3. From your machine, with those two values in `.env.local`:
    ```bash
    npm run db:migrate

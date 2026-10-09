@@ -30,7 +30,7 @@ export async function listRequests({ status, search, page = 1 }: ListFilters) {
     );
   }
   const filter = where.length ? and(...where) : undefined;
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [counted]] = await Promise.all([
     db
       .select()
       .from(q)
@@ -40,7 +40,7 @@ export async function listRequests({ status, search, page = 1 }: ListFilters) {
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(q).where(filter),
   ]);
-  return { rows, total };
+  return { rows, total: counted?.total ?? 0 };
 }
 
 export const statusCounts = cache(async () => {
