@@ -14,7 +14,7 @@ Next.js 16 app containing:
 | Styling | Tailwind CSS v4 everywhere (site and admin) |
 | Database | PostgreSQL (Supabase in production) via Drizzle ORM |
 | Validation | Zod |
-| Email | Resend (optional — skipped and logged if not configured) |
+| Email | Resend, or Gmail SMTP for demos (optional — skipped and logged if not configured) |
 | Hosting | Vercel |
 
 ## Project layout
@@ -122,6 +122,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs all of the above with a throwaw
 1. Create an account at [resend.com](https://resend.com), add and verify your domain.
 2. Create an API key.
 3. Set `RESEND_API_KEY`, `EMAIL_FROM` (an address on the verified domain) and `NOTIFY_EMAIL_TO` (comma-separate several recipients).
+
+**No domain yet (demos):** leave `RESEND_API_KEY` empty and send through Gmail instead. Turn on 2-Step Verification for the Gmail account, create an App Password, then set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER` (the Gmail address), `SMTP_PASS` (the app password) and `EMAIL_FROM="Ecram Execs <that-address@gmail.com>"`. Gmail allows about 500 emails a day. Setting `RESEND_API_KEY` later switches to Resend with no code change.
 
 ### 3. Vercel
 

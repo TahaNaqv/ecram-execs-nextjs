@@ -1,4 +1,5 @@
 import "server-only";
+import nodemailer, { type Transporter } from "nodemailer";
 import type { DriverApplication, QuoteRequest } from "@/lib/db/schema";
 import { colourLabel, makeLabel } from "@/lib/partners/criteria";
 import { siteConfig } from "@/lib/site-config";
@@ -6,11 +7,11 @@ import { siteConfig } from "@/lib/site-config";
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-/** Emails the team about a new quote request. No-op (logged) when Resend isn't configured. */
+/** Emails the team about a new quote request. No-op (logged) when no mail provider is configured. */
 export async function notifyNewQuote(q: QuoteRequest) {
-  const { RESEND_API_KEY, EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
-  if (!RESEND_API_KEY || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
-    console.info(`[quote] ${q.reference} saved; email alert skipped (RESEND_API_KEY / EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
+  const { EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
+  if (!provider() || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
+    console.info(`[quote] ${q.reference} saved; email alert skipped (no RESEND_API_KEY or SMTP_*, or EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
     return;
   }
   const site = process.env.SITE_URL ?? "";
@@ -37,10 +38,10 @@ export async function notifyNewQuote(q: QuoteRequest) {
   });
 }
 
-/** Confirms receipt to the client. No-op when Resend isn't configured. */
+/** Confirms receipt to the client. No-op when no mail provider is configured. */
 export async function confirmToClient(q: QuoteRequest) {
-  const { RESEND_API_KEY, EMAIL_FROM } = process.env;
-  if (!RESEND_API_KEY || !EMAIL_FROM) return;
+  const { EMAIL_FROM } = process.env;
+  if (!provider() || !EMAIL_FROM) return;
   const first = q.name.split(" ")[0];
   const { phone, email } = siteConfig.contact;
   const html = `
@@ -67,11 +68,11 @@ export async function confirmToClient(q: QuoteRequest) {
   });
 }
 
-/** Emails the team about a new driver application. No-op (logged) when Resend isn't configured. */
+/** Emails the team about a new driver application. No-op (logged) when no mail provider is configured. */
 export async function notifyNewApplication(a: DriverApplication) {
-  const { RESEND_API_KEY, EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
-  if (!RESEND_API_KEY || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
-    console.info(`[application] ${a.reference} saved; email alert skipped (RESEND_API_KEY / EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
+  const { EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
+  if (!provider() || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
+    console.info(`[application] ${a.reference} saved; email alert skipped (no RESEND_API_KEY or SMTP_*, or EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
     return;
   }
   const site = process.env.SITE_URL ?? "";
@@ -99,10 +100,10 @@ export async function notifyNewApplication(a: DriverApplication) {
   });
 }
 
-/** Confirms receipt to the applicant. No-op when Resend isn't configured. */
+/** Confirms receipt to the applicant. No-op when no mail provider is configured. */
 export async function confirmApplication(a: DriverApplication) {
-  const { RESEND_API_KEY, EMAIL_FROM } = process.env;
-  if (!RESEND_API_KEY || !EMAIL_FROM) return;
+  const { EMAIL_FROM } = process.env;
+  if (!provider() || !EMAIL_FROM) return;
   const first = a.name.split(" ")[0];
   const { email } = siteConfig.contact;
   const html = `
@@ -144,8 +145,33 @@ function teamAlert(heading: string, rows: [string, string | number | null][], ad
     </div>`;
 }
 
-async function send(tag: string, reference: string, kind: string, payload: Record<string, unknown>) {
+/** Resend when RESEND_API_KEY is set (production, needs a verified domain); otherwise SMTP, e.g. Gmail for demos. */
+function provider(): "resend" | "smtp" | null {
+  const { RESEND_API_KEY, SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
+  if (RESEND_API_KEY) return "resend";
+  if (SMTP_HOST && SMTP_USER && SMTP_PASS) return "smtp";
+  return null;
+}
+
+let smtp: Transporter | undefined;
+
+type Payload = { from: string; to: string[]; reply_to?: string; subject: string; html: string };
+
+async function send(tag: string, reference: string, kind: string, payload: Payload) {
   try {
+    if (provider() === "smtp") {
+      const port = Number(process.env.SMTP_PORT ?? 465);
+      smtp ??= nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port,
+        secure: port === 465,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        connectionTimeout: 10_000,
+      });
+      const { reply_to, ...rest } = payload;
+      await smtp.sendMail({ ...rest, replyTo: reply_to });
+      return;
+    }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
