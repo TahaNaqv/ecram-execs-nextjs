@@ -1,12 +1,11 @@
 "use server";
 
-import { createHash, randomInt } from "node:crypto";
 import { and, count, eq, gt } from "drizzle-orm";
-import { headers } from "next/headers";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
+import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
 import { quoteSchema, type QuoteField } from "./validation";
 
 export type QuoteFormState =
@@ -22,10 +21,6 @@ export type QuoteFormState =
 
 const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "name", "email", "phone", "notes"] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
-const REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L
-
-const makeReference = () =>
-  "EE-" + Array.from({ length: 6 }, () => REF_ALPHABET[randomInt(REF_ALPHABET.length)]).join("");
 
 export async function submitQuote(prev: QuoteFormState, formData: FormData): Promise<QuoteFormState> {
   const values = Object.fromEntries(FIELDS.map((f) => [f, String(formData.get(f) ?? "")]));
@@ -52,11 +47,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return fail("Please check the highlighted details.", fieldErrors);
   }
 
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-  const ipHash = createHash("sha256")
-    .update(`${process.env.IP_HASH_SALT ?? "ecram-execs"}:${ip}`)
-    .digest("hex");
+  const { ipHash, userAgent } = await visitor();
 
   const since = new Date(Date.now() - RATE_LIMIT.windowMinutes * 60_000);
   const [{ recent }] = await db
@@ -74,14 +65,14 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
         .insert(schema.quoteRequests)
         .values({
           ...parsed.data,
-          reference: makeReference(),
+          reference: makeReference("EE"),
           ipHash,
-          userAgent: h.get("user-agent")?.slice(0, 300),
+          userAgent,
         })
         .returning();
     } catch (err) {
       // Retry only on a reference collision
-      if ((err as { cause?: { code?: string } }).cause?.code !== "23505" || i === 2) {
+      if (!isUniqueViolation(err) || i === 2) {
         console.error("[quote] insert failed", err);
         return fail("Something went wrong on our side. Please try again, or call us directly.");
       }

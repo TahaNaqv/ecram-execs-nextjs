@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   integer,
   numeric,
@@ -12,10 +13,13 @@ import {
 } from "drizzle-orm/pg-core";
 import { isNull } from "drizzle-orm";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { APPLICATION_STATUSES } from "@/lib/partners/criteria";
 
 export { REQUEST_STATUSES, SERVICES, type RequestStatus } from "@/lib/quotes/constants";
+export { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/partners/criteria";
 
 export const requestStatus = pgEnum("request_status", REQUEST_STATUSES);
+export const applicationStatus = pgEnum("application_status", APPLICATION_STATUSES);
 
 export const quoteRequests = pgTable(
   "quote_requests",
@@ -96,6 +100,9 @@ export const drivers = pgTable("drivers", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   phone: text("phone"),
+  // Partners are independent drivers who joined with their own car (see driver_applications)
+  partner: boolean("partner").notNull().default(false),
+  vehicle: text("vehicle"),
   // Archived drivers are hidden from the board but keep their shift history
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -121,6 +128,56 @@ export const driverShifts = pgTable(
   ],
 );
 
+// Independent drivers applying to join with their own car. Vehicle details come from the
+// RDW (Dutch vehicle register), looked up from the licence plate at submission.
+export const driverApplications = pgTable(
+  "driver_applications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reference: text("reference").notNull().unique(),
+    status: applicationStatus("status").notNull().default("new"),
+
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").notNull(),
+    kvk: text("kvk").notNull(),
+    experienceYears: integer("experience_years").notNull(),
+    notes: text("notes"),
+
+    plate: text("plate").notNull(),
+    make: text("make"),
+    model: text("model"),
+    colour: text("colour"),
+    seats: integer("seats"),
+    firstRegistered: date("first_registered"),
+    apkExpires: date("apk_expires"),
+    taxiRegistered: boolean("taxi_registered"),
+    openRecall: boolean("open_recall"),
+    // Null when the RDW couldn't be reached at submission; the team checks the plate by hand
+    rdwCheckedAt: timestamp("rdw_checked_at", { withTimezone: true }),
+
+    internalNotes: text("internal_notes"),
+    driverId: uuid("driver_id").references(() => drivers.id, { onDelete: "set null" }),
+    reviewedBy: uuid("reviewed_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+
+    source: text("source").notNull().default("website"),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("driver_applications_status_created_idx").on(t.status, t.createdAt),
+    index("driver_applications_ip_created_idx").on(t.ipHash, t.createdAt),
+    index("driver_applications_plate_idx").on(t.plate),
+  ],
+);
+
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
+export type DriverApplication = typeof driverApplications.$inferSelect;

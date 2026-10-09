@@ -64,7 +64,7 @@ test("a quote request flows from the website into the admin panel and can be man
   await page.getByRole("button", { name: /yes, delete permanently/i }).click();
   await expect(page.getByRole("heading", { name: "Quote requests" })).toBeVisible();
   await page.goto(`/admin?q=${reference}`);
-  await expect(page.getByText("No requests match these filters.").first()).toBeAttached();
+  await expect(page.getByText("No requests match these filters").first()).toBeAttached();
 });
 
 test("the admin panel rejects wrong passwords and signs out", async ({ page }) => {

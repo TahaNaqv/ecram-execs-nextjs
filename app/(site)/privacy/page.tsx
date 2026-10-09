@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-const LAST_UPDATED = "8 October 2026";
+const LAST_UPDATED = "9 October 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -64,7 +64,14 @@ export default function PrivacyPage() {
             contract (Article 6(1)(b) GDPR).
           </p>
           <p className="m-0">
-            To protect the form against abuse we also store a one-way, salted hash of your IP address and your browser&apos;s user-agent
+            When you apply to drive with us we collect your name, email address, phone number, KvK number, years of driving experience, your
+            car&apos;s licence plate and any notes you add. We look the plate up in the public register of the RDW (the Dutch vehicle
+            authority) to check the car against our criteria, and store the make, model, colour, seating, registration dates and taxi
+            registration it returns. We use this only to assess your application and, if it is approved, to work with you. The legal basis
+            is taking steps at your request before entering into a contract (Article 6(1)(b) GDPR).
+          </p>
+          <p className="m-0">
+            To protect the forms against abuse we also store a one-way, salted hash of your IP address and your browser&apos;s user-agent
             string. The hash cannot be turned back into your IP address. The legal basis is our legitimate interest in keeping the service
             secure (Article 6(1)(f) GDPR).
           </p>
@@ -90,7 +97,7 @@ export default function PrivacyPage() {
         <Section title="How long we keep it">
           <p className="m-0">
             Quotation requests are kept for up to 24 months after our last contact with you, so we can handle follow-up questions and repeat
-            bookings. Information that forms part of our financial records is kept for seven years, as Dutch tax law requires. You can ask us
+            bookings. Driver applications that do not lead to a partnership are kept for up to 12 months. Information that forms part of our financial records is kept for seven years, as Dutch tax law requires. You can ask us
             to delete your request at any time.
           </p>
         </Section>
@@ -110,7 +117,7 @@ export default function PrivacyPage() {
         <Section title="Security">
           <p className="m-0">
             Your data is transmitted over encrypted connections and stored in access-controlled systems. Only authorised staff can view
-            quotation requests.
+            quotation requests and driver applications.
           </p>
         </Section>
 

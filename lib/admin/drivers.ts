@@ -9,7 +9,15 @@ const { drivers: d, driverShifts: s } = schema;
 export async function listDrivers() {
   await requireAdmin();
   const rows = await db
-    .select({ id: d.id, name: d.name, phone: d.phone, active: d.active, shiftStartedAt: s.startedAt })
+    .select({
+      id: d.id,
+      name: d.name,
+      phone: d.phone,
+      partner: d.partner,
+      vehicle: d.vehicle,
+      active: d.active,
+      shiftStartedAt: s.startedAt,
+    })
     .from(d)
     .leftJoin(s, and(eq(s.driverId, d.id), isNull(s.endedAt)))
     .orderBy(desc(d.active), asc(d.name));

@@ -1,5 +1,6 @@
 import "server-only";
-import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { cache } from "react";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
@@ -42,12 +43,27 @@ export async function listRequests({ status, search, page = 1 }: ListFilters) {
   return { rows, total };
 }
 
-export async function statusCounts() {
+export const statusCounts = cache(async () => {
   await requireAdmin();
   const rows = await db.select({ status: q.status, n: count() }).from(q).groupBy(q.status);
   const counts = Object.fromEntries(REQUEST_STATUSES.map((s) => [s, 0])) as Record<RequestStatus, number>;
   for (const r of rows) counts[r.status] = r.n;
   return counts;
+});
+
+/** Headline figures for the requests dashboard. */
+export async function requestStats() {
+  await requireAdmin();
+  const [row] = await db
+    .select({
+      openValue: sql<string>`coalesce(sum(${q.quotedAmount}) filter (where ${q.status} = 'quoted'), 0)`,
+      confirmedValue: sql<string>`coalesce(sum(${q.quotedAmount}) filter (where ${q.status} = 'confirmed'), 0)`,
+      upcoming: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and ${q.pickupAt} >= (now() at time zone 'Europe/Amsterdam'))`.mapWith(Number),
+      next7: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and ${q.pickupAt} >= (now() at time zone 'Europe/Amsterdam') and ${q.pickupAt} < (now() at time zone 'Europe/Amsterdam') + interval '7 days')`.mapWith(Number),
+      last24h: sql<number>`count(*) filter (where ${q.createdAt} > now() - interval '24 hours')`.mapWith(Number),
+    })
+    .from(q);
+  return row;
 }
 
 export async function getRequest(id: string) {

@@ -5,7 +5,68 @@
   --font-display: var(--font-cinzel), serif;
 }
 
-body {
-  background: #fafafa;
-  color: #0a0a0b;
+@theme {
+  --shadow-card: 0 1px 2px 0 rgb(10 10 11 / 0.04), 0 1px 3px 0 rgb(10 10 11 / 0.03);
+  --shadow-pop: 0 10px 30px -10px rgb(10 10 11 / 0.18), 0 4px 10px -6px rgb(10 10 11 / 0.08);
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: #f6f6f7;
+    color: #0a0a0b;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: #18181b;
+    color: #fff;
+  }
+  :focus-visible {
+    outline: 2px solid #18181b;
+    outline-offset: 2px;
+  }
+  /* Inputs draw their own focus ring */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

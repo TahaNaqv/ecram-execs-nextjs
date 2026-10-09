@@ -1,4 +1,5 @@
 import { cacheLife } from "next/cache";
+import Link from "next/link";
 import { siteConfig, socialLinks, telHref } from "@/lib/site-config";
 
 async function CopyrightYear() {
@@ -29,35 +30,38 @@ export function SiteFooter() {
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 SERVICES
               </span>
-              <a className="navlink" href="#services">
+              <Link className="navlink" href="/#services">
                 Airport transfers
-              </a>
-              <a className="navlink" href="#services">
+              </Link>
+              <Link className="navlink" href="/#services">
                 Business travel
-              </a>
-              <a className="navlink" href="#corporate">
+              </Link>
+              <Link className="navlink" href="/#corporate">
                 Corporate accounts
-              </a>
-              <a className="navlink" href="#services">
+              </Link>
+              <Link className="navlink" href="/#services">
                 Private occasions
-              </a>
+              </Link>
             </nav>
             <nav className="gap-[10px] flex flex-col text-[14px]" aria-label="Company">
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 COMPANY
               </span>
-              <a className="navlink" href="#experience">
+              <Link className="navlink" href="/#experience">
                 The experience
-              </a>
-              <a className="navlink" href="#fleet">
+              </Link>
+              <Link className="navlink" href="/#fleet">
                 Electric fleet
-              </a>
-              <a className="navlink" href="#netherlands">
+              </Link>
+              <Link className="navlink" href="/#netherlands">
                 Destinations
-              </a>
-              <a className="navlink" href="#enquire">
+              </Link>
+              <Link className="navlink" href="/#enquire">
                 Contact
-              </a>
+              </Link>
+              <Link className="navlink" href="/drive-with-us">
+                Drive with us
+              </Link>
             </nav>
             <div className="gap-[10px] col-[1/-1] text-ink-250 flex flex-col text-[14px] md:col-auto">
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
@@ -74,18 +78,18 @@ export function SiteFooter() {
                 </a>
               )}
               <span>{siteConfig.contact.address ? `${siteConfig.contact.address}, Netherlands` : "Serving the whole of the Netherlands"}</span>
-              <a className="navlink self-start" href="#enquire">
+              <Link className="navlink self-start" href="/#enquire">
                 Request a quotation
-              </a>
+              </Link>
             </div>
           </div>
         </div>
         <div className="pt-7 gap-5 border-t border-t-ink-850 items-start text-ink-500 flex flex-col flex-wrap text-[12px] justify-between md:items-center md:flex-row">
           <span>
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}
-            <a className="text-inherit" href="/privacy">
+            <Link className="text-inherit" href="/privacy">
               Privacy
-            </a>
+            </Link>
           </span>
           <nav className="gap-6 flex flex-wrap text-[11px] tracking-[0.24em] uppercase" aria-label="Social">
             {socialLinks.map(([label, url]) => (
