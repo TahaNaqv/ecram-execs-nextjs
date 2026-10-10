@@ -15,7 +15,8 @@ const csp = [
   "font-src 'self'",
   `connect-src 'self' ${supabaseOrigin}`.trim(),
   "media-src 'self'",
-  "frame-src 'none'",
+  // YouTube's privacy-enhanced player for the brand film in the Experience section
+  "frame-src https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
