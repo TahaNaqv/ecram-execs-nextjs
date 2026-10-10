@@ -10,9 +10,22 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Ecram Execs — The Art of Executive Hospitality",
     description: "Private executive chauffeurs across the Netherlands, in a fully electric fleet.",
-    images: ["/assets/3b00bbaea002c5bc3c19878670191ab0.jpg"],
+    images: [
+      {
+        url: "/assets/og-image-v2.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Ecram Execs chauffeur beside an electric Mercedes VLE as an executive leaves a private jet at dusk",
+      },
+    ],
     locale: "en_NL",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ecram Execs — The Art of Executive Hospitality",
+    description: "Private executive chauffeurs across the Netherlands, in a fully electric fleet.",
+    images: ["/assets/og-image-v2.jpg"],
   },
 };
 

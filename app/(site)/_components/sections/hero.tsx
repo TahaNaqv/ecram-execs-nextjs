@@ -4,10 +4,11 @@ export function Hero() {
   return (
     <section className="overflow-hidden flex flex-col justify-center min-h-[calc(-77px_+_100svh)] relative md:min-h-[860px]" id="top">
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
-        <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/3b00bbaea002c5bc3c19878670191ab0.jpg" alt="Ecram Execs electric Mercedes van on a Dutch polder road at blue hour" fill priority sizes="100vw" />
-        <div className="inset-0 bg-[radial-gradient(at_50%_45%,rgba(10,10,11,0.55)_0%,rgba(10,10,11,0.85)_70%,#0a0a0b_100%)] absolute hidden md:block"></div>
+        <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/hero-jet-arrival-v2.png" alt="Ecram Execs chauffeur waiting beside an electric Mercedes VLE as an executive leaves a private jet at dusk" fill priority sizes="100vw" />
+        {/* Desktop: dark behind the copy, lighter at the edges so the jet and van show, darker at the bottom for the strip */}
+        <div className="inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_48%,rgba(10,10,11,0.72)_0%,rgba(10,10,11,0.5)_60%,rgba(10,10,11,0.18)_100%),linear-gradient(180deg,rgba(10,10,11,0.55)_0%,rgba(10,10,11,0)_30%,rgba(10,10,11,0)_78%,rgba(10,10,11,0.8)_100%)] absolute hidden md:block"></div>
         {/* Phones: darker behind the headline, lighter lower down so the vehicle stays visible */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.75)_0%,rgba(10,10,11,0.6)_45%,rgba(10,10,11,0.15)_75%,rgba(10,10,11,0.55)_100%)] md:hidden"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.75)_0%,rgba(10,10,11,0.6)_45%,rgba(10,10,11,0.15)_75%,rgba(10,10,11,0.72)_100%)] md:hidden"></div>
       </div>
       <div className="px-5 pt-12 pb-10 my-0 mx-auto gap-[22px] items-center box-border flex flex-col max-w-[1280px] relative text-center w-full md:px-6 md:pt-20 md:pb-24 md:gap-7 2xl:max-w-[1440px]">
         <div className="emblem max-w-[min(300px,80vw)] md:max-w-[520px]">
@@ -42,7 +43,7 @@ export function Hero() {
         </span>
         <span className="cue" aria-hidden="true"></span>
       </div>
-      <div className="border-t border-t-ink-850 relative">
+      <div className="border-t border-t-ink-850 relative max-md:bg-[rgba(10,10,11,0.6)]">
         <div className="p-5 my-0 mx-auto items-center text-ink-450 gap-x-10 flex flex-col flex-wrap font-display text-[10px] justify-center tracking-[0.28em] max-w-[1280px] gap-y-[10px] text-center md:py-[22px] md:px-6 md:text-[12px] md:tracking-[0.38em] md:gap-y-4 md:gap-x-10 md:items-stretch md:flex-row xl:gap-4 xl:justify-between xl:text-start 2xl:max-w-[1440px]">
           <span>
             QUIET · REFINED · ELECTRIC

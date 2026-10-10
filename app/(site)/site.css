@@ -371,7 +371,7 @@
     height: 100%;
     object-fit: cover;
     object-position: 50% 55%;
-    filter: saturate(0.7) contrast(1.05) brightness(0.72);
+    filter: saturate(0.8) contrast(1.05) brightness(0.88);
     animation: ecDrift 18s ease-out both;
   }
 

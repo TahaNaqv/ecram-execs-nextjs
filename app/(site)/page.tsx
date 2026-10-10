@@ -33,7 +33,7 @@ const jsonLd = {
     "Private executive chauffeur services across the Netherlands in a fully electric Mercedes-Benz fleet: airport transfers, business travel, corporate accounts and private occasions.",
   url: siteUrl,
   logo: `${siteUrl}/icon.png`,
-  image: `${siteUrl}/assets/3b00bbaea002c5bc3c19878670191ab0.jpg`,
+  image: `${siteUrl}/assets/og-image-v2.jpg`,
   areaServed: { "@type": "Country", name: "Netherlands" },
   ...(siteConfig.contact.phone ? { telephone: siteConfig.contact.phone } : {}),
   ...(siteConfig.contact.email ? { email: siteConfig.contact.email } : {}),
