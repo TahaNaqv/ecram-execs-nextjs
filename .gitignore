@@ -44,3 +44,6 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# source footage for scripts/build-brand-film.mts, too large to commit or deploy
+/media-src/

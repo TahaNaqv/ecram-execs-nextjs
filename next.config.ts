@@ -15,8 +15,6 @@ const csp = [
   "font-src 'self'",
   `connect-src 'self' ${supabaseOrigin}`.trim(),
   "media-src 'self'",
-  // YouTube's privacy-enhanced player for the brand film in the Experience section
-  "frame-src https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -38,10 +36,6 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
-  images: {
-    // Brand film poster: YouTube's thumbnail for that one video, fetched and served by this site so visitors never contact YouTube before pressing play
-    remotePatterns: [{ protocol: "https", hostname: "i.ytimg.com", port: "", pathname: "/vi/KCGUxO9fcC0/**", search: "" }],
-  },
   experimental: {
     // Two root layouts (site + admin) need a global 404 for unmatched URLs
     globalNotFound: true,

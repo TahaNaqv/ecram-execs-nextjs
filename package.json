@@ -14,7 +14,8 @@
     "storage:setup": "node --env-file-if-exists=.env.local scripts/setup-storage.mts",
     "typecheck": "next typegen && tsc --noEmit",
     "test:e2e": "playwright test",
-    "db:seed-demo": "node --env-file-if-exists=.env.local scripts/seed-demo.mts"
+    "db:seed-demo": "node --env-file-if-exists=.env.local scripts/seed-demo.mts",
+    "media:brand-film": "node scripts/build-brand-film.mts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
