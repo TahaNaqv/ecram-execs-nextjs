@@ -101,7 +101,13 @@ GitHub Actions (`.github/workflows/ci.yml`) runs all of the above with a throwaw
 
 1. Edit `lib/db/schema.ts`
 2. `npm run db:generate` — writes a new SQL file to `drizzle/`
-3. `npm run db:migrate` — applies it (run against production too, see below)
+3. `npm run db:migrate:check` — shows what is pending, without writing
+4. `npm run db:migrate` — applies it locally
+
+For production use `npm run db:migrate:prod` (dry run) then `npm run db:migrate:prod -- --apply`.
+It reads `.env` rather than `.env.local`, so you never have to re-point your local config; it
+prints the host it is about to touch, and it verifies that the migration record actually moved
+afterwards — `drizzle-kit migrate` has been observed reporting success while applying nothing.
 
 `npm run db:studio` opens a browser view of the data.
 

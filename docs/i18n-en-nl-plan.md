@@ -332,6 +332,22 @@ sitemap, so the two cannot drift. An e2e test asserts they agree.
       every breakpoint with no CSS changes needed.** The risk the plan anticipated did not
       materialise, which is worth recording rather than assuming.
 
+### Migration rehearsal
+
+The production path was rehearsed on a scratch database rather than reasoned about: a fresh DB
+taken to the pre-i18n schema (0000–0003, recorded as applied), seeded with realistic rows
+including a deliberately unmappable `'Executive roadshow'` and a
+`Quote: — → €1,250.00` history line.
+
+- The pre-flight **refused to run** and named the bad value and its row count — exit 1, nothing
+  written. A safety check nobody has watched fire is not a safety check.
+- After correcting that row: 2 migrations applied, `4 → 6` recorded, labels converted to keys,
+  `locale` defaulted, `message` dropped, `event` NOT NULL.
+- The `€1,250.00` thousands separator parsed to `"1250.00"` — the case that defeated the first
+  version of the parser.
+- The CI path (empty database, `DATABASE_URL` from the environment, no `.env.local`) applies all
+  six from scratch and reports `0 → 6`.
+
 ### Final state
 
 ```
@@ -362,11 +378,19 @@ could not have caught those, because they were never in a dictionary to compare 
   `toLocaleString("en-US")` inside `pickupInstant()` as a **timezone calculation**. Localizing it
   silently corrupts pickup-time math. Only `formatPickup`, `formatEuro` and `formatRelative`
   become locale-aware.
-- **T4 — Production migrations.** `npm run db:migrate` reads only `.env.local`, whose
-  `DATABASE_URL` is the local Docker Postgres; the Supabase URLs are present but **commented out**
-  (lines 3–4). Pointing a migration at production means uncommenting those, which also means the
-  local URL on line 1 must be commented out first — `node --env-file` takes the *first*
-  definition, so leaving both active silently keeps you on local. The four Phase 3 migrations need a deliberate production
+- **T4 — Production migrations.** ~~Uncomment the Supabase URLs in `.env.local`~~ — **don't.**
+  That left you one forgotten re-comment away from migrating production from your laptop.
+  `scripts/migrate.mts` picks its target from the `--env-file` you pass instead:
+
+  | Command | Target |
+  |---|---|
+  | `npm run db:migrate:check` | local, **dry run** |
+  | `npm run db:migrate` | local, applies |
+  | `npm run db:migrate:prod` | production (`.env`), **dry run** |
+  | `npm run db:migrate:prod -- --apply` | production, applies |
+
+  It prints the host it is about to touch and marks anything non-local `*** NOT LOCAL ***`,
+  refuses to write without `--apply`, runs the pre-flight below, and verifies afterwards. The four Phase 3 migrations need a deliberate production
   run — see the launch checklist.
 - **T5 — `global-not-found.tsx`** sits outside `[locale]` and cannot use root params. The proxy
   keeps real site paths locale-prefixed, so in-site misses hit `app/[locale]/not-found.tsx`;
@@ -428,9 +452,10 @@ could not have caught those, because they were never in a dictionary to compare 
        await sql.end();'
      ```
 
-     ⚠️ **Never trust `db:migrate`'s success message.** Always confirm with
-     `select count(*) from drizzle.__drizzle_migrations`. This matters most for the production run
-     (T4): a silent no-op there would leave the schema behind the deployed code.
+     **Now handled in code.** `scripts/migrate.mts` counts `drizzle.__drizzle_migrations` before
+     and after and **fails loudly if the number did not move by exactly the number of pending
+     files**, so the silent no-op cannot reach production unnoticed. `npm run db:migrate` uses it
+     instead of `drizzle-kit migrate`; `drizzle-kit generate` is still what writes new migrations.
   `__drizzle_migrations.hash` is the plain sha256 of the `.sql` file, so editing an applied
   migration requires updating that row to keep drizzle's state consistent.
 - **T10 — the proxy must intercept invalid locales.** Because `[locale]` matches anything, an
@@ -514,7 +539,10 @@ whole log line, which is stronger than before.
 
 Fold into the existing checklist in `README.md`:
 
-- [ ] Four Phase 3 migrations run against the **production** Supabase database (T4)
+- [ ] Migrations run against the **production** Supabase database (T4):
+      `npm run db:migrate:prod` to preview, then `npm run db:migrate:prod -- --apply`.
+      The pre-flight refuses to start if `quote_requests.service` holds a label it cannot map —
+      it names the values and their row counts so they can be added to `LEGACY_SERVICE_LABELS`.
 - [ ] ~25 flagged brand headlines reviewed by a native Dutch copywriter (D6)
 - [ ] Dutch privacy policy reviewed as a legal text
 - [ ] `hreflang` tags verified **on the deployed site** (asserted locally by an e2e test, but
