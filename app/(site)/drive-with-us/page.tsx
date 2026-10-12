@@ -46,13 +46,13 @@ export default function DriveWithUsPage() {
           <Link href="/" className="chrome font-display text-[18px] tracking-[0.26em] no-underline md:text-[22px] md:tracking-[0.32em]">
             ECRAM EXECS
           </Link>
-          <Link
-            href="/#enquire"
+          <a
+            href="#apply"
             className="inline-flex min-h-[44px] items-center border border-ink-250 px-[22px] text-[11px] tracking-[0.24em] text-white uppercase no-underline"
           >
-            <span className="md:hidden">Book</span>
-            <span className="hidden md:inline">Request a quotation</span>
-          </Link>
+            <span className="md:hidden">Apply</span>
+            <span className="hidden md:inline">Apply to join</span>
+          </a>
         </div>
       </header>
 
