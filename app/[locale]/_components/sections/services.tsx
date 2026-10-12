@@ -18,7 +18,7 @@ export async function Services() {
             {d.servicesSection.intro}
           </p>
         </div>
-        <div className="gap-px border border-ink-825 bg-ink-825 grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
+        <div className="gap-px border border-ink-825 bg-ink-825 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
             <span className="chrome font-display text-[22px]">
               I
@@ -74,12 +74,14 @@ export async function Services() {
               {d.servicesSection.hotelsText}
             </p>
           </article>
-          <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
+          <article className="card reveal relative py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">
             <span className="chrome font-display text-[22px]">
               VI
             </span>
             <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">
-              {d.servicesSection.bespokeTitle}
+              <a className="text-inherit no-underline after:absolute after:inset-0 after:content-['']" href="#bespoke">
+                {d.servicesSection.bespokeTitle}
+              </a>
             </h3>
             <p className="m-0 text-ink-400 text-[15px] font-light">
               {d.servicesSection.bespokeText}
