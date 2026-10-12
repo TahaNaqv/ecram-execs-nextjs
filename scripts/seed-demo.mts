@@ -40,7 +40,9 @@ type Demo = {
   collection: string;
   destination: string;
   pickup: string;
-  service: string;
+  service: "airport_transfer" | "business_travel" | "hourly" | "private_occasion" | "bespoke";
+  /** The language the client used, so the admin knows which language to reply in. */
+  locale: "en" | "nl";
   passengers: number | null;
   name: string;
   email: string;
@@ -48,88 +50,103 @@ type Demo = {
   notes: string | null;
   quote: string | null;
   internal: string | null;
-  history: string[];
+  history: DemoEvent[];
 };
+
+/**
+ * History is stored as keys + values, never prose, so the admin can render it in either
+ * language (see lib/admin/events.ts). These helpers keep the demo data readable.
+ */
+type Change =
+  | { kind: "status"; from: Demo["status"]; to: Demo["status"] }
+  | { kind: "quote"; from: string | null; to: string | null }
+  | { kind: "notes" };
+type DemoEvent = { event: "changes"; params: { changes: Change[] } };
+
+const st = (from: Demo["status"], to: Demo["status"]): Change => ({ kind: "status", from, to });
+const qt = (from: string | null, to: string | null): Change => ({ kind: "quote", from, to });
+const nt = (): Change => ({ kind: "notes" });
+const ch = (...changes: Change[]): DemoEvent => ({ event: "changes", params: { changes } });
 
 const demos: Demo[] = [
   {
     status: "new", createdHoursAgo: 0.4, collection: "Schiphol Airport, Arrivals 2", destination: "Hotel Des Indes, The Hague",
-    pickup: pickup(3, "08:30"), service: "Airport transfer", passengers: 2, name: "Charlotte Bennett",
+    pickup: pickup(3, "08:30"), service: "airport_transfer", locale: "en", passengers: 2, name: "Charlotte Bennett",
     email: "charlotte.bennett@example.com", phone: "+44 7700 900123", notes: "Flight BA428 from London Heathrow, two large cases",
     quote: null, internal: null, history: [],
   },
   {
     status: "new", createdHoursAgo: 2, collection: "Rotterdam Centraal", destination: "World Port Center, Rotterdam",
-    pickup: pickup(1, "09:15"), service: "Business travel", passengers: 1, name: "Daan Visser",
+    pickup: pickup(1, "09:15"), service: "business_travel", locale: "nl", passengers: 1, name: "Daan Visser",
     email: "d.visser@example.com", phone: "+31 6 0000 0001", notes: "Waiting time approx. 3 hours, then return to Rotterdam Centraal",
     quote: null, internal: null, history: [],
   },
   {
     status: "contacted", createdHoursAgo: 20, collection: "Amstel Hotel, Amsterdam", destination: "Keukenhof, Lisse",
-    pickup: pickup(9, "10:00"), service: "Private occasion", passengers: 4, name: "Sophie Laurent",
+    pickup: pickup(9, "10:00"), service: "private_occasion", locale: "en", passengers: 4, name: "Sophie Laurent",
     email: "sophie.laurent@example.com", phone: "+44 7700 900456", notes: "Family day out, return around 17:00",
     quote: null, internal: "Called client — wants a child seat for a 4-year-old. Checking availability.",
-    history: ["Status: new → contacted", "Internal notes updated"],
+    history: [ch(st("new", "contacted")), ch(nt())],
   },
   {
     status: "quoted", createdHoursAgo: 30, collection: "Eindhoven Airport", destination: "High Tech Campus, Eindhoven",
-    pickup: pickup(5, "07:45"), service: "Airport transfer", passengers: 3, name: "Markus Weber",
+    pickup: pickup(5, "07:45"), service: "airport_transfer", locale: "en", passengers: 3, name: "Markus Weber",
     email: "m.weber@example.com", phone: "+1 202 555 0181", notes: "Flight from Munich, KL1798",
     quote: "145.00", internal: "Quote sent by email. Corporate account possible — ask about monthly volume.",
-    history: ["Status: new → contacted", "Status: contacted → quoted · Quote: — → €145.00 · Internal notes updated"],
+    history: [ch(st("new", "contacted")), ch(st("contacted", "quoted"), qt(null, "145.00"), nt())],
   },
   {
     status: "quoted", createdHoursAgo: 52, collection: "Zuidas, Amsterdam", destination: "Binnenhof, The Hague",
-    pickup: pickup(6, "13:00"), service: "Hourly / as directed", passengers: 2, name: "Eleanor Hughes",
+    pickup: pickup(6, "13:00"), service: "hourly", locale: "en", passengers: 2, name: "Eleanor Hughes",
     email: "eleanor.hughes@example.com", phone: "+31 6 0000 0002", notes: "Ministry meetings, chauffeur to wait as directed (approx. 5 hours)",
     quote: "520.00", internal: "Hourly rate x 5h + travel. Awaiting PA's confirmation.",
-    history: ["Status: new → quoted · Quote: — → €520.00 · Internal notes updated"],
+    history: [ch(st("new", "quoted"), qt(null, "520.00"), nt())],
   },
   {
     status: "confirmed", createdHoursAgo: 75, collection: "Schiphol Airport, VIP Centre", destination: "Conservatorium Hotel, Amsterdam",
-    pickup: pickup(2, "16:20"), service: "Airport transfer", passengers: 1, name: "James Whitmore",
+    pickup: pickup(2, "16:20"), service: "airport_transfer", locale: "en", passengers: 1, name: "James Whitmore",
     email: "j.whitmore@example.com", phone: "+1 202 555 0147", notes: "Arriving on DL48 from New York JFK",
     quote: "125.00", internal: "Confirmed and paid. Chauffeur: Pieter. Name board at VIP Centre.",
-    history: ["Status: new → quoted · Quote: — → €125.00", "Status: quoted → confirmed · Internal notes updated"],
+    history: [ch(st("new", "quoted"), qt(null, "125.00")), ch(st("quoted", "confirmed"), nt())],
   },
   {
     status: "confirmed", createdHoursAgo: 100, collection: "Kurhaus, Scheveningen", destination: "Kasteel de Haar, Utrecht",
-    pickup: pickup(16, "14:00"), service: "Private occasion", passengers: 2, name: "Noor & Thomas de Jong",
+    pickup: pickup(16, "14:00"), service: "private_occasion", locale: "nl", passengers: 2, name: "Noor & Thomas de Jong",
     email: "noor.dejong@example.com", phone: "+31 6 0000 0003", notes: "Wedding — bride and groom, champagne on arrival please",
     quote: "395.00", internal: "Wedding package. Ribbons on vehicle. Second car not needed.",
-    history: ["Status: new → contacted", "Status: contacted → quoted · Quote: — → €395.00", "Status: quoted → confirmed · Internal notes updated"],
+    history: [ch(st("new", "contacted")), ch(st("contacted", "quoted"), qt(null, "395.00")), ch(st("quoted", "confirmed"), nt())],
   },
   {
     status: "confirmed", createdHoursAgo: 140, collection: "Hotel Okura, Amsterdam", destination: "Maastricht (MECC)",
-    pickup: pickup(12, "06:30"), service: "Bespoke programme", passengers: 6, name: "Akira Tanaka",
+    pickup: pickup(12, "06:30"), service: "bespoke", locale: "en", passengers: 6, name: "Akira Tanaka",
     email: "a.tanaka@example.com", phone: "+61 491 570 156", notes: "Delegation of 6 for TEFAF, 3-day programme",
     quote: "2150.00", internal: "3 days, 1 vehicle at full capacity. Itinerary agreed with their office.",
-    history: ["Status: new → contacted", "Status: contacted → quoted · Quote: — → €2,150.00", "Status: quoted → confirmed"],
+    history: [ch(st("new", "contacted")), ch(st("contacted", "quoted"), qt(null, "2150.00")), ch(st("quoted", "confirmed"))],
   },
   {
     status: "completed", createdHoursAgo: 260, collection: "Rotterdam The Hague Airport", destination: "Peace Palace, The Hague",
-    pickup: pickup(-6, "11:10"), service: "Airport transfer", passengers: 1, name: "Isabella Rossi",
+    pickup: pickup(-6, "11:10"), service: "airport_transfer", locale: "en", passengers: 1, name: "Isabella Rossi",
     email: "isabella.rossi@example.com", phone: "+44 7700 900789", notes: null,
     quote: "95.00", internal: "Completed on time. Client asked for our corporate brochure.",
-    history: ["Status: new → quoted · Quote: — → €95.00", "Status: quoted → confirmed", "Status: confirmed → completed · Internal notes updated"],
+    history: [ch(st("new", "quoted"), qt(null, "95.00")), ch(st("quoted", "confirmed")), ch(st("confirmed", "completed"), nt())],
   },
   {
     status: "completed", createdHoursAgo: 330, collection: "Utrecht Centraal", destination: "Jaarbeurs, Utrecht",
-    pickup: pickup(-9, "08:00"), service: "Business travel", passengers: 3, name: "Lars Johansson",
+    pickup: pickup(-9, "08:00"), service: "business_travel", locale: "en", passengers: 3, name: "Lars Johansson",
     email: "lars.johansson@example.com", phone: "+1 202 555 0112", notes: "Return trip at 18:00",
     quote: "180.00", internal: null,
-    history: ["Status: new → quoted · Quote: — → €180.00", "Status: quoted → confirmed", "Status: confirmed → completed"],
+    history: [ch(st("new", "quoted"), qt(null, "180.00")), ch(st("quoted", "confirmed")), ch(st("confirmed", "completed"))],
   },
   {
     status: "cancelled", createdHoursAgo: 190, collection: "Schiphol Airport", destination: "Groningen city centre",
-    pickup: pickup(-2, "19:30"), service: "Airport transfer", passengers: 2, name: "Priya Sharma",
+    pickup: pickup(-2, "19:30"), service: "airport_transfer", locale: "en", passengers: 2, name: "Priya Sharma",
     email: "priya.sharma@example.com", phone: "+31 6 0000 0004", notes: "Flight may be delayed",
     quote: "260.00", internal: "Client cancelled — flight rebooked to next week. Follow up for new date.",
-    history: ["Status: new → quoted · Quote: — → €260.00", "Status: quoted → cancelled · Internal notes updated"],
+    history: [ch(st("new", "quoted"), qt(null, "260.00")), ch(st("quoted", "cancelled"), nt())],
   },
   {
     status: "new", createdHoursAgo: 5, collection: "The Grand, Amsterdam", destination: "Delft & Kinderdijk tour",
-    pickup: pickup(20, "09:30"), service: "Bespoke programme", passengers: 5, name: "Olivia Carter",
+    pickup: pickup(20, "09:30"), service: "bespoke", locale: "en", passengers: 5, name: "Olivia Carter",
     email: "olivia.carter@example.com", phone: "+61 491 570 157", notes: "Full-day sightseeing for visiting board members",
     quote: null, internal: null, history: [],
   },
@@ -140,16 +157,17 @@ for (const d of demos) {
   const [row] = await sql`
     insert into quote_requests
       (reference, status, collection, destination, pickup_at, service, passengers, name, email, phone, notes,
-       quoted_amount, internal_notes, source, created_at, updated_at)
+       locale, quoted_amount, internal_notes, source, created_at, updated_at)
     values
       (${ref()}, ${d.status}, ${d.collection}, ${d.destination}, (${d.pickup}::text)::timestamp, ${d.service}, ${d.passengers}, ${d.name},
-       ${d.email}, ${d.phone}, ${d.notes}, ${d.quote}, ${d.internal}, 'demo', ${created}, ${created})
+       ${d.email}, ${d.phone}, ${d.notes}, ${d.locale}, ${d.quote}, ${d.internal}, 'demo', ${created}, ${created})
     returning id`;
-  await sql`insert into request_events (request_id, message, created_at) values (${row.id}, 'Request received via website', ${created})`;
+  await sql`insert into request_events (request_id, event, created_at) values (${row.id}, 'received', ${created})`;
   // Spread follow-up events between creation and now
-  for (const [i, msg] of d.history.entries()) {
+  for (const [i, e] of d.history.entries()) {
     const at = new Date(created.getTime() + ((i + 1) / (d.history.length + 1)) * (now - created.getTime()));
-    await sql`insert into request_events (request_id, message, created_at) values (${row.id}, ${msg}, ${at})`;
+    await sql`insert into request_events (request_id, event, params, created_at)
+              values (${row.id}, ${e.event}, ${sql.json(e.params)}, ${at})`;
   }
 }
 await sql.end();

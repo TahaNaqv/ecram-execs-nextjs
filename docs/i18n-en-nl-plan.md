@@ -1,6 +1,9 @@
 # EN | NL bilingual — implementation plan
 
-**Status:** approved, not started · **Owner:** —  · **Created:** 2026-10-12
+**Status:** **all phases complete.** What remains is the launch checklist in §6 — a native
+Dutch review of the flagged headlines, a legal read of the Dutch privacy policy, and the
+production migration run.
+**Owner:** — · **Created:** 2026-10-12 · **Updated:** 2026-10-12
 
 Goal: the public website fully bilingual (English + Dutch) with per-locale URLs and SEO,
 and the `/admin` panel bilingual by per-user preference. Production-ready, no stubs.
@@ -104,128 +107,245 @@ before dynamic ones. Verified in Phase 0.
 Prove the foundation before touching ~50 files. Move **one** section (`Statement`, 3 strings)
 under `app/[locale]/` and verify:
 
-- [ ] `await locale()` resolves inside a `"use cache"` function
-- [ ] `/admin` still routes to `(admin)` and is not swallowed by `[locale]`
-- [ ] `npm run build` passes with `generateStaticParams` returning both locales
-- [ ] `npm run typecheck` sees the generated root-param types (`next typegen` runs first)
-- [ ] An unknown first segment (`/foobar`) renders the 404, not a broken locale
+- [x] `await locale()` resolves inside a `"use cache"` function
+- [x] `/admin` still routes to `(admin)` and is not swallowed by `[locale]`
+- [x] `npm run build` passes with `generateStaticParams` returning both locales
+- [~] `npm run typecheck` sees the generated root-param types — **deferred to Phase 2, cause known.** See T8.
+- [x] An unknown first segment (`/foobar`) renders the 404, not a broken locale
 
-**If any of these fail, stop and revise the architecture rather than working around it.**
+**Verdict: gate passed.** D2 is sound — the no-library approach works on this exact stack.
+
+Evidence (spike = `app/[locale]/` beside the untouched `app/(site)/`, one `Statement` section):
+
+| Check | Result |
+|---|---|
+| Build output | `/en` and `/nl` both `○ (Static)`, `Revalidate 1d` — so the locale was read *inside* `"use cache"` and became part of the cache key, prerendering one static entry per locale |
+| `.next/server/app/en.html` | `<html lang="en">` + English copy |
+| `.next/server/app/nl.html` | `<html lang="nl">` + Dutch copy |
+| `/foobar` | `404` — `notFound()` works in a root layout under `cacheComponents` |
+| `/admin` | `307 → /admin/login?next=%2Fadmin` — proxy and admin routing untouched |
+| `/`, `/privacy`, `/drive-with-us` | `200` — existing site unaffected |
+
+Baseline `lint`/`typecheck`/`build` were captured clean *before* the spike, so nothing above is
+inherited breakage.
 
 ### Phase 1 — i18n core
 
-- [ ] `lib/i18n/config.ts` — `LOCALES = ['en','nl'] as const`, `DEFAULT_LOCALE`, `isLocale()` guard
-- [ ] `lib/i18n/dictionaries/en.json` — source of truth, nested by section
-- [ ] `lib/i18n/dictionaries/nl.json` — same shape
-- [ ] `lib/i18n/types.ts` — `type Dictionary = typeof import('./dictionaries/en.json')`
-- [ ] `lib/i18n/get-dictionary.ts` — `getDictionary(locale)` primitive **plus** a `getDict()` RSC
+- [x] `lib/i18n/config.ts` — `LOCALES = ['en','nl'] as const`, `DEFAULT_LOCALE`, `isLocale()` guard
+- [~] `lib/i18n/dictionaries/en.json` — created; holds only the spike's `statement` section so far (Phase 5 fills it)
+- [~] `lib/i18n/dictionaries/nl.json` — same shape, same partial state
+- [x] `lib/i18n/types.ts` — `type Dictionary = typeof import('./dictionaries/en.json')`
+- [x] `lib/i18n/get-dictionary.ts` — `getDictionary(locale)` primitive **plus** a `getDict()` RSC
       helper wrapping `await locale()`. The explicit-argument form is mandatory: emails and
       Server Actions cannot use root params (T2).
-- [ ] `lib/i18n/interpolate.ts` — `{year}`, `{count}` substitution (~15 lines)
-- [ ] `lib/i18n/pathnames.ts` — declarative slug map + `localizedPath(route, locale)`
+- [x] `lib/i18n/interpolate.ts` — `{year}`/`{count}` substitution; warns in dev on a missing value
+- [x] `lib/i18n/pathnames.ts` — slug map + `localizedPath` / `routeFromSlug` / `switchPath`, 17 cases verified
 
 Parity is free: `nl.json` is loaded through a `Dictionary`-typed function, so a missing or
 misnamed key fails `npm run typecheck`. No runtime lookups that silently return `undefined`.
 
 ### Phase 2 — Routing
 
-- [ ] Move `app/(site)/*` → `app/[locale]/*`
-- [ ] `generateStaticParams` + locale validation + `notFound()` in `app/[locale]/layout.tsx`
-- [ ] `<html lang={await locale()}>`
-- [ ] `proxy.ts`: locale detection (cookie → `Accept-Language` with q-value parsing, ~20 lines,
-      no `negotiator` dependency) → redirect unprefixed paths → set `NEXT_LOCALE` cookie →
-      **keep the existing admin session pre-check**
-- [ ] Proxy matcher excludes `/_next`, `/assets`, `/admin`, `robots.txt`, `sitemap.xml`, icon files
-- [ ] Localized slug rewrites per D4
-- [ ] Language switcher replaces the hardcoded `EN | NL` span at
-      `app/[locale]/_components/sections/site-header.tsx` (currently line 40) — two `<Link>`s
-      with `hreflang` + `aria-current`, working without JS
-- [ ] Fragment preservation on switch (~10 lines of progressive enhancement; the server cannot
-      see `#fleet`)
-- [ ] `app/[locale]/not-found.tsx`; decide `global-not-found.tsx` presentation (bilingual or
-      default EN — it sits outside `[locale]` and cannot read root params)
+- [x] Move `app/(site)/*` → `app/[locale]/*` (28 files, `git mv`, history preserved)
+- [x] `generateStaticParams` + locale validation + `notFound()` in `app/[locale]/layout.tsx`
+- [x] `<html lang>` from the root param
+- [x] `generateMetadata` per locale (title, description, `og:locale`, `og:locale:alternate`).
+      Deliberately **no** `alternates` on the layout: metadata is inherited, so a canonical there
+      would wrongly apply to `/privacy` and `/drive-with-us`. Each page sets its own.
+- [x] `proxy.ts`: cookie → `Accept-Language` (q-value parsing, no `negotiator`) → default;
+      redirects unprefixed paths; `NEXT_LOCALE` cookie; admin pre-check preserved
+- [x] Proxy skips `_next/`, `assets/` (matcher) and anything with a file extension (in code —
+      easier to verify than a lookahead, and the matcher regex alone did **not** cover it)
+- [x] Localized slug rewrites per D4, with a 308 from the folder spelling to the canonical slug
+- [x] Language switcher replacing the hardcoded `EN | NL` span in `site-header.tsx`, and added to
+      the `drive-with-us` header. Two `<Link>`s, `hreflang`, `aria-current`, works without JS.
+- [x] Fragment preservation on switch (client component syncs `location.hash` after hydration,
+      so there is no markup mismatch)
+- [x] 404 strategy resolved — see T9. `global-not-found.tsx` is now bilingual; there is no
+      `app/[locale]/not-found.tsx`, by necessity.
+- [x] Stale `canonical`s on the two moved pages fixed (they still said `/privacy`,
+      `/drive-with-us`, which the move had turned into redirects)
+
+### Verified at runtime (production build, `next start`)
+
+| Request | Result |
+|---|---|
+| `/` no header / `nl` / `en` / `de` | `307` → `/en` / `/nl` / `/en` / `/en` |
+| `/` with `NEXT_LOCALE=nl` + `Accept-Language: en` | `307` → `/nl` (explicit choice wins) |
+| `/en/privacy`, `/nl/privacybeleid`, `/nl/rijd-met-ons` | `200` |
+| `/nl/privacy`, `/nl/drive-with-us` | `308` → canonical Dutch slug (one indexable URL) |
+| `/en/privacybeleid`, `/en/rijd-met-ons` | `404` — a locale's slug does not leak into the other |
+| `/privacy`, `/drive-with-us` | `307` → `/en/...` |
+| `/foobar`, `/foo/bar`, `/nl/zomaar` | `404`, bilingual global 404 |
+| `/robots.txt`, `/sitemap.xml`, `/icon.png`, `/apple-icon.png` | `200` (extension guard) |
+| `/admin` → `/admin/login?next=%2Fadmin`, `/admin/login` `200` | unchanged |
+| `<html lang>` + `<title>` | `en` / `nl` with the right language's title |
+| `hreflang` on `/nl/privacybeleid` | `en`→`/en/privacy`, `nl`→`/nl/privacybeleid`, `x-default` |
+| `Set-Cookie` | written only when the locale actually changes, so the statically prerendered pages stay cacheable |
+
+All 6 locale pages prerender `○ (Static)`. Section copy still renders in English on `/nl` —
+that is Phase 5, not a defect.
 
 ### Phase 3 — Data layer
 
 Four migrations. Do these with the public site, not later — two of them are latent correctness
 bugs, not cosmetics.
 
-- [ ] **`SERVICES` → stable keys.** `quote_requests.service` currently stores the English label
-      `"Airport transfer"`. A Dutch visitor selecting "Luchthaventransfer" cannot write that
-      value. Change `lib/quotes/constants.ts` to
-      `['airport_transfer','business_travel','hourly','private_occasion','bespoke']`, move labels
-      to the dictionaries, and migrate existing rows with a `CASE` mapping.
-- [ ] **`locale` column** on `quote_requests` + `driver_applications` — so the confirmation email
-      goes out in the language the customer used, and the team knows which language to reply in.
-      Backfill existing rows to `'en'` (they came from an English-only site).
-- [ ] **`request_events.message` → `event` key + `params` jsonb.** Required by D3: the log
-      currently stores English prose (`"Request received via website"`, `"Status: new → quoted"`)
-      written by the server actions. Migrate existing rows to a `legacy` passthrough key that
-      renders verbatim, so no history is lost or mistranslated.
-- [ ] **`admin_users.locale`** — the admin language preference, with a UI control to set it.
-- [ ] `npm run db:generate` → review SQL → `npm run db:migrate`
+Done as **expand → backfill → contract** across two migrations, so a production deploy never has
+code and schema disagreeing: `0004` is additive and harmless to the old code, `0005` only drops
+what the new code no longer writes.
+
+- [x] **`SERVICES` → stable keys**, now a `service_kind` pg enum (consistent with the existing
+      `request_status` / `application_status` enums). `0004` maps the five English labels with a
+      `CASE`, behind a `DO` block that **raises** on an unmapped value rather than coercing it.
+      Labels live in `dictionaries.services.*`; `serviceLabel()` falls back to the raw key so an
+      unrecognised value still renders.
+- [x] **`locale` column** on `quote_requests` + `driver_applications` (`content_locale` enum,
+      default `'en'`), carried from a hidden form field — a Server Action cannot read root params.
+- [x] **`request_events.message` → `event` + `params`.** `event` is deliberately `text`, not an
+      enum: a log's vocabulary grows, and recording a new kind of event should not need a schema
+      migration. One row per save, with several `changes` in `params`, so row identity and the
+      existing UI are preserved.
+- [x] **`admin_users.locale`** column added. The UI control to set it belongs with the rest of the
+      admin work in Phase 5.
+- [x] Migrations applied and verified against the local database.
+
+### The history backfill
+
+The old prose was machine-generated by `updateRequest()`, so `0004` parses it into structured
+changes rather than stranding it as opaque text — anything that does not parse is kept verbatim
+under a `legacy` key and still renders. Amounts are stored unformatted (`"185.50"`), so they can
+be rendered `€ 185,50` for a Dutch reader and `€185.50` for an English one.
+
+Result on the local database: **21 `changes`, 12 `received`, 0 `legacy`** — the whole history
+converted. The one row that initially fell back to `legacy` exposed a real gap in the parser
+(`€2,150.00`, a thousands separator in hand-written demo data); the parser now tolerates
+separators, and the backfill re-attempts `legacy` rows so an improved parser can heal them.
+
+- [x] `lib/admin/events.ts` — types, `renderEvent()`, and an injected `formatAmount` so the module
+      stays free of formatting concerns. Labels arrive as a parameter; Phase 5 swaps
+      `EVENT_LABELS_EN` for the admin's dictionary and nothing else changes.
+- [x] Customer-facing email now follows the stored locale (subject, greeting, body, field labels,
+      service label) for both the quote confirmation and the applicant confirmation. Internal team
+      alerts stay English per D7.
+- [x] `scripts/seed-demo.mts` rewritten: service keys, structured history, and a locale per demo
+      client (two Dutch) so the column is actually exercised.
 
 ### Phase 4 — Shared lib refactor
 
-- [ ] **`lib/partners/criteria.ts`** — the largest lib change. `criteriaText()`, `vehicleChecks()`
-      labels and issues, `COLOUR_EN`, `FUEL_EN`, `DOCUMENTS` labels/hints, `DECLARATIONS` labels
-      and `makeLabel()` are English prose consumed by the public page, the admin review screen
-      **and** email. Split it: pure data (keys, numbers, regexes) stays; all strings move to the
-      dictionaries; functions take a dictionary parameter. Rename the `*_EN` maps — for the NL
-      locale the RDW's own Dutch terms pass through unchanged.
-- [ ] **Zod schemas become factories** — `quoteSchema(dict)` / `applicationSchema(dict)` instead
-      of module constants, since every `.min(1, "Please enter …")` message is user-facing.
-      Files: `lib/quotes/validation.ts`, `lib/partners/validation.ts`.
-- [ ] **Hidden locale field** in both forms, validated against `LOCALES` server-side (T2).
-      Files: `lib/quotes/actions.ts`, `lib/partners/actions.ts`.
-- [ ] **`lib/admin/format.ts`** — `formatPickup`, `formatEuro`, `formatRelative` become
-      locale-aware (`en-GB` → the admin's preference). **Do not touch `pickupInstant()`** (T3).
-- [ ] **`lib/site-config.ts`** — `tagline`, `fleet.passengers`, `fleet.amenities` are prose in a
-      config file. Restructure: `passengers: 6` as data, formatted per locale; tagline to the
-      dictionaries.
+- [x] **`lib/partners/criteria.ts`** — now pure rules (numbers, model patterns, logic). Every
+      string moved to `dictionaries.criteria` / `.documents` / `.declarations`, and the functions
+      that produce text take a `CriteriaLabels`. `DOCUMENTS` and `DECLARATIONS` are plain key
+      tuples rather than objects carrying labels. `COLOUR_EN`/`FUEL_EN` are gone — the RDW's own
+      Dutch terms are the keys, so Dutch passes through and English is a lookup.
+      `makeLabel()` is deliberately **not** localized: a make is a proper noun.
+- [x] **Zod schemas are factories** — `quoteSchema(t)` / `applicationSchema(t)`. The old
+      `text(label, max)` helper that built messages from sentence fragments is gone: it cannot
+      survive translation (Dutch word order differs), so every field has its own explicit
+      required / too-long message.
+- [x] **Hidden locale field** in both forms; the actions resolve it through
+      `dictionaryFromForm()`, which falls back to the default rather than failing a submission.
+- [x] **All server-side validation and error messages localized** — both Zod schemas plus every
+      `fail(...)` string in `lib/quotes/actions.ts` and `lib/partners/actions.ts`, and the
+      client-side file checks in `application-form.tsx`. A Dutch visitor now gets Dutch errors.
+- [x] **`lib/admin/format.ts`** — date functions take a `locale` that defaults to `"en"`, so
+      existing call sites are untouched and Phase 5 only has to pass `admin_users.locale`.
+      `pickupInstant()`'s `en-US` left alone and now carries a warning comment (T3).
+      `formatEuro` deliberately stays `nl-NL` in both languages — a Dutch company quoting in
+      euros should show the same amount either way.
+- [x] **`lib/site-config.ts`** — `tagline` and `fleet.amenities` are now `Record<Locale, string>`
+      (business copy the client edits, kept where the README says such things live), and
+      `fleet.passengers` became `maxPassengers: 6`, rendered via `fleet.upToPassengers`.
+- [x] Homepage JSON-LD is per-locale (`inLanguage`, localized `slogan` and `description`) and the
+      homepage now emits its own `hreflang` set.
+
+Dictionaries are at **151 keys**, parity enforced on every edit.
+
+Verified at runtime: the criteria list, document labels, declarations, fleet lines and JSON-LD all
+render per locale — and the criteria list does so from inside a `"use cache"` component, which is
+independent confirmation that root params key the cache correctly (§2).
 
 ### Phase 5 — Copy extraction
 
-- [ ] 15 section components under `app/[locale]/_components/sections/`
-- [ ] `quote-form.tsx` (~40 strings) and `application-form.tsx` (~45) — Client Components, so
-      they receive a typed dictionary slice as a prop from their Server Component parent. This
-      also keeps each client bundle to only the strings it uses.
-- [ ] Remaining client components: `concierge-input.tsx`, `back-to-top.tsx`, `nav-auto-close.tsx`,
-      `brand-film.tsx`
-- [ ] `privacy/page.tsx` — ~6.8 KB of legal prose. Have the Dutch reviewed; it is a legal text,
-      not marketing copy.
-- [ ] `drive-with-us/page.tsx`, `error.tsx`, `not-found.tsx`, `global-not-found.tsx`
-- [ ] Admin: ~250 strings across nav, tables, status labels, forms, validation, audit-log event
-      rendering
-- [ ] `lib/email.ts` — customer mail localized by the stored `locale`; team alerts stay EN (D7)
+- [x] All 15 section components, both forms, and the remaining client components
+      (`concierge-input`, `back-to-top`, `brand-film`). Client Components receive a typed copy
+      slice as a prop, so each bundle carries only the strings it uses.
+- [x] `privacy/page.tsx` — the full policy, including the `{contact}` and Autoriteit
+      Persoonsgegevens links, which are split around the inserted nodes rather than templated.
+      `LAST_UPDATED` is now an ISO date formatted in the reader's language.
+- [x] `drive-with-us/page.tsx` — written with **je/jij** per D6, unlike the client-facing pages.
+- [x] `error.tsx` is bilingual for the same reason as `global-not-found.tsx` (T9): an error
+      boundary is a Client Component and the error may have come from the layout that would have
+      told us the locale.
+- [x] Admin fully translated — nav, login, tables, stat cards, empty states, detail pages,
+      forms, status labels, audit-log events, and the page `<title>`s.
+- [x] `lib/email.ts` — done in Phase 3.
+- [x] `admin_users.locale` control added to the admin sidebar (D3's remaining piece).
+
+Dictionaries: **558 keys**, parity enforced.
+
+### Verification built along the way
+
+`scripts/check-translations.mts` (run it in CI next to lint/typecheck) checks what types cannot:
+empty values, values identical across locales, and a stale allowlist. `ALLOW_IDENTICAL` records
+the ~45 values that are *correctly* the same — brand and place names, model names, borrowed words
+— so a genuinely untranslated string cannot hide among them.
+
+A runtime leak check also ran against the rendered pages, comparing every English value against
+the Dutch output (and the reverse): **0 leaks** across the three public pages and the three admin
+pages. This is what caught the enquiry heading, which a hand-picked spot-check had missed — the
+lesson being that a spot-check proves nothing here; only the exhaustive comparison does.
 
 ### Phase 6 — SEO
 
-- [ ] `generateMetadata` per locale (title, description) for all three public routes
-- [ ] `alternates.languages` with `en`, `nl`, `x-default`
-- [ ] `openGraph.locale` (`nl_NL` / `en_NL`) + `alternateLocale`, and localized OG image alt text
-- [ ] JSON-LD in `app/[locale]/page.tsx`: `inLanguage` + localized `description`
-- [ ] `sitemap.ts` — both locales, per-entry `alternates`, localized slugs
-- [ ] `robots.ts` — confirm the `/admin` disallow still matches after routing changes
+- [x] `generateMetadata` per locale for all three public routes
+- [x] `alternates.languages` with `en`, `nl`, `x-default`
+- [x] `openGraph.locale` + `alternateLocale`, localized OG image alt
+- [x] JSON-LD `inLanguage`, localized `slogan` and `description`
+- [x] `sitemap.ts` — 6 entries (3 routes × 2 locales), each listing both locales plus `x-default`
+- [x] `robots.ts` — `Disallow: /admin` confirmed still matching
+
+**`x-default` is the unprefixed path, not the homepage.** It was briefly `/` for every route,
+which is wrong: `x-default` should point at the URL that negotiates a language, and the proxy
+does that for `/privacy` and `/drive-with-us` too — not only `/`. `unprefixedPath()` in
+`lib/i18n/pathnames.ts` is now the single source for it, used by both the page metadata and the
+sitemap, so the two cannot drift. An e2e test asserts they agree.
 
 ### Phase 7 — Verification
 
-- [ ] Playwright parameterized over both locales (the suite already covers 6 viewports → 12 runs)
-- [ ] Existing specs assert English strings (`tests/e2e/site.spec.ts`,
-      `quote-flow.spec.ts`, `drivers.spec.ts`, `driver-application.spec.ts`) — drive them from the
-      dictionaries rather than hardcoding, or they will only ever test one language
-- [ ] CI test for empty / untranslated-identical values in `nl.json`
-- [ ] Guard against new hardcoded literals under `app/[locale]/`
-- [ ] Language switcher tested with JS disabled
-- [ ] **Layout QA at every breakpoint.** Dutch runs 15–25% longer and this design is unusually
-      exposed. Known risk spots:
-      - `Request a quotation` → `Vraag een prijsopgave aan` in a `min-h-[44px]` bordered button
-        at `tracking-[0.24em]` (header + hero)
-      - Header tagline `THE ART OF EXECUTIVE HOSPITALITY` at 9px / `tracking-[0.42em]`
-      - Section eyebrows (`I — SERVICES`, `V — ACROSS THE NETHERLANDS`) at `tracking-[0.42em]`
-      - `clamp()` headlines in hero / statement / section headings
-      Expect real CSS work at the `md` breakpoint, not just translation.
-- [ ] `npm run lint && npm run typecheck && npm run build && npm run test:e2e`
+- [x] `tests/e2e/site.spec.ts` rewritten: parameterized over both locales and driven by the
+      dictionaries, so a copy change cannot silently pass a broken page. Adds locale redirect by
+      `Accept-Language`, cookie precedence over the header, the switcher with **and without**
+      JavaScript, canonical/`hreflang` per page, wrong-locale slugs 404ing, unprefixed redirects,
+      and a bilingual 404.
+- [x] `driver-application.spec.ts` is dictionary-driven too, and now **skips with a stated
+      reason** when document storage is configured instead of failing — completing that flow would
+      upload test files to the real Supabase bucket. CI runs without storage, so it runs there.
+- [x] `npm run check:i18n` wired into `package.json` and `ci.yml` (after `typecheck`):
+      - `scripts/check-translations.mts` — empty values, untranslated-identical values, stale
+        allowlist entries
+      - `scripts/check-literals.mts` — user-facing prose still hardcoded in a component
+- [x] **Layout QA is automated, not a manual pass.** The 6 viewports now run in both languages
+      (12 checks), asserting zero horizontal overflow and that the primary CTA stays visible.
+      The longer Dutch strings — `Prijsopgave aanvragen` in the bordered CTA,
+      `DE KUNST VAN EXECUTIVE GASTVRIJHEID` at 9px/`0.42em`, the section eyebrows — **pass at
+      every breakpoint with no CSS changes needed.** The risk the plan anticipated did not
+      materialise, which is worth recording rather than assuming.
+
+### Final state
+
+```
+npm run lint        clean
+npm run typecheck   clean
+npm run check:i18n  570 keys in parity · no hardcoded strings in 52 components
+npm run build       clean, 22 static pages
+npm run test:e2e    31 passed, 3 skipped, 0 failed
+```
+
+`check-literals.mts` earned its place immediately: it found **16 strings I had missed** — the
+`Driver name` label, both admin not-found pages, the two back-links, `Reset filters`, the RDW
+open-recall warning, the approval note, and the error boundaries. A rendered-output leak check
+could not have caught those, because they were never in a dictionary to compare against.
 
 ---
 
@@ -242,18 +362,153 @@ bugs, not cosmetics.
   `toLocaleString("en-US")` inside `pickupInstant()` as a **timezone calculation**. Localizing it
   silently corrupts pickup-time math. Only `formatPickup`, `formatEuro` and `formatRelative`
   become locale-aware.
-- **T4 — Production migrations.** `npm run db:migrate` reads only `.env.local` (local Docker).
-  Production is Supabase via `.env`. The four Phase 3 migrations need a deliberate production
+- **T4 — Production migrations.** `npm run db:migrate` reads only `.env.local`, whose
+  `DATABASE_URL` is the local Docker Postgres; the Supabase URLs are present but **commented out**
+  (lines 3–4). Pointing a migration at production means uncommenting those, which also means the
+  local URL on line 1 must be commented out first — `node --env-file` takes the *first*
+  definition, so leaving both active silently keeps you on local. The four Phase 3 migrations need a deliberate production
   run — see the launch checklist.
 - **T5 — `global-not-found.tsx`** sits outside `[locale]` and cannot use root params. The proxy
   keeps real site paths locale-prefixed, so in-site misses hit `app/[locale]/not-found.tsx`;
   the global file only catches unmatched roots.
+- **T8 — root-param types are NOT generated, and cannot be without moving admin.** Two linked
+  gotchas, plus a correction:
+  1. `node_modules/next/root-params.d.ts` is a bare `declare module 'next/root-params'`, so the
+     import typechecks as `any` **whether or not** generation succeeded. A green `typecheck` is
+     *not* evidence the locale param is typed — check `.next/types/root-params.d.ts` directly.
+  2. Generation found nothing because `collectRootParamsFromLayouts`
+     (`node_modules/next/dist/server/lib/router-utils/route-types-utils.js`) treats a layout as a
+     root layout only if no other layout is an ancestor:
+     `!routes.some(other => other !== route && (other === '/' || route.startsWith(other + '/')))`.
+     Route groups are stripped from paths, so `app/(site)/layout.tsx` registers as route `/`,
+     which matches `other === '/'` and disqualifies `/[locale]`. Generated proof:
+     `type LayoutRoutes = "/" | "/[locale]" | "/admin"`.
+
+  **Correction (Phase 2):** removing `app/(site)/` did *not* fix it. `app/(admin)/layout.tsx` is
+  also a bare route group, so it *also* registers as route `/`. Two culprits, same mechanism —
+  `LayoutRoutes` is still `"/" | "/[locale]" | "/admin"`.
+
+  **Resolution taken:** the `any` is pinned at one annotated boundary, `currentLocale()` in
+  `lib/i18n/get-dictionary.ts`. Everything downstream is properly typed `Locale`. Runtime is
+  unaffected and verified — both locales prerender correctly, because type generation and
+  runtime resolution are independent.
+
+  **Optional cleanup (not done):** flatten `app/(admin)/` → `app/admin/` so its layout registers
+  as `/admin` rather than `/`. `LayoutRoutes` would become `"/[locale]" | "/admin"`, both would
+  qualify, and `locale` would generate as `Promise<string | undefined>` — exactly what
+  `isLocale()` takes. Deferred: it is ~15 more moved files for a typing gain only, and Phases 4–7
+  are about to edit admin heavily. Worth doing *after* those, if at all.
+- **T9 — a `[locale]` root layout cannot have a segment `not-found.tsx`.** Found by crash, not by
+  reading. `[locale]` matches *any* first segment, so `/foobar` enters the tree with
+  `locale="foobar"` and the layout calls `notFound()`. A not-found boundary renders *inside* its
+  root layout — and that layout is the thing that threw, so Next.js returns its bare
+  `<html id="__next_error__">` shell with no content. A `[locale]/[...rest]` catch-all made it
+  worse, breaking every 404. The Next.js docs name this exact case as why `global-not-found`
+  exists: *"Your root layout is defined using top-level dynamic segments … which makes composing
+  a consistent 404 page harder."* So: **no `app/[locale]/not-found.tsx`**, and
+  `global-not-found.tsx` is bilingual, since it bypasses rendering and can know no locale.
+- **T11 — `drizzle-kit` silently refuses to apply, and `drizzle-kit generate` needs a TTY.**
+  Two separate problems, both hit in Phase 3:
+  1. `npx drizzle-kit generate` aborts with *"Interactive prompts require a TTY"* when a change
+     looks like it might be a column rename (here: `message` dropped while `event`/`params` were
+     added). Splitting the change into additive-then-destructive migrations removes the ambiguity
+     and the prompt — which is the safer migration shape anyway.
+  2. `npm run db:migrate` printed **"migrations applied successfully" while applying nothing** —
+     exit code 0, no error, `__drizzle_migrations` untouched. The journal, snapshot and `.sql`
+     file were all correct and 0004's `when` was newer than the last applied row. Workaround:
+     drizzle-orm's own runtime migrator applies it correctly:
+
+     ```
+     node --env-file-if-exists=.env.local --input-type=module -e '
+       const { default: postgres } = await import("postgres");
+       const { drizzle } = await import("drizzle-orm/postgres-js");
+       const { migrate } = await import("drizzle-orm/postgres-js/migrator");
+       const sql = postgres(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL, { max: 1 });
+       await migrate(drizzle(sql), { migrationsFolder: "./drizzle" });
+       await sql.end();'
+     ```
+
+     ⚠️ **Never trust `db:migrate`'s success message.** Always confirm with
+     `select count(*) from drizzle.__drizzle_migrations`. This matters most for the production run
+     (T4): a silent no-op there would leave the schema behind the deployed code.
+  `__drizzle_migrations.hash` is the plain sha256 of the `.sql` file, so editing an applied
+  migration requires updating that row to keep drizzle's state consistent.
+- **T10 — the proxy must intercept invalid locales.** Because `[locale]` matches anything, an
+  unknown first segment would still reach the layout and trigger T9. `proxy.ts` therefore rewrites
+  unknown paths to `/_not-found` rather than passing them through. Without this, `/foobar` serves
+  a blank error page — and a status-code-only check will not catch it, since it still returns 404.
 - **T6 — CSP.** `next.config.ts` locks `connect-src` / `script-src` to this origin. The no-library
   approach needs no CSP change. Any future translation SaaS or font subset would.
 - **T7 — Fonts.** `lib/fonts.ts` loads `subsets: ["latin"]`, which covers Dutch (ë, é, ij). No
   change needed — do not "fix" this.
 
 ---
+
+## 5c. Notes from Phase 5
+
+- **`"use cache"` + a cookie-read dictionary will break the build.** `adminDictionary()` reads the
+  session cookie, so awaiting it in a layout or page *body* makes the static shell dynamic and
+  `next build` fails with `blocking-prerender-dynamic`. The fix is to resolve it inside a
+  `<Suspense>` boundary — an async child for the sidebar, and streamed `title`/`description` nodes
+  for page headings (`PageHeader` already accepts `ReactNode`). Worth remembering for any further
+  admin work.
+- **Status and event labels moved out of `lib/admin/format.ts`.** `STATUS_LABEL` and
+  `APPLICATION_LABEL` are gone; only the styling maps remain. `StatusBadge`/`ApplicationBadge`
+  resolve their own labels, which is cheap because `getAdmin()` is request-deduplicated.
+- **The login screen uses `DEFAULT_LOCALE`**, since nobody is signed in yet and there is no
+  preference to read.
+
+## 4a. Note for Phase 5
+
+Admin currently calls `getDictionary("en")` in five places, each marked with a comment. Phase 5's
+admin work is mostly mechanical: swap those for the signed-in admin's `admin_users.locale`, pass
+that same locale into the `lib/admin/format.ts` date helpers, and replace `EVENT_LABELS_EN` in
+`lib/admin/events.ts` with the dictionary. The storage format and all call signatures are already
+final, so nothing else has to move.
+
+## 5a. Blockers
+
+- ~~**B1 — Phase 2's move needs permission.**~~ **Resolved** — run by hand, 28 files via `git mv`
+  with history preserved. (It did not unblock T8; see the correction there.)
+
+## 5b. Pre-existing on `main` (found during Phase 0)
+
+`npm run lint` already fails on `main`, before any i18n work — 3 × `@next/next/no-html-link-for-pages`:
+
+| File | Line | Link |
+|---|---|---|
+| `app/(site)/_components/quote-form.tsx` | 138 | `<a href="/privacy">` |
+| `app/(site)/_components/application-form.tsx` | 227 | `<a href="/privacy">` |
+| `app/(admin)/admin/error.tsx` | 27 | `<a href="/admin/">` |
+
+Convenient overlap: the two form links must become `localizedPath("/privacy", locale)` for D4
+regardless, so switching them to `<Link>` is the same edit. Fold into Phase 5 rather than
+fixing separately. The admin one is independent — fix it whenever.
+
+`typecheck` and `build` were both clean on `main`.
+
+⚠️ **CI is therefore already red on `main`**: `.github/workflows/ci.yml:36` runs `npm run lint`,
+which exits non-zero on the above. Worth fixing before judging any i18n branch's CI result.
+
+**Also pre-existing: 3 e2e failures, environment-coupled.** `tests/e2e/driver-application.spec.ts`
+contains no `setInputFiles` call, so it never uploads the four required documents. It passes only
+when `storageConfigured()` is false — which is the case in CI (`ci.yml` sets `DATABASE_URL` only),
+but *not* locally, where `.env.local` has `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set. With
+storage configured the form correctly rejects the submission and the 3 tests fail. Unrelated to
+i18n; fold a document-upload path into the spec during Phase 7.
+
+Local run after the move: **15 passed, 3 failed** (exactly those). Still 15/3 after Phase 3.
+
+**Fixed along the way** (all three lint errors, so `lint` is now clean and CI's blocker is gone).
+Two of them were a live bug rather than a style nit: the `<a href="/privacy">` in both forms sent
+a Dutch visitor to the English page once localized slugs existed. They now use
+`localizedPath("/privacy", locale)`.
+
+**One e2e assertion updated, not worked around.** `quote-flow.spec.ts` asserted `€ 185,50` as a
+bare `getByText`. History amounts are now rendered with `formatEuro`, so the string appears in
+both the activity log and the summary and Playwright's strict mode rejected the ambiguity. The
+old history hardcoded `€185.50`, which was wrong for a Dutch admin. The assertion now checks the
+whole log line, which is stronger than before.
 
 ## 6. Launch checklist additions
 
@@ -262,10 +517,11 @@ Fold into the existing checklist in `README.md`:
 - [ ] Four Phase 3 migrations run against the **production** Supabase database (T4)
 - [ ] ~25 flagged brand headlines reviewed by a native Dutch copywriter (D6)
 - [ ] Dutch privacy policy reviewed as a legal text
-- [ ] `hreflang` tags verified live on all three routes in both locales
+- [ ] `hreflang` tags verified **on the deployed site** (asserted locally by an e2e test, but
+      worth confirming against the real domain once `SITE_URL` is final)
 - [ ] Both locales submitted in Search Console; `sitemap.xml` lists both
-- [ ] `/` redirect verified for a Dutch browser, an English browser, and a returning visitor
-      with a `NEXT_LOCALE` cookie
+- [x] `/` redirect for a Dutch browser, an English browser and a returning visitor with a
+      `NEXT_LOCALE` cookie — covered by e2e tests, including that the cookie beats the header
 - [ ] Each admin's `locale` preference set
 - [ ] Test quote submitted in **both** languages — confirm the confirmation email language
       matches the form language
@@ -287,8 +543,11 @@ land with the public site to avoid a second migration against production data.
 
 ## 8. Open
 
-- [ ] `media-src/` + `scripts/build-brand-film.mts` — check whether the brand film carries
-      burnt-in text that would need a Dutch cut. The play button is disabled until the film
-      is added, so this is not blocking.
+- [x] **Brand film needs no Dutch cut.** `build-brand-film.mts`'s filter chain is only
+      `setpts`/`fps`/`format` — no `drawtext`, so nothing is overlaid. Frames sampled from the
+      start, middle and the final 14 seconds of `public/assets/brand-film.mp4` show vehicle
+      footage with no burnt-in copy and no end-card: the script's 1:17–5:05 trim cuts off
+      whatever the original Mercedes press film ended with. The only text on screen is a German
+      licence plate and the car's own dashboard UI.
 - [ ] Dutch register on `drive-with-us` — plan assumes **je**. Confirm with the client; a premium
       brand may prefer **u** even for driver recruitment.

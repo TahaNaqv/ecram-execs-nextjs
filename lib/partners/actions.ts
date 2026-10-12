@@ -8,6 +8,8 @@ import type { DriverApplication } from "@/lib/db/schema";
 import { confirmApplication, notifyNewApplication } from "@/lib/email";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
 import { listFiles, removeFiles, signedUploadUrl, storageConfigured } from "@/lib/storage";
+import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
+import type { Dictionary } from "@/lib/i18n/types";
 import {
   amsterdamToday,
   DECLARATIONS,
@@ -42,7 +44,7 @@ export type CheckResult =
   | Exclude<ApplicationFormState, { status: "idle" }>
   | { status: "ready"; ticket: string; uploads: { name: DocumentName; url: string }[] };
 
-const FIELDS = ["name", "email", "phone", "kvk", "experienceYears", "plate", "notes", ...DECLARATIONS.map((d) => d.name)] as const;
+const FIELDS = ["name", "email", "phone", "kvk", "experienceYears", "plate", "notes", ...DECLARATIONS] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 60 };
 const TICKET_TTL_MS = 60 * 60_000;
 
@@ -53,6 +55,9 @@ type Ticket = { folder: string; plate: string; vehicle: RdwVehicle | "unavailabl
 
 // Any server-side secret will do; the random fallback only works on a single instance (local development)
 const ticketKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.IP_HASH_SALT || randomBytes(32).toString("hex");
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (token, key: string) => (key in values ? String(values[key]) : token));
+
 const mac = (body: string) => createHmac("sha256", `application-ticket:${ticketKey}`).update(body).digest("base64url");
 
 function signTicket(t: Ticket) {
@@ -70,16 +75,17 @@ function readTicket(token: string): Ticket | null {
 }
 
 /** Validates the form and applies the per-visitor and per-car limits. */
-async function validate(formData: FormData) {
+async function validate(formData: FormData, d: Dictionary) {
+  const t = d.forms;
   const values = Object.fromEntries(FIELDS.map((f) => [f, String(formData.get(f) ?? "")]));
-  const parsed = applicationSchema.safeParse({ ...values, notes: values.notes || undefined });
+  const parsed = applicationSchema(t).safeParse({ ...values, notes: values.notes || undefined });
   if (!parsed.success) {
     const fieldErrors: Partial<Record<FormField, string>> = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path[0] as FormField;
       fieldErrors[key] ??= issue.message;
     }
-    return { ok: false as const, error: fail("Please check the highlighted details.", fieldErrors) };
+    return { ok: false as const, error: fail(t.checkHighlighted, fieldErrors) };
   }
   const input = parsed.data;
 
@@ -88,7 +94,7 @@ async function validate(formData: FormData) {
   const a = schema.driverApplications;
   const [{ recent }] = await db.select({ recent: count() }).from(a).where(and(eq(a.ipHash, ipHash), gt(a.createdAt, since)));
   if (recent >= RATE_LIMIT.max) {
-    return { ok: false as const, error: fail("We have received several applications from you already — we will be in touch shortly.") };
+    return { ok: false as const, error: fail(t.applicationRateLimited) };
   }
 
   // One open application per car
@@ -100,8 +106,8 @@ async function validate(formData: FormData) {
   if (open) {
     return {
       ok: false as const,
-      error: fail(`This car already has an application under review (${open.reference}). We will be in touch soon.`, {
-        plate: "An application for this car is already being reviewed.",
+      error: fail(fill(t.applicationDuplicate, { reference: open.reference }), {
+        plate: t.applicationDuplicateField,
       }),
     };
   }
@@ -110,6 +116,9 @@ async function validate(formData: FormData) {
 
 /** Step 1: checks the details and the car, and returns where to upload the documents. */
 export async function checkApplication(formData: FormData): Promise<CheckResult> {
+  // The applicant's language came in with the form; every message below is theirs to read.
+  const d = await dictionaryFromForm(formData);
+  const t = d.forms;
   // Honeypot: real visitors never see or fill this field
   if (String(formData.get("company_website") ?? "") !== "") {
     return { status: "success", reference: "AP-RECEIVED", name: String(formData.get("name") ?? "") };
@@ -120,33 +129,31 @@ export async function checkApplication(formData: FormData): Promise<CheckResult>
   const files: Partial<Record<DocumentName, string>> = {};
   const documentErrors: Partial<Record<FormField, string>> = {};
   if (withDocuments) {
-    for (const d of DOCUMENTS) {
-      const ext = DOCUMENT_TYPES[String(formData.get(`${d.name}Type`) ?? "")];
-      const size = Number(formData.get(`${d.name}Size`));
-      if (!size) documentErrors[d.name] = `Please add your ${d.label}.`;
-      else if (!ext) documentErrors[d.name] = "Please upload a PDF, JPG or PNG.";
-      else if (size > MAX_DOCUMENT_BYTES) documentErrors[d.name] = "This file is larger than 5 MB.";
-      else files[d.name] = `${d.name}.${ext}`;
+    for (const name of DOCUMENTS) {
+      const ext = DOCUMENT_TYPES[String(formData.get(`${name}Type`) ?? "")];
+      const size = Number(formData.get(`${name}Size`));
+      if (!size) documentErrors[name] = fill(t.documentRequired, { document: d.documents[name].label });
+      else if (!ext) documentErrors[name] = t.documentType;
+      else if (size > MAX_DOCUMENT_BYTES) documentErrors[name] = t.documentTooLarge;
+      else files[name] = `${name}.${ext}`;
     }
   }
 
-  const checked = await validate(formData);
+  const checked = await validate(formData, d);
   if (!checked.ok) {
     return { ...checked.error, fieldErrors: { ...checked.error.fieldErrors, ...documentErrors } };
   }
-  if (Object.keys(documentErrors).length) return fail("Please check the highlighted details.", documentErrors);
+  if (Object.keys(documentErrors).length) return fail(t.checkHighlighted, documentErrors);
   const { input } = checked;
 
   const vehicle = await lookupVehicle(input.plate);
   if (vehicle === null) {
-    return fail("Please check the highlighted details.", {
-      plate: "We couldn't find this plate in the RDW register. Please check it and try again.",
-    });
+    return fail(t.checkHighlighted, { plate: t.plateNotFound });
   }
   if (vehicle !== "unavailable") {
-    const issues = vehicleIssues(vehicle, amsterdamToday());
+    const issues = vehicleIssues(vehicle, amsterdamToday(), d.criteria);
     if (issues.length) {
-      return fail("Unfortunately this car doesn't meet our criteria.", { plate: "This car doesn't meet our criteria." }, issues);
+      return fail(t.criteriaNotMet, { plate: t.criteriaNotMetField }, issues);
     }
   }
   // If the RDW was unreachable the application is still saved, flagged for a manual check
@@ -156,11 +163,11 @@ export async function checkApplication(formData: FormData): Promise<CheckResult>
   if (withDocuments) {
     try {
       uploads = await Promise.all(
-        DOCUMENTS.map(async (d) => ({ name: d.name, url: await signedUploadUrl(`${folder}/${files[d.name]}`) })),
+        DOCUMENTS.map(async (name) => ({ name, url: await signedUploadUrl(`${folder}/${files[name]}`) })),
       );
     } catch (err) {
       console.error("[application] could not prepare document uploads", err);
-      return fail("Something went wrong on our side. Please try again, or contact us directly.");
+      return fail(t.applicationServerError);
     }
   }
   const ticket = signTicket({ folder, plate: input.plate, vehicle, files, expires: Date.now() + TICKET_TTL_MS });
@@ -173,11 +180,14 @@ export async function submitApplication(formData: FormData): Promise<Application
     return { status: "success", reference: "AP-RECEIVED", name: String(formData.get("name") ?? "") };
   }
 
+  const d = await dictionaryFromForm(formData);
+  const t = d.forms;
+
   const ticket = readTicket(String(formData.get("ticket") ?? ""));
-  if (!ticket) return fail("This form has expired. Please submit it again.");
+  if (!ticket) return fail(t.formExpired);
   const discard = () => removeFiles(Object.values(ticket.files).map((f) => `${ticket.folder}/${f}`));
 
-  const checked = await validate(formData);
+  const checked = await validate(formData, d);
   if (!checked.ok) {
     await discard();
     return checked.error;
@@ -185,7 +195,7 @@ export async function submitApplication(formData: FormData): Promise<Application
   const { input, ipHash, userAgent } = checked;
   if (input.plate !== ticket.plate) {
     await discard();
-    return fail("Please submit the form again.", { plate: "The licence plate changed. Please submit again." });
+    return fail(t.formResubmit, { plate: t.plateChanged });
   }
 
   let documents: ApplicationDocument[] | null = null;
@@ -195,20 +205,20 @@ export async function submitApplication(formData: FormData): Promise<Application
       return [];
     });
     documents = [];
-    for (const d of DOCUMENTS) {
-      const file = stored.find((f) => f.name === ticket.files[d.name]);
+    for (const name of DOCUMENTS) {
+      const file = stored.find((f) => f.name === ticket.files[name]);
       if (!file) {
         await discard();
-        return fail("One of your documents didn't upload. Please try again.", { [d.name]: "This file didn't upload." });
+        return fail(t.documentUploadFailed, { [name]: t.documentNotUploaded });
       }
-      documents.push({ name: d.name, path: `${ticket.folder}/${file.name}`, size: file.size, contentType: file.contentType });
+      documents.push({ name, path: `${ticket.folder}/${file.name}`, size: file.size, contentType: file.contentType });
     }
   }
 
   const application = await save(input, ticket.vehicle, documents, ipHash, userAgent);
   if (!application) {
     await discard();
-    return fail("Something went wrong on our side. Please try again, or contact us directly.");
+    return fail(t.applicationServerError);
   }
 
   after(() => Promise.all([notifyNewApplication(application), confirmApplication(application)]));
@@ -235,6 +245,7 @@ async function save(
           kvk: input.kvk,
           experienceYears: input.experienceYears,
           notes: input.notes,
+          locale: input.locale,
           plate: input.plate,
           ...(vehicle !== "unavailable" && {
             make: vehicle.make,

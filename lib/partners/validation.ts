@@ -1,41 +1,57 @@
 import { z } from "zod";
-import { DECLARATIONS, DRIVER_CRITERIA, type DocumentName } from "./criteria";
+import { DECLARATIONS, DRIVER_CRITERIA, type Declaration, type DocumentName } from "./criteria";
+import { LOCALES } from "@/lib/i18n/config";
 
-const text = (label: string, max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1, `Please enter ${label}.`)
-    .max(max, `${label[0].toUpperCase() + label.slice(1)} is too long.`);
+/** The messages the schema needs. `dictionary.forms` satisfies this structurally. */
+export type ApplicationMessages = {
+  nameRequired: string;
+  nameTooLong: string;
+  emailInvalid: string;
+  phoneInvalid: string;
+  kvkInvalid: string;
+  experienceRequired: string;
+  experienceWhole: string;
+  experienceMin: string;
+  experienceMax: string;
+  plateInvalid: string;
+  notesTooLong: string;
+  declarationRequired: string;
+};
 
-const confirmed = z.literal("on", { error: "Please confirm this to continue." });
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (token, key: string) => (key in values ? String(values[key]) : token));
 
-export const applicationSchema = z.object({
-  name: text("your name", 120),
-  email: z.string().trim().toLowerCase().max(200).pipe(z.email("Please enter a valid email address.")),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9 ()\-.]{7,24}$/, "Please enter a valid phone number, including country code."),
-  kvk: z
-    .string()
-    .transform((v) => v.replace(/\s/g, ""))
-    .pipe(z.string().regex(/^\d{8}$/, "Please enter your 8-digit KvK number.")),
-  experienceYears: z.coerce
-    .number({ error: "Please enter your years of experience." })
-    .int("Please enter whole years.")
-    .min(DRIVER_CRITERIA.minExperienceYears, `We ask for at least ${DRIVER_CRITERIA.minExperienceYears} years of professional driving experience.`)
-    .max(60, "Please check your years of experience."),
-  // Dutch plates are 6 letters/digits, written with or without dashes
-  plate: z
-    .string()
-    .transform((v) => v.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-    .pipe(z.string().regex(/^[A-Z0-9]{6}$/, "Please enter a Dutch licence plate, e.g. T-123-AB.")),
-  notes: z.string().trim().max(2000, "Notes are too long.").optional(),
-  ...(Object.fromEntries(DECLARATIONS.map((d) => [d.name, confirmed])) as Record<(typeof DECLARATIONS)[number]["name"], typeof confirmed>),
-});
+export const applicationSchema = (t: ApplicationMessages) => {
+  const confirmed = z.literal("on", { error: t.declarationRequired });
+  return z.object({
+    name: z.string().trim().min(1, t.nameRequired).max(120, t.nameTooLong),
+    email: z.string().trim().toLowerCase().max(200).pipe(z.email(t.emailInvalid)),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9 ()\-.]{7,24}$/, t.phoneInvalid),
+    kvk: z
+      .string()
+      .transform((v) => v.replace(/\s/g, ""))
+      .pipe(z.string().regex(/^\d{8}$/, t.kvkInvalid)),
+    experienceYears: z.coerce
+      .number({ error: t.experienceRequired })
+      .int(t.experienceWhole)
+      .min(DRIVER_CRITERIA.minExperienceYears, fill(t.experienceMin, { years: DRIVER_CRITERIA.minExperienceYears }))
+      .max(60, t.experienceMax),
+    // Dutch plates are 6 letters/digits, written with or without dashes
+    plate: z
+      .string()
+      .transform((v) => v.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+      .pipe(z.string().regex(/^[A-Z0-9]{6}$/, t.plateInvalid)),
+    notes: z.string().trim().max(2000, t.notesTooLong).optional(),
+    // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
+    locale: z.enum(LOCALES).catch("en"),
+    ...(Object.fromEntries(DECLARATIONS.map((d) => [d, confirmed])) as Record<Declaration, typeof confirmed>),
+  });
+};
 
-export type ApplicationInput = z.infer<typeof applicationSchema>;
+export type ApplicationInput = z.infer<ReturnType<typeof applicationSchema>>;
 export type ApplicationField = keyof ApplicationInput;
 /** Everything the form can flag an error on */
 export type FormField = ApplicationField | DocumentName;

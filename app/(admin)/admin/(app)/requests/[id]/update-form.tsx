@@ -1,28 +1,34 @@
 "use client";
 
 import { useActionState } from "react";
-import { STATUS_LABEL } from "@/lib/admin/format";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { updateRequest, type UpdateState } from "../../../actions";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
 
-type Props = { id: string; status: RequestStatus; quotedAmount: string | null; internalNotes: string | null };
+type Props = {
+  id: string;
+  status: RequestStatus;
+  quotedAmount: string | null;
+  internalNotes: string | null;
+  statusLabels: Record<RequestStatus, string>;
+  copy: { save: string; saving: string; status: string; quotedAmount: string; internalNotes: string; amountPlaceholder: string; internalPlaceholder: string };
+};
 
-export function UpdateForm({ id, status, quotedAmount, internalNotes }: Props) {
+export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabels, copy }: Props) {
   const [state, action, pending] = useActionState<UpdateState, FormData>(updateRequest, {});
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="req-status" className={fieldLabel}>
-          Status
+          {copy.status}
         </label>
         <div className="relative">
           <select id="req-status" name="status" defaultValue={status} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
             {REQUEST_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {STATUS_LABEL[s]}
+                {statusLabels[s]}
               </option>
             ))}
           </select>
@@ -31,7 +37,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes }: Props) {
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="req-amount" className={fieldLabel}>
-          Quoted amount (EUR)
+          {copy.quotedAmount}
         </label>
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">€</span>
@@ -40,7 +46,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes }: Props) {
             name="quotedAmount"
             inputMode="decimal"
             autoComplete="off"
-            placeholder="185.00"
+            placeholder={copy.amountPlaceholder}
             defaultValue={quotedAmount ?? ""}
             aria-invalid={state.error ? true : undefined}
             aria-describedby={state.error ? "req-error" : undefined}
@@ -50,7 +56,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes }: Props) {
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="req-notes" className={fieldLabel}>
-          Internal notes
+          {copy.internalNotes}
         </label>
         <textarea
           id="req-notes"
@@ -58,7 +64,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes }: Props) {
           rows={5}
           maxLength={5000}
           defaultValue={internalNotes ?? ""}
-          placeholder="Driver assigned, vehicle, flight details… Only visible to the team."
+          placeholder={copy.internalPlaceholder}
           className={`${field} resize-y py-2.5 leading-relaxed`}
         />
       </div>
@@ -73,7 +79,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes }: Props) {
       <div className="flex items-center gap-3">
         <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.lg} flex-1`}>
           {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-          {pending ? "Saving…" : "Save changes"}
+          {pending ? copy.saving : copy.save}
         </button>
       </div>
       <p aria-live="polite" className="-mt-1 min-h-5 text-center text-[13px]">

@@ -2,13 +2,35 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { applicationCounts, listApplications } from "@/lib/admin/applications";
-import { APPLICATION_DOT, APPLICATION_LABEL, formatRelative, formatTimestamp } from "@/lib/admin/format";
+import { APPLICATION_DOT, formatRelative, formatTimestamp } from "@/lib/admin/format";
 import { APPLICATION_STATUSES, colourLabel, makeLabel } from "@/lib/partners/criteria";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { AlertIcon, ArrowLeftIcon, InboxIcon } from "../../../_components/icons";
 import { ApplicationBadge } from "../../../_components/status-badge";
 import { Avatar, Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
 
-export const metadata: Metadata = { title: "Driver applications" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { admin } = await adminDictionary();
+  return { title: admin.applications.title };
+}
+
+async function Description() {
+  const { admin } = await adminDictionary();
+  return (
+    <>
+      {admin.applications.applicationsDescBefore}
+      <a href="/drive-with-us" target="_blank" className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950">
+        {admin.common.driveWithUs}
+      </a>
+      {admin.applications.applicationsDescAfter}
+    </>
+  );
+}
+
+async function Heading() {
+  const { admin } = await adminDictionary();
+  return admin.applications.title;
+}
 
 export default function ApplicationsPage({ searchParams }: PageProps<"/admin/drivers/applications">) {
   return (
@@ -20,15 +42,15 @@ export default function ApplicationsPage({ searchParams }: PageProps<"/admin/dri
             Drivers
           </Link>
         }
-        title="Driver applications"
+        title={
+          <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
+            <Heading />
+          </Suspense>
+        }
         description={
-          <>
-            Independent drivers applying to join with their own car from the{" "}
-            <a href="/drive-with-us" target="_blank" className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950">
-              Drive with us
-            </a>{" "}
-            page. Cars are checked against the RDW register on submission.
-          </>
+          <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
+            <Description />
+          </Suspense>
         }
       />
       <Suspense fallback={<ListSkeleton />}>
@@ -40,16 +62,18 @@ export default function ApplicationsPage({ searchParams }: PageProps<"/admin/dri
 
 async function Applications({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const { status } = await searchParams;
-  const [rows, counts] = await Promise.all([listApplications(status), applicationCounts()]);
+  const [rows, counts, dict] = await Promise.all([listApplications(status), applicationCounts(), adminDictionary()]);
+  const { criteria } = dict;
+  const t = dict.admin;
   const all = Object.values(counts).reduce((x, y) => x + y, 0);
   const tabs = [
-    { key: "", label: "All", n: all, dot: "" },
-    ...APPLICATION_STATUSES.map((s) => ({ key: s, label: APPLICATION_LABEL[s], n: counts[s], dot: APPLICATION_DOT[s] })),
+    { key: "", label: t.requests.all, n: all, dot: "" },
+    ...APPLICATION_STATUSES.map((s) => ({ key: s, label: t.applicationStatuses[s], n: counts[s], dot: APPLICATION_DOT[s] })),
   ];
 
   return (
     <Card className="mt-6 overflow-hidden">
-      <nav className="overflow-x-auto border-b border-zinc-100 p-3 sm:p-4" aria-label="Filter by status">
+      <nav className="overflow-x-auto border-b border-zinc-100 p-3 sm:p-4" aria-label={t.common.filterByStatus}>
         <div className="inline-flex gap-1 rounded-lg bg-zinc-100/80 p-1">
           {tabs.map((t) => {
             const active = (status ?? "") === t.key;
@@ -74,8 +98,8 @@ async function Applications({ searchParams }: { searchParams: Promise<{ status?:
       {rows.length === 0 ? (
         <EmptyState
           icon={<InboxIcon size={18} />}
-          title={status ? "No applications with this status" : "No applications yet"}
-          description="Applications from the Drive with us page will appear here as soon as they're submitted."
+          title={status ? t.applications.emptyFiltered : t.applications.emptyAll}
+          description={t.applications.emptyNote}
         />
       ) : (
         <ul className="divide-y divide-zinc-100">
@@ -100,11 +124,11 @@ async function Applications({ searchParams }: { searchParams: Promise<{ status?:
                     {r.rdwCheckedAt ? (
                       <span className="truncate text-[13px] text-zinc-700">
                         {makeLabel(r.make ?? "")} {r.model}
-                        <span className="text-zinc-400"> · {colourLabel(r.colour ?? "")}, {r.firstRegistered?.slice(0, 4)}</span>
+                        <span className="text-zinc-400"> · {colourLabel(r.colour ?? "", criteria.colours)}, {r.firstRegistered?.slice(0, 4)}</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[13px] text-amber-700">
-                        <AlertIcon size={13} /> Not verified with RDW
+                        <AlertIcon size={13} /> {t.applications.notVerifiedRdw}
                       </span>
                     )}
                   </div>

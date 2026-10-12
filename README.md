@@ -2,7 +2,8 @@
 
 Next.js 16 app containing:
 
-- **`/`** — the public homepage (ported from the design export in `../Ecram-Execs-Website`), fully server-rendered.
+- **`/en`, `/nl`** — the public site in English and Dutch, fully server-rendered. `/` redirects to
+  whichever the visitor prefers. See `docs/i18n-en-nl-plan.md` for how the translations work.
 - **Quote form** — the "Plan your journey" form saves each request to Postgres and emails the team.
 - **`/admin`** — password-protected panel to review requests, set status, record the quoted amount and keep internal notes. Every change is logged in the request's history.
 
@@ -88,6 +89,7 @@ Edit **`lib/site-config.ts`**. Every field is optional: anything left empty is h
 ```bash
 npm run lint
 npm run typecheck
+npm run check:i18n                  # dictionary parity + no hardcoded user-facing strings
 npm run build && npm run test:e2e   # Playwright, against the production build
 ```
 
@@ -134,7 +136,9 @@ GitHub Actions (`.github/workflows/ci.yml`) runs all of the above with a throwaw
 
 ## Launch checklist
 
-- [ ] Replace the `// DEMO` values in `lib/site-config.ts` (phone, email, address, KvK, seating, amenities, socials)
+- [ ] Replace the `// DEMO` values in `lib/site-config.ts` (phone, email, address, KvK, seating, amenities, socials — `tagline` and `fleet.amenities` are per language)
+- [ ] Have a native Dutch copywriter review the ~25 brand headlines, and a lawyer read the Dutch privacy policy (see `docs/i18n-en-nl-plan.md` §6)
+- [ ] Set each admin's language in the panel (the EN/NL control next to Sign out)
 - [ ] Remove the demo requests: `npm run db:seed-demo -- --clear` (against the production database)
 - [ ] Review the privacy policy text in `app/(site)/privacy/page.tsx` (retention period, processors)
 - [ ] Supabase on the **Pro** plan (daily backups, no pausing), EU region, migrations run

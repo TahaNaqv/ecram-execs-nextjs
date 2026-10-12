@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { formatEuro, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT, STATUS_LABEL } from "@/lib/admin/format";
+import { formatEuro, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
-import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { REQUEST_STATUSES, serviceLabel } from "@/lib/quotes/constants";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -17,14 +18,35 @@ import {
 import { StatusBadge } from "../_components/status-badge";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
 
-export const metadata: Metadata = { title: "Quote requests" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { admin } = await adminDictionary();
+  return { title: admin.requests.title };
+}
 
 type Search = { status?: string; q?: string; page?: string };
+
+async function Heading({ part }: { part: "title" | "description" }) {
+  const { admin } = await adminDictionary();
+  return admin.requests[part];
+}
 
 export default function RequestsPage({ searchParams }: PageProps<"/admin">) {
   return (
     <PageBody>
-      <PageHeader title="Quote requests" description="Every enquiry from the website, from first contact to completed journey." />
+      {/* The heading depends on the admin's language, which is a cookie read — so it streams
+          rather than blocking the page's static shell under Cache Components. */}
+      <PageHeader
+        title={
+          <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
+            <Heading part="title" />
+          </Suspense>
+        }
+        description={
+          <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
+            <Heading part="description" />
+          </Suspense>
+        }
+      />
       <Suspense fallback={<StatsSkeleton />}>
         <Stats />
       </Suspense>
@@ -42,26 +64,27 @@ function href(params: Search) {
 }
 
 async function Stats() {
+  const { admin: t } = await adminDictionary();
   const [counts, stats] = await Promise.all([statusCounts(), requestStats()]);
   const inProgress = counts.contacted + counts.quoted;
   return (
     <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       <StatCard
         tone="accent"
-        label="Awaiting reply"
+        label={t.requests.statAwaiting}
         value={counts.new}
-        hint={stats.last24h ? `${stats.last24h} received in the last 24h` : "Nothing new in the last 24h"}
+        hint={stats.last24h ? `${stats.last24h} received in the last 24h` : t.requests.statAwaitingNone}
         icon={<InboxIcon />}
       />
       <StatCard
-        label="In progress"
+        label={t.requests.statInProgress}
         value={inProgress}
         hint={`${counts.contacted} contacted · ${counts.quoted} quoted`}
         icon={<CheckCircleIcon />}
       />
-      <StatCard label="Open quotes" value={formatEuro(stats.openValue)} hint="Sent, awaiting client decision" icon={<EuroIcon />} />
+      <StatCard label={t.requests.statOpenQuotes} value={formatEuro(stats.openValue)} hint={t.requests.statOpenQuotesNote} icon={<EuroIcon />} />
       <StatCard
-        label="Upcoming journeys"
+        label={t.requests.statUpcoming}
         value={stats.upcoming}
         hint={`${stats.next7} in the next 7 days · ${formatEuro(stats.confirmedValue)} booked`}
         icon={<CalendarIcon />}
@@ -83,15 +106,18 @@ function StatsSkeleton() {
 async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const { status, q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const [{ rows, total }, counts] = await Promise.all([
+  const [{ rows, total }, counts, dict] = await Promise.all([
     listRequests({ status, search: q?.trim(), page }),
     statusCounts(),
+    adminDictionary(),
   ]);
+  const serviceLabels = dict.services;
+  const t = dict.admin;
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const tabs = [
-    { key: "", label: "All", n: all, dot: "" },
-    ...REQUEST_STATUSES.map((s) => ({ key: s, label: STATUS_LABEL[s], n: counts[s], dot: STATUS_DOT[s] })),
+    { key: "", label: t.requests.all, n: all, dot: "" },
+    ...REQUEST_STATUSES.map((s) => ({ key: s, label: t.statuses[s], n: counts[s], dot: STATUS_DOT[s] })),
   ];
   const filtered = Boolean(q || status);
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -101,7 +127,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
     <Card className="mt-6 overflow-hidden">
       {/* Toolbar */}
       <div className="flex flex-col gap-3 border-b border-zinc-100 p-3 sm:p-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
-        <nav className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0" aria-label="Filter by status">
+        <nav className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0" aria-label={t.common.filterByStatus}>
           <div className="inline-flex gap-1 rounded-lg bg-zinc-100/80 p-1">
             {tabs.map((t) => {
               const active = (status ?? "") === t.key;
@@ -130,38 +156,38 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               name="q"
               type="search"
               defaultValue={q}
-              placeholder="Search name, email, ref, place…"
-              aria-label="Search requests"
+              placeholder={t.requests.searchPlaceholder}
+              aria-label={t.requests.searchLabel}
               className={`${field} h-9 pl-9 ${q ? "pr-9" : ""}`}
             />
             {q && (
               <Link
                 href={href({ status })}
-                aria-label="Clear"
-                title="Clear"
+                aria-label={t.common.clear}
+                title={t.common.clear}
                 className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
               >
                 <XIcon size={14} />
               </Link>
             )}
           </div>
-          <button className={`${btn.base} ${btn.primary} ${btn.md}`}>Search</button>
+          <button className={`${btn.base} ${btn.primary} ${btn.md}`}>{t.common.search}</button>
         </form>
       </div>
 
       {rows.length === 0 ? (
         <EmptyState
           icon={filtered ? <SearchIcon size={18} /> : <InboxIcon size={18} />}
-          title={filtered ? "No requests match these filters" : "No quote requests yet"}
+          title={filtered ? t.requests.emptyFiltered : t.requests.emptyAll}
           description={
             filtered
-              ? "Try a different search term or status."
-              : "New enquiries from the website will appear here as soon as they're submitted."
+              ? t.requests.emptyFilteredNote
+              : t.requests.emptyAllNote
           }
           action={
             filtered && (
               <Link href="/admin" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
-                Reset filters
+                {t.common.resetFilters}
               </Link>
             )
           }
@@ -192,7 +218,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           <CalendarIcon size={12} />
                           {pickup.date} · {pickup.time}
                         </span>
-                        <span>{r.service}</span>
+                        <span>{serviceLabel(r.service, serviceLabels)}</span>
                         <span className="ml-auto font-mono text-[11px] text-zinc-400">{r.reference}</span>
                       </div>
                     </div>
@@ -207,13 +233,13 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/60 text-xs font-medium text-zinc-500">
-                  <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">Client</th>
-                  <th scope="col" className="px-3 py-2.5 font-medium">Journey</th>
-                  <th scope="col" className="px-3 py-2.5 font-medium">Pick-up (NL)</th>
-                  <th scope="col" className="px-3 py-2.5 font-medium">Service</th>
-                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Quote</th>
-                  <th scope="col" className="px-3 py-2.5 font-medium">Status</th>
-                  <th scope="col" className="py-2.5 pl-3 pr-5 text-right font-medium">Received</th>
+                  <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">{t.requests.colClient}</th>
+                  <th scope="col" className="px-3 py-2.5 font-medium">{t.requests.colJourney}</th>
+                  <th scope="col" className="px-3 py-2.5 font-medium">{t.requests.colPickup}</th>
+                  <th scope="col" className="px-3 py-2.5 font-medium">{t.requests.colService}</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">{t.requests.colQuote}</th>
+                  <th scope="col" className="px-3 py-2.5 font-medium">{t.requests.colStatus}</th>
+                  <th scope="col" className="py-2.5 pl-3 pr-5 text-right font-medium">{t.requests.colReceived}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -225,7 +251,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                     <tr key={r.id} className="group relative transition-colors hover:bg-zinc-50/80">
                       <td className="py-3.5 pl-5 pr-3">
                         <div className="flex items-center gap-3">
-                          {r.status === "new" && <span aria-label="Unread" className="absolute left-1.5 size-1.5 rounded-full bg-zinc-950" />}
+                          {r.status === "new" && <span aria-label={t.requests.unread} className="absolute left-1.5 size-1.5 rounded-full bg-zinc-950" />}
                           <Avatar name={r.name} size="sm" />
                           <div className="min-w-0">
                             {/* Stretched link: the whole row is clickable */}
@@ -260,7 +286,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           {pickup.time} · {formatRelative(pickupAt)}
                         </p>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-zinc-600">{r.service}</td>
+                      <td className="whitespace-nowrap px-3 py-3.5 text-zinc-600">{serviceLabel(r.service, serviceLabels)}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-zinc-900">
                         {r.quotedAmount === null ? <span className="text-zinc-300">—</span> : formatEuro(r.quotedAmount)}
                       </td>
@@ -290,14 +316,14 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
             <span className="font-medium tabular-nums text-zinc-900">{total}</span> {total === 1 ? "request" : "requests"}
           </p>
           {pages > 1 && (
-            <nav className="flex items-center gap-2" aria-label="Pagination">
+            <nav className="flex items-center gap-2" aria-label={t.common.pagination}>
               <span className="mr-1 hidden tabular-nums sm:inline">
                 Page {page} of {pages}
               </span>
-              <PageLink disabled={page <= 1} href={href({ status, q, page: String(page - 1) })} label="Previous page">
+              <PageLink disabled={page <= 1} href={href({ status, q, page: String(page - 1) })} label={t.common.previousPage}>
                 <ChevronLeftIcon />
               </PageLink>
-              <PageLink disabled={page >= pages} href={href({ status, q, page: String(page + 1) })} label="Next page">
+              <PageLink disabled={page >= pages} href={href({ status, q, page: String(page + 1) })} label={t.common.nextPage}>
                 <ChevronRightIcon />
               </PageLink>
             </nav>

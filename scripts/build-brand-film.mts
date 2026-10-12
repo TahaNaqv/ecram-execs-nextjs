@@ -2,7 +2,7 @@
 //   npm run media:brand-film
 // Needs ffmpeg on PATH. Writes public/assets/brand-film.mp4 and its poster, brand-film-poster.jpg.
 // The source footage is too large to deploy, so it lives in media-src/ (git-ignored); the music stays in public/assets.
-// The clip's length is shown on the poster, so keep DURATION in app/(site)/_components/brand-film.tsx in step.
+// The clip's length is shown on the poster, so keep DURATION in app/[locale]/_components/brand-film.tsx in step.
 import { spawnSync } from "node:child_process";
 import { existsSync, renameSync } from "node:fs";
 

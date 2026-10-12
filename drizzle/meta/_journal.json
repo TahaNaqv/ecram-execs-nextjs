@@ -29,6 +29,20 @@
       "when": 1791571584005,
       "tag": "0003_application_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791799137057,
+      "tag": "0004_tough_mandroid",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791799475820,
+      "tag": "0005_drop_event_message",
+      "breakpoints": true
     }
   ]
 }

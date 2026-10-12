@@ -8,6 +8,8 @@ import { DUMMY_HASH, verifyPassword } from "@/lib/auth/password";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { LOCALES } from "@/lib/i18n/config";
+import type { RequestEventChange } from "@/lib/admin/events";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -83,13 +85,14 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   const [before] = await db.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
   if (!before) return { error: "Request not found." };
 
-  const changes: string[] = [];
-  if (before.status !== status) changes.push(`Status: ${before.status} → ${status}`);
-  const fmt = (v: string | null) => (v === null ? "—" : `€${Number(v).toFixed(2)}`);
+  // Keys and values, never prose — the history has to render in whichever language the admin
+  // reading it has chosen, including for changes recorded years earlier.
+  const changes: RequestEventChange[] = [];
+  if (before.status !== status) changes.push({ kind: "status", from: before.status, to: status });
   if ((before.quotedAmount === null ? null : Number(before.quotedAmount)) !== (quotedAmount === null ? null : Number(quotedAmount))) {
-    changes.push(`Quote: ${fmt(before.quotedAmount)} → ${fmt(quotedAmount)}`);
+    changes.push({ kind: "quote", from: before.quotedAmount, to: quotedAmount });
   }
-  if ((before.internalNotes ?? null) !== internalNotes) changes.push("Internal notes updated");
+  if ((before.internalNotes ?? null) !== internalNotes) changes.push({ kind: "notes" });
   if (changes.length === 0) return { ok: true };
 
   await db.transaction(async (tx) => {
@@ -97,7 +100,7 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
       .update(schema.quoteRequests)
       .set({ status, quotedAmount, internalNotes, updatedAt: sql`now()` })
       .where(eq(schema.quoteRequests.id, id));
-    await tx.insert(schema.requestEvents).values({ requestId: id, adminId: admin.id, message: changes.join(" · ") });
+    await tx.insert(schema.requestEvents).values({ requestId: id, adminId: admin.id, event: "changes", params: { changes } });
   });
   refresh();
   return { ok: true };
@@ -114,4 +117,13 @@ export async function deleteRequest(formData: FormData) {
     .returning({ reference: schema.quoteRequests.reference });
   if (deleted) console.info(`[admin] request ${deleted.reference} deleted`);
   redirect("/admin");
+}
+
+/** Sets the signed-in admin's panel language (D3: admin is not locale-routed). */
+export async function setAdminLocale(formData: FormData) {
+  const admin = await requireAdmin();
+  const parsed = z.enum(LOCALES).safeParse(formData.get("locale"));
+  if (!parsed.success) return;
+  await db.update(schema.adminUsers).set({ locale: parsed.data }).where(eq(schema.adminUsers.id, admin.id));
+  refresh();
 }

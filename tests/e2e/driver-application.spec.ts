@@ -1,5 +1,24 @@
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_ADMIN } from "./helpers";
+import en from "../../lib/i18n/dictionaries/en.json";
+
+// The form is locale-routed, so /drive-with-us lands on the English page; labels come from the
+// dictionary rather than being repeated here, so a copy change cannot quietly break the suite.
+const t = en.driveWithUs;
+
+/**
+ * The applicant uploads four documents whenever document storage is configured. Supplying them
+ * here would write test files to the real Supabase bucket, so these tests only run without
+ * storage — which is how CI runs (ci.yml sets DATABASE_URL only). Locally they skip rather than
+ * fail, and the message says why.
+ */
+async function skipIfDocumentsRequired(page: Page) {
+  const required = await page.locator('input[type="file"]').count();
+  test.skip(
+    required > 0,
+    "document storage is configured, and completing this flow would upload to the real bucket — unset SUPABASE_URL to run it",
+  );
+}
 
 // These plates are real RDW records (the check runs against the live register):
 // a 2026 BMW i5 taxi that meets the criteria, a 2024 Mercedes-Benz EQB taxi that isn't an approved model,
@@ -9,18 +28,19 @@ const UNAPPROVED_MODEL_PLATE = "GHL-93-X";
 const FAILING_PLATE = "13-TFN-3";
 
 async function fillApplication(page: Page, name: string, plate: string) {
-  await page.getByLabel("Licence plate").fill(plate);
-  await page.getByLabel("Full name").fill(name);
-  await page.getByLabel("Email").fill(`partner-${Date.now()}@e2e.ecramexecs.test`);
-  await page.getByLabel("Phone").fill("+31 6 0000 0002");
-  await page.getByLabel("KvK number").fill("1234 5678");
-  await page.getByLabel("Years as a professional driver").fill("6");
+  await page.getByLabel(t.labelPlate).fill(plate);
+  await page.getByLabel(t.labelName).fill(name);
+  await page.getByLabel(t.labelEmail).fill(`partner-${Date.now()}@e2e.ecramexecs.test`);
+  await page.getByLabel(t.labelPhone).fill("+31 6 0000 0002");
+  await page.getByLabel(t.labelKvk).fill("1234 5678");
+  await page.getByLabel(t.labelExperience).fill("6");
   for (const box of await page.getByRole("checkbox").all()) await box.check();
-  await page.getByRole("button", { name: "Apply to drive with us" }).click();
+  await page.getByRole("button", { name: t.submit }).click();
 }
 
 test("a car that doesn't meet the criteria is turned away with the reasons", async ({ page }) => {
   await page.goto("/drive-with-us");
+  await skipIfDocumentsRequired(page);
   await fillApplication(page, `E2E Driver Rejected ${Date.now()}`, FAILING_PLATE);
   const alert = page.getByRole("alert").filter({ hasText: "According to the RDW register" });
   // The RDW register can take several seconds to answer
@@ -32,6 +52,7 @@ test("a car that doesn't meet the criteria is turned away with the reasons", asy
 
 test("an electric taxi that isn't on the approved model list is turned away", async ({ page }) => {
   await page.goto("/drive-with-us");
+  await skipIfDocumentsRequired(page);
   await fillApplication(page, `E2E Driver Model ${Date.now()}`, UNAPPROVED_MODEL_PLATE);
   const alert = page.getByRole("alert").filter({ hasText: "According to the RDW register" });
   await expect(alert).toContainText("isn't on our approved model list", { timeout: 15_000 });
@@ -43,6 +64,7 @@ test("an independent driver applies with their own car and an admin approves the
 
   // 1. Apply
   await page.goto("/drive-with-us");
+  await skipIfDocumentsRequired(page);
   await expect(page.getByRole("heading", { name: /What we ask of your car/ })).toBeVisible();
   await expect(page.getByText("Model S, Model X")).toBeVisible();
   await fillApplication(page, name, QUALIFYING_PLATE);
@@ -51,6 +73,7 @@ test("an independent driver applies with their own car and an admin approves the
 
   // 2. The same car can't apply twice while under review
   await page.goto("/drive-with-us");
+  await skipIfDocumentsRequired(page);
   await fillApplication(page, name, QUALIFYING_PLATE);
   await expect(page.getByText("already being reviewed")).toBeVisible();
 

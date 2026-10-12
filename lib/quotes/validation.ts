@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SERVICES } from "@/lib/quotes/constants";
+import { LOCALES } from "@/lib/i18n/config";
 
 const AMS = "Europe/Amsterdam";
 
@@ -18,32 +19,49 @@ export function amsterdamNow(offsetMinutes = 0) {
     .replace(" ", "T");
 }
 
-const text = (label: string, max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1, `Please enter ${label}.`)
-    .max(max, `${label[0].toUpperCase() + label.slice(1)} is too long.`);
+/**
+ * The messages the schema needs. `dictionary.forms` satisfies this structurally.
+ * Every message is user-facing, so the schema is built per request from the visitor's
+ * dictionary rather than being a module constant.
+ */
+export type QuoteMessages = {
+  collectionRequired: string;
+  collectionTooLong: string;
+  destinationRequired: string;
+  destinationTooLong: string;
+  nameRequired: string;
+  nameTooLong: string;
+  pickupInvalid: string;
+  pickupPast: string;
+  pickupTooFar: string;
+  serviceRequired: string;
+  emailInvalid: string;
+  phoneInvalid: string;
+  notesTooLong: string;
+};
 
-export const quoteSchema = z.object({
-  collection: text("a collection point", 200),
-  destination: text("a destination", 200),
-  pickupAt: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Please choose a date and time.")
-    // Allow a little slack for slow form fills; reject clearly past or far-future dates
-    .refine((v) => v >= amsterdamNow(-60), "Please choose a time in the future.")
-    .refine((v) => v <= amsterdamNow(60 * 24 * 730), "Please choose a date within the next two years."),
-  service: z.enum(SERVICES, { error: "Please choose a service." }),
-  passengers: z.coerce.number().int().min(1).max(50).optional(),
-  name: text("your name", 120),
-  email: z.string().trim().toLowerCase().max(200).pipe(z.email("Please enter a valid email address.")),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9 ()\-.]{7,24}$/, "Please enter a valid phone number, including country code."),
-  notes: z.string().trim().max(2000, "Notes are too long.").optional(),
-});
+export const quoteSchema = (t: QuoteMessages) =>
+  z.object({
+    collection: z.string().trim().min(1, t.collectionRequired).max(200, t.collectionTooLong),
+    destination: z.string().trim().min(1, t.destinationRequired).max(200, t.destinationTooLong),
+    pickupAt: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, t.pickupInvalid)
+      // Allow a little slack for slow form fills; reject clearly past or far-future dates
+      .refine((v) => v >= amsterdamNow(-60), t.pickupPast)
+      .refine((v) => v <= amsterdamNow(60 * 24 * 730), t.pickupTooFar),
+    service: z.enum(SERVICES, { error: t.serviceRequired }),
+    passengers: z.coerce.number().int().min(1).max(50).optional(),
+    name: z.string().trim().min(1, t.nameRequired).max(120, t.nameTooLong),
+    email: z.string().trim().toLowerCase().max(200).pipe(z.email(t.emailInvalid)),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9 ()\-.]{7,24}$/, t.phoneInvalid),
+    notes: z.string().trim().max(2000, t.notesTooLong).optional(),
+    // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
+    locale: z.enum(LOCALES).catch("en"),
+  });
 
-export type QuoteInput = z.infer<typeof quoteSchema>;
+export type QuoteInput = z.infer<ReturnType<typeof quoteSchema>>;
 export type QuoteField = keyof QuoteInput;

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getApplication } from "@/lib/admin/applications";
 import { formatDate, formatRelative, formatTimestamp } from "@/lib/admin/format";
 import { amsterdamToday, colourLabel, DECLARATIONS, DOCUMENTS, makeLabel, vehicleChecks, type ApplicationDocument } from "@/lib/partners/criteria";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { lookupVehicle } from "@/lib/partners/rdw";
 import { signedDownloadUrl } from "@/lib/storage";
 import { DeleteRecord } from "../../../../_components/delete-record";
@@ -28,6 +29,11 @@ import { SubmitButton } from "../../submit-button";
 import { deleteApplication, refreshVehicle } from "../actions";
 import { ReviewForm } from "./review-form";
 
+async function BackLabel() {
+  const { admin } = await adminDictionary();
+  return admin.common.backToApplications;
+}
+
 export default function ApplicationPage({ params }: PageProps<"/admin/drivers/applications/[id]">) {
   return (
     <PageBody>
@@ -36,7 +42,9 @@ export default function ApplicationPage({ params }: PageProps<"/admin/drivers/ap
         className="inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950"
       >
         <ArrowLeftIcon size={14} />
-        All applications
+        <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
+          <BackLabel />
+        </Suspense>
       </Link>
       <Suspense fallback={<DetailSkeleton />}>
         <ApplicationDetail params={params} />
@@ -55,6 +63,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/applications/[id]">, "params">) {
+  const d = await adminDictionary();
   const { id } = await params;
   const data = await getApplication(id);
   if (!data) notFound();
@@ -117,7 +126,7 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
         >
           <CheckCircleIcon className="shrink-0 text-emerald-600" />
           Approved — {a.name} is on the drivers board as a partner.
-          <span className="ml-auto font-medium">Open drivers →</span>
+          <span className="ml-auto font-medium">{d.admin.applicationDetail.openDrivers}</span>
         </Link>
       )}
 
@@ -126,8 +135,8 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
           {/* Vehicle */}
           <Card>
             <CardHeader
-              title="Vehicle"
-              description={a.rdwCheckedAt ? `From the RDW register, ${formatTimestamp(a.rdwCheckedAt)}` : "Not verified — the RDW was unavailable at submission"}
+              title={d.admin.applicationDetail.vehicle}
+              description={a.rdwCheckedAt ? `From the RDW register, ${formatTimestamp(a.rdwCheckedAt)}` : d.admin.applicationDetail.notVerified}
               icon={<SteeringIcon />}
               actions={
                 <span className="rounded border border-[#1d3f8f]/30 bg-[#eef2fb] px-2 py-1 font-mono text-xs font-semibold tracking-wider text-[#1d3f8f]">
@@ -139,16 +148,16 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
               {a.rdwCheckedAt ? (
                 <dl className="grid gap-x-8 sm:grid-cols-2">
                   <div className="divide-y divide-zinc-100">
-                    <Row label="Make & model">
+                    <Row label={d.admin.applicationDetail.makeModel}>
                       {makeLabel(a.make ?? "")} {a.model}
                     </Row>
-                    <Row label="Colour">{colourLabel(a.colour ?? "")}</Row>
-                    <Row label="Seats (incl. driver)">{a.seats ?? "—"}</Row>
+                    <Row label={d.admin.applicationDetail.colour}>{colourLabel(a.colour ?? "", d.criteria.colours)}</Row>
+                    <Row label={d.admin.applicationDetail.seats}>{a.seats ?? "—"}</Row>
                   </div>
                   <div className="divide-y divide-zinc-100 max-sm:mt-2.5 max-sm:border-t max-sm:border-zinc-100 max-sm:pt-2.5">
-                    <Row label="First registered">{formatDate(a.firstRegistered)}</Row>
-                    <Row label="APK expires">{formatDate(a.apkExpires)}</Row>
-                    <Row label="Taxi registration">{a.taxiRegistered ? "Yes" : "No"}</Row>
+                    <Row label={d.admin.applicationDetail.firstRegistered}>{formatDate(a.firstRegistered)}</Row>
+                    <Row label={d.admin.applicationDetail.apkExpires}>{formatDate(a.apkExpires)}</Row>
+                    <Row label={d.admin.applicationDetail.taxiRegistration}>{a.taxiRegistered ? "Yes" : "No"}</Row>
                   </div>
                 </dl>
               ) : (
@@ -156,17 +165,17 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
                   <input type="hidden" name="id" value={a.id} />
                   <p className="flex gap-2">
                     <AlertIcon className="mt-0.5 shrink-0" />
-                    The RDW register couldn&apos;t be reached when this application was submitted, so the car hasn&apos;t been checked yet.
+                    {d.admin.applicationDetail.rdwNotCheckedNote}
                   </p>
-                  <SubmitButton pendingText="Checking…" className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
-                    <RefreshIcon size={14} /> Fetch from RDW
+                  <SubmitButton pendingText={d.admin.applicationDetail.checking} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
+                    <RefreshIcon size={14} /> {d.admin.applicationDetail.fetchFromRdw}
                   </SubmitButton>
                 </form>
               )}
               {a.openRecall && (
                 <p className="mt-4 flex gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
                   <AlertIcon className="mt-0.5 shrink-0" />
-                  The RDW lists an open recall for this car. Ask the driver to show it has been resolved.
+                  {d.admin.common.openRecall}
                 </p>
               )}
             </div>
@@ -184,11 +193,11 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
 
           {/* Driver */}
           <Card>
-            <CardHeader title="Driver" icon={<BriefcaseIcon />} />
+            <CardHeader title={d.admin.applicationDetail.driver} icon={<BriefcaseIcon />} />
             <div className="p-5">
               <dl className="divide-y divide-zinc-100">
-                <Row label="Professional experience">{a.experienceYears} years</Row>
-                <Row label="KvK number">
+                <Row label={d.admin.applicationDetail.experience}>{a.experienceYears} years</Row>
+                <Row label={d.admin.applicationDetail.kvk}>
                   <a
                     href={`https://www.kvk.nl/zoeken/?source=all&q=${a.kvk}`}
                     target="_blank"
@@ -199,12 +208,12 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
                   </a>
                 </Row>
               </dl>
-              <p className="mt-5 text-xs font-medium text-zinc-500">Confirmed by the applicant — verify in person</p>
+              <p className="mt-5 text-xs font-medium text-zinc-500">{d.admin.applicationDetail.confirmedByApplicant}</p>
               <ul className="mt-2 flex flex-col gap-2">
-                {DECLARATIONS.map((d) => (
-                  <li key={d.name} className="flex gap-2 text-sm text-zinc-800">
+                {DECLARATIONS.map((name) => (
+                  <li key={name} className="flex gap-2 text-sm text-zinc-800">
                     <CheckIcon size={14} className="mt-1 shrink-0 text-zinc-400" />
-                    {d.label}
+                    {d.declarations[name]}
                   </li>
                 ))}
               </ul>
@@ -217,7 +226,7 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
                     {a.notes}
                   </p>
                 ) : (
-                  <p className="mt-2 text-sm text-zinc-400">No notes.</p>
+                  <p className="mt-2 text-sm text-zinc-400">{d.admin.applicationDetail.noNotes}</p>
                 )}
               </div>
             </div>
@@ -227,26 +236,40 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
         {/* Sidebar */}
         <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
           <Card>
-            <CardHeader title="Review" description="Approve once documents and the car have been checked in person" />
+            <CardHeader title={d.admin.applicationDetail.review} description={d.admin.applicationDetail.reviewNote} />
             <div className="p-5">
-              <ReviewForm key={a.updatedAt.toISOString()} id={a.id} status={a.status} internalNotes={a.internalNotes} />
+              <ReviewForm
+                key={a.updatedAt.toISOString()}
+                id={a.id}
+                status={a.status}
+                internalNotes={a.internalNotes}
+                statusLabels={d.admin.applicationStatuses}
+                copy={{
+                  save: d.admin.common.save,
+                  saving: d.admin.common.saving,
+                  status: d.admin.applicationDetail.fieldStatus,
+                  internalNotes: d.admin.applicationDetail.fieldInternalNotes,
+                  internalPlaceholder: d.admin.applicationDetail.internalPlaceholder,
+                  approvalNote: d.admin.common.approvalNote,
+                }}
+              />
             </div>
           </Card>
 
           <Card>
-            <CardHeader title="Contact" />
+            <CardHeader title={d.admin.applicationDetail.contact} />
             <dl className="divide-y divide-zinc-100 p-5">
-              <Row label="Email">
+              <Row label={d.admin.common.email}>
                 <a className="hover:underline" href={mailto}>
                   {a.email}
                 </a>
               </Row>
-              <Row label="Phone">
+              <Row label={d.admin.common.phone}>
                 <a className="hover:underline" href={tel}>
                   {a.phone}
                 </a>
               </Row>
-              <Row label="Applied">
+              <Row label={d.admin.applicationDetail.applied}>
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarIcon size={13} className="text-zinc-400" />
                   {formatTimestamp(a.createdAt)}
@@ -255,7 +278,13 @@ async function ApplicationDetail({ params }: Pick<PageProps<"/admin/drivers/appl
             </dl>
           </Card>
 
-          <DeleteRecord id={a.id} reference={a.reference} noun="application" action={deleteApplication} />
+          <DeleteRecord
+            id={a.id}
+            reference={a.reference}
+            noun={d.admin.applicationDetail.deleteNoun}
+            action={deleteApplication}
+            copy={{ title: d.admin.common.dangerZone, note: d.admin.common.dangerZoneNote, confirm: d.admin.common.deleteConfirm, deleting: d.admin.common.deleting }}
+          />
         </div>
       </div>
     </div>
@@ -266,6 +295,7 @@ const fileSize = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.r
 
 /** The uploaded documents, as links that expire after ten minutes (the bucket is private). */
 async function Documents({ documents }: { documents: ApplicationDocument[] }) {
+  const { documents: labels, admin: t } = await adminDictionary();
   const links = await Promise.all(
     documents.map((d) =>
       signedDownloadUrl(d.path).catch((err) => {
@@ -276,18 +306,18 @@ async function Documents({ documents }: { documents: ApplicationDocument[] }) {
   );
   return (
     <Card>
-      <CardHeader title="Documents" description="Uploaded by the applicant — compare with the originals in person" icon={<NoteIcon />} />
+      <CardHeader title={t.applicationDetail.documents} description={t.applicationDetail.documentsNote} icon={<NoteIcon />} />
       <ul className="divide-y divide-zinc-100">
-        {DOCUMENTS.map((d) => {
-          const i = documents.findIndex((doc) => doc.name === d.name);
+        {DOCUMENTS.map((name) => {
+          const i = documents.findIndex((doc) => doc.name === name);
           const doc = documents[i];
           return (
-            <li key={d.name} className="flex items-center gap-3 px-5 py-2.5">
+            <li key={name} className="flex items-center gap-3 px-5 py-2.5">
               <span className="flex-1 text-sm text-zinc-900">
-                {d.label} <span className="text-zinc-500">· {d.hint}</span>
+                {labels[name].label} <span className="text-zinc-500">· {labels[name].hint}</span>
               </span>
               {!doc ? (
-                <span className="text-[13px] text-zinc-400">Not uploaded</span>
+                <span className="text-[13px] text-zinc-400">{t.applicationDetail.notUploaded}</span>
               ) : links[i] ? (
                 <a
                   href={links[i]}
@@ -298,7 +328,7 @@ async function Documents({ documents }: { documents: ApplicationDocument[] }) {
                   Open {doc.path.split(".").pop()?.toUpperCase()} · {fileSize(doc.size)}
                 </a>
               ) : (
-                <span className="text-[13px] text-red-700">Unavailable — reload to try again</span>
+                <span className="text-[13px] text-red-700">{t.applicationDetail.unavailableReload}</span>
               )}
             </li>
           );
@@ -311,13 +341,14 @@ async function Documents({ documents }: { documents: ApplicationDocument[] }) {
 /** Checks the car against today's criteria, straight from the RDW (APK and insurance can lapse after applying). */
 async function LiveCheck({ plate }: { plate: string }) {
   const vehicle = await lookupVehicle(plate);
-  const checks = vehicle && vehicle !== "unavailable" ? vehicleChecks(vehicle, amsterdamToday()) : null;
+  const { criteria, admin: t } = await adminDictionary();
+  const checks = vehicle && vehicle !== "unavailable" ? vehicleChecks(vehicle, amsterdamToday(), criteria) : null;
   const passed = checks?.every((c) => c.ok);
   return (
     <Card>
       <CardHeader
-        title="Criteria check"
-        description="Live from the RDW register"
+        title={t.applicationDetail.criteriaCheck}
+        description={t.applicationDetail.criteriaCheckNote}
         icon={<CheckCircleIcon />}
         actions={
           checks && (
@@ -326,7 +357,7 @@ async function LiveCheck({ plate }: { plate: string }) {
                 passed ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-red-50 text-red-800 ring-red-200"
               }`}
             >
-              {passed ? "Meets criteria" : `${checks.filter((c) => !c.ok).length} not met`}
+              {passed ? t.applicationDetail.meetsCriteria : `${checks.filter((c) => !c.ok).length} not met`}
             </span>
           )
         }
@@ -337,7 +368,7 @@ async function LiveCheck({ plate }: { plate: string }) {
             <li key={c.label} className="flex items-center gap-3 px-5 py-2.5">
               <span
                 className={`grid size-5 shrink-0 place-items-center rounded-full ${c.ok ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
-                aria-label={c.ok ? "Met" : "Not met"}
+                aria-label={c.ok ? "Met" : t.applicationDetail.notMet}
               >
                 {c.ok ? <CheckIcon size={12} /> : <XIcon size={12} />}
               </span>
@@ -348,7 +379,7 @@ async function LiveCheck({ plate }: { plate: string }) {
         </ul>
       ) : (
         <p className="p-5 text-sm text-zinc-500">
-          {vehicle === null ? "This plate is no longer in the RDW register." : "The RDW register can't be reached right now. Reload to try again."}
+          {vehicle === null ? t.applicationDetail.plateGone : t.applicationDetail.rdwUnreachable}
         </p>
       )}
     </Card>

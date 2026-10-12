@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts, STATUS_LABEL } from "@/lib/admin/format";
+import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { getRequest } from "@/lib/admin/queries";
-import type { RequestStatus } from "@/lib/quotes/constants";
+import { serviceLabel, type RequestStatus } from "@/lib/quotes/constants";
+import { eventLabels, renderEvent } from "@/lib/admin/events";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import {
   ActivityIcon,
   ArrowLeftIcon,
@@ -23,12 +25,19 @@ import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { UpdateForm } from "./update-form";
 
+async function BackLabel() {
+  const { admin } = await adminDictionary();
+  return admin.common.backToRequests;
+}
+
 export default function RequestPage({ params }: PageProps<"/admin/requests/[id]">) {
   return (
     <PageBody>
       <Link href="/admin" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950">
         <ArrowLeftIcon size={14} />
-        All requests
+        <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
+          <BackLabel />
+        </Suspense>
       </Link>
       <Suspense fallback={<DetailSkeleton />}>
         <RequestDetail params={params} />
@@ -39,17 +48,18 @@ export default function RequestPage({ params }: PageProps<"/admin/requests/[id]"
 
 const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed"];
 
-function Pipeline({ status }: { status: RequestStatus }) {
+async function Pipeline({ status }: { status: RequestStatus }) {
+  const { admin: t } = await adminDictionary();
   if (status === "cancelled") {
     return (
       <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        This request was cancelled. Change the status in the panel to reopen it.
+        {t.requestDetail.cancelledNote}
       </div>
     );
   }
   const at = PIPELINE.indexOf(status);
   return (
-    <ol className="grid grid-cols-5 gap-1.5" aria-label="Progress">
+    <ol className="grid grid-cols-5 gap-1.5" aria-label={t.common.progress}>
       {PIPELINE.map((s, i) => {
         const done = i < at;
         const current = i === at;
@@ -62,7 +72,7 @@ function Pipeline({ status }: { status: RequestStatus }) {
               }`}
             >
               {done && <CheckIcon size={12} className="hidden shrink-0 sm:block" />}
-              {STATUS_LABEL[s]}
+              {t.statuses[s]}
             </span>
           </li>
         );
@@ -100,6 +110,8 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const data = await getRequest(id);
   if (!data) notFound();
   const { request: r, events } = data;
+  const d = await adminDictionary();
+  const serviceLabels = d.services;
   const waNumber = r.phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${r.name}, thank you for your request ${r.reference} with Ecram Execs.`);
   const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs quotation ${r.reference}`)}`;
@@ -155,34 +167,34 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         <div className="flex min-w-0 flex-col gap-6">
           {/* Journey */}
           <Card>
-            <CardHeader title="Journey" description={r.service} icon={<BriefcaseIcon />} />
+            <CardHeader title={d.admin.requestDetail.journey} description={serviceLabel(r.service, serviceLabels)} icon={<BriefcaseIcon />} />
             <div className="p-5">
               <ol className="relative">
                 <span aria-hidden="true" className="absolute bottom-6 left-[7px] top-6 w-px bg-[repeating-linear-gradient(to_bottom,#d4d4d8_0_4px,transparent_4px_8px)]" />
                 <li className="relative flex gap-4 pb-6">
                   <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full border-[3px] border-zinc-950 bg-white" />
                   <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Collection</p>
+                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.collection}</p>
                     <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.collection}</p>
                   </div>
                 </li>
                 <li className="relative flex gap-4">
                   <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full bg-zinc-950 ring-4 ring-zinc-200" />
                   <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Destination</p>
+                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.destination}</p>
                     <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.destination}</p>
                   </div>
                 </li>
               </ol>
 
               <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-3">
-                <Meta icon={<CalendarIcon />} label="Pick-up date (NL)">
+                <Meta icon={<CalendarIcon />} label={d.admin.requestDetail.pickupDate}>
                   {pickup.date}
                 </Meta>
-                <Meta icon={<ClockIcon />} label="Pick-up time">
+                <Meta icon={<ClockIcon />} label={d.admin.requestDetail.pickupTime}>
                   {pickup.time} <span className="font-normal text-zinc-500">· {formatRelative(pickupAt)}</span>
                 </Meta>
-                <Meta icon={<UsersIcon />} label="Passengers">
+                <Meta icon={<UsersIcon />} label={d.admin.requestDetail.passengers}>
                   {r.passengers ?? "—"}
                 </Meta>
               </dl>
@@ -196,7 +208,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     {r.notes}
                   </p>
                 ) : (
-                  <p className="mt-2 text-sm text-zinc-400">No notes from the client.</p>
+                  <p className="mt-2 text-sm text-zinc-400">{d.admin.requestDetail.noNotes}</p>
                 )}
               </div>
             </div>
@@ -204,7 +216,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
           {/* Activity */}
           <Card>
-            <CardHeader title="Activity" description="Every change made by the team" icon={<ActivityIcon />} />
+            <CardHeader title={d.admin.requestDetail.activity} description={d.admin.requestDetail.activityNote} icon={<ActivityIcon />} />
             <ol className="p-5">
               {events.map((e, i) => (
                 <li key={e.id} className="relative flex gap-3 pb-5 last:pb-0">
@@ -213,7 +225,9 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     <span className={`size-2 rounded-full ${i === 0 ? "bg-zinc-950" : "bg-zinc-400"}`} />
                   </span>
                   <div className="min-w-0 pt-0.5">
-                    <p className="wrap-break-word text-sm text-zinc-900">{e.message}</p>
+                    <p className="wrap-break-word text-sm text-zinc-900">
+                      {renderEvent(e.event, e.params, eventLabels(d.admin.events, d.admin.statuses), formatEuro)}
+                    </p>
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {formatTimestamp(e.createdAt)}
                       {e.by ? ` · ${e.by}` : ""}
@@ -221,7 +235,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                   </div>
                 </li>
               ))}
-              {events.length === 0 && <li className="text-sm text-zinc-500">No activity yet.</li>}
+              {events.length === 0 && <li className="text-sm text-zinc-500">{d.admin.requestDetail.noActivity}</li>}
             </ol>
           </Card>
         </div>
@@ -229,35 +243,57 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         {/* Sidebar */}
         <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
           <Card>
-            <CardHeader title="Manage request" description="Changes are logged in the activity feed" />
+            <CardHeader title={d.admin.requestDetail.manage} description={d.admin.requestDetail.manageNote} />
             <div className="p-5">
-              <UpdateForm key={r.updatedAt.toISOString()} id={r.id} status={r.status} quotedAmount={r.quotedAmount} internalNotes={r.internalNotes} />
+              <UpdateForm
+                key={r.updatedAt.toISOString()}
+                id={r.id}
+                status={r.status}
+                quotedAmount={r.quotedAmount}
+                internalNotes={r.internalNotes}
+                statusLabels={d.admin.statuses}
+                copy={{
+                  save: d.admin.common.save,
+                  saving: d.admin.common.saving,
+                  status: d.admin.requestDetail.fieldStatus,
+                  quotedAmount: d.admin.requestDetail.fieldQuotedAmountEur,
+                  internalNotes: d.admin.requestDetail.fieldInternalNotes,
+                  amountPlaceholder: d.admin.requestDetail.amountPlaceholder,
+                  internalPlaceholder: d.admin.requestDetail.internalPlaceholder,
+                }}
+              />
             </div>
           </Card>
 
           <Card>
-            <CardHeader title="Client" />
+            <CardHeader title={d.admin.requestDetail.client} />
             <dl className="divide-y divide-zinc-100 p-5">
-              <ContactRow icon={<MailIcon />} label="Email">
+              <ContactRow icon={<MailIcon />} label={d.admin.common.email}>
                 <a className="hover:underline" href={mailto}>
                   {r.email}
                 </a>
               </ContactRow>
-              <ContactRow icon={<PhoneIcon />} label="Phone">
+              <ContactRow icon={<PhoneIcon />} label={d.admin.common.phone}>
                 <a className="hover:underline" href={tel}>
                   {r.phone}
                 </a>
               </ContactRow>
-              <ContactRow icon={<EuroIconText />} label="Quoted amount">
+              <ContactRow icon={<EuroIconText />} label={d.admin.requestDetail.quotedAmount}>
                 <span className="font-medium tabular-nums">{formatEuro(r.quotedAmount)}</span>
               </ContactRow>
-              <ContactRow icon={<CalendarIcon />} label="Received">
+              <ContactRow icon={<CalendarIcon />} label={d.admin.requestDetail.received}>
                 {formatTimestamp(r.createdAt)}
               </ContactRow>
             </dl>
           </Card>
 
-          <DeleteRecord id={r.id} reference={r.reference} noun="request" action={deleteRequest} />
+          <DeleteRecord
+            id={r.id}
+            reference={r.reference}
+            noun={d.admin.requestDetail.deleteNoun}
+            action={deleteRequest}
+            copy={{ title: d.admin.common.dangerZone, note: d.admin.common.dangerZoneNote, confirm: d.admin.common.deleteConfirm, deleting: d.admin.common.deleting }}
+          />
         </div>
       </div>
     </div>

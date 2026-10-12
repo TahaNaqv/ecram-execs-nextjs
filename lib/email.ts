@@ -2,6 +2,9 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import type { DriverApplication, QuoteRequest } from "@/lib/db/schema";
 import { colourLabel, makeLabel } from "@/lib/partners/criteria";
+import { serviceLabel } from "@/lib/quotes/constants";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { interpolate } from "@/lib/i18n/interpolate";
 import { siteConfig } from "@/lib/site-config";
 
 const esc = (s: string) =>
@@ -15,9 +18,11 @@ export async function notifyNewQuote(q: QuoteRequest) {
     return;
   }
   const site = process.env.SITE_URL ?? "";
+  // Internal alert — deliberately always English (D7); only the service key needs a label.
+  const { services } = await getDictionary("en");
   const rows: [string, string | number | null][] = [
     ["Reference", q.reference],
-    ["Service", q.service],
+    ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
     ["Destination", q.destination],
     ["Date & time (NL)", q.pickupAt.slice(0, 16).replace("T", " ")],
@@ -33,7 +38,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     from: EMAIL_FROM,
     to: NOTIFY_EMAIL_TO.split(",").map((s) => s.trim()),
     reply_to: q.email,
-    subject: `New quote request ${q.reference} — ${q.service}, ${q.pickupAt.slice(0, 10)}`,
+    subject: `New quote request ${q.reference} — ${serviceLabel(q.service, services)}, ${q.pickupAt.slice(0, 10)}`,
     html,
   });
 }
@@ -44,26 +49,30 @@ export async function confirmToClient(q: QuoteRequest) {
   if (!provider() || !EMAIL_FROM) return;
   const first = q.name.split(" ")[0];
   const { phone, email } = siteConfig.contact;
+  // The confirmation goes out in the language the visitor filled the form in (stored on the row).
+  const { email: t, services } = await getDictionary(q.locale);
+  const row = (label: string, value: string) =>
+    `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
-      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">ECRAM EXECS · THE ART OF EXECUTIVE HOSPITALITY</p>
-      <p>Dear ${esc(first)},</p>
-      <p>Thank you for your request. A member of our team is preparing your tailored quotation and will be in touch shortly — usually within the hour.</p>
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: first }))}</p>
+      <p>${esc(t.quoteIntro)}</p>
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
-        <tr><td style="color:#71717a">Reference</td><td>${esc(q.reference)}</td></tr>
-        <tr><td style="color:#71717a">Service</td><td>${esc(q.service)}</td></tr>
-        <tr><td style="color:#71717a">Collection</td><td>${esc(q.collection)}</td></tr>
-        <tr><td style="color:#71717a">Destination</td><td>${esc(q.destination)}</td></tr>
-        <tr><td style="color:#71717a">Date &amp; time</td><td>${esc(q.pickupAt.slice(0, 16).replace("T", " "))}</td></tr>
+        ${row(t.fieldReference, q.reference)}
+        ${row(t.fieldService, serviceLabel(q.service, services))}
+        ${row(t.fieldCollection, q.collection)}
+        ${row(t.fieldDestination, q.destination)}
+        ${row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " "))}
       </table>
-      <p>If anything changes, simply reply to this email${phone ? ` or call us on ${esc(phone)}` : ""}.</p>
-      <p>Kind regards,<br>Ecram Execs</p>
+      <p>${esc(phone ? interpolate(t.quoteReplyPhone, { phone }) : t.quoteReply)}</p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   await send("quote", q.reference, "client confirmation", {
     from: EMAIL_FROM,
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
-    subject: `Your Ecram Execs request ${q.reference}`,
+    subject: interpolate(t.quoteSubject, { reference: q.reference }),
     html,
   });
 }
@@ -76,6 +85,8 @@ export async function notifyNewApplication(a: DriverApplication) {
     return;
   }
   const site = process.env.SITE_URL ?? "";
+  // Internal alert — deliberately always English (D7).
+  const { criteria } = await getDictionary("en");
   const vehicle = a.make ? `${makeLabel(a.make)} ${a.model ?? ""}`.trim() : null;
   const rows: [string, string | number | null][] = [
     ["Reference", a.reference],
@@ -86,7 +97,7 @@ export async function notifyNewApplication(a: DriverApplication) {
     ["Experience", `${a.experienceYears} years`],
     ["Licence plate", a.plate],
     ["Vehicle", vehicle ?? "Not verified — the RDW could not be reached, please check the plate by hand"],
-    ["Colour", a.colour && colourLabel(a.colour)],
+    ["Colour", a.colour && colourLabel(a.colour, criteria.colours)],
     ["First registered", a.firstRegistered],
     ["Documents", a.documents ? `${a.documents.length} uploaded — open them from the application in the admin` : null],
     ["Notes", a.notes],
@@ -107,24 +118,27 @@ export async function confirmApplication(a: DriverApplication) {
   if (!provider() || !EMAIL_FROM) return;
   const first = a.name.split(" ")[0];
   const { email } = siteConfig.contact;
+  const { email: t } = await getDictionary(a.locale);
+  const row = (label: string, value: string) =>
+    `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
-      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">ECRAM EXECS · THE ART OF EXECUTIVE HOSPITALITY</p>
-      <p>Dear ${esc(first)},</p>
-      <p>Thank you for applying to drive with Ecram Execs. Our team will review your application and contact you to arrange a short introduction and an inspection of your car.</p>
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: first }))}</p>
+      <p>${esc(t.applicationIntro)}</p>
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
-        <tr><td style="color:#71717a">Reference</td><td>${esc(a.reference)}</td></tr>
-        <tr><td style="color:#71717a">Licence plate</td><td>${esc(a.plate)}</td></tr>
-        ${a.make ? `<tr><td style="color:#71717a">Vehicle</td><td>${esc(`${makeLabel(a.make)} ${a.model ?? ""}`)}</td></tr>` : ""}
+        ${row(t.fieldReference, a.reference)}
+        ${row(t.fieldPlate, a.plate)}
+        ${a.make ? row(t.fieldVehicle, `${makeLabel(a.make)} ${a.model ?? ""}`.trim()) : ""}
       </table>
-      <p>Please bring the originals of your documents and your Kiwa licence to the introduction. If you have any questions, simply reply to this email.</p>
-      <p>Kind regards,<br>Ecram Execs</p>
+      <p>${esc(t.applicationBring)}</p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   await send("application", a.reference, "applicant confirmation", {
     from: EMAIL_FROM,
     to: [a.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
-    subject: `Your Ecram Execs driver application ${a.reference}`,
+    subject: interpolate(t.applicationSubject, { reference: a.reference }),
     html,
   });
 }

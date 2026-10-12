@@ -5,22 +5,29 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InboxIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
 
+/** Labels arrive from the server as `copy`, since a Client Component cannot read the dictionary. */
+export type AdminNavCopy = {
+  brand: string; subtitle: string; sectionsLabel: string; operations: string;
+  requests: string; drivers: string; applications: string;
+  openMenu: string; closeMenu: string;
+};
+
 const LINKS = [
-  { href: "/admin", label: "Requests", icon: InboxIcon, match: (p: string) => p === "/admin" || p.startsWith("/admin/requests") },
+  { href: "/admin", key: "requests", icon: InboxIcon, match: (p: string) => p === "/admin" || p.startsWith("/admin/requests") },
   {
     href: "/admin/drivers",
-    label: "Drivers",
+    key: "drivers",
     icon: SteeringIcon,
     match: (p: string) => p.startsWith("/admin/drivers") && !p.startsWith("/admin/drivers/applications"),
   },
-  { href: "/admin/drivers/applications", label: "Applications", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/drivers/applications") },
-];
+  { href: "/admin/drivers/applications", key: "applications", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/drivers/applications") },
+] as const;
 
-function Wordmark() {
+function Wordmark({ copy }: { copy: AdminNavCopy }) {
   return (
     <Link href="/admin" className="flex flex-col leading-none">
-      <span className="font-display text-[15px] tracking-[0.32em] text-white">ECRAM EXECS</span>
-      <span className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.3em] text-zinc-500">Reservations</span>
+      <span className="font-display text-[15px] tracking-[0.32em] text-white">{copy.brand}</span>
+      <span className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.3em] text-zinc-500">{copy.subtitle}</span>
     </Link>
   );
 }
@@ -32,9 +39,11 @@ function Wordmark() {
 export function AdminChrome({
   badges,
   account,
+  copy,
 }: {
   badges: Partial<Record<string, React.ReactNode>>;
   account: React.ReactNode;
+  copy: AdminNavCopy;
 }) {
   const pathname = usePathname();
   // The drawer is only open on the page it was opened from, so navigating closes it
@@ -61,15 +70,15 @@ export function AdminChrome({
         <button
           type="button"
           onClick={() => setOpenOn(pathname)}
-          aria-label="Open menu"
+          aria-label={copy.openMenu}
           aria-expanded={open}
           aria-controls="admin-sidebar"
           className="-ml-1.5 grid size-9 place-items-center rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white"
         >
           <MenuIcon size={20} />
         </button>
-        <Wordmark />
-        {current && <span className="ml-auto text-xs font-medium text-zinc-400">{current.label}</span>}
+        <Wordmark copy={copy} />
+        {current && <span className="ml-auto text-xs font-medium text-zinc-400">{copy[current.key]}</span>}
       </div>
 
       {/* Backdrop */}
@@ -88,19 +97,19 @@ export function AdminChrome({
         }`}
       >
         <div className="flex h-16 items-center justify-between px-6 lg:h-20">
-          <Wordmark />
+          <Wordmark copy={copy} />
           <button
             type="button"
             onClick={() => setOpenOn(null)}
-            aria-label="Close menu"
+            aria-label={copy.closeMenu}
             className="-mr-2 grid size-9 place-items-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white lg:hidden"
           >
             <XIcon size={18} />
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-2" aria-label="Admin sections">
-          <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-600">Operations</p>
+        <nav className="flex-1 px-3 py-2" aria-label={copy.sectionsLabel}>
+          <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-600">{copy.operations}</p>
           <div className="flex flex-col gap-0.5">
             {LINKS.map((l) => {
               const active = l.match(pathname);
@@ -115,7 +124,7 @@ export function AdminChrome({
                   }`}
                 >
                   <Icon size={18} className={active ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"} />
-                  {l.label}
+                  {copy[l.key]}
                   <span className="ml-auto">{badges[l.href]}</span>
                 </Link>
               );

@@ -5,7 +5,59 @@
 //  the admin review all read this file.
 //
 //  Shared by the database schema, server code and client components (no server-only imports).
+//
+//  This file holds the rules — numbers, model patterns and the logic that applies them. Every
+//  human-readable string lives in the dictionaries instead, because the same criteria are shown
+//  to Dutch applicants, English applicants and the admin team. Functions that produce text take
+//  a `CriteriaLabels` (pass `dictionary.criteria`), so a label change is a translation change
+//  and never a code change.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The strings the functions below need. `dictionary.criteria` satisfies this structurally, so a
+ * dictionary that drifts out of shape fails at the call site rather than at runtime.
+ */
+export type CriteriaLabels = {
+  or: string;
+  yes: string;
+  no: string;
+  unknown: string;
+  notInRegister: string;
+  /** Keyed by the RDW's own Dutch colour name, e.g. ZWART */
+  colours: Record<string, string>;
+  /** Keyed by the RDW's own Dutch fuel name, e.g. Elektriciteit */
+  fuels: Record<string, string>;
+  listModelElectric: string;
+  listModelAny: string;
+  listFirstRegistered: string;
+  listColour: string;
+  listSeats: string;
+  listTaxiAndApk: string;
+  listApkOnly: string;
+  listExperience: string;
+  checkApprovedModel: string;
+  issueApprovedModel: string;
+  checkElectric: string;
+  issueElectric: string;
+  checkFirstRegistered: string;
+  issueFirstRegistered: string;
+  foundFirstRegistered: string;
+  checkSeats: string;
+  issueSeats: string;
+  foundSeats: string;
+  checkTaxi: string;
+  issueTaxi: string;
+  checkApk: string;
+  issueApk: string;
+  foundApkExpires: string;
+  checkInsured: string;
+  issueInsured: string;
+  checkColour: string;
+  issueColour: string;
+};
+
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (token, key: string) => (key in values ? String(values[key]) : token));
 
 export const APPLICATION_STATUSES = ["new", "reviewing", "approved", "rejected"] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
@@ -72,47 +124,31 @@ export const DRIVER_CRITERIA = {
   minExperienceYears: 2,
 };
 
-/** Statements the applicant must confirm; checked by the team before approval. */
-export const DECLARATIONS = [
-  { name: "permit", label: "My business holds a Kiwa taxi transport licence (vergunning taxivervoer)" },
-  { name: "condition", label: "The car is non-smoking, undamaged and kept to an executive standard inside and out" },
-] as const;
-export type Declaration = (typeof DECLARATIONS)[number]["name"];
+/** Statements the applicant must confirm; checked by the team before approval. Labels: `declarations.*` */
+export const DECLARATIONS = ["permit", "condition"] as const;
+export type Declaration = (typeof DECLARATIONS)[number];
+export type DeclarationLabels = Record<Declaration, string>;
 
-/** Documents the applicant uploads with the application. */
-export const DOCUMENTS = [
-  { name: "chauffeurCard", label: "Chauffeur card", hint: "Chauffeurskaart / taxipas" },
-  { name: "kvkExtract", label: "KvK extract", hint: "Chamber of Commerce extract" },
-  { name: "vog", label: "VOG", hint: "Certificate of conduct, profile 70" },
-  { name: "insurance", label: "Insurance", hint: "Cover for paid passenger transport" },
-] as const;
-export type DocumentName = (typeof DOCUMENTS)[number]["name"];
+/** Documents the applicant uploads with the application. Labels: `documents.*` */
+export const DOCUMENTS = ["chauffeurCard", "kvkExtract", "vog", "insurance"] as const;
+export type DocumentName = (typeof DOCUMENTS)[number];
+export type DocumentLabels = Record<DocumentName, { label: string; hint: string }>;
 /** Accepted file types and the extension each is stored under */
 export const DOCUMENT_TYPES: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
 export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
 
 export type ApplicationDocument = { name: DocumentName; path: string; size: number; contentType: string };
 
-export const COLOUR_EN: Record<string, string> = {
-  ZWART: "Black",
-  GRIJS: "Grey",
-  WIT: "White",
-  BLAUW: "Blue",
-  ZILVER: "Silver",
-  ROOD: "Red",
-  GROEN: "Green",
-  BRUIN: "Brown",
-  BEIGE: "Beige",
-};
-
-const FUEL_EN: Record<string, string> = { Elektriciteit: "Electric", Benzine: "Petrol", Diesel: "Diesel", Waterstof: "Hydrogen" };
-
 const title = (s: string) => s.toLowerCase().replace(/(^|[\s-])\p{L}/gu, (c) => c.toUpperCase());
-/** "MERCEDES-BENZ" → "Mercedes-Benz"; short makes such as BMW stay upper case */
+/**
+ * "MERCEDES-BENZ" → "Mercedes-Benz"; short makes such as BMW stay upper case.
+ * Not a translation — a make is a proper noun, so this is the same in every language.
+ */
 export const makeLabel = (make: string) => (make.length <= 3 ? make : title(make));
-export const colourLabel = (colour: string) => COLOUR_EN[colour] ?? title(colour);
-const list = (items: string[]) =>
-  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} or ${items[items.length - 1]}`;
+/** Falls back to title case so a colour the dictionary has not seen still reads sensibly. */
+export const colourLabel = (colour: string, colours: Record<string, string>) => colours[colour] ?? title(colour);
+const list = (items: string[], or: string) =>
+  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} ${or} ${items[items.length - 1]}`;
 
 /** Oldest first-registration year accepted. `today` is YYYY-MM-DD (Netherlands). */
 const oldestYear = (today: string) => Number(today.slice(0, 4)) - VEHICLE_CRITERIA.maxAgeYears;
@@ -125,14 +161,19 @@ export const APPROVED_MODELS_BY_MAKE = [...new Set(APPROVED_MODELS.map((m) => m.
     .join(", "),
 }));
 
-/** The criteria in plain English, for the public page. `today` is YYYY-MM-DD (Netherlands). */
-export const criteriaText = (today: string) => [
-  `${VEHICLE_CRITERIA.electricOnly ? "Fully electric (no hybrids) and " : ""}on our approved model list`,
-  `First registered in ${oldestYear(today)} or later`,
-  ...(VEHICLE_CRITERIA.colours ? [`${list(VEHICLE_CRITERIA.colours.map(colourLabel))} exterior`] : []),
-  `At least ${VEHICLE_CRITERIA.minSeats - 1} passenger seats, or ${(APPROVED_MODELS.find((m) => m.minSeats)?.minSeats ?? 1) - 1} in a van`,
-  ...(VEHICLE_CRITERIA.taxiRegistration ? ["Registered as a taxi with the RDW (blue plates) and a valid APK"] : ["A valid APK"]),
-  `At least ${DRIVER_CRITERIA.minExperienceYears} years of professional chauffeur experience`,
+/** The criteria as prose, for the public page. `today` is YYYY-MM-DD (Netherlands). */
+export const criteriaText = (today: string, t: CriteriaLabels) => [
+  VEHICLE_CRITERIA.electricOnly ? t.listModelElectric : t.listModelAny,
+  fill(t.listFirstRegistered, { year: oldestYear(today) }),
+  ...(VEHICLE_CRITERIA.colours
+    ? [fill(t.listColour, { colours: list(VEHICLE_CRITERIA.colours.map((c) => colourLabel(c, t.colours)), t.or) })]
+    : []),
+  fill(t.listSeats, {
+    seats: VEHICLE_CRITERIA.minSeats - 1,
+    vanSeats: (APPROVED_MODELS.find((m) => m.minSeats)?.minSeats ?? 1) - 1,
+  }),
+  ...(VEHICLE_CRITERIA.taxiRegistration ? [t.listTaxiAndApk] : [t.listApkOnly]),
+  fill(t.listExperience, { years: DRIVER_CRITERIA.minExperienceYears }),
 ];
 
 /** What the RDW knows about a car, reduced to the fields the criteria need. */
@@ -154,7 +195,7 @@ export type RdwVehicle = {
 export type VehicleCheck = { label: string; ok: boolean; found: string; issue: string };
 
 /** Each vehicle criterion checked against the RDW record. `today` is YYYY-MM-DD (Netherlands). */
-export function vehicleChecks(v: RdwVehicle, today: string): VehicleCheck[] {
+export function vehicleChecks(v: RdwVehicle, today: string, t: CriteriaLabels): VehicleCheck[] {
   const c = VEHICLE_CRITERIA;
   const approved = approvedModel(v.make, v.model);
   const minSeats = approved?.minSeats ?? c.minSeats;
@@ -162,63 +203,66 @@ export function vehicleChecks(v: RdwVehicle, today: string): VehicleCheck[] {
   const car = `${makeLabel(v.make)} ${v.model}`.trim();
   const checks: VehicleCheck[] = [
     {
-      label: "Approved model",
+      label: t.checkApprovedModel,
       ok: !!approved,
       found: car,
-      issue: `The ${car} isn't on our approved model list.`,
+      issue: fill(t.issueApprovedModel, { car }),
     },
     {
-      label: "Fully electric",
+      label: t.checkElectric,
       ok: !c.electricOnly || electric,
-      found: v.fuels.map((f) => FUEL_EN[f] ?? f).join(", ") || "Unknown",
-      issue: "The car must be fully electric (hybrids aren't accepted).",
+      found: v.fuels.map((f) => t.fuels[f] ?? f).join(", ") || t.unknown,
+      issue: t.issueElectric,
     },
     {
-      label: `First registered in ${oldestYear(today)} or later`,
+      label: fill(t.checkFirstRegistered, { year: oldestYear(today) }),
       ok: v.firstRegistered !== null && Number(v.firstRegistered.slice(0, 4)) >= oldestYear(today),
-      found: v.firstRegistered ? `First registered ${v.firstRegistered}` : "Unknown",
-      issue: `The car must be first registered in ${oldestYear(today)} or later.`,
+      found: v.firstRegistered ? fill(t.foundFirstRegistered, { date: v.firstRegistered }) : t.unknown,
+      issue: fill(t.issueFirstRegistered, { year: oldestYear(today) }),
     },
     {
-      label: `At least ${minSeats - 1} passenger seats`,
+      label: fill(t.checkSeats, { seats: minSeats - 1 }),
       // Not every record lists seats; the team checks those in person
       ok: v.seats === null || v.seats >= minSeats,
-      found: v.seats === null ? "Not in the register" : `${v.seats} seats incl. driver`,
-      issue: `The car must have at least ${minSeats - 1} passenger seats.`,
+      found: v.seats === null ? t.notInRegister : fill(t.foundSeats, { seats: v.seats }),
+      issue: fill(t.issueSeats, { seats: minSeats - 1 }),
     },
     {
-      label: "Taxi registration",
+      label: t.checkTaxi,
       ok: !c.taxiRegistration || v.taxiRegistered,
-      found: v.taxiRegistered ? "Yes" : "No",
-      issue: "The car must be registered as a taxi with the RDW (blue plates).",
+      found: v.taxiRegistered ? t.yes : t.no,
+      issue: t.issueTaxi,
     },
     {
-      label: "Valid APK",
+      label: t.checkApk,
       ok: v.apkExpires !== null && v.apkExpires >= today,
-      found: v.apkExpires ? `Expires ${v.apkExpires}` : "Unknown",
-      issue: "The car's APK has expired.",
+      found: v.apkExpires ? fill(t.foundApkExpires, { date: v.apkExpires }) : t.unknown,
+      issue: t.issueApk,
     },
     {
-      label: "Insured",
+      label: t.checkInsured,
       ok: v.insured,
-      found: v.insured ? "Yes" : "No",
-      issue: "The RDW has no valid insurance on record for this car.",
+      found: v.insured ? t.yes : t.no,
+      issue: t.issueInsured,
     },
   ];
   if (c.colours) {
     checks.push({
-      label: "Colour",
+      label: t.checkColour,
       ok: c.colours.includes(v.colour),
-      found: colourLabel(v.colour),
-      issue: `The car must be ${list(c.colours.map((x) => colourLabel(x).toLowerCase()))} (the RDW lists it as ${colourLabel(v.colour).toLowerCase()}).`,
+      found: colourLabel(v.colour, t.colours),
+      issue: fill(t.issueColour, {
+        colours: list(c.colours.map((x) => colourLabel(x, t.colours).toLowerCase()), t.or),
+        found: colourLabel(v.colour, t.colours).toLowerCase(),
+      }),
     });
   }
   return checks;
 }
 
 /** Reasons the car does not meet the criteria (empty when it does). */
-export const vehicleIssues = (v: RdwVehicle, today: string) =>
-  vehicleChecks(v, today)
+export const vehicleIssues = (v: RdwVehicle, today: string, t: CriteriaLabels) =>
+  vehicleChecks(v, today, t)
     .filter((c) => !c.ok)
     .map((c) => c.issue);
 

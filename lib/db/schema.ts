@@ -13,14 +13,20 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { isNull } from "drizzle-orm";
-import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { REQUEST_STATUSES, SERVICES } from "@/lib/quotes/constants";
 import { APPLICATION_STATUSES, type ApplicationDocument } from "@/lib/partners/criteria";
+import { LOCALES } from "@/lib/i18n/config";
+import type { RequestEventParams } from "@/lib/admin/events";
 
-export { REQUEST_STATUSES, SERVICES, type RequestStatus } from "@/lib/quotes/constants";
+export { REQUEST_STATUSES, SERVICES, type RequestStatus, type Service } from "@/lib/quotes/constants";
 export { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/partners/criteria";
 
 export const requestStatus = pgEnum("request_status", REQUEST_STATUSES);
 export const applicationStatus = pgEnum("application_status", APPLICATION_STATUSES);
+// A closed set with meaning in the UI, so an enum like the statuses above.
+export const serviceKind = pgEnum("service_kind", SERVICES);
+/** The language the visitor used, so replies and confirmation emails match it. */
+export const contentLocale = pgEnum("content_locale", LOCALES);
 
 export const quoteRequests = pgTable(
   "quote_requests",
@@ -34,13 +40,14 @@ export const quoteRequests = pgTable(
     destination: text("destination").notNull(),
     // Wall-clock time in the Netherlands (Europe/Amsterdam), as entered by the client
     pickupAt: timestamp("pickup_at", { mode: "string" }).notNull(),
-    service: text("service").notNull(),
+    service: serviceKind("service").notNull(),
     passengers: integer("passengers"),
 
     name: text("name").notNull(),
     email: text("email").notNull(),
     phone: text("phone").notNull(),
     notes: text("notes"),
+    locale: contentLocale("locale").notNull().default("en"),
 
     quotedAmount: numeric("quoted_amount", { precision: 10, scale: 2 }),
     internalNotes: text("internal_notes"),
@@ -70,7 +77,15 @@ export const requestEvents = pgTable(
       .notNull()
       .references(() => quoteRequests.id, { onDelete: "cascade" }),
     adminId: uuid("admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
-    message: text("message").notNull(),
+    /**
+     * What happened, as a key — never prose. Prose would freeze the audit trail in whichever
+     * language wrote it, so a bilingual admin could never render old history correctly.
+     * Deliberately `text` rather than an enum: the event vocabulary grows over time, and a log
+     * should not need a schema migration to record a new kind of event.
+     */
+    event: text("event").notNull(),
+    /** Values the label interpolates (status from/to, amounts, legacy prose). */
+    params: jsonb("params").$type<RequestEventParams>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("request_events_request_idx").on(t.requestId, t.createdAt)],
@@ -81,6 +96,8 @@ export const adminUsers = pgTable("admin_users", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
+  /** Which language this admin sees the panel in. Admin is not locale-routed; see D3. */
+  locale: contentLocale("locale").notNull().default("en"),
   failedLogins: integer("failed_logins").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -144,6 +161,7 @@ export const driverApplications = pgTable(
     kvk: text("kvk").notNull(),
     experienceYears: integer("experience_years").notNull(),
     notes: text("notes"),
+    locale: contentLocale("locale").notNull().default("en"),
 
     plate: text("plate").notNull(),
     make: text("make"),

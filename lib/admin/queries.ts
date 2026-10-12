@@ -72,7 +72,7 @@ export async function getRequest(id: string) {
   const [request] = await db.select().from(q).where(eq(q.id, id)).limit(1);
   if (!request) return null;
   const events = await db
-    .select({ id: ev.id, message: ev.message, createdAt: ev.createdAt, by: adminUsers.name })
+    .select({ id: ev.id, event: ev.event, params: ev.params, createdAt: ev.createdAt, by: adminUsers.name })
     .from(ev)
     .leftJoin(adminUsers, eq(adminUsers.id, ev.adminId))
     .where(eq(ev.requestId, id))

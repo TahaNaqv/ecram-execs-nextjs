@@ -17,7 +17,12 @@ function hms(ms: number) {
 }
 
 /** Counts down the shift's remaining time, then counts up how far over it has run. */
-export function ShiftCountdown({ startedAt }: { startedAt: string }) {
+export type ShiftCountdownCopy = { overLimit: string; lessThanHour: string; remainingOf: string };
+
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (token, key: string) => (key in values ? String(values[key]) : token));
+
+export function ShiftCountdown({ startedAt, copy }: { startedAt: string; copy: ShiftCountdownCopy }) {
   // Null on the server: the clock is only rendered in the browser, so it can't mismatch on hydration
   const current = useSyncExternalStore(subscribe, now, () => null);
   const start = new Date(startedAt).getTime();
@@ -48,7 +53,7 @@ export function ShiftCountdown({ startedAt }: { startedAt: string }) {
         <span className="pb-1 text-xs font-medium tabular-nums text-zinc-400">{Math.round(used * 100)}%</span>
       </div>
       <p className={`mt-2 text-xs font-medium ${over ? "text-red-600" : low ? "text-amber-700" : "text-zinc-500"}`}>
-        {over ? `Over the ${SHIFT_HOURS}-hour limit` : low ? "Less than an hour remaining" : `Remaining of ${SHIFT_HOURS} hours`}
+        {over ? fill(copy.overLimit, { hours: SHIFT_HOURS }) : low ? copy.lessThanHour : fill(copy.remainingOf, { hours: SHIFT_HOURS })}
       </p>
       <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-zinc-100">
         <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${bar}`} style={{ width: `${used * 100}%` }} />

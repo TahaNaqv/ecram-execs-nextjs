@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
+import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { quoteSchema, type QuoteField } from "./validation";
 
 export type QuoteFormState =
@@ -19,10 +20,12 @@ export type QuoteFormState =
     }
   | { status: "success"; reference: string; name: string };
 
-const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "name", "email", "phone", "notes"] as const;
+const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "name", "email", "phone", "notes", "locale"] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
 export async function submitQuote(prev: QuoteFormState, formData: FormData): Promise<QuoteFormState> {
+  // The visitor's language came in with the form; every message below is theirs to read.
+  const { forms: t } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(FIELDS.map((f) => [f, String(formData.get(f) ?? "")]));
   const attempt = prev.status === "error" ? prev.attempt + 1 : 1;
   const fail = (message: string, fieldErrors: Partial<Record<QuoteField, string>> = {}) =>
@@ -33,7 +36,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return { status: "success", reference: "EE-RECEIVED", name: values.name };
   }
 
-  const parsed = quoteSchema.safeParse({
+  const parsed = quoteSchema(t).safeParse({
     ...values,
     passengers: values.passengers || undefined,
     notes: values.notes || undefined,
@@ -44,7 +47,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
       const key = issue.path[0] as QuoteField;
       fieldErrors[key] ??= issue.message;
     }
-    return fail("Please check the highlighted details.", fieldErrors);
+    return fail(t.checkHighlighted, fieldErrors);
   }
 
   const { ipHash, userAgent } = await visitor();
@@ -55,7 +58,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     .from(schema.quoteRequests)
     .where(and(eq(schema.quoteRequests.ipHash, ipHash), gt(schema.quoteRequests.createdAt, since)));
   if (recent >= RATE_LIMIT.max) {
-    return fail("We have received several requests from you already — we will be in touch shortly. For anything urgent, please call us.");
+    return fail(t.quoteRateLimited);
   }
 
   let saved: QuoteRequest | undefined;
@@ -74,12 +77,12 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
       // Retry only on a reference collision
       if (!isUniqueViolation(err) || i === 2) {
         console.error("[quote] insert failed", err);
-        return fail("Something went wrong on our side. Please try again, or call us directly.");
+        return fail(t.quoteServerError);
       }
     }
   }
   const request = saved!;
-  await db.insert(schema.requestEvents).values({ requestId: request.id, message: "Request received via website" });
+  await db.insert(schema.requestEvents).values({ requestId: request.id, event: "received" });
 
   after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));
 

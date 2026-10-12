@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { applicationCounts } from "@/lib/admin/applications";
 import { listDrivers } from "@/lib/admin/drivers";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { formatTimestamp, isPast } from "@/lib/admin/format";
 import { SHIFT_HOURS, SHIFT_MS } from "@/lib/admin/shift";
 import {
@@ -24,18 +25,41 @@ import { AddDriverForm } from "./add-driver-form";
 import { ShiftCountdown } from "./shift-countdown";
 import { SubmitButton } from "./submit-button";
 
-export const metadata: Metadata = { title: "Drivers" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { admin } = await adminDictionary();
+  return { title: admin.drivers.title };
+}
+
+async function Heading({ part = "title" }: { part?: "title" | "description" | "applications" }) {
+  const { admin } = await adminDictionary();
+  if (part === "applications") return admin.nav.applications;
+  if (part === "description") return fill(admin.drivers.description, { hours: SHIFT_HOURS });
+  return admin.drivers.title;
+}
+
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (token, key: string) => (key in values ? String(values[key]) : token));
 
 export default function DriversPage() {
   return (
     <PageBody>
       <PageHeader
-        title="Drivers"
-        description={`Start a driver's shift and their ${SHIFT_HOURS}-hour clock begins counting down.`}
+        title={
+          <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
+            <Heading />
+          </Suspense>
+        }
+        description={
+          <Suspense fallback={<span className="inline-block h-[1em] w-72 animate-pulse rounded bg-zinc-100 align-middle" />}>
+            <Heading part="description" />
+          </Suspense>
+        }
         actions={
           <Link href="/admin/drivers/applications" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <NoteIcon className="text-zinc-500" />
-            Applications
+            <Suspense fallback={<span className="inline-block h-[1em] w-20 animate-pulse rounded bg-zinc-100 align-middle" />}>
+              <Heading part="applications" />
+            </Suspense>
             <Suspense fallback={null}>
               <NewApplications />
             </Suspense>
@@ -62,7 +86,8 @@ async function NewApplications() {
 
 type Row = { name: string; phone: string | null; partner: boolean; vehicle: string | null };
 
-function DriverName({ name, phone, partner, vehicle }: Row) {
+async function DriverName({ name, phone, partner, vehicle }: Row) {
+  const { admin } = await adminDictionary();
   return (
     <div className="flex min-w-0 items-center gap-3">
       <Avatar name={name} size="sm" />
@@ -83,7 +108,7 @@ function DriverName({ name, phone, partner, vehicle }: Row) {
           )}
           {phone && vehicle && " · "}
           {vehicle}
-          {!phone && !vehicle && <span className="text-zinc-400">No phone on file</span>}
+          {!phone && !vehicle && <span className="text-zinc-400">{admin.drivers.noPhone}</span>}
         </p>
       </div>
     </div>
@@ -91,6 +116,8 @@ function DriverName({ name, phone, partner, vehicle }: Row) {
 }
 
 async function Drivers() {
+  const { admin: dict } = await adminDictionary();
+  const t = dict.drivers;
   const [{ onShift, offShift, archived }, apps] = await Promise.all([listDrivers(), applicationCounts()]);
   const partners = [...onShift, ...offShift].filter((r) => r.partner).length;
   const pending = apps.new + apps.reviewing;
@@ -100,19 +127,19 @@ async function Drivers() {
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           tone="accent"
-          label="On shift"
+          label={t.statOnShift}
           value={onShift.length}
-          hint={onShift.length ? "Clocks running" : "No clocks running"}
+          hint={onShift.length ? t.statClocksRunning : t.statNoClocks}
           icon={<ClockIcon />}
         />
-        <StatCard label="Available" value={offShift.length} hint="Ready to start a shift" icon={<SteeringIcon />} />
+        <StatCard label={t.statAvailable} value={offShift.length} hint={t.statReady} icon={<SteeringIcon />} />
         <StatCard
-          label="Team"
+          label={t.statTeam}
           value={onShift.length + offShift.length}
-          hint={`${partners} ${partners === 1 ? "partner" : "partners"} · ${archived.length} in archive`}
+          hint={`${partners} ${partners === 1 ? t.partner : t.partners} · ${archived.length} ${t.inArchive}`}
           icon={<UsersIcon />}
         />
-        <StatCard label="Applications to review" value={pending} hint={`${apps.new} new · ${apps.reviewing} in review`} icon={<NoteIcon />} />
+        <StatCard label={t.statApplications} value={pending} hint={`${apps.new} ${t.newCount} · ${apps.reviewing} ${t.inReview}`} icon={<NoteIcon />} />
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
@@ -123,15 +150,15 @@ async function Drivers() {
               <span className={`relative inline-flex size-2 rounded-full ${onShift.length ? "bg-emerald-500" : "bg-zinc-300"}`} />
             </span>
             <h2 id="on-shift-heading" className="text-sm font-semibold text-zinc-950">
-              On shift <span className="font-normal text-zinc-400">· {onShift.length}</span>
+              {t.onShift} <span className="font-normal text-zinc-400">· {onShift.length}</span>
             </h2>
           </div>
           {onShift.length === 0 ? (
             <Card>
               <EmptyState
                 icon={<ClockIcon size={18} />}
-                title="No drivers on shift"
-                description="Start a shift from the available list and the driver's clock appears here."
+                title={t.emptyOnShift}
+                description={t.emptyOnShiftNote}
               />
             </Card>
           ) : (
@@ -151,14 +178,17 @@ async function Drivers() {
                     )}
                   </div>
                   <div className="p-5">
-                    <ShiftCountdown startedAt={r.shiftStartedAt!.toISOString()} />
+                    <ShiftCountdown
+                      startedAt={r.shiftStartedAt!.toISOString()}
+                      copy={{ overLimit: t.overLimit, lessThanHour: t.lessThanHour, remainingOf: t.remainingOf }}
+                    />
                   </div>
                   <div className="mt-auto flex items-center justify-between gap-3 border-t border-zinc-100 px-5 py-3">
                     <span className="text-xs text-zinc-500">Started {formatTimestamp(r.shiftStartedAt!)}</span>
                     <form action={endShift}>
                       <input type="hidden" name="driverId" value={r.id} />
-                      <SubmitButton pendingText="Ending…" className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
-                        <StopIcon size={12} /> End shift
+                      <SubmitButton pendingText={t.ending} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
+                        <StopIcon size={12} /> {t.endShift}
                       </SubmitButton>
                     </form>
                   </div>
@@ -170,9 +200,9 @@ async function Drivers() {
 
         <div className="flex min-w-0 flex-col gap-6">
           <Card>
-            <CardHeader title="Available" description="Fleet and partner drivers ready to start" icon={<SteeringIcon />} />
+            <CardHeader title={t.availableTitle} description={t.availableNote} icon={<SteeringIcon />} />
             {offShift.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-zinc-500">Everyone is on shift.</p>
+              <p className="px-5 py-8 text-center text-sm text-zinc-500">{t.everyoneOnShift}</p>
             ) : (
               <ul className="divide-y divide-zinc-100">
                 {offShift.map((r) => (
@@ -182,15 +212,15 @@ async function Drivers() {
                       <form action={setDriverActive}>
                         <input type="hidden" name="driverId" value={r.id} />
                         <input type="hidden" name="active" value="false" />
-                        <SubmitButton pendingText="…" title="Archive driver" className={`${btn.base} ${btn.ghost} ${btn.sm} px-2 text-zinc-500`}>
+                        <SubmitButton pendingText="…" title={t.archiveTitle} className={`${btn.base} ${btn.ghost} ${btn.sm} px-2 text-zinc-500`}>
                           <ArchiveIcon size={14} />
-                          <span className="sr-only">Archive</span>
+                          <span className="sr-only">{t.archive}</span>
                         </SubmitButton>
                       </form>
                       <form action={startShift}>
                         <input type="hidden" name="driverId" value={r.id} />
-                        <SubmitButton pendingText="Starting…" className={`${btn.base} ${btn.primary} ${btn.sm}`}>
-                          <PlayIcon size={11} /> Start shift
+                        <SubmitButton pendingText={t.starting} className={`${btn.base} ${btn.primary} ${btn.sm}`}>
+                          <PlayIcon size={11} /> {t.startShift}
                         </SubmitButton>
                       </form>
                     </div>
@@ -201,16 +231,25 @@ async function Drivers() {
           </Card>
 
           <Card>
-            <CardHeader title="Add a driver" description="Partners join automatically when their application is approved" icon={<PlusIcon />} />
+            <CardHeader title={t.addTitle} description={t.addNote} icon={<PlusIcon />} />
             <div className="p-5">
-              <AddDriverForm />
+              <AddDriverForm
+                copy={{
+                  driverName: dict.common.driverName,
+                  phone: dict.common.phone,
+                  namePlaceholder: t.namePlaceholder,
+                  phonePlaceholder: t.phonePlaceholder,
+                  adding: t.adding,
+                  addDriver: t.addDriver,
+                }}
+              />
             </div>
           </Card>
 
           {archived.length > 0 && (
             <details className="group rounded-xl border border-zinc-200/80 bg-white shadow-card">
               <summary className="flex cursor-pointer select-none items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-                <span>Archived · {archived.length}</span>
+                <span>{t.archived} · {archived.length}</span>
                 <ChevronDownIcon className="text-zinc-400 transition-transform group-open:rotate-180" />
               </summary>
               <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
@@ -222,8 +261,8 @@ async function Drivers() {
                     <form action={setDriverActive}>
                       <input type="hidden" name="driverId" value={r.id} />
                       <input type="hidden" name="active" value="true" />
-                      <SubmitButton pendingText="Restoring…" className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
-                        <UndoIcon size={13} /> Restore
+                      <SubmitButton pendingText={t.restoring} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
+                        <UndoIcon size={13} /> {t.restore}
                       </SubmitButton>
                     </form>
                   </li>

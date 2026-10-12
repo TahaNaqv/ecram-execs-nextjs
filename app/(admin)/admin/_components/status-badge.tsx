@@ -1,8 +1,14 @@
-import { APPLICATION_DOT, APPLICATION_LABEL, APPLICATION_STYLE, STATUS_DOT, STATUS_LABEL, STATUS_STYLE } from "@/lib/admin/format";
+import { APPLICATION_DOT, APPLICATION_STYLE, STATUS_DOT, STATUS_STYLE } from "@/lib/admin/format";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import type { ApplicationStatus } from "@/lib/partners/criteria";
 import type { RequestStatus } from "@/lib/quotes/constants";
 
-export function StatusBadge({ status, size = "sm" }: { status: RequestStatus; size?: "sm" | "md" }) {
+/**
+ * Resolves the label itself rather than taking it as a prop: every caller is a Server
+ * Component, and `adminDictionary()` is deduplicated per request, so this costs nothing.
+ */
+export async function StatusBadge({ status, size = "sm" }: { status: RequestStatus; size?: "sm" | "md" }) {
+  const { admin: t } = await adminDictionary();
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-medium ring-1 ring-inset ${
@@ -10,12 +16,13 @@ export function StatusBadge({ status, size = "sm" }: { status: RequestStatus; si
       } ${STATUS_STYLE[status]}`}
     >
       <span aria-hidden="true" className={`size-1.5 rounded-full ${STATUS_DOT[status]}`} />
-      {STATUS_LABEL[status]}
+      {t.statuses[status]}
     </span>
   );
 }
 
-export function ApplicationBadge({ status, size = "sm" }: { status: ApplicationStatus; size?: "sm" | "md" }) {
+export async function ApplicationBadge({ status, size = "sm" }: { status: ApplicationStatus; size?: "sm" | "md" }) {
+  const { admin: t } = await adminDictionary();
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-medium ring-1 ring-inset ${
@@ -23,7 +30,7 @@ export function ApplicationBadge({ status, size = "sm" }: { status: ApplicationS
       } ${APPLICATION_STYLE[status]}`}
     >
       <span aria-hidden="true" className={`size-1.5 rounded-full ${APPLICATION_DOT[status]}`} />
-      {APPLICATION_LABEL[status]}
+      {t.applicationStatuses[status]}
     </span>
   );
 }

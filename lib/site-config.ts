@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Business details shown on the website.
 //
@@ -7,16 +9,27 @@
 // ─────────────────────────────────────────────────────────────────────────────
 type SiteConfig = {
   name: string;
-  tagline: string;
+  /**
+   * Brand copy, so it is written per language rather than translated at render time — the client
+   * may well want the English tagline kept as-is in Dutch.
+   */
+  tagline: Record<Locale, string>;
   contact: { phone: string; email: string; address: string };
   kvk: string;
-  fleet: { passengers: string; amenities: string };
+  fleet: {
+    /** A number, not prose: the site renders "Up to 6 passengers" / "Tot 6 passagiers" from it. */
+    maxPassengers: number | null;
+    amenities: Record<Locale, string>;
+  };
   social: { instagram: string; tiktok: string; linkedin: string; youtube: string; x: string };
 };
 
 export const siteConfig: SiteConfig = {
   name: "Ecram Execs",
-  tagline: "The Art of Executive Hospitality",
+  tagline: {
+    en: "The Art of Executive Hospitality",
+    nl: "De kunst van executive gastvrijheid",
+  },
 
   contact: {
     /** Display format, e.g. "+31 20 123 4567" */
@@ -30,10 +43,13 @@ export const siteConfig: SiteConfig = {
   kvk: "12345678", // DEMO
 
   fleet: {
-    /** e.g. "Up to 6 passengers" */
-    passengers: "Up to 6 passengers", // DEMO — confirm seating configuration
-    /** e.g. "Wi-Fi, chilled water, device charging" */
-    amenities: "Wi-Fi, chilled water, device charging", // DEMO — confirm
+    /** Set to null to hide the seating line entirely */
+    maxPassengers: 6, // DEMO — confirm seating configuration
+    /** Leave a language's entry as "" to hide the line in that language */
+    amenities: {
+      en: "Wi-Fi, chilled water, device charging", // DEMO — confirm
+      nl: "Wi-Fi, gekoeld water, oplaadpunten", // DEMO — confirm
+    },
   },
 
   /** Full profile URLs (https://…); leave "" to hide that network */

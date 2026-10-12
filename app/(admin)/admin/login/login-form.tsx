@@ -5,7 +5,9 @@ import { login, type LoginState } from "../actions";
 import { AlertIcon, EyeIcon, EyeOffIcon } from "../_components/icons";
 import { btn, field, fieldLabel } from "../_components/ui";
 
-export function LoginForm({ next }: { next?: string }) {
+export type LoginFormCopy = { email: string; password: string; signIn: string; signingIn: string; emailPlaceholder: string; showPassword: string; hidePassword: string };
+
+export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
   const [reveal, setReveal] = useState(false);
   return (
@@ -13,7 +15,7 @@ export function LoginForm({ next }: { next?: string }) {
       <input type="hidden" name="next" value={next ?? ""} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="login-email" className={fieldLabel}>
-          Email
+          {copy.email}
         </label>
         <input
           id="login-email"
@@ -23,14 +25,14 @@ export function LoginForm({ next }: { next?: string }) {
           autoFocus
           required
           defaultValue={state.email}
-          placeholder="you@ecramexecs.com"
+          placeholder={copy.emailPlaceholder}
           aria-invalid={state.error ? true : undefined}
           className={`${field} h-11`}
         />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="login-password" className={fieldLabel}>
-          Password
+          {copy.password}
         </label>
         <div className="relative">
           <input
@@ -48,11 +50,11 @@ export function LoginForm({ next }: { next?: string }) {
             onClick={() => setReveal((v) => !v)}
             aria-pressed={reveal}
             aria-controls="login-password"
-            title={reveal ? "Hide" : "Show"}
+            title={reveal ? copy.hidePassword : copy.showPassword}
             className="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
           >
             {reveal ? <EyeOffIcon /> : <EyeIcon />}
-            <span className="sr-only">{reveal ? "Hide" : "Show"}</span>
+            <span className="sr-only">{reveal ? copy.hidePassword : copy.showPassword}</span>
           </button>
         </div>
       </div>
@@ -64,7 +66,7 @@ export function LoginForm({ next }: { next?: string }) {
       )}
       <button disabled={pending} className={`${btn.base} ${btn.primary} mt-1 h-11`}>
         {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? copy.signingIn : copy.signIn}
       </button>
     </form>
   );

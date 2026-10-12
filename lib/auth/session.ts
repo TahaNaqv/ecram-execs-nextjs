@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db, schema } from "@/lib/db";
+import type { Locale } from "@/lib/i18n/config";
 
 export const SESSION_COOKIE = "ee_admin_session";
 const SESSION_DAYS = 7;
@@ -36,14 +37,19 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-export type Admin = { id: string; name: string; email: string };
+export type Admin = { id: string; name: string; email: string; locale: Locale };
 
 /** Returns the signed-in admin, or null. Deduplicated per request. */
 export const getAdmin = cache(async (): Promise<Admin | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const [row] = await db
-    .select({ id: schema.adminUsers.id, name: schema.adminUsers.name, email: schema.adminUsers.email })
+    .select({
+      id: schema.adminUsers.id,
+      name: schema.adminUsers.name,
+      email: schema.adminUsers.email,
+      locale: schema.adminUsers.locale,
+    })
     .from(schema.adminSessions)
     .innerJoin(schema.adminUsers, eq(schema.adminUsers.id, schema.adminSessions.adminId))
     .where(and(eq(schema.adminSessions.id, hashToken(token)), gt(schema.adminSessions.expiresAt, sql`now()`)))
