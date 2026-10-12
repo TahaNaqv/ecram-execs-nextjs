@@ -29,6 +29,22 @@ if (!url) {
 const { host, pathname } = new URL(url);
 const isLocal = host.startsWith("127.0.0.1") || host.startsWith("localhost");
 console.log(`Target: ${host}${pathname}  ${isLocal ? "(local)" : "*** NOT LOCAL ***"}`);
+
+/**
+ * `--local` is passed by the local npm scripts and makes hitting a remote database impossible.
+ *
+ * This exists because it already happened: `drizzle-kit` bundles tsx/esbuild-kit, which loads
+ * `.env` on its own. `--env-file-if-exists=.env.local` set DATABASE_URL to the local Docker
+ * instance, but `.env` also set DATABASE_URL_DIRECT to Supabase — and drizzle.config.ts prefers
+ * DATABASE_URL_DIRECT. A migration meant for local went to production. This script does not use
+ * drizzle-kit and loads nothing implicitly, but the guard makes the mistake unrepeatable.
+ */
+if (process.argv.includes("--local") && !isLocal) {
+  console.error(`\n✗ refusing: this script was invoked as a LOCAL migration but ${host} is not local.`);
+  console.error("  Something is injecting a remote DATABASE_URL — check .env and your shell before continuing.");
+  console.error("  To migrate production deliberately: npm run db:migrate:prod -- --apply");
+  process.exit(1);
+}
 console.log(APPLY ? "Mode:   apply\n" : "Mode:   dry run (pass --apply to write)\n");
 
 const sql = postgres(url, { max: 1, onnotice: () => {} });

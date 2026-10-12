@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/migrate.mts --apply",
+    "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/migrate.mts --local --apply",
     "db:studio": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs studio",
     "admin:create": "node --env-file-if-exists=.env.local scripts/create-admin.mts",
     "storage:setup": "node --env-file-if-exists=.env.local scripts/setup-storage.mts",
@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "db:seed-demo": "node --env-file-if-exists=.env.local scripts/seed-demo.mts",
     "media:brand-film": "node scripts/build-brand-film.mts",
-    "db:migrate:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/migrate.mts",
+    "db:migrate:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/migrate.mts --local",
     "db:migrate:prod": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env scripts/migrate.mts"
   },
   "dependencies": {
