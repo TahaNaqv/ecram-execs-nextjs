@@ -19,7 +19,6 @@ export async function LanguageSwitcher({ route }: { route: AppRoute }) {
       options={LOCALES.map((value) => ({
         locale: value,
         href: localizedPath(route, value),
-        label: value.toUpperCase(),
         aria: value === "en" ? d.switcher.ariaEn : d.switcher.ariaNl,
       }))}
     />

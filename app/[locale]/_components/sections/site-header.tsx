@@ -12,7 +12,7 @@ export async function SiteHeader() {
         <a className="gap-3 no-underline flex items-center" href="#top">
           <Image className="h-10 w-10 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} sizes="48px" priority />
           <span className="gap-[2px] flex flex-col">
-          <span className="chrome font-display text-[18px] font-medium tracking-[0.26em] md:text-[22px] md:tracking-[0.32em]">
+          <span className="chrome font-display text-[18px] font-medium tracking-[0.26em] max-[400px]:text-[15px] max-[400px]:tracking-[0.14em] max-[350px]:text-[13px] max-[350px]:tracking-[0.08em] md:text-[22px] md:tracking-[0.32em]">
             ECRAM EXECS
           </span>
           {" "}
@@ -46,9 +46,10 @@ export async function SiteHeader() {
             {d.nav.bespoke}
           </a>
         </nav>
-        <div className="nav-actions gap-5 items-center flex">
+        <div className="nav-lang flex items-center">
           <LanguageSwitcher route="/" />
-          {" "}
+        </div>
+        <div className="nav-actions gap-5 items-center flex">
           <a className="py-0 px-[22px] border border-ink-250 no-underline items-center text-white inline-flex text-[11px] tracking-[0.24em] min-h-[44px] uppercase" href="#enquire">
             {d.common.requestQuote}
           </a>

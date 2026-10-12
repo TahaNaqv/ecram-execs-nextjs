@@ -503,8 +503,20 @@
     min-height: 50px !important;
   }
 
-  .nav-actions > span {
-    text-align: center;
+  /* Language flags stay in the header bar (beside the burger) instead of inside the menu. */
+  .nav-lang {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .nav-burger {
+    order: 2;
+    margin-left: 0;
+  }
+
+  .primary-nav,
+  .nav-actions {
+    order: 3;
   }
 
   /* Open */
