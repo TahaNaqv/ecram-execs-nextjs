@@ -1,0 +1,11 @@
+# What not to upload when deploying from the CLI (`vercel --prod`).
+# Vercel builds from source, so build output and local-only assets never need to go up —
+# and two files here exceed Vercel's 100 MB per-file limit, which fails the deploy outright:
+#   media-src/*.mp4                  source footage for scripts/build-brand-film.mts (132 MB)
+#   .next/dev/cache/turbopack/*.sst  local Turbopack dev cache (119 MB)
+.next
+media-src
+node_modules
+test-results
+playwright-report
+.git
