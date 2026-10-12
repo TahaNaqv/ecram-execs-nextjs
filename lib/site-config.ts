@@ -1,11 +1,9 @@
 import type { Locale } from "@/lib/i18n/config";
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Business details shown on the website.
-//
-//  ⚠ DEMO VALUES — the entries marked "DEMO" are sample data for client previews.
-//  Replace them with the real details before launch. Anything set to "" is simply
-//  hidden on the site (no "[PHONE]"-style placeholders are ever shown to visitors).
+//  Business details shown on the website. Entries marked "TODO" are still awaited from the client.
+//  Anything set to "" is simply hidden on the site (no "[PHONE]"-style placeholders are ever
+//  shown to visitors).
 // ─────────────────────────────────────────────────────────────────────────────
 export type FleetVehicle = {
   /** Brand names are shown as-is in every language, so they are not in the dictionaries. */
@@ -36,21 +34,21 @@ export const siteConfig: SiteConfig = {
   },
 
   contact: {
-    /** Display format, e.g. "+31 20 123 4567" */
-    phone: "+31 20 123 4567", // DEMO
-    email: "reservations@ecramexecs.nl", // DEMO
+    /** Display format, e.g. "+31 6 12 34 56 78" */
+    phone: "+31 6 27 13 37 00",
+    email: "enquiries@ecramexecs.com",
     /** e.g. "Herengracht 1, 1015 BA Amsterdam" ("Netherlands" is added automatically) */
-    address: "Gustav Mahlerplein, Amsterdam Zuidas", // DEMO
+    address: "", // TODO: awaiting the client's business address — hidden until set
   },
 
   /** Kamer van Koophandel registration number */
-  kvk: "12345678", // DEMO
+  kvk: "", // TODO: awaiting the client's KvK number — hidden until set
 
   // Every vehicle: all-black exterior, black executive leather, full top-of-the-range specification.
   // NOTE: the photographs are AI-generated imagery supplied by the team. Swap in real photographs of the
   // fleet as they become available (16:9, at least 1600px wide, same all-black styling).
   fleet: [
-    { name: "Mercedes-Benz", image: "/assets/fleet-mercedes-benz-v2.jpg" },
+    { name: "Mercedes-Benz VLE 300", image: "/assets/fleet-mercedes-vle-300-v2.jpg" },
     { name: "Audi", image: "/assets/fleet-audi-v2.jpg" },
     { name: "Cadillac Escalade", image: "/assets/fleet-cadillac-escalade-v2.jpg" },
     { name: "Range Rover", image: "/assets/fleet-range-rover-v2.jpg" },
@@ -63,7 +61,7 @@ export const siteConfig: SiteConfig = {
   social: {
     instagram: "https://www.instagram.com/ecramexecs/",
     tiktok: "https://www.tiktok.com/@ecramexecs",
-    linkedin: "", // TODO: awaiting the client's LinkedIn URL — hidden until set
+    linkedin: "https://www.linkedin.com/company/ecramexecs/",
     youtube: "https://www.youtube.com/@ecramexecs",
     x: "https://x.com/EcramExecs",
   },
