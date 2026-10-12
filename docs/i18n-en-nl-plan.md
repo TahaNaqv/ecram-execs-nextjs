@@ -431,33 +431,24 @@ could not have caught those, because they were never in a dictionary to compare 
   exists: *"Your root layout is defined using top-level dynamic segments … which makes composing
   a consistent 404 page harder."* So: **no `app/[locale]/not-found.tsx`**, and
   `global-not-found.tsx` is bilingual, since it bypasses rendering and can know no locale.
-- **T11 — `drizzle-kit` silently refuses to apply, and `drizzle-kit generate` needs a TTY.**
-  Two separate problems, both hit in Phase 3:
+- **T11 — `drizzle-kit generate` needs a TTY, and `drizzle-kit migrate` targeted the wrong
+  database.** Two problems, both hit in Phase 3:
   1. `npx drizzle-kit generate` aborts with *"Interactive prompts require a TTY"* when a change
      looks like it might be a column rename (here: `message` dropped while `event`/`params` were
-     added). Splitting the change into additive-then-destructive migrations removes the ambiguity
-     and the prompt — which is the safer migration shape anyway.
-  2. `npm run db:migrate` printed **"migrations applied successfully" while applying nothing** —
-     exit code 0, no error, `__drizzle_migrations` untouched. The journal, snapshot and `.sql`
-     file were all correct and 0004's `when` was newer than the last applied row. Workaround:
-     drizzle-orm's own runtime migrator applies it correctly:
+     added). Splitting it into additive-then-destructive migrations removes the ambiguity and the
+     prompt — which is the safer migration shape anyway.
+  2. `npm run db:migrate` printed "migrations applied successfully" while the **local** database
+     stayed empty. This was first recorded here as a silent no-op. **That was wrong**, and the
+     truth was worse: it had applied the migration to **production**. See §5z.
 
-     ```
-     node --env-file-if-exists=.env.local --input-type=module -e '
-       const { default: postgres } = await import("postgres");
-       const { drizzle } = await import("drizzle-orm/postgres-js");
-       const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-       const sql = postgres(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL, { max: 1 });
-       await migrate(drizzle(sql), { migrationsFolder: "./drizzle" });
-       await sql.end();'
-     ```
+  **Now handled in code.** `scripts/migrate.mts` replaces `drizzle-kit migrate`: it loads nothing
+  implicitly, prints the host it is about to touch, refuses a non-local target when invoked with
+  `--local`, and counts `drizzle.__drizzle_migrations` before and after — failing loudly if the
+  number did not move by exactly the number of pending files. `drizzle-kit generate` is still what
+  writes new migration files.
 
-     **Now handled in code.** `scripts/migrate.mts` counts `drizzle.__drizzle_migrations` before
-     and after and **fails loudly if the number did not move by exactly the number of pending
-     files**, so the silent no-op cannot reach production unnoticed. `npm run db:migrate` uses it
-     instead of `drizzle-kit migrate`; `drizzle-kit generate` is still what writes new migrations.
-  `__drizzle_migrations.hash` is the plain sha256 of the `.sql` file, so editing an applied
-  migration requires updating that row to keep drizzle's state consistent.
+  `__drizzle_migrations.hash` is the plain sha256 of the `.sql` file, so editing an already-applied
+  migration leaves the recorded hash stale — which is precisely what had to be reconciled in §5z.
 - **T10 — the proxy must intercept invalid locales.** Because `[locale]` matches anything, an
   unknown first segment would still reach the layout and trigger T9. `proxy.ts` therefore rewrites
   unknown paths to `/_not-found` rather than passing them through. Without this, `/foobar` serves
@@ -490,6 +481,40 @@ admin work is mostly mechanical: swap those for the signed-in admin's `admin_use
 that same locale into the `lib/admin/format.ts` date helpers, and replace `EVENT_LABELS_EN` in
 `lib/admin/events.ts` with the dictionary. The storage format and all call signatures are already
 final, so nothing else has to move.
+
+## 5z. Incident — 2026-10-12: a local migration hit production
+
+**What happened.** `npm run db:migrate`, intended for the local Docker database, applied migration
+0004 to **production** Supabase at 09:58. It was recorded here as a silent no-op (T11), and the
+plan stated production had never been touched. Both were wrong.
+
+**Cause.** `drizzle-kit` bundles `tsx`/`esbuild-kit`, which loads `.env` by itself. The npm script
+passed `--env-file-if-exists=.env.local`, setting `DATABASE_URL` to local Docker — but `.env` also
+set `DATABASE_URL_DIRECT` to Supabase, and `drizzle.config.ts` resolves
+`DATABASE_URL_DIRECT ?? DATABASE_URL`. Production won. The check that "proved" the target was local
+used plain `node`, which does **not** auto-load `.env` — so it reported local, and was believed.
+
+**Impact.** Production's schema ran ahead of its deployed code for ~8 hours. `service` became an
+enum while the live code still wrote English labels, so **every quote-form submission failed** with
+`invalid input value for enum service_kind`. The last genuine enquiry predated the incident, so no
+enquiry is known to have been lost — but that cannot be proven.
+
+**Fix.** `scripts/remediate-0004.mts` reconciled the migration record (production held the original
+0004's hash; the repo's had since been hardened), re-ran the improved backfill to heal the one
+`legacy` event the original parser could not read, and applied 0005. Verified afterwards: `message`
+dropped, `event NOT NULL`, zero legacy rows, six migrations recorded, 13 rows intact. Deploying the
+committed code closed the outage. That script describes one specific broken state — delete it once
+this is comfortably behind you.
+
+**Prevention.** `scripts/migrate.mts` loads nothing implicitly; the local npm scripts pass `--local`
+and it hard-refuses any non-local host under that flag (verified by pointing it at a remote host and
+watching it exit 1); `db:migrate:prod` prints the host, marks it `*** NOT LOCAL ***`, and will not
+write without `--apply`.
+
+**The lesson worth keeping:** a tool that reads configuration you did not hand it can target
+something you did not choose, and verifying the target with a *different* loader than the tool uses
+proves nothing. Make the tool state what it is about to touch, and make the dangerous target
+impossible to reach by accident rather than merely unlikely.
 
 ## 5a. Blockers
 
