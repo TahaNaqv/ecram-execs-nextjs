@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: d.meta.title,
       description: d.meta.ogDescription,
-      images: [{ url: "/assets/og-image-v2.jpg", width: 1200, height: 630, alt: d.meta.ogImageAlt }],
+      images: [{ url: "/assets/og-image-v3.jpg", width: 1200, height: 630, alt: d.meta.ogImageAlt }],
       locale: d.meta.ogLocale,
       alternateLocale: LOCALES.filter((l) => l !== locale).map((l) => (l === "nl" ? "nl_NL" : "en_NL")),
       type: "website",
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: d.meta.title,
       description: d.meta.ogDescription,
-      images: ["/assets/og-image-v2.jpg"],
+      images: ["/assets/og-image-v3.jpg"],
     },
   };
 }

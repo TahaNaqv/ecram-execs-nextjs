@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import { LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
@@ -41,7 +42,8 @@ export default async function PrivacyPage() {
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.7] text-ink-150">
       <header className="border-b border-ink-850">
         <div className="mx-auto max-w-[820px] px-5 py-[22px]">
-          <Link href={localizedPath("/", locale)} className="chrome font-display text-[20px] tracking-[0.32em] no-underline">
+          <Link href={localizedPath("/", locale)} className="inline-flex items-center gap-3 whitespace-nowrap chrome font-display text-[20px] tracking-[0.32em] no-underline">
+            <Image className="h-10 w-10" src="/assets/logo-mark.png" alt="" width={48} height={48} />
             ECRAM EXECS
           </Link>
         </div>

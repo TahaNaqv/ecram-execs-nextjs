@@ -423,7 +423,7 @@
   }
 }
 
-/* ---------- Mobile menu (≤1100px) ----------
+/* ---------- Mobile menu (≤1279px) ----------
  * CSS-only: a visually hidden checkbox (#nav-toggle) drives the burger and the
  * slide-down panel. Kept unlayered and together so its !important rules win
  * over the nav's desktop utility classes in one predictable place.
@@ -445,13 +445,13 @@
   outline-offset: 4px;
 }
 
-@media (min-width: 1101px) {
+@media (min-width: 1280px) {
   .nav-toggle {
     display: none;
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1279px) {
   .nav-burger {
     display: flex;
     flex-direction: column;

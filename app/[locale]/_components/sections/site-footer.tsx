@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cacheLife } from "next/cache";
 import { currentLocale } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -20,13 +21,7 @@ export async function SiteFooter() {
       <div className="px-5 pt-14 pb-8 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:px-6 md:pt-18 md:pb-10 md:gap-14 2xl:max-w-[1440px]">
         <div className="gap-12 flex flex-wrap justify-between">
           <div className="gap-[10px] flex flex-col max-w-[360px]">
-            <span className="chrome font-display text-[22px] font-medium tracking-[0.32em] md:text-[26px]">
-              ECRAM EXECS
-            </span>
-            {" "}
-            <span className="text-ink-450 font-display text-[10px] tracking-[0.3em] md:tracking-[0.42em]">
-              {d.nav.tagline}
-            </span>
+            <Image className="h-auto w-full max-w-[300px]" src="/assets/logo.png" alt={d.footer.logoAlt} width={1584} height={865} sizes="300px" />
             <p className="mx-0 mt-3 mb-0 text-ink-450 text-[14px] font-light">
               {d.footer.blurb}
             </p>
@@ -93,7 +88,7 @@ export async function SiteFooter() {
             </div>
           </div>
         </div>
-        <div className="pt-7 gap-5 border-t border-t-ink-850 items-start text-ink-500 flex flex-col flex-wrap text-[12px] justify-between md:items-center md:flex-row">
+        <div className="pt-7 pb-16 gap-5 border-t border-t-ink-850 items-start text-ink-500 flex flex-col flex-wrap text-[12px] justify-between md:items-center md:flex-row md:pb-0">
           <span>
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}
             <Link className="text-inherit" href={localizedPath("/privacy", locale)}>
