@@ -43,6 +43,13 @@
       "when": 1791799475820,
       "tag": "0005_drop_event_message",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791823163652,
+      "tag": "0006_bespoke_requests",
+      "breakpoints": true
     }
   ]
 }

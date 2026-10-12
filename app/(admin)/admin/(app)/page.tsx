@@ -197,7 +197,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
           {/* Phones and tablets: stacked list */}
           <ul className="divide-y divide-zinc-100 lg:hidden">
             {rows.map((r) => {
-              const pickup = pickupParts(r.pickupAt);
+              const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
               return (
                 <li key={r.id}>
                   <Link href={`/admin/requests/${r.id}`} className="flex gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
@@ -211,12 +211,18 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <StatusBadge status={r.status} />
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm text-zinc-700">
-                        {r.collection} <span className="text-zinc-400">→</span> {r.destination}
+                        {r.collection === null ? (
+                          (r.entity ?? r.itinerary)
+                        ) : (
+                          <>
+                            {r.collection} <span className="text-zinc-400">→</span> {r.destination}
+                          </>
+                        )}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
                         <span className="inline-flex items-center gap-1">
                           <CalendarIcon size={12} />
-                          {pickup.date} · {pickup.time}
+                          {pickup ? `${pickup.date} · ${pickup.time}` : "—"}
                         </span>
                         <span>{serviceLabel(r.service, serviceLabels)}</span>
                         <span className="ml-auto font-mono text-[11px] text-zinc-400">{r.reference}</span>
@@ -244,9 +250,12 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {rows.map((r) => {
-                  const pickup = pickupParts(r.pickupAt);
-                  const pickupAt = pickupInstant(r.pickupAt);
-                  const past = isPast(pickupAt);
+                  const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
+                  const pickupAt = r.pickupAt ? pickupInstant(r.pickupAt) : null;
+                  const past = pickupAt ? isPast(pickupAt) : false;
+                  // A bespoke programme has no single pick-up and drop-off: show who it is for and what it is.
+                  const from = r.collection ?? r.entity ?? "";
+                  const to = r.destination ?? r.itinerary ?? "";
                   return (
                     <tr key={r.id} className="group relative transition-colors hover:bg-zinc-50/80">
                       <td className="py-3.5 pl-5 pr-3">
@@ -275,16 +284,22 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                             <span className="size-1.5 rounded-full bg-zinc-900" />
                           </span>
                           <div className="min-w-0 text-[13px] leading-5 text-zinc-700">
-                            <p className="truncate" title={r.collection}>{r.collection}</p>
-                            <p className="truncate" title={r.destination}>{r.destination}</p>
+                            <p className="truncate" title={from}>{from}</p>
+                            <p className="truncate" title={to}>{to}</p>
                           </div>
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5">
-                        <p className={`font-medium ${past ? "text-zinc-500" : "text-zinc-900"}`}>{pickup.date}</p>
-                        <p className="text-xs text-zinc-500">
-                          {pickup.time} · {formatRelative(pickupAt)}
-                        </p>
+                        {pickup && pickupAt ? (
+                          <>
+                            <p className={`font-medium ${past ? "text-zinc-500" : "text-zinc-900"}`}>{pickup.date}</p>
+                            <p className="text-xs text-zinc-500">
+                              {pickup.time} · {formatRelative(pickupAt)}
+                            </p>
+                          </>
+                        ) : (
+                          <span className="text-zinc-300">—</span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-zinc-600">{serviceLabel(r.service, serviceLabels)}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-zinc-900">

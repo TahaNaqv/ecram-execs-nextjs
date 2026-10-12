@@ -6,6 +6,7 @@ import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { NavAutoClose } from "./_components/nav-auto-close";
 import { BackToTop } from "./_components/back-to-top";
 import {
+  Bespoke,
   Concierge,
   Destinations,
   ElectricBand,
@@ -14,7 +15,6 @@ import {
   FinalCta,
   Fleet,
   Hero,
-  OnTheRoad,
   RegionsMarquee,
   Services,
   SiteFooter,
@@ -74,6 +74,7 @@ export default async function HomePage() {
       <main id="main">
         <Hero />
         <Enquiry />
+        <Concierge />
         <Statement />
         <Services />
         <Experience />
@@ -82,8 +83,7 @@ export default async function HomePage() {
         <RegionsMarquee />
         <Destinations />
         <WhoWeServe />
-        <Concierge />
-        <OnTheRoad />
+        <Bespoke />
         <FinalCta />
       </main>
       <SiteFooter />

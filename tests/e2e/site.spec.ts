@@ -24,7 +24,7 @@ for (const locale of LOCALES) {
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await expect(page.locator("h1")).toContainText(d.hero.headingBefore);
     // Anchor ids stay English in both languages on purpose (D5) — the switcher carries them over.
-    for (const id of ["enquire", "services", "experience", "fleet", "netherlands", "corporate"]) {
+    for (const id of ["enquire", "services", "experience", "fleet", "netherlands", "corporate", "bespoke"]) {
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
     await expect(page.locator("body")).not.toContainText(/\[(PHONE|EMAIL|ADDRESS|NUMBER|CONFIRM)/);

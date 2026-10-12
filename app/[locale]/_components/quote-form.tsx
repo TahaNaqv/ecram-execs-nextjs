@@ -1,45 +1,13 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState } from "react";
 import { SERVICES, type Service } from "@/lib/quotes/constants";
 import type { Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import type { QuoteField } from "@/lib/quotes/validation";
-
-// Inputs use 16px on phones so iOS doesn't zoom in on focus
-const control =
-  "w-full min-w-0 border-none bg-transparent p-0 text-[16px] tracking-[0] text-ink-950 normal-case outline-none placeholder:text-ink-420 md:text-[15px]";
-
-function Field({
-  label,
-  name,
-  error,
-  children,
-}: {
-  label: string;
-  name: QuoteField;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label
-      htmlFor={`q-${name}`}
-      className={`flex min-w-0 flex-col gap-[6px] bg-white px-[18px] py-4 text-[10px] tracking-[0.22em] text-ink-600 uppercase ${
-        error ? "shadow-[inset_0_-2px_0_var(--color-error)]" : "focus-within:shadow-[inset_0_-2px_0_var(--color-ink-950)]"
-      }`}
-    >
-      {label}
-      {children}
-      {error && (
-        <span id={`q-${name}-error`} className="text-[11px] tracking-[0] text-error normal-case">
-          {error}
-        </span>
-      )}
-    </label>
-  );
-}
+import { control, Field } from "./form-field";
 
 export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Ecram Execs — De kunst van executive gastvrijheid",
-    "description": "Privéchauffeurs op executive niveau in heel Nederland, met een volledig elektrische Mercedes-Benz-vloot. Luchthaventransfers, zakelijk vervoer, zakelijke accounts en privégelegenheden — elke rit persoonlijk geprijsd.",
+    "description": "Privéchauffeurs op executive niveau in heel Nederland, met een volledig elektrische executive vloot. Luchthaventransfers, zakelijk vervoer, zakelijke accounts en privégelegenheden — elke rit persoonlijk geprijsd.",
     "ogDescription": "Privéchauffeurs op executive niveau in heel Nederland, met een volledig elektrische vloot.",
     "ogImageAlt": "Een chauffeur van Ecram Execs wacht bij een elektrische Mercedes VLE terwijl een executive bij schemer een privéjet verlaat",
     "ogLocale": "nl_NL"
@@ -48,7 +48,12 @@
     "fieldDestination": "Bestemming",
     "fieldDateTime": "Datum en tijd",
     "fieldPlate": "Kenteken",
-    "fieldVehicle": "Voertuig"
+    "fieldVehicle": "Voertuig",
+    "bespokeSubject": "Uw aanvraag op maat bij Ecram Execs {reference}",
+    "bespokeIntro": "Bedankt voor uw aanvraag op maat. Een medewerker van ons reserveringsteam neemt persoonlijk contact met u op via {channel} om uw programma te bespreken.",
+    "channelPhone": "telefoon",
+    "channelWhatsapp": "WhatsApp",
+    "fieldEntity": "Bedrijf / account"
   },
   "criteria": {
     "or": "of",
@@ -162,10 +167,14 @@
     "applicationServerError": "Er is iets misgegaan aan onze kant. Probeer het opnieuw of neem direct contact met ons op.",
     "formExpired": "Dit formulier is verlopen. Dien het opnieuw in.",
     "formResubmit": "Dien het formulier opnieuw in.",
-    "plateChanged": "Het kenteken is gewijzigd. Dien het formulier opnieuw in."
-  },
-  "fleet": {
-    "upToPassengers": "Tot {n} passagiers"
+    "plateChanged": "Het kenteken is gewijzigd. Dien het formulier opnieuw in.",
+    "entityRequired": "Voer uw bedrijf of account in.",
+    "entityTooLong": "Deze naam is te lang.",
+    "delegationInvalid": "Voer een omvang van de delegatie in tussen 1 en 500.",
+    "vehicleClassRequired": "Kies een voertuigklasse.",
+    "contactPreferenceRequired": "Kies hoe wij contact met u opnemen.",
+    "itineraryRequired": "Beschrijf het reisschema.",
+    "itineraryTooLong": "Het reisschema is te lang."
   },
   "common": {
     "skipToContent": "Naar de inhoud",
@@ -182,10 +191,10 @@
     "experience": "De ervaring",
     "fleet": "Vloot",
     "destinations": "Bestemmingen",
-    "corporate": "Zakelijk"
+    "corporate": "Zakelijk",
+    "bespoke": "Op maat"
   },
   "hero": {
-    "logoAlt": "Luxe chromen embleem van Ecram Execs met QR-code",
     "imageAlt": "Een chauffeur van Ecram Execs wacht bij een elektrische Mercedes VLE terwijl een executive bij schemer een privéjet verlaat",
     "headingBefore": "Elke rit is deel",
     "headingEmphasis": "van de ervaring.",
@@ -233,19 +242,26 @@
   },
   "fleetSection": {
     "eyebrow": "III — DE VLOOT",
-    "imageAlt": "Mercedes-Benz VLE 300 Electric in obsidiaanzwart, driekwart vooraanzicht",
-    "intro": "Gekozen om comfort, techniek en raffinement. Een verfijnde, vrijwel geluidloze omgeving om te ontspannen, te werken of simpelweg van een rustige rit te genieten.",
-    "specCabin": "Interieur",
-    "specCabinValue": "Executive stoelen in loungestijl",
+    "headingBefore": "Vijf merken.",
+    "headingEmphasis": "Eén onverminderde standaard.",
+    "intro": "Gekozen om onverminderd comfort, geluidloze aandrijving en executive raffinement. Onze vloot bestaat uitsluitend uit volledig elektrische voertuigen in de topuitvoering van toonaangevende luxemerken, elk afgewerkt in obsidiaanzwart met op maat gemaakte zwarte executive interieurs.",
+    "specExterior": "Exterieur",
+    "specExteriorValue": "Volledig zwart, obsidiaanzwarte afwerking",
+    "specInterior": "Interieur",
+    "specInteriorValue": "Zwart executive leer",
+    "specSpec": "Uitvoering",
+    "specSpecValue": "Volledige topuitvoering",
     "specDrive": "Aandrijving",
-    "specDriveValue": "Volledig elektrisch, vrijwel geluidloos",
-    "specPassengers": "Passagiers",
-    "specAmenities": "Voorzieningen"
+    "specDriveValue": "100% elektrisch, vrijwel geluidloos",
+    "specNote": "Elk voertuig rijdt uitsluitend met een volledig zwart exterieur en een zwart executive leren interieur, in de volledige topuitvoering.",
+    "badge": "100% ELEKTRISCH",
+    "imageAlt": "{name} in obsidiaanzwart",
+    "interiorAlt": "Achterin met zwart executive leren zetels"
   },
   "electric": {
     "eyebrow": "IV — ELEKTRISCHE EXECUTIVE VLOOT",
     "heading": "Duurzaamheid en luxe hoeven niet los van elkaar te staan.",
-    "body": "Als Nederlands bedrijf bouwen wij aan een moderne, volledig elektrische executive vloot — en dragen wij waar mogelijk bij aan de Nederlandse overgang naar schonere, toekomstgerichte mobiliteit. Elektrisch rijden maakt de rit stiller en soepeler: precies de rust waarop onze service is gebouwd.",
+    "body": "Als Nederlands bedrijf bouwen wij aan een moderne, volledig elektrische executive vloot en dragen wij rechtstreeks bij aan de Nederlandse overgang naar schonere, toekomstgerichte mobiliteit. Met een 100% BEV-vloot zonder uitlaatemissies zorgt elektrisch rijden voor een stillere, soepelere rit: precies de rust waarop onze service is gebouwd. Voor onze zakelijke partners omvat elke rit volledige Scope 3 ESG-auditrapportage, om uw duurzaamheidsdoelen moeiteloos te ondersteunen.",
     "motto": "STIL. GERAFFINEERD. ELEKTRISCH."
   },
   "marquee": {
@@ -291,7 +307,7 @@
     "valueDetailText": "Uw temperatuur, uw muziek, uw krant."
   },
   "conciergeSection": {
-    "eyebrow": "VII — ECRAM CONCIERGE",
+    "eyebrow": "ECRAM CONCIERGE",
     "headingBefore": "Direct antwoord.",
     "headingEmphasis": "Altijd een persoonlijke benadering.",
     "body": "Onze digitale concierge beantwoordt vragen, legt onze diensten uit en start uw prijsopgave, op elk uur van de dag. Verdient een aanvraag een persoonlijk gesprek, dan verbindt hij u naadloos door met een van onze medewerkers.",
@@ -307,10 +323,6 @@
     "inputLabel": "Bericht aan de concierge",
     "inputPlaceholder": "Vraag naar een rit…",
     "send": "Bericht verzenden"
-  },
-  "onTheRoad": {
-    "eyebrow": "ONS ONDERWEG GEZIEN?",
-    "body": "Welkom. U vond ons via het embleem in het hart van onze vleugels — elke Ecram-auto draagt er een."
   },
   "finalCta": {
     "eyebrow": "AFGESTEMD OP UW RIT",
@@ -334,7 +346,8 @@
     "linkDriveWithUs": "Rijd met ons",
     "serving": "Actief in heel Nederland",
     "privacy": "Privacy",
-    "socialLabel": "Sociale media"
+    "socialLabel": "Sociale media",
+    "linkBespoke": "Reizen op maat"
   },
   "film": {
     "caption": "Merkfilm — een gast wordt opgehaald door een VLE 300 Electric, gefilmd vanuit het perspectief van de klant",
@@ -430,7 +443,7 @@
     "s1Kvk": " (KvK {kvk})",
     "s1End": ".",
     "s2Title": "Wat wij verzamelen en waarom",
-    "s2p1": "Wanneer u een prijsopgave aanvraagt, verzamelen wij uw naam, e-mailadres, telefoonnummer, de ophaallocatie, de bestemming, de datum en tijd van uw rit, de dienst en het aantal passagiers dat u kiest, en eventuele opmerkingen die u toevoegt. Wij gebruiken deze gegevens uitsluitend om uw prijsopgave op te stellen en te versturen, uw rit te regelen en u daarover te benaderen. De rechtsgrond is het nemen van stappen op uw verzoek voorafgaand aan het sluiten van een overeenkomst (artikel 6, lid 1, onder b, AVG).",
+    "s2p1": "Wanneer u een prijsopgave aanvraagt, verzamelen wij uw naam, e-mailadres, telefoonnummer, de ophaallocatie, de bestemming, de datum en tijd van uw rit, de dienst en het aantal passagiers dat u kiest, en eventuele opmerkingen die u toevoegt. Als u een aanvraag op maat indient, verzamelen wij ook de naam van uw bedrijf of account, de omvang van uw delegatie, uw wensen voor de voertuigklasse, uw reisschema en bijzondere wensen, en of u liever telefonisch of via WhatsApp wordt benaderd. Wij gebruiken deze gegevens uitsluitend om uw prijsopgave of programma op te stellen en te versturen, uw rit te regelen en u daarover te benaderen. De rechtsgrond is het nemen van stappen op uw verzoek voorafgaand aan het sluiten van een overeenkomst (artikel 6, lid 1, onder b, AVG).",
     "s2p2": "Wanneer u zich aanmeldt om voor ons te rijden, verzamelen wij uw naam, e-mailadres, telefoonnummer, KvK-nummer, aantal jaren rijervaring, het kenteken van uw auto en eventuele opmerkingen die u toevoegt. Wij zoeken het kenteken op in het openbare register van de RDW om de auto aan onze criteria te toetsen, en slaan het merk, het model, de kleur, het aantal zitplaatsen, de registratiedata en de taxiregistratie op die daaruit volgen. U uploadt ook kopieën van uw chauffeurskaart, KvK-uittreksel, Verklaring Omtrent het Gedrag (VOG) en verzekering; deze worden bewaard in een afgeschermde opslagomgeving die alleen ons team kan openen. Wij gebruiken deze gegevens uitsluitend om uw aanmelding te beoordelen en, bij goedkeuring, om met u samen te werken. De rechtsgrond is het nemen van stappen op uw verzoek voorafgaand aan het sluiten van een overeenkomst (artikel 6, lid 1, onder b, AVG).",
     "s2p3": "Om de formulieren tegen misbruik te beschermen slaan wij daarnaast een eenzijdige, gezouten hash van uw IP-adres en de user-agent van uw browser op. Die hash kan niet worden teruggerekend naar uw IP-adres. De rechtsgrond is ons gerechtvaardigd belang bij het veilig houden van de dienst (artikel 6, lid 1, onder f, AVG).",
     "s3Title": "Cookies",
@@ -442,14 +455,14 @@
     "s4Resend": "Resend — verzending van e-mailmeldingen over uw aanvraag",
     "s4p2": "Wij verkopen uw gegevens niet en delen ze niet met derden voor marketingdoeleinden.",
     "s5Title": "Hoe lang wij gegevens bewaren",
-    "s5p1": "Aanvragen voor een prijsopgave bewaren wij tot 24 maanden na ons laatste contact met u, zodat wij vervolgvragen en herhaalboekingen kunnen behandelen. Aanmeldingen van chauffeurs die niet tot een samenwerking leiden, inclusief de daarbij geüploade documenten, bewaren wij tot 12 maanden. Gegevens die deel uitmaken van onze financiële administratie bewaren wij zeven jaar, zoals de Nederlandse belastingwetgeving voorschrijft. U kunt ons op elk moment vragen uw aanvraag te verwijderen.",
+    "s5p1": "Aanvragen voor een prijsopgave en aanvragen op maat bewaren wij tot 24 maanden na ons laatste contact met u, zodat wij vervolgvragen en herhaalboekingen kunnen behandelen. Aanmeldingen van chauffeurs die niet tot een samenwerking leiden, inclusief de daarbij geüploade documenten, bewaren wij tot 12 maanden. Gegevens die deel uitmaken van onze financiële administratie bewaren wij zeven jaar, zoals de Nederlandse belastingwetgeving voorschrijft. U kunt ons op elk moment vragen uw aanvraag te verwijderen.",
     "s6Title": "Uw rechten",
     "s6p1": "U heeft het recht op inzage, correctie of verwijdering van uw persoonsgegevens, op beperking van of bezwaar tegen de verwerking, en op ontvangst van uw gegevens in een overdraagbare vorm. Neem contact met ons op via ",
     "s6p2": " en wij reageren binnen een maand. U heeft ook het recht een klacht in te dienen bij de Nederlandse privacytoezichthouder (",
     "s6Link": "Autoriteit Persoonsgegevens",
     "s6p3": ").",
     "s7Title": "Beveiliging",
-    "s7p1": "Uw gegevens worden verzonden via versleutelde verbindingen en bewaard in systemen met toegangscontrole. Alleen bevoegde medewerkers kunnen prijsaanvragen en aanmeldingen van chauffeurs inzien."
+    "s7p1": "Uw gegevens worden verzonden via versleutelde verbindingen en bewaard in systemen met toegangscontrole. Alleen bevoegde medewerkers kunnen prijsaanvragen, aanvragen op maat en aanmeldingen van chauffeurs inzien."
   },
   "admin": {
     "common": {
@@ -554,7 +567,12 @@
       "fieldQuotedAmountEur": "Opgegeven bedrag (EUR)",
       "fieldInternalNotes": "Interne notities",
       "cancelledNote": "Deze aanvraag is geannuleerd. Wijzig de status in het paneel om haar te heropenen.",
-      "deleteNoun": "aanvraag"
+      "deleteNoun": "aanvraag",
+      "entity": "Bedrijf / account",
+      "delegationSize": "Omvang delegatie",
+      "vehicleClass": "Voertuigklasse",
+      "contactPreference": "Voorkeur voor contact",
+      "itinerary": "Reisschema en bijzondere wensen"
     },
     "drivers": {
       "title": "Chauffeurs",
@@ -664,5 +682,51 @@
       "notesUpdated": "Interne notities bijgewerkt",
       "none": "—"
     }
+  },
+  "bespokeSection": {
+    "eyebrow": "VII — PROGRAMMA'S OP MAAT",
+    "headingBefore": "Voorbij het punt-naar-punt.",
+    "headingEmphasis": "Programma's rond uw wensen.",
+    "body": "Voor wensen buiten standaard punt-naar-punttransfers en uurtarieven ontwerpt en begeleidt ons reserveringsteam het programma persoonlijk.",
+    "caseDelegationsTitle": "Delegaties in meerdere steden",
+    "caseDelegationsText": "Gecoördineerde voertuigen en chauffeurs door meerdere steden, met één vast aanspreekpunt.",
+    "caseDiplomaticTitle": "Diplomatiek protocol",
+    "caseDiplomaticText": "Discrete, protocolbewuste service voor officiële bezoeken en prominente gasten.",
+    "caseRoadshowsTitle": "Executive roadshows",
+    "caseRoadshowsText": "Strak getimede programma's met meerdere stops voor investeerdersbijeenkomsten, locatiebezoeken en evenementen.",
+    "formHeading": "Aanvraag op maat",
+    "formNote": "Een medewerker van ons reserveringsteam neemt persoonlijk contact met u op via telefoon of WhatsApp.",
+    "labelName": "Naam opdrachtgever",
+    "phName": "Uw naam",
+    "labelEntity": "Bedrijf / account",
+    "phEntity": "Bedrijfs- of accountnaam",
+    "labelEmail": "E-mail",
+    "phEmail": "u@bedrijf.nl",
+    "labelPhone": "Telefoon",
+    "phPhone": "+31 6 1234 5678",
+    "labelDelegation": "Omvang delegatie / aantal passagiers",
+    "phDelegation": "bijv. 12",
+    "labelVehicleClass": "Voertuigklasse",
+    "selectPlaceholder": "Kies",
+    "vehicleClasses": {
+      "executive_sedan": "Executive sedan",
+      "executive_suv": "Executive SUV",
+      "mixed_fleet": "Gemengde vloot",
+      "advise": "Adviseer mij"
+    },
+    "labelContact": "Voorkeur voor contact",
+    "contactOptions": {
+      "phone": "Telefoongesprek",
+      "whatsapp": "WhatsApp"
+    },
+    "labelItinerary": "Reisschema en bijzondere wensen",
+    "phItinerary": "Steden, data en tijden, ophaal- en afzetpunten, protocol- of beveiligingseisen…",
+    "submit": "Aanvraag op maat versturen",
+    "sending": "Versturen…",
+    "successLabel": "Aanvraag ontvangen",
+    "successHeading": "Bedankt, {name}. Ons reserveringsteam neemt persoonlijk contact met u op.",
+    "successNote": "Verwacht binnenkort een telefoontje of WhatsApp-bericht — elke aanvraag op maat wordt door een medewerker behandeld, nooit automatisch.",
+    "privacyNote": "Uw gegevens gebruiken wij alleen om uw programma op te stellen.",
+    "privacyLink": "Privacybeleid"
   }
 }

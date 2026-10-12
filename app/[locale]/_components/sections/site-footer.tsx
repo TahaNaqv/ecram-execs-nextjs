@@ -48,6 +48,9 @@ export async function SiteFooter() {
               <Link className="navlink" href={`${home}#services`}>
                 {d.footer.linkPrivate}
               </Link>
+              <Link className="navlink" href={`${home}#bespoke`}>
+                {d.footer.linkBespoke}
+              </Link>
             </nav>
             <nav className="gap-[10px] flex flex-col text-[14px]" aria-label={d.footer.companyLabel}>
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">

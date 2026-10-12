@@ -22,10 +22,10 @@ export async function Destinations() {
         <div className="gap-3 grid grid-cols-[1fr] xs:grid-cols-[1fr_1fr] md:gap-4 md:grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
           <figure className="dest reveal m-0 gap-[14px] col-[1/-1] row-auto flex flex-col md:row-[span_2/auto] md:col-auto">
             <div className="shot flex-none h-[200px] min-h-0 xs:h-[300px] md:flex-1 md:min-h-[560px] md:h-auto">
-              <Image className="object-[28%_50%]" src="/assets/74497cf7361df1d7830d0f8ebc1d8e7a.jpg" alt={d.destinationsSection.kinderdijkAlt} fill sizes="(max-width: 760px) 50vw, 40vw" />
+              <Image className="object-[50%_55%]" src="/assets/52de87fce1028743a6cc606de596dd57.jpg" alt={d.destinationsSection.amsterdamAlt} fill sizes="(max-width: 760px) 50vw, 40vw" />
             </div>
             <figcaption className="text-ink-250 font-display text-[10px] tracking-[0.22em] md:text-[12px] md:tracking-[0.34em]">
-              {d.destinationsSection.kinderdijk}
+              {d.destinationsSection.amsterdam}
             </figcaption>
           </figure>
           <figure className="dest reveal m-0 gap-[14px] col-auto row-auto flex flex-col">
@@ -68,12 +68,12 @@ export async function Destinations() {
               {d.destinationsSection.bulbRegion}
             </figcaption>
           </figure>
-          <figure className="dest reveal m-0 gap-[14px] col-auto row-auto flex flex-col">
+          <figure className="dest reveal m-0 gap-[14px] col-auto row-auto flex flex-col md:col-[1/-1]">
             <div className="shot flex-none h-[200px] min-h-0 xs:h-[180px] md:h-[240px] md:flex-initial md:min-h-auto">
-              <Image className="object-[50%_55%]" src="/assets/52de87fce1028743a6cc606de596dd57.jpg" alt={d.destinationsSection.amsterdamAlt} fill sizes="(max-width: 760px) 50vw, 40vw" />
+              <Image className="object-[28%_50%]" src="/assets/74497cf7361df1d7830d0f8ebc1d8e7a.jpg" alt={d.destinationsSection.kinderdijkAlt} fill sizes="(max-width: 760px) 50vw, 40vw" />
             </div>
             <figcaption className="text-ink-250 font-display text-[10px] tracking-[0.22em] md:text-[12px] md:tracking-[0.34em]">
-              {d.destinationsSection.amsterdam}
+              {d.destinationsSection.kinderdijk}
             </figcaption>
           </figure>
         </div>

@@ -38,6 +38,9 @@ export async function SiteHeader() {
           <a className="navlink" href="#corporate">
             {d.nav.corporate}
           </a>
+          <a className="navlink" href="#bespoke">
+            {d.nav.bespoke}
+          </a>
         </nav>
         <div className="nav-actions gap-5 items-center flex">
           <LanguageSwitcher route="/" />

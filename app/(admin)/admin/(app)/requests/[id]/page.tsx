@@ -116,8 +116,11 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const waText = encodeURIComponent(`Dear ${r.name}, thank you for your request ${r.reference} with Ecram Execs.`);
   const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs quotation ${r.reference}`)}`;
   const tel = `tel:${r.phone.replace(/\s/g, "")}`;
-  const pickup = pickupParts(r.pickupAt);
-  const pickupAt = pickupInstant(r.pickupAt);
+  const bespoke = r.service === "bespoke";
+  const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
+  const pickupAt = r.pickupAt ? pickupInstant(r.pickupAt) : null;
+  const rd = d.admin.requestDetail;
+  const bespokeCopy = d.bespokeSection;
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -169,35 +172,64 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
           <Card>
             <CardHeader title={d.admin.requestDetail.journey} description={serviceLabel(r.service, serviceLabels)} icon={<BriefcaseIcon />} />
             <div className="p-5">
-              <ol className="relative">
-                <span aria-hidden="true" className="absolute bottom-6 left-[7px] top-6 w-px bg-[repeating-linear-gradient(to_bottom,#d4d4d8_0_4px,transparent_4px_8px)]" />
-                <li className="relative flex gap-4 pb-6">
-                  <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full border-[3px] border-zinc-950 bg-white" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.collection}</p>
-                    <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.collection}</p>
+              {bespoke ? (
+                <>
+                  <dl className="grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-2">
+                    <Meta icon={<BriefcaseIcon />} label={rd.entity}>
+                      {r.entity ?? "—"}
+                    </Meta>
+                    <Meta icon={<UsersIcon />} label={rd.delegationSize}>
+                      {r.passengers ?? "—"}
+                    </Meta>
+                    <Meta icon={<BriefcaseIcon />} label={rd.vehicleClass}>
+                      {r.vehicleClass ? ((bespokeCopy.vehicleClasses as Record<string, string>)[r.vehicleClass] ?? r.vehicleClass) : "—"}
+                    </Meta>
+                    <Meta icon={<ChatIcon />} label={rd.contactPreference}>
+                      {r.contactPreference ? ((bespokeCopy.contactOptions as Record<string, string>)[r.contactPreference] ?? r.contactPreference) : "—"}
+                    </Meta>
+                  </dl>
+                  <div className="mt-5">
+                    <p className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                      <NoteIcon size={14} /> {rd.itinerary}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap wrap-break-word border-l-2 border-zinc-300 bg-white pl-3 text-sm leading-relaxed text-zinc-800">
+                      {r.itinerary}
+                    </p>
                   </div>
-                </li>
-                <li className="relative flex gap-4">
-                  <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full bg-zinc-950 ring-4 ring-zinc-200" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.destination}</p>
-                    <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.destination}</p>
-                  </div>
-                </li>
-              </ol>
+                </>
+              ) : (
+                <>
+                  <ol className="relative">
+                    <span aria-hidden="true" className="absolute bottom-6 left-[7px] top-6 w-px bg-[repeating-linear-gradient(to_bottom,#d4d4d8_0_4px,transparent_4px_8px)]" />
+                    <li className="relative flex gap-4 pb-6">
+                      <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full border-[3px] border-zinc-950 bg-white" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.collection}</p>
+                        <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.collection}</p>
+                      </div>
+                    </li>
+                    <li className="relative flex gap-4">
+                      <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full bg-zinc-950 ring-4 ring-zinc-200" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.destination}</p>
+                        <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.destination}</p>
+                      </div>
+                    </li>
+                  </ol>
 
-              <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-3">
-                <Meta icon={<CalendarIcon />} label={d.admin.requestDetail.pickupDate}>
-                  {pickup.date}
-                </Meta>
-                <Meta icon={<ClockIcon />} label={d.admin.requestDetail.pickupTime}>
-                  {pickup.time} <span className="font-normal text-zinc-500">· {formatRelative(pickupAt)}</span>
-                </Meta>
-                <Meta icon={<UsersIcon />} label={d.admin.requestDetail.passengers}>
-                  {r.passengers ?? "—"}
-                </Meta>
-              </dl>
+                  <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-3">
+                    <Meta icon={<CalendarIcon />} label={d.admin.requestDetail.pickupDate}>
+                      {pickup?.date}
+                    </Meta>
+                    <Meta icon={<ClockIcon />} label={d.admin.requestDetail.pickupTime}>
+                      {pickup?.time} <span className="font-normal text-zinc-500">· {pickupAt ? formatRelative(pickupAt) : ""}</span>
+                    </Meta>
+                    <Meta icon={<UsersIcon />} label={d.admin.requestDetail.passengers}>
+                      {r.passengers ?? "—"}
+                    </Meta>
+                  </dl>
+                </>
+              )}
 
               <div className="mt-5">
                 <p className="flex items-center gap-2 text-xs font-medium text-zinc-500">

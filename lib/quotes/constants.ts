@@ -24,3 +24,10 @@ export const LEGACY_SERVICE_LABELS: Record<string, Service> = {
  * shows something in the admin rather than rendering blank.
  */
 export const serviceLabel = (service: string, labels: Record<string, string>) => labels[service] ?? service;
+
+/** Stable keys for the bespoke inquiry form; labels live in the dictionaries (`bespokeSection.*`). */
+export const VEHICLE_CLASSES = ["executive_sedan", "executive_suv", "mixed_fleet", "advise"] as const;
+export type VehicleClass = (typeof VEHICLE_CLASSES)[number];
+
+export const CONTACT_PREFERENCES = ["phone", "whatsapp"] as const;
+export type ContactPreference = (typeof CONTACT_PREFERENCES)[number];

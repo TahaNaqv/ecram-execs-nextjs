@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -12,7 +13,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { isNull } from "drizzle-orm";
+import { isNull, sql } from "drizzle-orm";
 import { REQUEST_STATUSES, SERVICES } from "@/lib/quotes/constants";
 import { APPLICATION_STATUSES, type ApplicationDocument } from "@/lib/partners/criteria";
 import { LOCALES } from "@/lib/i18n/config";
@@ -36,12 +37,20 @@ export const quoteRequests = pgTable(
     reference: text("reference").notNull().unique(),
     status: requestStatus("status").notNull().default("new"),
 
-    collection: text("collection").notNull(),
-    destination: text("destination").notNull(),
+    // Required for every service except `bespoke` (see the check constraint below): a bespoke
+    // programme has an itinerary, not a single pick-up and drop-off.
+    collection: text("collection"),
+    destination: text("destination"),
     // Wall-clock time in the Netherlands (Europe/Amsterdam), as entered by the client
-    pickupAt: timestamp("pickup_at", { mode: "string" }).notNull(),
+    pickupAt: timestamp("pickup_at", { mode: "string" }),
     service: serviceKind("service").notNull(),
     passengers: integer("passengers"),
+
+    // Bespoke inquiries only
+    entity: text("entity"),
+    vehicleClass: text("vehicle_class"),
+    itinerary: text("itinerary"),
+    contactPreference: text("contact_preference"),
 
     name: text("name").notNull(),
     email: text("email").notNull(),
@@ -65,6 +74,10 @@ export const quoteRequests = pgTable(
   (t) => [
     index("quote_requests_status_created_idx").on(t.status, t.createdAt),
     index("quote_requests_ip_created_idx").on(t.ipHash, t.createdAt),
+    check(
+      "quote_requests_journey_required",
+      sql`${t.service} = 'bespoke' OR (${t.collection} IS NOT NULL AND ${t.destination} IS NOT NULL AND ${t.pickupAt} IS NOT NULL)`,
+    ),
   ],
 );
 

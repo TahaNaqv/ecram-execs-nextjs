@@ -10,6 +10,6 @@ export { RegionsMarquee } from "./regions-marquee";
 export { Destinations } from "./destinations";
 export { WhoWeServe } from "./who-we-serve";
 export { Concierge } from "./concierge";
-export { OnTheRoad } from "./on-the-road";
+export { Bespoke } from "./bespoke";
 export { FinalCta } from "./final-cta";
 export { SiteFooter } from "./site-footer";

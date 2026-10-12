@@ -19,26 +19,31 @@ export async function notifyNewQuote(q: QuoteRequest) {
   }
   const site = process.env.SITE_URL ?? "";
   // Internal alert — deliberately always English (D7); only the service key needs a label.
-  const { services } = await getDictionary("en");
+  const { services, bespokeSection: bespokeLabels } = await getDictionary("en");
+  const bespoke = q.service === "bespoke";
   const rows: [string, string | number | null][] = [
     ["Reference", q.reference],
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
     ["Destination", q.destination],
-    ["Date & time (NL)", q.pickupAt.slice(0, 16).replace("T", " ")],
-    ["Passengers", q.passengers],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+    ["Corporate entity / account", q.entity],
+    [bespoke ? "Delegation size" : "Passengers", q.passengers],
+    ["Vehicle class", q.vehicleClass && (bespokeLabels.vehicleClasses as Record<string, string>)[q.vehicleClass]],
+    ["Itinerary & instructions", q.itinerary],
+    ["Preferred contact", q.contactPreference && (q.contactPreference === "whatsapp" ? "WhatsApp" : "Phone")],
     ["Name", q.name],
     ["Email", q.email],
     ["Phone", q.phone],
     ["Notes", q.notes],
   ];
-  const html = teamAlert(`New quote request <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`);
+  const html = teamAlert(`New ${bespoke ? "bespoke inquiry" : "quote request"} <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`);
 
   await send("quote", q.reference, "team alert", {
     from: EMAIL_FROM,
     to: NOTIFY_EMAIL_TO.split(",").map((s) => s.trim()),
     reply_to: q.email,
-    subject: `New quote request ${q.reference} — ${serviceLabel(q.service, services)}, ${q.pickupAt.slice(0, 10)}`,
+    subject: `New ${bespoke ? "bespoke inquiry" : "quote request"} ${q.reference} — ${serviceLabel(q.service, services)}${q.pickupAt ? `, ${q.pickupAt.slice(0, 10)}` : ""}`,
     html,
   });
 }
@@ -53,17 +58,24 @@ export async function confirmToClient(q: QuoteRequest) {
   const { email: t, services } = await getDictionary(q.locale);
   const row = (label: string, value: string) =>
     `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
+  const bespoke = q.service === "bespoke";
+  const channel = q.contactPreference === "whatsapp" ? t.channelWhatsapp : t.channelPhone;
+  const details = bespoke
+    ? [row(t.fieldReference, q.reference), row(t.fieldService, serviceLabel(q.service, services)), q.entity ? row(t.fieldEntity, q.entity) : ""]
+    : [
+        row(t.fieldReference, q.reference),
+        row(t.fieldService, serviceLabel(q.service, services)),
+        row(t.fieldCollection, q.collection ?? ""),
+        row(t.fieldDestination, q.destination ?? ""),
+        row(t.fieldDateTime, (q.pickupAt ?? "").slice(0, 16).replace("T", " ")),
+      ];
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: first }))}</p>
-      <p>${esc(t.quoteIntro)}</p>
+      <p>${esc(bespoke ? interpolate(t.bespokeIntro, { channel }) : t.quoteIntro)}</p>
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
-        ${row(t.fieldReference, q.reference)}
-        ${row(t.fieldService, serviceLabel(q.service, services))}
-        ${row(t.fieldCollection, q.collection)}
-        ${row(t.fieldDestination, q.destination)}
-        ${row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " "))}
+        ${details.join("")}
       </table>
       <p>${esc(phone ? interpolate(t.quoteReplyPhone, { phone }) : t.quoteReply)}</p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
@@ -72,7 +84,7 @@ export async function confirmToClient(q: QuoteRequest) {
     from: EMAIL_FROM,
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
-    subject: interpolate(t.quoteSubject, { reference: q.reference }),
+    subject: interpolate(bespoke ? t.bespokeSubject : t.quoteSubject, { reference: q.reference }),
     html,
   });
 }

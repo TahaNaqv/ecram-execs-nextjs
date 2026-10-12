@@ -13,9 +13,6 @@ export async function Hero() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.75)_0%,rgba(10,10,11,0.6)_45%,rgba(10,10,11,0.15)_75%,rgba(10,10,11,0.72)_100%)] md:hidden"></div>
       </div>
       <div className="px-5 pt-12 pb-10 my-0 mx-auto gap-[22px] items-center box-border flex flex-col max-w-[1280px] relative text-center w-full md:px-6 md:pt-20 md:pb-24 md:gap-7 2xl:max-w-[1440px]">
-        <div className="emblem max-w-[min(300px,80vw)] md:max-w-[520px]">
-          <Image className="block h-auto w-full" src="/assets/ecram-execs-logo-transparent.webp" alt={d.hero.logoAlt} width={1040} height={416} priority sizes="(max-width: 767px) 80vw, 520px" />
-        </div>
         <h1 className="rise d2 mx-0 mt-2 mb-0 text-white font-serif text-[clamp(36px,10.4vw,46px)] font-light tracking-[-0.01em] leading-[1.05] md:text-[clamp(40px,5.4vw,76px)]">
           {d.hero.headingBefore}{" "}
           <br className="hidden md:inline" />
