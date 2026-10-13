@@ -5,11 +5,16 @@ import type { Locale } from "@/lib/i18n/config";
 //  Anything set to "" is simply hidden on the site (no "[PHONE]"-style placeholders are ever
 //  shown to visitors).
 // ─────────────────────────────────────────────────────────────────────────────
-export type FleetVehicle = {
-  /** Brand names are shown as-is in every language, so they are not in the dictionaries. */
-  name: string;
-  /** A file in /public. Leave unset until a photograph is supplied: the card shows the name instead. */
+export type DestinationKey = "amsterdam" | "rotterdam" | "theHague" | "utrecht" | "maastricht" | "eindhoven" | "bulbRegion" | "kinderdijk";
+
+export type Destination = {
+  key: DestinationKey;
+  /** A file in /public. Leave unset until a photograph is supplied: the destination is then not shown. */
   image?: string;
+  /** CSS object-position, to keep the subject in frame when the photo is cropped. */
+  focus: string;
+  /** Mutes an over-bright photo so it sits with the rest of the section. */
+  muted?: boolean;
 };
 
 type SiteConfig = {
@@ -21,8 +26,8 @@ type SiteConfig = {
   tagline: Record<Locale, string>;
   contact: { phone: string; email: string; address: string };
   kvk: string;
-  fleet: FleetVehicle[];
   fleetInterior: string;
+  destinations: Destination[];
   social: { instagram: string; tiktok: string; linkedin: string; youtube: string; x: string };
 };
 
@@ -44,18 +49,20 @@ export const siteConfig: SiteConfig = {
   /** Kamer van Koophandel registration number */
   kvk: "", // TODO: awaiting the client's KvK number — hidden until set
 
-  // Every vehicle: all-black exterior, black executive leather, full top-of-the-range specification.
-  // NOTE: the photographs are AI-generated imagery supplied by the team. Swap in real photographs of the
-  // fleet as they become available (16:9, at least 1600px wide, same all-black styling).
-  fleet: [
-    { name: "Mercedes-Benz VLE 300", image: "/assets/fleet-mercedes-vle-300-v2.jpg" },
-    { name: "Audi", image: "/assets/fleet-audi-v2.jpg" },
-    { name: "Cadillac Escalade", image: "/assets/fleet-cadillac-escalade-v2.jpg" },
-    { name: "Range Rover", image: "/assets/fleet-range-rover-v2.jpg" },
-    { name: "Hongqi E-HS9", image: "/assets/fleet-hongqi-e-hs9-v2.jpg" },
-  ],
   /** Rear cabin, shown beneath the fleet to illustrate the black executive leather interior. */
   fleetInterior: "/assets/fleet-interior-v2.jpg",
+
+  // Shown in this order. Eindhoven has no photograph yet, so it stays hidden until one is added.
+  destinations: [
+    { key: "amsterdam", image: "/assets/52de87fce1028743a6cc606de596dd57.jpg", focus: "50% 55%" },
+    { key: "rotterdam", image: "/assets/c01091ac467f57c8ccacd1d28b8caa6f.jpg", focus: "60% 62%" },
+    { key: "theHague", image: "/assets/3f6c76e3791d854e6974e39f5db1d665.jpg", focus: "60% 60%" },
+    { key: "utrecht", image: "/assets/d38555c6a11a07329e901cbb09fa90bb.jpg", focus: "50% 60%" },
+    { key: "maastricht", image: "/assets/015c3f4881474d5c1c3690861a6d2221.jpg", focus: "40% 62%" },
+    { key: "eindhoven", focus: "50% 55%" },
+    { key: "bulbRegion", image: "/assets/9ba09fb8d24f8c76d2d91a2b893186bf.jpg", focus: "50% 55%", muted: true },
+    { key: "kinderdijk", image: "/assets/74497cf7361df1d7830d0f8ebc1d8e7a.jpg", focus: "28% 50%" },
+  ],
 
   /** Full profile URLs (https://…); leave "" to hide that network */
   social: {

@@ -117,7 +117,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next.js internals and static assets. Anything with a file extension is
-  // skipped inside `proxy` itself, which is easier to verify than a lookahead.
-  matcher: ["/((?!_next/|assets/).*)"],
+  // Everything except Next.js internals, static assets and API routes (which have no locale and would
+  // otherwise be rewritten to the 404). Anything with a file extension is skipped inside `proxy` itself,
+  // which is easier to verify than a lookahead.
+  matcher: ["/((?!_next/|assets/|api/).*)"],
 };

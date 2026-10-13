@@ -1,7 +1,9 @@
-import { getDict } from "@/lib/i18n/get-dictionary";
+import Link from "next/link";
+import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
+import { localizedPath } from "@/lib/i18n/pathnames";
 
 export async function WhoWeServe() {
-  const d = await getDict();
+  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   return (
     <section className="border-b border-b-ink-850" id="corporate">
       <div className="py-20 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-30 md:px-6 md:gap-20 2xl:max-w-[1440px]">
@@ -12,12 +14,12 @@ export async function WhoWeServe() {
           <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.08] md:text-[clamp(36px,4vw,52px)]">
             {d.whoWeServe.heading}
           </h2>
-          <a className="gap-3 border-b border-b-ink-450 no-underline items-center self-start text-white inline-flex text-[12px] tracking-[0.24em] min-h-[44px] uppercase" href="#enquire">
+          <Link className="gap-3 border-b border-b-ink-450 no-underline items-center self-start text-white inline-flex text-[12px] tracking-[0.24em] min-h-[44px] uppercase" href={localizedPath("/corporate-partner", locale)}>
             {d.whoWeServe.cta}{" "}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <path d="M5 12h14M13 6l6 6-6 6"></path>
             </svg>
-          </a>
+          </Link>
         </div>
         <div className="flex-[999_1_560px] gap-x-12 grid grid-cols-[1fr] min-w-0 gap-y-0 md:grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
           <div className="py-[18px] px-0 border-t border-t-ink-800 text-ink-50 font-serif text-[22px] md:py-[22px] md:px-0 md:text-[26px]">

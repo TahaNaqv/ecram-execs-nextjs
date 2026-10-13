@@ -1,4 +1,5 @@
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
+import { FLEET } from "@/lib/fleet/vehicles";
 import { QuoteForm } from "../quote-form";
 
 export async function Enquiry() {
@@ -9,7 +10,7 @@ export async function Enquiry() {
         <h2 className="m-0 font-serif text-[30px] font-normal leading-[1.1] md:text-[34px]">
           {d.enquiry.heading}
         </h2>
-        <QuoteForm locale={locale} serviceLabels={d.services} vehicleLabels={d.bespokeSection.vehicleClasses} copy={d.quoteForm} />
+        <QuoteForm locale={locale} serviceLabels={d.services} vehicles={FLEET.map(({ key, name }) => ({ key, name }))} copy={d.quoteForm} />
       </div>
     </section>
   );

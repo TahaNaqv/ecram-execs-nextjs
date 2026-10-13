@@ -6,6 +6,7 @@ import { APP_ROUTES, localizedPath, unprefixedPath, type AppRoute } from "@/lib/
 const SETTINGS: Record<AppRoute, Pick<MetadataRoute.Sitemap[number], "changeFrequency" | "priority">> = {
   "/": { changeFrequency: "monthly", priority: 1 },
   "/drive-with-us": { changeFrequency: "monthly", priority: 0.5 },
+  "/corporate-partner": { changeFrequency: "monthly", priority: 0.5 },
   "/privacy": { changeFrequency: "yearly", priority: 0.2 },
 };
 

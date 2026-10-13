@@ -5,6 +5,7 @@ import { colourLabel, makeLabel } from "@/lib/partners/criteria";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { siteConfig } from "@/lib/site-config";
 
 const esc = (s: string) =>
@@ -30,12 +31,15 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Corporate entity / account", q.entity],
     [bespoke ? "Delegation size" : "Passengers", q.passengers],
     ["Vehicle class", q.vehicleClass && (bespokeLabels.vehicleClasses as Record<string, string>)[q.vehicleClass]],
+    ["Vehicle", q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? "Advise me" : q.vehicle))],
     ["Itinerary & instructions", q.itinerary],
     ["Preferred contact", q.contactPreference && (q.contactPreference === "whatsapp" ? "WhatsApp" : "Phone")],
     ["Name", q.name],
     ["Email", q.email],
     ["Phone", q.phone],
     ["Notes", q.notes],
+    ["Source", q.corporateContactId ? "Verified Corporate Partner" : null],
+    ["KvK", q.entityKvk],
   ];
   const html = teamAlert(`New ${bespoke ? "bespoke inquiry" : "quote request"} <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`);
 
@@ -155,6 +159,42 @@ export async function confirmApplication(a: DriverApplication) {
   });
 }
 
+/**
+ * Sends the six-digit code for the Corporate Partner area, in the visitor's language. Unlike the
+ * alerts above this reports whether it worked: someone is waiting on the other end for the code,
+ * so a failed send has to be shown to them rather than swallowed.
+ */
+export async function sendVerificationCode({
+  email,
+  name,
+  code,
+  locale,
+  minutes,
+}: {
+  email: string;
+  name: string;
+  code: string;
+  locale: QuoteRequest["locale"];
+  minutes: number;
+}): Promise<boolean> {
+  const { EMAIL_FROM } = process.env;
+  if (!provider() || !EMAIL_FROM) {
+    console.warn("[corporate] verification code not sent: no RESEND_API_KEY or SMTP_*, or EMAIL_FROM not set");
+    return false;
+  }
+  const { email: t } = await getDictionary(locale);
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: name.split(" ")[0] }))}</p>
+      <p>${esc(t.codeIntro)}</p>
+      <p style="font-family:Arial,sans-serif;font-size:32px;letter-spacing:10px;font-weight:bold;margin:20px 0">${esc(code)}</p>
+      <p style="color:#52525b">${esc(interpolate(t.codeExpiry, { minutes: String(minutes) }))}</p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("corporate", email, "verification code", { from: EMAIL_FROM, to: [email], subject: t.codeSubject, html });
+}
+
 function teamAlert(heading: string, rows: [string, string | number | null][], adminUrl: string) {
   return `
     <div style="font-family:Arial,sans-serif;font-size:14px;color:#0a0a0b">
@@ -184,7 +224,8 @@ let smtp: Transporter | undefined;
 
 type Payload = { from: string; to: string[]; reply_to?: string; subject: string; html: string };
 
-async function send(tag: string, reference: string, kind: string, payload: Payload) {
+/** Resolves true only when the provider accepted the message, so a caller that must not leave someone waiting can tell. */
+async function send(tag: string, reference: string, kind: string, payload: Payload): Promise<boolean> {
   try {
     if (provider() === "smtp") {
       const port = Number(process.env.SMTP_PORT ?? 465);
@@ -197,7 +238,7 @@ async function send(tag: string, reference: string, kind: string, payload: Paylo
       });
       const { reply_to, ...rest } = payload;
       await smtp.sendMail({ ...rest, replyTo: reply_to });
-      return;
+      return true;
     }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -205,8 +246,13 @@ async function send(tag: string, reference: string, kind: string, payload: Paylo
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) console.error(`[${tag}] ${reference} ${kind} failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      console.error(`[${tag}] ${reference} ${kind} failed: ${res.status} ${await res.text()}`);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error(`[${tag}] ${reference} ${kind} failed`, err);
+    return false;
   }
 }

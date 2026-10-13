@@ -1,4 +1,5 @@
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
+import { companyLookupEnabled } from "@/lib/companies/provider";
 import { BespokeForm } from "../bespoke-form";
 
 export async function Bespoke() {
@@ -52,7 +53,7 @@ export async function Bespoke() {
               {t.formNote}
             </p>
           </div>
-          <BespokeForm locale={locale} copy={t} />
+          <BespokeForm locale={locale} copy={t} lookup={{ enabled: companyLookupEnabled(), copy: d.companySearch }} />
         </div>
       </div>
     </section>

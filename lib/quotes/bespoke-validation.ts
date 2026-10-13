@@ -21,6 +21,8 @@ export const bespokeSchema = (t: BespokeMessages) =>
   z.object({
     name: z.string().trim().min(1, t.nameRequired).max(120, t.nameTooLong),
     entity: z.string().trim().min(1, t.entityRequired).max(200, t.entityTooLong),
+    // Filled in when the company was picked from the registry search; absent when typed by hand
+    entityKvk: z.string().trim().regex(/^[0-9]{8}$/).optional(),
     email: z.string().trim().toLowerCase().max(200).pipe(z.email(t.emailInvalid)),
     phone: z
       .string()

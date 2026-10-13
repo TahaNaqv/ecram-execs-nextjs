@@ -53,7 +53,10 @@
     "bespokeIntro": "Bedankt voor uw aanvraag op maat. Een medewerker van ons reserveringsteam neemt persoonlijk contact met u op via {channel} om uw programma te bespreken.",
     "channelPhone": "telefoon",
     "channelWhatsapp": "WhatsApp",
-    "fieldEntity": "Bedrijf / account"
+    "fieldEntity": "Bedrijf / account",
+    "codeSubject": "Uw Ecram Execs verificatiecode",
+    "codeIntro": "Gebruik deze code om door te gaan naar het gedeelte voor zakelijke partners.",
+    "codeExpiry": "De code is {minutes} minuten geldig. Heeft u deze niet aangevraagd, dan kunt u deze e-mail veilig negeren."
   },
   "criteria": {
     "or": "of",
@@ -238,7 +241,30 @@
     "specNote": "Elk voertuig rijdt uitsluitend met een volledig zwart exterieur en een zwart executive leren interieur, in de volledige topuitvoering.",
     "badge": "100% ELEKTRISCH",
     "imageAlt": "{name} in obsidiaanzwart",
-    "interiorAlt": "Achterin met zwart executive leren zetels"
+    "interiorAlt": "Achterin met zwart executive leren zetels",
+    "qaPassengersQ": "Hoeveel passagiers passen er in het voertuig?",
+    "qaPassengersA": "Maximaal {count} passagiers.",
+    "qaRangeQ": "Wat is de elektrische actieradius van het voertuig?",
+    "qaRangeA": "Tot {km} km op een volle lading, volgens opgave van de fabrikant ({standard}).",
+    "qaDurationQ": "Wat is de minimale en maximale boekingsduur?",
+    "qaDurationA": "Boekingen duren minimaal twee uur en maximaal 24 uur.",
+    "qaFeaturesQ": "Welke luxe voorzieningen zijn inbegrepen?",
+    "qaFeaturesA": "{list}.",
+    "qaLuggageQ": "Wat is de bagagecapaciteit?",
+    "amenityExecutiveSeating": "Executive zetels",
+    "amenityInCarScreens": "Schermen in de auto",
+    "amenityEntertainment": "Entertainmentsysteem",
+    "amenityClimateControl": "Klimaatregeling",
+    "amenityRefreshments": "Versnaperingen",
+    "bookCta": "Boeken",
+    "bookAria": "Boek de {name}",
+    "galleryLabel": "Fotogalerij van de {name}",
+    "galleryPrev": "Vorige foto",
+    "galleryNext": "Volgende foto",
+    "galleryEnlarge": "Foto vergroten",
+    "galleryClose": "Sluiten",
+    "galleryCounter": "Foto {current} van {total}",
+    "galleryLightbox": "{name}, vergrote foto"
   },
   "electric": {
     "eyebrow": "IV — DUURZAAMHEID & ESG",
@@ -269,12 +295,14 @@
     "bulbRegion": "De Bollenstreek: iconische tulpenvelden in bloei",
     "bulbRegionAlt": "Tulpenvelden in de Nederlandse bollenstreek",
     "amsterdam": "Amsterdam: grachten, cultuur & zakelijke klasse",
-    "amsterdamAlt": "Een Amsterdamse gracht met bomen langs de kade"
+    "amsterdamAlt": "Een Amsterdamse gracht met bomen langs de kade",
+    "eindhoven": "Eindhoven: design, technologie & innovatie",
+    "eindhovenAlt": "Het centrum van Eindhoven"
   },
   "whoWeServe": {
     "eyebrow": "VI — VOOR WIE WIJ RIJDEN",
     "heading": "Vertrouwd door wie elke minuut — en elke indruk — laat meetellen.",
-    "cta": "Een zakelijk account openen",
+    "cta": "Word zakelijke partner",
     "segmentExecutives": "Directie & besturen",
     "segmentCorporate": "Zakelijke klanten",
     "segmentPrivate": "Particuliere klanten",
@@ -435,7 +463,8 @@
     "successHeading": "Bedankt, {name}. Wij nemen spoedig contact met u op met uw prijsopgave op maat.",
     "successNote": "Een van onze medewerkers beoordeelt elke aanvraag persoonlijk — meestal binnen het uur.",
     "privacyNote": "Uw gegevens gebruiken wij alleen om uw prijsopgave op te stellen en te versturen.",
-    "privacyLink": "Privacybeleid"
+    "privacyLink": "Privacybeleid",
+    "vehicleAdvise": "Adviseer mij"
   },
   "privacy": {
     "metaTitle": "Privacybeleid — Ecram Execs",
@@ -470,7 +499,9 @@
     "s6Link": "Autoriteit Persoonsgegevens",
     "s6p3": ").",
     "s7Title": "Beveiliging",
-    "s7p1": "Uw gegevens worden verzonden via versleutelde verbindingen en bewaard in systemen met toegangscontrole. Alleen bevoegde medewerkers kunnen prijsaanvragen, aanvragen op maat en aanmeldingen van chauffeurs inzien."
+    "s7p1": "Uw gegevens worden verzonden via versleutelde verbindingen en bewaard in systemen met toegangscontrole. Alleen bevoegde medewerkers kunnen prijsaanvragen, aanvragen op maat en aanmeldingen van chauffeurs inzien.",
+    "s8Title": "Zakelijke partners",
+    "s8p1": "Vraagt u toegang tot ons gedeelte voor zakelijke partners, dan verzamelen wij uw zakelijke e-mailadres, naam en functie, en de gegevens die u toevoegt aan een aanvraag voor een zakelijk account. Wij gebruiken uw e-mailadres om een eenmalige verificatiecode te sturen (het nemen van stappen op uw verzoek, artikel 6, lid 1, onder b, AVG). Vinkt u het vakje op het formulier aan, dan gebruiken wij uw gegevens ook om u per e-mail op de hoogte te houden van onze diensten en nieuws, op basis van uw toestemming (artikel 6, lid 1, onder a, AVG); u kunt die toestemming altijd intrekken door contact met ons op te nemen, waarna wij ermee stoppen. Verificatiecodes verlopen na tien minuten en worden alleen opgeslagen in een vorm die niet terug te lezen is."
   },
   "admin": {
     "common": {
@@ -511,7 +542,8 @@
       "operations": "Operatie",
       "requests": "Aanvragen",
       "drivers": "Chauffeurs",
-      "applications": "Aanmeldingen"
+      "applications": "Aanmeldingen",
+      "corporate": "Zakelijk"
     },
     "login": {
       "heading": "Welkom terug",
@@ -580,7 +612,8 @@
       "delegationSize": "Omvang delegatie",
       "vehicleClass": "Voertuigklasse",
       "contactPreference": "Voorkeur voor contact",
-      "itinerary": "Reisschema en bijzondere wensen"
+      "itinerary": "Reisschema en bijzondere wensen",
+      "vehicle": "Voertuig"
     },
     "drivers": {
       "title": "Chauffeurs",
@@ -689,6 +722,19 @@
       "quoteChanged": "Opgave: {from} → {to}",
       "notesUpdated": "Interne notities bijgewerkt",
       "none": "—"
+    },
+    "corporate": {
+      "title": "Zakelijke contacten",
+      "description": "Bedrijven die toegang tot het zakelijke partnergedeelte hebben aangevraagd, en de mailinglijst die daaruit ontstaat.",
+      "totals": "{total} contacten · {optedIn} met toestemming voor e-mail",
+      "exportAll": "Alles exporteren (CSV)",
+      "exportOptedIn": "Alleen met toestemming exporteren (CSV)",
+      "emptyAll": "Nog geen zakelijke contacten",
+      "emptyNote": "Mensen verschijnen hier zodra zij toegang tot het zakelijke partnergedeelte aanvragen.",
+      "verified": "Geverifieerd",
+      "notVerified": "Niet geverifieerd",
+      "optedIn": "Toestemming",
+      "noConsent": "Geen toestemming voor e-mail"
     }
   },
   "bespokeSection": {
@@ -736,5 +782,92 @@
     "successNote": "Verwacht binnenkort een telefoontje of WhatsApp-bericht — elke aanvraag op maat wordt door een medewerker behandeld, nooit automatisch.",
     "privacyNote": "Uw gegevens gebruiken wij alleen om uw programma op te stellen.",
     "privacyLink": "Privacybeleid"
+  },
+  "corporatePartner": {
+    "metaTitle": "Zakelijke partner — Ecram Execs",
+    "metaDescription": "Verifieer uw zakelijke e-mailadres om een zakelijk account bij Ecram Execs aan te vragen.",
+    "eyebrow": "ZAKELIJKE PARTNER",
+    "heading": "Toegang voor zakelijke partners",
+    "intro": "Verifieer uw zakelijke e-mailadres om een zakelijk account aan te vragen. Wij sturen een code van zes cijfers naar uw zakelijke adres, {minutes} minuten geldig.",
+    "back": "Terug naar home",
+    "stepRequest": "Uw gegevens",
+    "stepVerify": "Verificatie",
+    "stepForm": "Zakelijk account",
+    "labelEmail": "Zakelijk e-mailadres",
+    "phEmail": "u@bedrijf.nl",
+    "labelName": "Volledige naam",
+    "phName": "Uw naam",
+    "labelPosition": "Functie binnen het bedrijf",
+    "phPosition": "bijv. Hoofd Travel",
+    "consentLabel": "Houd mij per e-mail op de hoogte van diensten en nieuws van Ecram Execs. Ik kan dit altijd intrekken.",
+    "privacyNote": "Uw gegevens worden gebruikt om uw toegang te verifiëren en, alleen als u het vakje hierboven aanvinkt, om u op de hoogte te houden.",
+    "privacyLink": "Privacybeleid",
+    "sendCode": "Verificatiecode versturen",
+    "sending": "Versturen…",
+    "verifyHeading": "Voer uw code in",
+    "verifyIntro": "Wij hebben een code van zes cijfers gestuurd naar {email}. De code is {minutes} minuten geldig.",
+    "labelCode": "Verificatiecode",
+    "phCode": "000000",
+    "verifyCta": "Verifiëren en doorgaan",
+    "verifying": "Verifiëren…",
+    "resend": "Nieuwe code versturen",
+    "changeEmail": "Ander e-mailadres gebruiken",
+    "codeSentAgain": "Er is een nieuwe code onderweg.",
+    "positionRequired": "Vul uw functie in.",
+    "positionTooLong": "Die functie is te lang.",
+    "codeInvalidFormat": "Voer de code van zes cijfers in.",
+    "codeInvalid": "Die code klopt niet. Resterende pogingen: {remaining}.",
+    "tooManyAttempts": "Te veel onjuiste pogingen. Vraag een nieuwe code aan.",
+    "codeExpired": "Deze code is verlopen. Vraag een nieuwe aan.",
+    "sendFailed": "Wij kunnen de code nu niet versturen. Probeer het zo opnieuw, of neem rechtstreeks contact met ons op.",
+    "rateLimited": "Wij hebben al meerdere aanvragen ontvangen. Wacht een paar minuten en probeer het opnieuw.",
+    "resendWait": "Wacht een minuut voordat u een nieuwe code aanvraagt.",
+    "sessionExpired": "Uw toegang is verlopen. Verifieer uw e-mailadres opnieuw.",
+    "serverError": "Er ging iets mis aan onze kant. Probeer het opnieuw, of bel ons rechtstreeks.",
+    "chooseOption": "Kies een optie.",
+    "companyRequired": "Vul uw bedrijf in.",
+    "companyTooLong": "Die bedrijfsnaam is te lang.",
+    "routesTooLong": "Dit is te lang.",
+    "formHeading": "Aanvraag zakelijk account",
+    "formIntro": "Vertel ons over uw organisatie en hoe u reist. Ons team stelt een zakelijk account op maat samen.",
+    "verifiedAs": "Geverifieerd als {email}",
+    "labelCompany": "Bedrijf",
+    "phCompany": "Naam van uw bedrijf",
+    "labelKvk": "KvK-nummer (optioneel)",
+    "phKvk": "12345678",
+    "labelBillingName": "Contactpersoon facturatie",
+    "phBillingName": "Naam van uw financiële contactpersoon",
+    "labelBillingEmail": "E-mailadres facturatie",
+    "phBillingEmail": "facturen@bedrijf.nl",
+    "labelPhone": "Telefoon (met landcode)",
+    "phPhone": "+31 6 1234 5678",
+    "labelVolume": "Verwacht aantal ritten per maand",
+    "volumeSelect": "Kies",
+    "volume_1_5": "1–5",
+    "volume_6_15": "6–15",
+    "volume_16_40": "16–40",
+    "volume_40_plus": "Meer dan 40",
+    "labelRoutes": "Veelgebruikte routes of luchthavens",
+    "phRoutes": "bijv. Schiphol naar Amsterdam Zuidas",
+    "labelVehicles": "Voorkeursvoertuigen",
+    "labelInvoicing": "Facturatie",
+    "invoicingSelect": "Kies",
+    "invoicing_monthly": "Maandelijkse factuur",
+    "invoicing_per_trip": "Factuur per rit",
+    "invoicing_purchase_order": "Inkoopordernummer vereist",
+    "labelNotes": "Opmerkingen (optioneel)",
+    "phNotes": "Alles wat wij verder moeten weten",
+    "submit": "Zakelijk account aanvragen",
+    "submitting": "Versturen…",
+    "successLabel": "Aanvraag ontvangen",
+    "successHeading": "Dank u, {name}. Ons team neemt contact met u op over uw zakelijke account.",
+    "successNote": "Een medewerker van ons reserveringsteam bekijkt elke zakelijke aanvraag persoonlijk.",
+    "progressLabel": "Voortgang"
+  },
+  "companySearch": {
+    "resultsCount": "{count} bedrijven gevonden",
+    "noResults": "Geen geregistreerd bedrijf gevonden. Wij gebruiken wat u heeft ingevoerd.",
+    "manualHint": "Niet in de lijst? Houd uw invoer zoals getypt.",
+    "searching": "Zoeken…"
   }
 }

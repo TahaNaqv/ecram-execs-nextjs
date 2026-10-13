@@ -20,7 +20,7 @@ export type BespokeFormState =
     }
   | { status: "success"; reference: string; name: string };
 
-const FIELDS = ["name", "entity", "email", "phone", "passengers", "vehicleClass", "contactPreference", "itinerary", "locale"] as const;
+const FIELDS = ["name", "entity", "entityKvk", "email", "phone", "passengers", "vehicleClass", "contactPreference", "itinerary", "locale"] as const;
 // Shares the quote form's window: both write to the same table, so one visitor gets one budget.
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
@@ -40,7 +40,7 @@ export async function submitBespoke(prev: BespokeFormState, formData: FormData):
     return { status: "success", reference: "EE-RECEIVED", name: values.name };
   }
 
-  const parsed = bespokeSchema(t).safeParse({ ...values, passengers: values.passengers || undefined });
+  const parsed = bespokeSchema(t).safeParse({ ...values, passengers: values.passengers || undefined, entityKvk: values.entityKvk || undefined });
   if (!parsed.success) {
     const fieldErrors: Partial<Record<BespokeField, string>> = {};
     for (const issue of parsed.error.issues) {

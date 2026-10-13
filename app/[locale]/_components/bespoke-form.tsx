@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { CONTACT_PREFERENCES, VEHICLE_CLASSES } from "@/lib/quotes/constants";
 import { submitBespoke, type BespokeFormState } from "@/lib/quotes/bespoke-actions";
 import type { BespokeField } from "@/lib/quotes/bespoke-validation";
+import { CompanyCombobox, type CompanySearchCopy } from "./company-combobox";
 import { control, Field } from "./form-field";
 
 export type BespokeFormCopy = {
@@ -22,8 +23,20 @@ export type BespokeFormCopy = {
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
 
-export function BespokeForm({ locale, copy: t }: { locale: Locale; copy: BespokeFormCopy }) {
+export function BespokeForm({
+  locale,
+  copy: t,
+  lookup,
+}: {
+  locale: Locale;
+  copy: BespokeFormCopy;
+  /** Company search: on when a registry key is configured, otherwise the field is plain text. */
+  lookup: { enabled: boolean; copy: CompanySearchCopy };
+}) {
   const [state, action, pending] = useActionState<BespokeFormState, FormData>(submitBespoke, { status: "idle" });
+  // The KvK number of a company picked from the register; travels with the form as a hidden field
+  const [entityKvk, setEntityKvk] = useState("");
+  const autoKvk = useRef("");
 
   if (state.status === "success") {
     return (
@@ -51,9 +64,34 @@ export function BespokeForm({ locale, copy: t }: { locale: Locale; copy: Bespoke
             aria-describedby={describedBy("name")} className={control} />
         </Field>
         <Field idPrefix="b" label={t.labelEntity} name="entity" error={err.entity}>
-          <input id="b-entity" name="entity" type="text" placeholder={t.phEntity} required maxLength={200}
-            autoComplete="organization" defaultValue={v.entity} aria-invalid={!!err.entity}
-            aria-describedby={describedBy("entity")} className={control} />
+          {lookup.enabled ? (
+            <>
+              <CompanyCombobox
+                id="b-entity"
+                name="entity"
+                copy={lookup.copy}
+                placeholder={t.phEntity}
+                defaultValue={v.entity}
+                required
+                invalid={!!err.entity}
+                describedBy={describedBy("entity")}
+                onSelect={(hit) => {
+                  if (hit) {
+                    autoKvk.current = hit.kvk;
+                    setEntityKvk(hit.kvk);
+                  } else {
+                    setEntityKvk("");
+                    autoKvk.current = "";
+                  }
+                }}
+              />
+              <input type="hidden" name="entityKvk" value={entityKvk} />
+            </>
+          ) : (
+            <input id="b-entity" name="entity" type="text" placeholder={t.phEntity} required maxLength={200}
+              autoComplete="organization" defaultValue={v.entity} aria-invalid={!!err.entity}
+              aria-describedby={describedBy("entity")} className={control} />
+          )}
         </Field>
         <Field idPrefix="b" label={t.labelEmail} name="email" error={err.email}>
           <input id="b-email" name="email" type="email" placeholder={t.phEmail} required maxLength={200}

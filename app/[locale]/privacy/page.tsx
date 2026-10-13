@@ -107,6 +107,10 @@ export default async function PrivacyPage() {
           <p className="m-0">{t.s7p1}</p>
         </Section>
 
+        <Section title={t.s8Title}>
+          <p className="m-0">{t.s8p1}</p>
+        </Section>
+
         <Link href={localizedPath("/", locale)} className="text-[12px] tracking-[0.24em] uppercase">
           {t.back}
         </Link>

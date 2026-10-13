@@ -13,6 +13,7 @@ const PATHS = {
   home: { en: "/en", nl: "/nl" },
   privacy: { en: "/en/privacy", nl: "/nl/privacybeleid" },
   drive: { en: "/en/drive-with-us", nl: "/nl/rijd-met-ons" },
+  corporate: { en: "/en/corporate-partner", nl: "/nl/zakelijke-partner" },
 } as const;
 
 for (const locale of LOCALES) {

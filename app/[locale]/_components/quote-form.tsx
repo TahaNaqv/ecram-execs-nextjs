@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { COUNTRY_CODES, SERVICES, VEHICLE_CLASSES, type Service, type VehicleClass } from "@/lib/quotes/constants";
+import { useActionState, useEffect, useState } from "react";
+import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
+import { VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { SELECT_VEHICLE_EVENT } from "./book-link";
 import type { Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
@@ -13,7 +15,7 @@ export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
   | "labelEmail" | "phEmail" | "labelPhoneCountry" | "phPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelVehicle" | "labelNotes" | "phNotes"
+  | "labelVehicle" | "vehicleAdvise" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
 >;
@@ -24,15 +26,42 @@ const fill = (template: string, values: Record<string, string>) =>
 export function QuoteForm({
   locale,
   serviceLabels,
-  vehicleLabels,
+  vehicles,
   copy: t,
 }: {
   locale: Locale;
   serviceLabels: Record<Service, string>;
-  vehicleLabels: Record<VehicleClass, string>;
+  vehicles: { key: string; name: string }[];
   copy: QuoteFormCopy;
 }) {
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
+
+  // The vehicle can be chosen from the fleet section above ("Book"), either by an event while the page is
+  // open or by `?vehicle=` when the link was followed from elsewhere. It is state rather than a default
+  // value because it has to change after the form has mounted.
+  const [vehicle, setVehicle] = useState("");
+  // Until the visitor touches the select, what the server echoed after a failed attempt is shown
+  const [vehicleTouched, setVehicleTouched] = useState(false);
+  useEffect(() => {
+    const isChoice = (value: string | null): value is VehicleChoice => !!value && (VEHICLE_CHOICES as readonly string[]).includes(value);
+    const fromQuery = new URLSearchParams(window.location.search).get("vehicle");
+    // Deferred a tick: this runs after hydration, and the select must first render with the server's value
+    const initial = isChoice(fromQuery) ? window.setTimeout(() => setVehicle(fromQuery), 0) : undefined;
+    const onSelect = (e: Event) => {
+      const chosen = (e as CustomEvent<string>).detail;
+      if (isChoice(chosen)) {
+        setVehicle(chosen);
+        setVehicleTouched(true);
+        // Land on the first thing left to fill in, once the smooth scroll has arrived
+        window.setTimeout(() => document.getElementById("q-collection")?.focus({ preventScroll: true }), 600);
+      }
+    };
+    window.addEventListener(SELECT_VEHICLE_EVENT, onSelect);
+    return () => {
+      window.clearTimeout(initial);
+      window.removeEventListener(SELECT_VEHICLE_EVENT, onSelect);
+    };
+  }, []);
 
   if (state.status === "success") {
     return (
@@ -123,15 +152,20 @@ export function QuoteForm({
             aria-describedby={describedBy("notes")}
             className={`${control} min-h-[104px] resize-y`} />
         </Field>
-        <Field label={t.labelVehicle} name="vehicleClass" error={err.vehicleClass} className="col-span-full">
-          <select id="q-vehicleClass" name="vehicleClass" defaultValue={v.vehicleClass || ""}
-            aria-invalid={!!err.vehicleClass} aria-describedby={describedBy("vehicleClass")} className={control}>
+        <Field label={t.labelVehicle} name="vehicle" error={err.vehicle} className="col-span-full">
+          <select id="q-vehicle" name="vehicle" value={vehicleTouched ? vehicle : vehicle || v.vehicle || ""}
+            onChange={(e) => {
+              setVehicleTouched(true);
+              setVehicle(e.target.value);
+            }}
+            aria-invalid={!!err.vehicle} aria-describedby={describedBy("vehicle")} className={control}>
             <option value="">{t.selectPlaceholder}</option>
-            {VEHICLE_CLASSES.map((c) => (
-              <option key={c} value={c}>
-                {vehicleLabels[c]}
+            {vehicles.map(({ key, name }) => (
+              <option key={key} value={key}>
+                {name}
               </option>
             ))}
+            <option value="advise">{t.vehicleAdvise}</option>
           </select>
         </Field>
 

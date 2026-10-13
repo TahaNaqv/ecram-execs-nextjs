@@ -48,9 +48,18 @@ export const quoteRequests = pgTable(
 
     // Bespoke inquiries only
     entity: text("entity"),
+    // KvK number when the company was picked from the registry search; null when typed in by hand
+    entityKvk: text("entity_kvk"),
     vehicleClass: text("vehicle_class"),
     itinerary: text("itinerary"),
     contactPreference: text("contact_preference"),
+
+    // A fleet vehicle the client chose (a key from lib/fleet/vehicles.ts); `vehicle_class` is the
+    // broader class asked for on the bespoke form
+    vehicle: text("vehicle"),
+
+    // Set when the request came through the verified Corporate Partner area
+    corporateContactId: uuid("corporate_contact_id").references(() => corporateContacts.id, { onDelete: "set null" }),
 
     name: text("name").notNull(),
     email: text("email").notNull(),
@@ -211,7 +220,78 @@ export const driverApplications = pgTable(
   ],
 );
 
+// People who asked for access to the Corporate Partner area. Also the corporate mailing list, which is
+// why consent is recorded here: the verification email is transactional, marketing needs an explicit opt-in.
+export const corporateContacts = pgTable(
+  "corporate_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull().unique(),
+    emailDomain: text("email_domain").notNull(),
+    name: text("name").notNull(),
+    position: text("position").notNull(),
+    companyName: text("company_name"),
+    kvkNumber: text("kvk_number"),
+    locale: contentLocale("locale").notNull().default("en"),
+    // Set the first time the emailed code is entered correctly
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
+    marketingConsent: boolean("marketing_consent").notNull().default(false),
+    // Which wording the person agreed to, so a later change to the text doesn't rewrite history
+    consentTextVersion: text("consent_text_version"),
+    consentedAt: timestamp("consented_at", { withTimezone: true }),
+    source: text("source").notNull().default("website"),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("corporate_contacts_created_idx").on(t.createdAt), index("corporate_contacts_domain_idx").on(t.emailDomain)],
+);
+
+// One row per emailed code. The code itself is never stored, only an HMAC of it (a six-digit code
+// has too few possibilities to survive a plain hash).
+export const corporateChallenges = pgTable(
+  "corporate_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => corporateContacts.id, { onDelete: "cascade" }),
+    codeHmac: text("code_hmac").notNull(),
+    // What the person typed, held here until the code is entered. Nothing about a contact (or any
+    // marketing consent) changes on the strength of an unverified request: this is applied in verifyCode.
+    pendingName: text("pending_name"),
+    pendingPosition: text("pending_position"),
+    pendingConsent: boolean("pending_consent").notNull().default(false),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("corporate_challenges_contact_created_idx").on(t.contactId, t.createdAt),
+    index("corporate_challenges_ip_created_idx").on(t.ipHash, t.createdAt),
+  ],
+);
+
+// Access to the restricted form after a correct code. Like admin sessions, the id is the SHA-256 of
+// the cookie's token, so the database never holds a usable credential.
+export const corporateAccess = pgTable("corporate_access", {
+  id: text("id").primaryKey(),
+  contactId: uuid("contact_id")
+    .notNull()
+    .references(() => corporateContacts.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;
+export type CorporateContact = typeof corporateContacts.$inferSelect;

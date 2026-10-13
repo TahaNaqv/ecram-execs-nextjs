@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
@@ -227,8 +228,8 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     <Meta icon={<UsersIcon />} label={d.admin.requestDetail.passengers}>
                       {r.passengers ?? "—"}
                     </Meta>
-                    <Meta icon={<BriefcaseIcon />} label={rd.vehicleClass}>
-                      {r.vehicleClass ? ((bespokeCopy.vehicleClasses as Record<string, string>)[r.vehicleClass] ?? r.vehicleClass) : "—"}
+                    <Meta icon={<BriefcaseIcon />} label={rd.vehicle}>
+                      {r.vehicle ? (vehicleByKey(r.vehicle)?.name ?? (r.vehicle === "advise" ? d.quoteForm.vehicleAdvise : r.vehicle)) : "—"}
                     </Meta>
                   </dl>
                 </>

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { SERVICES, VEHICLE_CLASSES } from "@/lib/quotes/constants";
+import { SERVICES } from "@/lib/quotes/constants";
+import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 
 const AMS = "Europe/Amsterdam";
@@ -55,7 +56,7 @@ export const quoteSchema = (t: QuoteMessages) =>
     passengers: z.coerce.number().int().min(1).max(50).optional(),
     name: z.string().trim().min(1, t.nameRequired).max(120, t.nameTooLong),
     email: z.string().trim().toLowerCase().max(200).pipe(z.email(t.emailInvalid)),
-    vehicleClass: z.enum(VEHICLE_CLASSES).optional(),
+    vehicle: z.enum(VEHICLE_CHOICES).optional(),
     // Collected as two fields; stored as one "+31 6 1234 5678" string (see the transform below).
     phoneCountry: z
       .string()

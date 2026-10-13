@@ -10,6 +10,7 @@ import { LOCALES, type Locale } from "./config";
 export const PATHNAMES = {
   "/": { en: "", nl: "" },
   "/drive-with-us": { en: "drive-with-us", nl: "rijd-met-ons" },
+  "/corporate-partner": { en: "corporate-partner", nl: "zakelijke-partner" },
   "/privacy": { en: "privacy", nl: "privacybeleid" },
 } as const satisfies Record<string, Record<Locale, string>>;
 

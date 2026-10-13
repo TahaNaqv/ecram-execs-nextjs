@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { InboxIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
+import { BriefcaseIcon, InboxIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
 
 /** Labels arrive from the server as `copy`, since a Client Component cannot read the dictionary. */
 export type AdminNavCopy = {
   brand: string; subtitle: string; sectionsLabel: string; operations: string;
-  requests: string; drivers: string; applications: string;
+  requests: string; drivers: string; applications: string; corporate: string;
   openMenu: string; closeMenu: string;
 };
 
@@ -21,6 +21,7 @@ const LINKS = [
     match: (p: string) => p.startsWith("/admin/drivers") && !p.startsWith("/admin/drivers/applications"),
   },
   { href: "/admin/drivers/applications", key: "applications", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/drivers/applications") },
+  { href: "/admin/corporate", key: "corporate", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
 ] as const;
 
 function Wordmark({ copy }: { copy: AdminNavCopy }) {

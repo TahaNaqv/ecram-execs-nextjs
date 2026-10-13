@@ -56,6 +56,13 @@ const ALLOW_IDENTICAL = new Set([
   "quoteForm.phCollection",
   "quoteForm.phPhone",
   "quoteForm.phPhoneCountry",
+  "fleetSection.qaFeaturesA",
+  "corporatePartner.phCode",
+  "corporatePartner.phKvk",
+  "corporatePartner.phPhone",
+  "corporatePartner.volume_1_5",
+  "corporatePartner.volume_6_15",
+  "corporatePartner.volume_16_40",
   "whoWeServe.segmentHotels",
   "whoWeServe.valueDetail",
 ]);
