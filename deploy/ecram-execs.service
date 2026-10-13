@@ -1,0 +1,29 @@
+# /etc/systemd/system/ecram-execs.service
+# The Next.js app on port 3000; nginx is the public face. Port 3000 is NOT opened in the firewall (ufw default-denies it).
+# Do not add `-H 127.0.0.1`: with the host bound that way Next.js rewrites to itself and the translated
+# Dutch URLs (/nl/rijd-met-ons, /nl/zakelijke-partner) answer with a redirect loop.
+[Unit]
+Description=Ecram Execs (Next.js)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ecram
+Group=ecram
+WorkingDirectory=/srv/ecram-execs
+# systemd reads this file itself: KEY=value lines, no "export". Quote values that contain spaces.
+EnvironmentFile=/srv/ecram-execs/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/local/bin/node node_modules/next/dist/bin/next start -p 3000
+Restart=always
+RestartSec=3
+# Hardening: the app needs no privileges and no other users' files
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/srv/ecram-execs
+
+[Install]
+WantedBy=multi-user.target
