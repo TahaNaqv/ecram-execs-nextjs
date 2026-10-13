@@ -1,8 +1,14 @@
 import { ConciergeInput } from "../concierge-input";
 import { getDict } from "@/lib/i18n/get-dictionary";
 
+const FAQ_COUNT = 13;
+
 export async function Concierge() {
   const d = await getDict();
+  const t = d.conciergeSection;
+  // Questions and answers live in the dictionary as faq1Q/faq1A … faq13Q/faq13A.
+  const strings = t as Record<string, string>;
+  const faqs = Array.from({ length: FAQ_COUNT }, (_, i) => [strings[`faq${i + 1}Q`], strings[`faq${i + 1}A`]] as const);
   return (
     <section className="border-b border-b-ink-850">
       <div className="py-20 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-30 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
@@ -20,6 +26,9 @@ export async function Concierge() {
           <p className="m-0 text-ink-400 font-light">
             {d.conciergeSection.body}
           </p>
+          <p className="m-0 text-ink-400 font-light">
+            {d.conciergeSection.body2}
+          </p>
         </div>
         <div className="border border-ink-750 flex-[1_1_100%] bg-ink-900 flex flex-col max-w-none min-w-0 xl:flex-[1_1_440px] xl:max-w-[520px]">
           <div className="py-[18px] px-[22px] border-b border-b-ink-800 items-center flex justify-between">
@@ -33,30 +42,20 @@ export async function Concierge() {
             </div>
             <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
           </div>
-          <div className="py-5 px-4 gap-[14px] flex flex-col text-[14px] md:py-6 md:px-[22px]">
-            <div className="py-3 px-4 self-end bg-ink-150 text-ink-950 max-w-[80%]">
-              {d.conciergeSection.chatGuest1}
-            </div>
-            <div className="py-3 px-4 border border-ink-750 self-start text-ink-150 max-w-[85%]">
-              {d.conciergeSection.chatAgent1}
-            </div>
-            <div className="py-3 px-4 self-end bg-ink-150 text-ink-950 max-w-[80%]">
-              {d.conciergeSection.chatGuest2}
-            </div>
-            <div className="py-3 px-4 border border-ink-750 self-start text-ink-150 max-w-[85%]">
-              {d.conciergeSection.chatAgent2}
-            </div>
-            <div className="pt-1 self-center text-ink-450 text-[11px] tracking-[0.2em] uppercase">
-              {d.conciergeSection.connecting}
-            </div>
-            <div className="py-3 px-4 gap-3 border border-ink-750 items-center self-start text-ink-450 flex text-[12px]">
-              {d.conciergeSection.agent}{" "}
-              <span className="typing gap-1 inline-flex" aria-label={d.conciergeSection.isTyping}>
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-            </div>
+          <div className="max-h-[480px] overflow-y-auto" role="group" aria-label={t.faqLabel}>
+            {faqs.map(([question, answer]) => (
+              <details key={question} className="group border-b border-b-ink-800 last:border-b-0">
+                <summary className="py-4 px-4 gap-4 items-center flex cursor-pointer justify-between list-none text-ink-150 text-[14px] md:px-[22px] [&::-webkit-details-marker]:hidden">
+                  <span>{question}</span>
+                  <svg className="shrink-0 transition-transform duration-300 group-open:rotate-45" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14"></path>
+                  </svg>
+                </summary>
+                <p className="m-0 pb-5 px-4 text-ink-400 text-[14px] font-light md:px-[22px]">
+                  {answer}
+                </p>
+              </details>
+            ))}
           </div>
           <ConciergeInput copy={d.conciergeSection} />
         </div>

@@ -14,9 +14,6 @@ export async function Services() {
               {d.servicesSection.heading}
             </h2>
           </div>
-          <p className="m-0 text-ink-400 font-light max-w-[420px]">
-            {d.servicesSection.intro}
-          </p>
         </div>
         <div className="gap-px border border-ink-825 bg-ink-825 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           <article className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 md:py-10 md:px-9 md:min-h-[280px]">

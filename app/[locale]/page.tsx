@@ -4,7 +4,7 @@ import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { NavAutoClose } from "./_components/nav-auto-close";
-import { BackToTop } from "./_components/back-to-top";
+import { SectionNav } from "./_components/section-nav";
 import {
   Bespoke,
   Concierge,
@@ -88,7 +88,7 @@ export default async function HomePage() {
       </main>
       <SiteFooter />
       <NavAutoClose />
-      <BackToTop label={d.common.backToTop} />
+      <SectionNav copy={{ prev: d.common.sectionPrev, next: d.common.sectionNext }} />
     </div>
   );
 }

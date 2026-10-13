@@ -15,63 +15,6 @@ export async function Experience() {
           </h2>
         </div>
         <BrandFilm copy={d.film} />
-        <ol className="p-0 m-0 gap-6 list-none grid grid-cols-[1fr] md:gap-8 md:grid-cols-[repeat(2,minmax(0px,1fr))] lg:grid-cols-[repeat(5,minmax(0px,1fr))]">
-          <li className="reveal pt-5 gap-[10px] border-t border-t-ink-700 flex flex-col">
-            <span className="text-ink-450 font-display text-[12px] tracking-[0.3em]">
-              01
-            </span>
-            <span className="text-white font-serif text-[24px]">
-              {d.experienceSection.step1Title}
-            </span>
-            <span className="text-ink-400 text-[14px] font-light">
-              {d.experienceSection.step1Text}
-            </span>
-          </li>
-          <li className="reveal pt-5 gap-[10px] border-t border-t-ink-700 flex flex-col">
-            <span className="text-ink-450 font-display text-[12px] tracking-[0.3em]">
-              02
-            </span>
-            <span className="text-white font-serif text-[24px]">
-              {d.experienceSection.step2Title}
-            </span>
-            <span className="text-ink-400 text-[14px] font-light">
-              {d.experienceSection.step2Text}
-            </span>
-          </li>
-          <li className="reveal pt-5 gap-[10px] border-t border-t-ink-700 flex flex-col">
-            <span className="text-ink-450 font-display text-[12px] tracking-[0.3em]">
-              03
-            </span>
-            <span className="text-white font-serif text-[24px]">
-              {d.experienceSection.step3Title}
-            </span>
-            <span className="text-ink-400 text-[14px] font-light">
-              {d.experienceSection.step3Text}
-            </span>
-          </li>
-          <li className="reveal pt-5 gap-[10px] border-t border-t-ink-700 flex flex-col">
-            <span className="text-ink-450 font-display text-[12px] tracking-[0.3em]">
-              04
-            </span>
-            <span className="text-white font-serif text-[24px]">
-              {d.experienceSection.step4Title}
-            </span>
-            <span className="text-ink-400 text-[14px] font-light">
-              {d.experienceSection.step4Text}
-            </span>
-          </li>
-          <li className="reveal pt-5 gap-[10px] border-t border-t-ink-700 col-[1/-1] flex flex-col lg:col-auto">
-            <span className="text-ink-450 font-display text-[12px] tracking-[0.3em]">
-              05
-            </span>
-            <span className="text-white font-serif text-[24px]">
-              {d.experienceSection.step5Title}
-            </span>
-            <span className="text-ink-400 text-[14px] font-light">
-              {d.experienceSection.step5Text}
-            </span>
-          </li>
-        </ol>
       </div>
     </section>
   );

@@ -28,18 +28,12 @@ const ALLOW_IDENTICAL = new Set([
   "admin.events.none",
   "criteria.colours.BEIGE",
   "criteria.fuels.Diesel",
-  "destinationsSection.amsterdam",
-  "destinationsSection.kinderdijk",
-  "destinationsSection.maastricht",
-  "destinationsSection.rotterdam",
-  "destinationsSection.utrecht",
   "documents.vog.label",
   "documents.chauffeurCard.hint",
   "driveWithUs.phExperience",
   "driveWithUs.phKvk",
   "driveWithUs.phPhone",
   "driveWithUs.phPlate",
-  "bespokeSection.caseRoadshowsTitle",
   "bespokeSection.contactOptions.whatsapp",
   "bespokeSection.phPhone",
   "bespokeSection.vehicleClasses.executive_sedan",
@@ -64,7 +58,6 @@ const ALLOW_IDENTICAL = new Set([
   "quoteForm.phPhoneCountry",
   "whoWeServe.segmentHotels",
   "whoWeServe.valueDetail",
-  "servicesSection.hotelsTitle",
 ]);
 
 type Json = string | { [k: string]: Json };

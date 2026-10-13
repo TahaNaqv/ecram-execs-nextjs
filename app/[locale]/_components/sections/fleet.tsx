@@ -6,12 +6,6 @@ import Image from "next/image";
 export async function Fleet() {
   const d = await getDict();
   const t = d.fleetSection;
-  const specs: [label: string, value: string][] = [
-    [t.specExterior, t.specExteriorValue],
-    [t.specInterior, t.specInteriorValue],
-    [t.specSpec, t.specSpecValue],
-    [t.specDrive, t.specDriveValue],
-  ];
   return (
     <section className="border-b border-b-ink-850" id="fleet">
       <div className="py-20 px-5 my-0 mx-auto gap-12 flex flex-col max-w-[1280px] md:py-30 md:px-6 md:gap-14 2xl:max-w-[1440px]">
@@ -21,10 +15,8 @@ export async function Fleet() {
               {t.eyebrow}
             </span>
             <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.05] md:text-[clamp(36px,4vw,56px)]">
-              {t.headingBefore}{" "}
-              <br />
               <span className="chrome italic">
-                {t.headingEmphasis}
+                {t.heading}
               </span>
             </h2>
           </div>
@@ -32,19 +24,6 @@ export async function Fleet() {
             {t.intro}
           </p>
         </div>
-
-        <ul className="gap-px p-0 m-0 border border-ink-800 bg-ink-800 list-none grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {specs.map(([label, value]) => (
-            <li key={label} className="py-5 px-5 gap-[6px] bg-ink-950 flex flex-col text-[14px]">
-              <span className="text-ink-450 text-[11px] tracking-[0.18em] uppercase">
-                {label}
-              </span>
-              <span className="text-ink-150">
-                {value}
-              </span>
-            </li>
-          ))}
-        </ul>
 
         <ul className="p-0 m-0 gap-3 list-none grid grid-cols-1 sm:grid-cols-2 md:gap-4 lg:grid-cols-6">
           {siteConfig.fleet.map((vehicle, i) => (

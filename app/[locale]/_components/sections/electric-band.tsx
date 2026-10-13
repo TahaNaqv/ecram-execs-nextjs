@@ -17,6 +17,9 @@ export async function ElectricBand() {
           <p className="m-0 text-ink-650 text-[17px] font-light">
             {d.electric.body}
           </p>
+          <p className="m-0 text-ink-650 text-[17px] font-light">
+            {d.electric.body2}
+          </p>
           <p className="m-0 text-ink-950 font-display text-[14px] tracking-[0.3em] md:tracking-[0.42em]">
             {d.electric.motto}
           </p>
