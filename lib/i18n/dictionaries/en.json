@@ -178,7 +178,7 @@
   },
   "common": {
     "skipToContent": "Skip to content",
-    "requestQuote": "Request a quotation",
+    "requestQuote": "Reserve Your Chauffeur",
     "backToTop": "Back to top",
     "callPhone": "Call {phone}"
   },
@@ -196,10 +196,10 @@
   },
   "hero": {
     "imageAlt": "Ecram Execs chauffeur waiting beside an electric Mercedes VLE as an executive leaves a private jet at dusk",
-    "headingBefore": "Every journey is part",
-    "headingEmphasis": "of the experience.",
-    "intro": "Private executive chauffeurs across the Netherlands, in a fully electric fleet. Calm, discreet and effortless — from the moment you are collected to the moment you arrive.",
-    "watchArrival": "Watch the arrival",
+    "headingBefore": "Every Journey Is Part",
+    "headingEmphasis": "of the Experience",
+    "intro": "Experience premium electric chauffeur services across the Netherlands, combining refined comfort, discretion, and effortless travel. From collection to arrival, every journey is tailored around your comfort, with punctuality and exceptional service at the heart of every ride.",
+    "watchArrival": "Experience the Journey",
     "scroll": "SCROLL",
     "stripQuiet": "QUIET · REFINED · ELECTRIC",
     "stripServing": "SERVING THE WHOLE OF THE NETHERLANDS",
