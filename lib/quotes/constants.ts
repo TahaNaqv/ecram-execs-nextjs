@@ -29,5 +29,13 @@ export const serviceLabel = (service: string, labels: Record<string, string>) =>
 export const VEHICLE_CLASSES = ["executive_sedan", "executive_suv", "mixed_fleet", "advise"] as const;
 export type VehicleClass = (typeof VEHICLE_CLASSES)[number];
 
+/** Calling codes offered as suggestions in the quote form; any 1–4 digit code can still be typed. */
+export const COUNTRY_CODES = [
+  ["31", "NL"], ["32", "BE"], ["49", "DE"], ["33", "FR"], ["44", "GB"], ["41", "CH"], ["43", "AT"],
+  ["34", "ES"], ["39", "IT"], ["45", "DK"], ["46", "SE"], ["47", "NO"], ["48", "PL"], ["352", "LU"],
+  ["353", "IE"], ["351", "PT"], ["971", "AE"], ["966", "SA"], ["974", "QA"], ["90", "TR"],
+  ["1", "US"], ["7", "RU"], ["81", "JP"], ["86", "CN"], ["91", "IN"],
+] as const;
+
 export const CONTACT_PREFERENCES = ["phone", "whatsapp"] as const;
 export type ContactPreference = (typeof CONTACT_PREFERENCES)[number];

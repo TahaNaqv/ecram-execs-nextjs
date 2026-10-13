@@ -61,6 +61,7 @@ const ALLOW_IDENTICAL = new Set([
   "privacy.s6p3",
   "quoteForm.phCollection",
   "quoteForm.phPhone",
+  "quoteForm.phPhoneCountry",
   "whoWeServe.segmentHotels",
   "whoWeServe.valueDetail",
   "servicesSection.hotelsTitle",

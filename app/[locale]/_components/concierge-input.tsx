@@ -11,7 +11,7 @@ export function ConciergeInput({ copy }: { copy: { inputLabel: string; inputPlac
     e.preventDefault();
     const input = e.currentTarget.elements.namedItem("message") as HTMLInputElement;
     const message = input.value.trim();
-    const notes = document.getElementById("q-notes") as HTMLInputElement | null;
+    const notes = document.getElementById("q-notes") as HTMLTextAreaElement | null;
     if (message && notes) {
       notes.value = notes.value ? `${notes.value} — ${message}` : message;
       input.value = "";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { SERVICES, type Service } from "@/lib/quotes/constants";
+import { COUNTRY_CODES, SERVICES, VEHICLE_CLASSES, type Service, type VehicleClass } from "@/lib/quotes/constants";
 import type { Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
@@ -12,7 +12,8 @@ import { control, Field } from "./form-field";
 export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
-  | "labelEmail" | "phEmail" | "labelPhone" | "phPhone" | "labelNotes" | "phNotes"
+  | "labelEmail" | "phEmail" | "labelPhoneCountry" | "phPhoneCountry" | "labelPhone" | "phPhone"
+  | "labelVehicle" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
 >;
@@ -23,10 +24,12 @@ const fill = (template: string, values: Record<string, string>) =>
 export function QuoteForm({
   locale,
   serviceLabels,
+  vehicleLabels,
   copy: t,
 }: {
   locale: Locale;
   serviceLabels: Record<Service, string>;
+  vehicleLabels: Record<VehicleClass, string>;
   copy: QuoteFormCopy;
 }) {
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
@@ -96,14 +99,40 @@ export function QuoteForm({
             autoComplete="email" defaultValue={v.email} aria-invalid={!!err.email}
             aria-describedby={describedBy("email")} className={control} />
         </Field>
-        <Field label={t.labelPhone} name="phone" error={err.phone}>
-          <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={24}
-            autoComplete="tel" defaultValue={v.phone} aria-invalid={!!err.phone}
+        {/* Country code is a free-entry field with suggestions, so any code can be typed (no "+"). */}
+        <Field label={t.labelPhoneCountry} name="phoneCountry" error={err.phoneCountry}>
+          <input id="q-phoneCountry" name="phoneCountry" type="text" inputMode="numeric" list="q-phoneCountry-list"
+            placeholder={t.phPhoneCountry} required maxLength={5} autoComplete="tel-country-code"
+            defaultValue={v.phoneCountry ?? "31"} aria-invalid={!!err.phoneCountry}
+            aria-describedby={describedBy("phoneCountry")} className={control} />
+          <datalist id="q-phoneCountry-list">
+            {COUNTRY_CODES.map(([code, iso]) => (
+              <option key={code} value={code} label={iso} />
+            ))}
+          </datalist>
+        </Field>
+        <Field label={t.labelPhone} name="phone" error={err.phone} className="md:col-span-2 xl:col-span-2">
+          <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={20}
+            autoComplete="tel-national" defaultValue={v.phone} aria-invalid={!!err.phone}
             aria-describedby={describedBy("phone")} className={control} />
         </Field>
-        <Field label={t.labelNotes} name="notes" error={err.notes}>
-          <input id="q-notes" name="notes" type="text" placeholder={t.phNotes} maxLength={2000}
-            autoComplete="off" defaultValue={v.notes} className={control} />
+
+        <Field label={t.labelNotes} name="notes" error={err.notes} className="col-span-full">
+          <textarea id="q-notes" name="notes" rows={4} placeholder={t.phNotes} maxLength={2000}
+            autoComplete="off" defaultValue={v.notes} aria-invalid={!!err.notes}
+            aria-describedby={describedBy("notes")}
+            className={`${control} min-h-[104px] resize-y`} />
+        </Field>
+        <Field label={t.labelVehicle} name="vehicleClass" error={err.vehicleClass} className="col-span-full">
+          <select id="q-vehicleClass" name="vehicleClass" defaultValue={v.vehicleClass || ""}
+            aria-invalid={!!err.vehicleClass} aria-describedby={describedBy("vehicleClass")} className={control}>
+            <option value="">{t.selectPlaceholder}</option>
+            {VEHICLE_CLASSES.map((c) => (
+              <option key={c} value={c}>
+                {vehicleLabels[c]}
+              </option>
+            ))}
+          </select>
         </Field>
 
         {/* A Server Action cannot read `next/root-params`, so the form carries the locale. */}
@@ -114,10 +143,12 @@ export function QuoteForm({
           <input type="text" name="company_website" tabIndex={-1} autoComplete="off" defaultValue="" />
         </div>
 
+      </div>
+      <div className="mt-6 flex justify-center">
         <button
           type="submit"
           disabled={pending}
-          className="min-h-[72px] cursor-pointer border-none bg-ink-950 font-sans text-[12px] font-semibold tracking-[0.24em] text-white uppercase hover:bg-ink-800 disabled:pointer-events-none disabled:cursor-progress disabled:opacity-70"
+          className="min-h-[64px] w-full max-w-[420px] cursor-pointer border-none bg-ink-950 px-10 font-sans text-[12px] font-semibold tracking-[0.24em] text-white uppercase hover:bg-ink-800 disabled:pointer-events-none disabled:cursor-progress disabled:opacity-70"
         >
           {pending ? t.sending : t.submit}
         </button>

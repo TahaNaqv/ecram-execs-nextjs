@@ -25,11 +25,11 @@
     "cta": "Return home"
   },
   "services": {
-    "airport_transfer": "Airport transfer",
-    "business_travel": "Business travel",
-    "hourly": "Hourly / as directed",
-    "private_occasion": "Private occasion",
-    "bespoke": "Bespoke programme"
+    "airport_transfer": "Airport Transfer",
+    "business_travel": "Business Travel",
+    "hourly": "Hourly / As Directed",
+    "private_occasion": "Private Occasion",
+    "bespoke": "Bespoke Programme"
   },
   "email": {
     "tagline": "ECRAM EXECS · THE ART OF EXECUTIVE HOSPITALITY",
@@ -141,6 +141,8 @@
     "serviceRequired": "Please choose a service.",
     "emailInvalid": "Please enter a valid email address.",
     "phoneInvalid": "Please enter a valid phone number, including country code.",
+    "phoneCountryInvalid": "Enter the country code as digits only, e.g. 31.",
+    "phoneNumberInvalid": "Please enter a valid phone number, without the country code.",
     "notesTooLong": "Notes are too long.",
     "kvkInvalid": "Please enter your 8-digit KvK number.",
     "experienceRequired": "Please enter your years of experience.",
@@ -206,8 +208,7 @@
     "stripAvailable": "AVAILABLE 24 / 7"
   },
   "enquiry": {
-    "heading": "Plan your journey",
-    "note": "Every journey is quoted personally — usually within the hour."
+    "heading": "Plan your journey"
   },
   "servicesSection": {
     "eyebrow": "I — SERVICES",
@@ -418,11 +419,14 @@
     "phName": "Your name",
     "labelEmail": "Email",
     "phEmail": "you@company.com",
+    "labelPhoneCountry": "Country code",
+    "phPhoneCountry": "31",
     "labelPhone": "Phone",
-    "phPhone": "+31 6 1234 5678",
+    "phPhone": "6 1234 5678",
+    "labelVehicle": "Vehicle",
     "labelNotes": "Notes (optional)",
     "phNotes": "Flight number, luggage, requests",
-    "submit": "Request tailored quote",
+    "submit": "Request Bespoke Quote",
     "sending": "Sending…",
     "successLabel": "Request received",
     "successHeading": "Thank you, {name}. We will be in touch with your tailored quotation shortly.",

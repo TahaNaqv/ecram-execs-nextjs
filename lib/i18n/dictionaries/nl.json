@@ -141,6 +141,8 @@
     "serviceRequired": "Kies een dienst.",
     "emailInvalid": "Voer een geldig e-mailadres in.",
     "phoneInvalid": "Voer een geldig telefoonnummer in, inclusief landcode.",
+    "phoneCountryInvalid": "Voer de landcode in als cijfers, bijv. 31.",
+    "phoneNumberInvalid": "Voer een geldig telefoonnummer in, zonder landcode.",
     "notesTooLong": "De opmerkingen zijn te lang.",
     "kvkInvalid": "Voer uw 8-cijferige KvK-nummer in.",
     "experienceRequired": "Vul uw aantal jaren ervaring in.",
@@ -206,8 +208,7 @@
     "stripAvailable": "24 / 7 BESCHIKBAAR"
   },
   "enquiry": {
-    "heading": "Plan uw rit",
-    "note": "Elke rit wordt persoonlijk geprijsd — meestal binnen het uur."
+    "heading": "Plan uw rit"
   },
   "servicesSection": {
     "eyebrow": "I — DIENSTEN",
@@ -418,8 +419,11 @@
     "phName": "Uw naam",
     "labelEmail": "E-mail",
     "phEmail": "u@bedrijf.nl",
+    "labelPhoneCountry": "Landcode",
+    "phPhoneCountry": "31",
     "labelPhone": "Telefoon",
-    "phPhone": "+31 6 1234 5678",
+    "phPhone": "6 1234 5678",
+    "labelVehicle": "Voertuig",
     "labelNotes": "Opmerkingen (optioneel)",
     "phNotes": "Vluchtnummer, bagage, wensen",
     "submit": "Prijsopgave op maat aanvragen",

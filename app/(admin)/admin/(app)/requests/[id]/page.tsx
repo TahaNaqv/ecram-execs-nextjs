@@ -217,7 +217,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     </li>
                   </ol>
 
-                  <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-3">
+                  <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-4">
                     <Meta icon={<CalendarIcon />} label={d.admin.requestDetail.pickupDate}>
                       {pickup?.date}
                     </Meta>
@@ -226,6 +226,9 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     </Meta>
                     <Meta icon={<UsersIcon />} label={d.admin.requestDetail.passengers}>
                       {r.passengers ?? "—"}
+                    </Meta>
+                    <Meta icon={<BriefcaseIcon />} label={rd.vehicleClass}>
+                      {r.vehicleClass ? ((bespokeCopy.vehicleClasses as Record<string, string>)[r.vehicleClass] ?? r.vehicleClass) : "—"}
                     </Meta>
                   </dl>
                 </>

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SERVICES } from "@/lib/quotes/constants";
+import { SERVICES, VEHICLE_CLASSES } from "@/lib/quotes/constants";
 import { LOCALES } from "@/lib/i18n/config";
 
 const AMS = "Europe/Amsterdam";
@@ -36,7 +36,8 @@ export type QuoteMessages = {
   pickupTooFar: string;
   serviceRequired: string;
   emailInvalid: string;
-  phoneInvalid: string;
+  phoneCountryInvalid: string;
+  phoneNumberInvalid: string;
   notesTooLong: string;
 };
 
@@ -54,14 +55,22 @@ export const quoteSchema = (t: QuoteMessages) =>
     passengers: z.coerce.number().int().min(1).max(50).optional(),
     name: z.string().trim().min(1, t.nameRequired).max(120, t.nameTooLong),
     email: z.string().trim().toLowerCase().max(200).pipe(z.email(t.emailInvalid)),
+    vehicleClass: z.enum(VEHICLE_CLASSES).optional(),
+    // Collected as two fields; stored as one "+31 6 1234 5678" string (see the transform below).
+    phoneCountry: z
+      .string()
+      .trim()
+      .transform((v) => v.replace(/^\+/, ""))
+      .pipe(z.string().regex(/^[0-9]{1,4}$/, t.phoneCountryInvalid)),
     phone: z
       .string()
       .trim()
-      .regex(/^\+?[0-9 ()\-.]{7,24}$/, t.phoneInvalid),
+      .regex(/^[0-9 ()\-.]{5,20}$/, t.phoneNumberInvalid),
     notes: z.string().trim().max(2000, t.notesTooLong).optional(),
     // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
     locale: z.enum(LOCALES).catch("en"),
-  });
+  }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 
 export type QuoteInput = z.infer<ReturnType<typeof quoteSchema>>;
-export type QuoteField = keyof QuoteInput;
+/** Keys of the submitted form, which includes `phoneCountry` even though it is stored inside `phone`. */
+export type QuoteField = keyof z.input<ReturnType<typeof quoteSchema>>;

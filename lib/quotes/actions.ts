@@ -20,7 +20,7 @@ export type QuoteFormState =
     }
   | { status: "success"; reference: string; name: string };
 
-const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "name", "email", "phone", "notes", "locale"] as const;
+const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "name", "email", "phoneCountry", "phone", "vehicleClass", "notes", "locale"] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
 export async function submitQuote(prev: QuoteFormState, formData: FormData): Promise<QuoteFormState> {
@@ -39,6 +39,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   const parsed = quoteSchema(t).safeParse({
     ...values,
     passengers: values.passengers || undefined,
+    vehicleClass: values.vehicleClass || undefined,
     notes: values.notes || undefined,
   });
   if (!parsed.success) {
