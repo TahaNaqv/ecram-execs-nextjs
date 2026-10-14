@@ -1,7 +1,8 @@
 # Self-hosting on an Ubuntu VPS (Next.js + Postgres on the same server)
 
-Replaces the Vercel + Supabase-database setup. **Driver-document files stay in Supabase Storage**
-(only the *database* moves), so `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` stay in the env file.
+Replaces the Vercel + Supabase setup. **Everything lives on this one server**: the Postgres database and the driver
+documents (stored in a private folder on disk, `DOCUMENTS_DIR`, see §6). Supabase is no longer needed; if you do want to
+keep using Supabase Storage instead, leave `DOCUMENTS_DIR` empty and set the `SUPABASE_*` variables.
 
 Replace `example.nl` with the real domain throughout. Commands starting `sudo` run as an admin user on
 the server; the app itself runs as an unprivileged `ecram` user. Nothing in this guide has been run on
@@ -16,7 +17,7 @@ site is untouched) → rehearse the data move (§9) → cutover on a quiet momen
 - The server's public IPv4 address, and SSH access as a sudo user (key-based).
 - GoDaddy login for the domain (§12).
 - The repo is public, so the server clones it over HTTPS (§5).
-- The current production secrets (Supabase storage key, Resend key, `IP_HASH_SALT`) to copy into the new `.env`.
+- Your Resend key and sending address (and `IP_HASH_SALT` if you are moving an existing site).
 
 ## 1. Base system and firewall
 
@@ -106,11 +107,17 @@ Set at least:
 |---|---|
 | `DATABASE_URL` and `DATABASE_URL_DIRECT` | `postgres://ecram:PASSWORD@127.0.0.1:5432/ecram` (both the same here) |
 | `SITE_URL` | `https://example.nl` |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | unchanged — driver documents stay in Supabase Storage |
+| `DOCUMENTS_DIR` | `/var/lib/ecram-execs/documents` — where driver documents are stored (create it first, below). Download and upload links are signed with a key derived from `DOCUMENTS_SECRET` (or `IP_HASH_SALT` if that is unset): **treat it as a secret and don't rotate it casually** (links in use stop working). Optional: `DOCUMENTS_MIN_FREE_MB` (default 2048) — uploads are refused when free disk would fall below this. |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_EMAIL_TO` | unchanged; the sending domain must be verified in Resend |
 | `IP_HASH_SALT` | copy the current value (or `openssl rand -hex 32` for a new one — rate-limit history just resets) |
 | `CORPORATE_OTP_SECRET` | **new**: `openssl rand -hex 32` |
 | `KVK_API_KEY` | optional, when issued |
+
+Create the documents folder (private to the app user, outside the git checkout so a deploy never touches it):
+
+```bash
+sudo install -d -m 700 -o ecram -g ecram /var/lib/ecram-execs /var/lib/ecram-execs/documents
+```
 
 Remove the Gmail `SMTP_*` lines if Resend is configured. Values with spaces need quotes
 (`EMAIL_FROM="Ecram Execs <bookings@example.nl>"`). `.env` is git-ignored and must never be committed.
@@ -162,7 +169,10 @@ Logs: `journalctl -u ecram-execs -f` (app), `/var/log/nginx/error.log`.
 > to itself and `/nl/rijd-met-ons` / `/nl/zakelijke-partner` answer with a redirect loop (found on the real server).
 > The firewall (default-deny) keeps port 3000 closed to the internet instead.
 
-## 9. Move the existing data from Supabase (rehearsal, then real)
+## 9. (Optional) Move existing data from Supabase
+
+> **Skip this section for a fresh start.** It applies only when an existing Supabase database has data to carry over.
+> Driver documents already in Supabase Storage are not covered by it (they would need copying into `DOCUMENTS_DIR`).
 
 You need Supabase's **session pooler** connection string (port 5432, same as in the old `.env`). The server's `pg_dump` (installed with PostgreSQL in §3) must be at least as new as Supabase's Postgres; 18 is.
 
@@ -213,14 +223,30 @@ sudo certbot renew --dry-run                        # renewal is automatic via a
 Check that `X-Forwarded-For` handling survived certbot's edit: `sudo nginx -T | grep -n X-Forwarded-For`
 should show the `$remote_addr` lines in the HTTPS block as well.
 
-Nightly database backup (14 days kept locally):
+Nightly backup (14 days kept locally): the database dump (run as `postgres`) and the driver documents (a tar of
+`/var/lib/ecram-execs/documents`, which only root can read — so the script is also run from root's cron):
 
 ```bash
 sudo mkdir -p /var/backups/ecram && sudo chown postgres:postgres /var/backups/ecram
 sudo cp /srv/ecram-execs/deploy/backup-db.sh /usr/local/bin/ecram-backup && sudo chmod 755 /usr/local/bin/ecram-backup
-echo '15 2 * * * /usr/local/bin/ecram-backup >> /var/log/ecram-backup.log 2>&1' | sudo crontab -u postgres -
+# Separate log files: each user's cron appends to its own (a shared one owned by the other user would break the job)
+sudo install -o postgres -g postgres -m 644 /dev/null /var/log/ecram-backup-db.log
+echo '15 2 * * * /usr/local/bin/ecram-backup >> /var/log/ecram-backup-db.log 2>&1' | sudo crontab -u postgres -
+echo '30 2 * * * /usr/local/bin/ecram-backup >> /var/log/ecram-backup-docs.log 2>&1' | sudo crontab -u root -
 sudo -u postgres /usr/local/bin/ecram-backup            # run once now to prove it works
+sudo /usr/local/bin/ecram-backup                        # root run: also writes the documents archive
 ```
+
+Remove abandoned uploads nightly (a document is uploaded before the application is saved, so an applicant who closes
+the tab leaves scans behind). Try it as a dry run first:
+
+```bash
+cd /srv/ecram-execs && sudo -u ecram node --env-file=.env scripts/sweep-documents.mts
+echo '45 3 * * * cd /srv/ecram-execs && node --env-file=.env scripts/sweep-documents.mts --apply >> /home/ecram/sweep.log 2>&1' | sudo crontab -u ecram -
+```
+
+Nginx logs requests without query strings (`/var/log/nginx/ecram.access.log`), so the signed tokens in document links
+never land in a log. Backups keep a deleted document for up to 14 days; that is the retention to state in your privacy policy.
 
 **A backup on the same machine is not enough**: also copy `/var/backups/ecram` somewhere else (another server
 via `rsync`, or a cloud bucket) — and do a test restore into a scratch database once.

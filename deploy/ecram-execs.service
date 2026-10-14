@@ -23,7 +23,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=full
-ReadWritePaths=/srv/ecram-execs
+# Driver documents are stored here (DOCUMENTS_DIR in .env); it must stay writable under ProtectSystem
+ReadWritePaths=/srv/ecram-execs /var/lib/ecram-execs
 
 [Install]
 WantedBy=multi-user.target

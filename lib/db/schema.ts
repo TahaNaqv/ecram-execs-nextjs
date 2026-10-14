@@ -196,7 +196,7 @@ export const driverApplications = pgTable(
     openRecall: boolean("open_recall"),
     // Null when the RDW couldn't be reached at submission; the team checks the plate by hand
     rdwCheckedAt: timestamp("rdw_checked_at", { withTimezone: true }),
-    // Uploaded to the private Supabase Storage bucket; null on applications made before uploads existed
+    // Stored privately (server disk or Supabase Storage, see lib/storage.ts); null on applications made before uploads existed
     documents: jsonb("documents").$type<ApplicationDocument[]>(),
 
     internalNotes: text("internal_notes"),

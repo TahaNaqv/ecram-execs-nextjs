@@ -1,65 +1,32 @@
 import "server-only";
+import * as local from "./storage-local";
+import * as supabase from "./storage-supabase";
 
-// Supabase Storage over its REST API: a private bucket for driver application documents.
-// Browsers upload straight to Supabase with one-off signed URLs (Vercel caps request bodies
-// at 4.5 MB, too small for four scans); the team opens files through short-lived signed links.
-// Create the bucket with `npm run storage:setup`.
+/**
+ * Where driver-application documents live. Two backends, same five functions:
+ *
+ * - `DOCUMENTS_DIR` set → files on this server's disk (lib/storage-local.ts). The browser uploads to the app's
+ *   own /api/documents routes and admins open files through them.
+ * - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set → Supabase Storage (lib/storage-supabase.ts).
+ * - neither → document uploads are switched off and the form simply doesn't ask for them.
+ *
+ * If both are set, the server's own disk wins.
+ */
+const backend = () => (local.configured() ? local : supabase.configured() ? supabase : null);
 
-export const DOCUMENTS_BUCKET = "driver-documents";
+export const DOCUMENTS_BUCKET = supabase.DOCUMENTS_BUCKET;
+export type { StoredFile } from "./storage-supabase";
 
-const base = () => `${process.env.SUPABASE_URL?.replace(/\/$/, "")}/storage/v1`;
-
-/** Uploads are skipped (and logged) until SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set. */
-export const storageConfigured = () => !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const res = await fetch(`${base()}${path}`, {
-    method,
-    // New secret keys (sb_secret_…) go in `apikey` only; a legacy service_role JWT also as a bearer token
-    headers: { apikey: key, ...(key.startsWith("eyJ") && { Authorization: `Bearer ${key}` }), "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(10_000),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Storage ${method} ${path.split("?")[0]} → ${res.status} ${await res.text()}`);
-  return res.json();
-}
-
-const encodePath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
+export const storageConfigured = () => backend() !== null;
 
 /** A URL the browser can PUT one file to, once, within two hours. */
-export async function signedUploadUrl(path: string) {
-  const { url } = await call<{ url: string }>("POST", `/object/upload/sign/${DOCUMENTS_BUCKET}/${encodePath(path)}`);
-  return `${base()}${url}`;
-}
+export const signedUploadUrl = (path: string) => backend()!.signedUploadUrl(path);
 
 /** A link to view a file, valid for `expiresIn` seconds. */
-export async function signedDownloadUrl(path: string, expiresIn = 600) {
-  const { signedURL } = await call<{ signedURL: string }>("POST", `/object/sign/${DOCUMENTS_BUCKET}/${encodePath(path)}`, { expiresIn });
-  return encodeURI(`${base()}${signedURL}`);
-}
-
-export type StoredFile = { name: string; size: number; contentType: string };
+export const signedDownloadUrl = (path: string, expiresIn?: number) => backend()!.signedDownloadUrl(path, expiresIn);
 
 /** Files directly inside `folder`. */
-export async function listFiles(folder: string): Promise<StoredFile[]> {
-  const rows = await call<{ name: string; id: string | null; metadata: { size?: number; mimetype?: string } | null }[]>(
-    "POST",
-    `/object/list/${DOCUMENTS_BUCKET}`,
-    { prefix: folder, limit: 100, offset: 0, sortBy: { column: "name", order: "asc" } },
-  );
-  return rows
-    .filter((r) => r.id) // folders have no id
-    .map((r) => ({ name: r.name, size: r.metadata?.size ?? 0, contentType: r.metadata?.mimetype ?? "" }));
-}
+export const listFiles = (folder: string) => backend()!.listFiles(folder);
 
 /** Deletes files; failures are logged, not thrown, so they never block the caller. */
-export async function removeFiles(paths: string[]) {
-  if (!paths.length || !storageConfigured()) return;
-  try {
-    await call("DELETE", `/object/${DOCUMENTS_BUCKET}`, { prefixes: paths });
-  } catch (err) {
-    console.error(`[storage] could not delete ${paths.join(", ")}`, err);
-  }
-}
+export const removeFiles = (paths: string[]) => (backend() ? backend()!.removeFiles(paths) : Promise.resolve());

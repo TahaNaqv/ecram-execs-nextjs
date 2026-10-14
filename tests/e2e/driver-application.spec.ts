@@ -16,7 +16,7 @@ async function skipIfDocumentsRequired(page: Page) {
   const required = await page.locator('input[type="file"]').count();
   test.skip(
     required > 0,
-    "document storage is configured, and completing this flow would upload to the real bucket — unset SUPABASE_URL to run it",
+    "document storage is configured, and completing this flow would store real files — unset DOCUMENTS_DIR and SUPABASE_URL to run it",
   );
 }
 

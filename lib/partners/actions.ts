@@ -21,6 +21,7 @@ import {
   type DocumentName,
   type RdwVehicle,
 } from "./criteria";
+import { withinLimit } from "@/lib/rate-limit";
 import { lookupVehicle } from "./rdw";
 import { applicationSchema, type ApplicationInput, type FormField } from "./validation";
 
@@ -124,7 +125,14 @@ export async function checkApplication(formData: FormData): Promise<CheckResult>
     return { status: "success", reference: "AP-RECEIVED", name: String(formData.get("name") ?? "") };
   }
 
-  // The browser sends each document's type and size; Supabase enforces the same limits on upload
+  // This step hands out upload links but saves nothing, so the saved-application limit never sees it. Without a
+  // limit of its own, one visitor could request links endlessly and fill the disk with abandoned uploads.
+  if (storageConfigured()) {
+    const { ipHash } = await visitor();
+    if (!withinLimit(`apply-check:${ipHash}`, 8, 60 * 60_000)) return fail(t.applicationRateLimited);
+  }
+
+  // The browser sends each document's type and size; the store enforces the same limits again on upload
   const withDocuments = storageConfigured();
   const files: Partial<Record<DocumentName, string>> = {};
   const documentErrors: Partial<Record<FormField, string>> = {};

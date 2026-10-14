@@ -1,5 +1,6 @@
 import { companyLookupEnabled } from "@/lib/companies/provider";
-import { searchCompanies, withinLimit } from "@/lib/companies/search";
+import { searchCompanies } from "@/lib/companies/search";
+import { withinLimit } from "@/lib/rate-limit";
 import { visitor } from "@/lib/request-meta";
 
 /**
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   if (!companyLookupEnabled()) return Response.json({ items: [], available: false });
 
   const { ipHash } = await visitor();
-  if (!withinLimit(ipHash)) {
+  if (!withinLimit(`companies:${ipHash}`, 40, 60_000)) {
     return Response.json({ error: "rate_limited" }, { status: 429, headers: { "Retry-After": "60" } });
   }
 

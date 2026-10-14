@@ -24,20 +24,3 @@ export async function searchCompanies(query: string, signal: AbortSignal): Promi
   cache.set(key, { at: Date.now(), hits });
   return hits;
 }
-
-/**
- * A fixed-window limit per visitor. In memory, so it holds per server instance only — enough to stop
- * one browser hammering the search, which is what it is for; the registry's own limits are the backstop.
- */
-const buckets = new Map<string, { count: number; resetAt: number }>();
-export function withinLimit(visitorKey: string, max = 40, windowMs = 60_000) {
-  const now = Date.now();
-  const bucket = buckets.get(visitorKey);
-  if (!bucket || bucket.resetAt <= now) {
-    if (buckets.size > 5000) buckets.clear();
-    buckets.set(visitorKey, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  bucket.count += 1;
-  return bucket.count <= max;
-}
