@@ -5,7 +5,7 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 export async function SiteHeader() {
   const d = await getDict();
   return (
-    <header className="border-b border-b-ink-850 relative z-[2]">
+    <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
       <div className="py-4 px-5 my-0 mx-auto gap-0 items-center flex flex-wrap justify-between max-w-[1280px] xl:py-[22px] xl:px-6 xl:gap-5 2xl:max-w-[1440px]">
         <input className="nav-toggle" type="checkbox" id="nav-toggle" aria-label={d.nav.menu} aria-controls="primary-nav" />
         {" "}

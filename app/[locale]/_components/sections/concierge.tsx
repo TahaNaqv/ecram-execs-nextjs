@@ -57,7 +57,7 @@ export async function Concierge() {
               </details>
             ))}
           </div>
-          <ConciergeInput copy={d.conciergeSection} />
+          <ConciergeInput copy={t} faqs={faqs} />
         </div>
       </div>
     </section>

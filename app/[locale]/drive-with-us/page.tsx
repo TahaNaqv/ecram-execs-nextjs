@@ -47,7 +47,7 @@ export default async function DriveWithUsPage() {
       <a className="skip-link" href="#main">
         {dict.common.skipToContent}
       </a>
-      <header className="border-b border-ink-850">
+      <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-5 py-[22px] md:px-6 2xl:max-w-[1440px]">
           <Link href="/" className="inline-flex items-center gap-2 whitespace-nowrap chrome font-display text-[15px] tracking-[0.2em] md:gap-3 md:text-[22px] no-underline md:tracking-[0.32em]">
             <Image className="h-10 w-10 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} />

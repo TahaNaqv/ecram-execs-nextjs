@@ -80,6 +80,11 @@
     overflow-x: clip;
   }
 
+  /* The header is sticky, so in-page links must stop below it rather than under it */
+  html {
+    scroll-padding-top: 88px;
+  }
+
   img {
     max-width: 100%;
   }
@@ -517,6 +522,12 @@
   .primary-nav,
   .nav-actions {
     order: 3;
+  }
+
+  /* An open menu taller than the screen scrolls inside the sticky header */
+  header:has(.nav-toggle:checked) {
+    max-height: 100dvh;
+    overflow-y: auto;
   }
 
   /* Open */

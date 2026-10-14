@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { Locale } from "@/lib/i18n/config";
 
 type Option = { locale: Locale; href: string; aria: string };
@@ -37,10 +37,14 @@ function Flag({ locale }: { locale: Locale }) {
   );
 }
 
+/** Where the visitor was on the page when they switched, so the new language opens at the same spot. */
+const SCROLL_KEY = "ecram:language-scroll";
+
 /**
  * Renders as plain links (one flag per language), so switching works with JavaScript disabled.
- * The only enhancement is carrying the current anchor across the switch (`/en#fleet` →
- * `/nl#fleet`); the hash is appended after hydration, so there is no markup mismatch.
+ * With JavaScript, the page's scroll position is carried across the switch and restored on the other side.
+ * (An earlier version carried the URL's #anchor instead. That anchor is whatever link was last followed,
+ * e.g. "The Experience", so switching language later threw the visitor back up to it.)
  * The current language is the full-strength, ringed flag; the other is dimmed and is the link.
  */
 export function LanguageSwitcherLinks({
@@ -52,13 +56,22 @@ export function LanguageSwitcherLinks({
   current: Locale;
   options: Option[];
 }) {
-  const [hash, setHash] = useState("");
-
   useEffect(() => {
-    const sync = () => setHash(window.location.hash);
-    sync();
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    try {
+      const saved = window.sessionStorage.getItem(SCROLL_KEY);
+      if (saved === null) return;
+      window.sessionStorage.removeItem(SCROLL_KEY);
+      // Stored as a fraction of the page, not pixels: the other language's page is a slightly different height
+      const fraction = Number(saved);
+      if (Number.isFinite(fraction)) {
+        const place = () => window.scrollTo({ top: fraction * document.documentElement.scrollHeight, behavior: "instant" });
+        place();
+        // Images and fonts settle just after mount and move the page's height; correct once they have
+        window.setTimeout(place, 400);
+      }
+    } catch {
+      // Storage unavailable (private mode): the new language simply opens at the top
+    }
   }, []);
 
   return (
@@ -74,9 +87,17 @@ export function LanguageSwitcherLinks({
           ) : (
             <Link
               className="inline-flex h-11 w-9 items-center justify-center opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-4px] focus-visible:outline-white"
-              href={`${option.href}${hash}`}
+              href={option.href}
               hrefLang={option.locale}
               aria-label={option.aria}
+              scroll={false}
+              onClick={() => {
+                try {
+                  window.sessionStorage.setItem(SCROLL_KEY, String(window.scrollY / document.documentElement.scrollHeight));
+                } catch {
+                  // see above
+                }
+              }}
             >
               <Flag locale={option.locale} />
             </Link>

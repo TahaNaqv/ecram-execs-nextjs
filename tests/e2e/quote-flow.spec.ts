@@ -32,7 +32,7 @@ test("a quote request flows from the website into the admin panel and can be man
   await page.selectOption("#q-passengers", "2");
   await page.fill("#q-name", "Jan de Vries");
   await page.fill("#q-email", email);
-  await page.fill("#q-phoneCountry", "31");
+  await page.selectOption("#q-phoneCountry", "31");
   await page.fill("#q-phone", "6 1234 5678");
   await page.fill("#q-notes", "Flight KL1234");
   await page.getByRole("button", { name: /request bespoke quote/i }).click();
@@ -104,7 +104,7 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
   await page.selectOption("#q-passengers", "3");
   await page.fill("#q-name", "Sanne Bakker");
   await page.fill("#q-email", email);
-  await page.fill("#q-phoneCountry", "31");
+  await page.selectOption("#q-phoneCountry", "31");
   await page.fill("#q-phone", "6 9876 5432");
   await page.getByRole("button", { name: nl.quoteForm.submit }).click();
 

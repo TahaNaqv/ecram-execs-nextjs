@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
 import { startTransition, useActionState, useState, type FormEvent, type ReactNode } from "react";
 import { checkApplication, submitApplication, type ApplicationFormState } from "@/lib/partners/actions";
 import { DECLARATIONS, DOCUMENT_TYPES, DOCUMENTS, MAX_DOCUMENT_BYTES } from "@/lib/partners/criteria";
@@ -138,7 +139,8 @@ export function ApplicationForm({
 
   if (state.status === "success") {
     return (
-      <div role="status" className="flex flex-col gap-3 border border-ink-225 bg-white px-8 py-10">
+      <div role="status" tabIndex={-1} className="flex flex-col gap-3 border border-ink-225 bg-white px-8 py-10 outline-none">
+        <ScrollIntoViewOnMount />
         <span className="text-[10px] tracking-[0.22em] text-ink-600 uppercase">
           {t.successLabel} · {state.reference}
         </span>

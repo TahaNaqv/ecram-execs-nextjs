@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
 import { useActionState, useEffect, useState } from "react";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
 import { VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
@@ -14,7 +15,7 @@ import { control, Field } from "./form-field";
 export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
-  | "labelEmail" | "phEmail" | "labelPhoneCountry" | "phPhoneCountry" | "labelPhone" | "phPhone"
+  | "labelEmail" | "phEmail" | "labelPhoneCountry" | "labelPhone" | "phPhone"
   | "labelVehicle" | "vehicleAdvise" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
@@ -65,7 +66,8 @@ export function QuoteForm({
 
   if (state.status === "success") {
     return (
-      <div role="status" className="flex flex-col gap-3 border border-ink-225 bg-white px-8 py-10">
+      <div role="status" tabIndex={-1} className="flex flex-col gap-3 border border-ink-225 bg-white px-8 py-10 outline-none">
+        <ScrollIntoViewOnMount />
         <span className="text-[10px] tracking-[0.22em] text-ink-600 uppercase">
           {t.successLabel} · {state.reference}
         </span>
@@ -123,27 +125,26 @@ export function QuoteForm({
             autoComplete="name" defaultValue={v.name} aria-invalid={!!err.name}
             aria-describedby={describedBy("name")} className={control} />
         </Field>
-        <Field label={t.labelEmail} name="email" error={err.email}>
+        <Field label={t.labelEmail} name="email" error={err.email} className="xl:col-span-2">
           <input id="q-email" name="email" type="email" placeholder={t.phEmail} required maxLength={200}
             autoComplete="email" defaultValue={v.email} aria-invalid={!!err.email}
             aria-describedby={describedBy("email")} className={control} />
         </Field>
-        {/* Country code is a free-entry field with suggestions, so any code can be typed (no "+"). */}
-        <Field label={t.labelPhoneCountry} name="phoneCountry" error={err.phoneCountry}>
-          <input id="q-phoneCountry" name="phoneCountry" type="text" inputMode="numeric" list="q-phoneCountry-list"
-            placeholder={t.phPhoneCountry} required maxLength={5} autoComplete="tel-country-code"
-            defaultValue={v.phoneCountry ?? "31"} aria-invalid={!!err.phoneCountry}
-            aria-describedby={describedBy("phoneCountry")} className={control} />
-          <datalist id="q-phoneCountry-list">
-            {COUNTRY_CODES.map(([code, iso]) => (
-              <option key={code} value={code} label={iso} />
-            ))}
-          </datalist>
-        </Field>
-        <Field label={t.labelPhone} name="phone" error={err.phone} className="md:col-span-2 xl:col-span-2">
-          <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={20}
-            autoComplete="tel-national" defaultValue={v.phone} aria-invalid={!!err.phone}
-            aria-describedby={describedBy("phone")} className={control} />
+        {/* One phone field: a small country selector (Netherlands by default) sits inside it, beside the number */}
+        <Field label={t.labelPhone} name="phone" error={err.phone ?? err.phoneCountry} className="md:col-span-2 xl:col-span-2">
+          <div className="flex items-center gap-3">
+            <select id="q-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} defaultValue={v.phoneCountry || "31"}
+              className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-ink-225 bg-transparent p-0 pr-2 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]">
+              {COUNTRY_CODES.map(([code, iso]) => (
+                <option key={code} value={code}>
+                  {iso} +{code}
+                </option>
+              ))}
+            </select>
+            <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={20}
+              autoComplete="tel-national" defaultValue={v.phone} aria-invalid={!!err.phone}
+              aria-describedby={describedBy("phone")} className={control} />
+          </div>
         </Field>
 
         <Field label={t.labelNotes} name="notes" error={err.notes} className="col-span-full">

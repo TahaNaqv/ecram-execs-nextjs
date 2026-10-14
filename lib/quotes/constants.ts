@@ -29,12 +29,21 @@ export const serviceLabel = (service: string, labels: Record<string, string>) =>
 export const VEHICLE_CLASSES = ["executive_sedan", "executive_suv", "mixed_fleet", "advise"] as const;
 export type VehicleClass = (typeof VEHICLE_CLASSES)[number];
 
-/** Calling codes offered as suggestions in the quote form; any 1–4 digit code can still be typed. */
+/**
+ * Calling codes offered in the quote form's phone field, the Netherlands first (it is the default). One entry per
+ * code, so the select always shows the right one; where several countries share a code the best-known is listed.
+ * The format is [digits without "+", ISO country code].
+ */
 export const COUNTRY_CODES = [
-  ["31", "NL"], ["32", "BE"], ["49", "DE"], ["33", "FR"], ["44", "GB"], ["41", "CH"], ["43", "AT"],
-  ["34", "ES"], ["39", "IT"], ["45", "DK"], ["46", "SE"], ["47", "NO"], ["48", "PL"], ["352", "LU"],
-  ["353", "IE"], ["351", "PT"], ["971", "AE"], ["966", "SA"], ["974", "QA"], ["90", "TR"],
-  ["1", "US"], ["7", "RU"], ["81", "JP"], ["86", "CN"], ["91", "IN"],
+  ["31", "NL"], ["32", "BE"], ["49", "DE"], ["33", "FR"], ["44", "GB"], ["41", "CH"], ["43", "AT"], ["34", "ES"],
+  ["39", "IT"], ["352", "LU"], ["351", "PT"], ["353", "IE"], ["45", "DK"], ["46", "SE"], ["47", "NO"], ["358", "FI"],
+  ["354", "IS"], ["48", "PL"], ["420", "CZ"], ["421", "SK"], ["36", "HU"], ["40", "RO"], ["359", "BG"], ["30", "GR"],
+  ["385", "HR"], ["386", "SI"], ["381", "RS"], ["372", "EE"], ["371", "LV"], ["370", "LT"], ["380", "UA"], ["7", "RU"],
+  ["90", "TR"], ["357", "CY"], ["356", "MT"], ["971", "AE"], ["966", "SA"], ["974", "QA"], ["965", "KW"], ["973", "BH"],
+  ["968", "OM"], ["972", "IL"], ["962", "JO"], ["961", "LB"], ["20", "EG"], ["212", "MA"], ["27", "ZA"], ["234", "NG"],
+  ["254", "KE"], ["1", "US"], ["52", "MX"], ["55", "BR"], ["54", "AR"], ["57", "CO"], ["56", "CL"], ["91", "IN"],
+  ["92", "PK"], ["86", "CN"], ["852", "HK"], ["81", "JP"], ["82", "KR"], ["65", "SG"], ["60", "MY"], ["66", "TH"],
+  ["62", "ID"], ["63", "PH"], ["84", "VN"], ["61", "AU"], ["64", "NZ"],
 ] as const;
 
 export const CONTACT_PREFERENCES = ["phone", "whatsapp"] as const;

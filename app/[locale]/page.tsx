@@ -67,6 +67,14 @@ export default async function HomePage() {
      
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      {/* A refresh starts at the top. Browsers otherwise reopen the page where it was (and jump to a stale #anchor);
+          this runs before first paint and only for reloads, so back/forward navigation keeps its position. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            'try{var n=performance.getEntriesByType("navigation")[0];if(n&&n.type==="reload"){history.scrollRestoration="manual";if(location.hash)history.replaceState(null,"",location.pathname+location.search);var toTop=function(){scrollTo(0,0)};addEventListener("load",toTop);addEventListener("pageshow",toTop);setTimeout(toTop,150);setTimeout(toTop,600)}}catch(e){}',
+        }}
+      />
       <a className="skip-link" href="#main">
         {d.common.skipToContent}
       </a>

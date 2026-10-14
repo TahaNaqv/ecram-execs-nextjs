@@ -7,6 +7,9 @@ type Copy = { prev: string; next: string };
 /** The page's top-level blocks, in reading order: every <main> section, then the footer. */
 const blocks = () => Array.from(document.querySelectorAll<HTMLElement>("main > section, body footer"));
 
+/** The sticky header covers the top of whatever it sits above, so sections are scrolled to just beneath it. */
+const headerOffset = () => document.querySelector("header")?.getBoundingClientRect().height ?? 0;
+
 /**
  * Floating up/down arrows that move between sections rather than to the very top or bottom.
  * Up from partway through a section returns to that section's start; up from its start goes to
@@ -38,7 +41,8 @@ export function SectionNav({ copy }: { copy: Copy }) {
   };
 
   const go = (direction: -1 | 1) => {
-    const tops = blocks().map((el) => el.getBoundingClientRect().top + window.scrollY);
+    const offset = headerOffset();
+    const tops = blocks().map((el) => el.getBoundingClientRect().top + window.scrollY - offset);
     const here = window.scrollY;
     // A few pixels of slack so a section we have just landed on counts as "at its start".
     const slack = 24;

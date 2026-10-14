@@ -33,7 +33,7 @@ function questionsFor(vehicle: FleetVehicle, t: Dictionary, locale: "en" | "nl")
   if (specs && specs.amenities.length > 0) {
     items.push([t.qaFeaturesQ, interpolate(t.qaFeaturesA, { list: specs.amenities.map((a) => t[AMENITY_KEY[a]]).join(", ") })]);
   }
-  if (specs) items.push([t.qaLuggageQ, specs.luggage[locale]]);
+  if (specs?.luggage) items.push([t.qaLuggageQ, specs.luggage[locale]]);
   return items.slice(0, 5);
 }
 
