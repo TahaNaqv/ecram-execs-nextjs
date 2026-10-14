@@ -7,6 +7,7 @@
 # Note for GDPR: archives keep a document for up to 14 days after it is deleted from the site.
 set -euo pipefail
 umask 077            # backups hold personal data: readable by their owner only
+cd /                 # cron and sudo may start us in a folder this user cannot enter, which makes find/tar fail
 DIR=/var/backups/ecram
 STAMP=$(date +%F-%H%M)
 
