@@ -602,5 +602,8 @@ land with the public site to avoid a second migration against production data.
       footage with no burnt-in copy and no end-card: the script's 1:17–5:05 trim cuts off
       whatever the original Mercedes press film ended with. The only text on screen is a German
       licence plate and the car's own dashboard UI.
+      Update 15 Oct 2026: the film is now the client's own cut, `brand-film-v2.mp4` (same footage,
+      "ECRAM EXECS" on the plates). Sampled frames across its 114 s show no other burnt-in copy,
+      so a Dutch cut is still not needed; re-check if the client sends a longer edit with titles.
 - [ ] Dutch register on `drive-with-us` — plan assumes **je**. Confirm with the client; a premium
       brand may prefer **u** even for driver recruitment.

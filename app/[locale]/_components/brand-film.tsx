@@ -3,10 +3,12 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-// Built by scripts/build-brand-film.mts: the source cut to 1:17–5:05 at double speed, with background_music.mp3 as its soundtrack
-const SRC = "/assets/brand-film.mp4";
-const POSTER = "/assets/brand-film-poster.jpg";
-const DURATION = 114; // seconds; keep in step with the build script
+// The client's finished cut (ECRAM EXECS on the number plates), re-encoded from 1080p/10 Mbps (143 MB) to H.264 1080p30 at
+// 3 Mbps, AAC 160 kbps, faststart; the poster is its first frame. A new cut needs new filenames: /assets is cached for 7 days.
+// scripts/build-brand-film.mts built the earlier film (brand-film.mp4) and no longer feeds this one.
+const SRC = "/assets/brand-film-v2.mp4";
+const POSTER = "/assets/brand-film-poster-v2.jpg";
+const DURATION = 114; // seconds; keep in step with the film (114.08 s)
 
 const formatDuration = (seconds: number) => {
   const s = Math.round(seconds);
