@@ -23,7 +23,7 @@ export async function Hero() {
         <p className="rise d3 m-0 text-ink-150 text-[16px] font-normal max-w-[620px] [text-shadow:0_1px_12px_rgba(0,0,0,0.85)] md:[text-shadow:none] md:text-ink-300 md:text-[17px] md:font-light">
           {d.hero.intro}
         </p>
-        <div className="rise d4 mt-2 gap-3 items-stretch flex flex-col flex-wrap justify-center max-w-[360px] w-full md:gap-4 md:items-stretch md:flex-row md:max-w-none md:w-auto">
+        <div className="rise d4 mt-2 gap-3 items-stretch flex flex-col flex-wrap justify-center max-w-[360px] w-full md:gap-4 md:items-center md:flex-row md:max-w-none md:w-auto md:flex-nowrap">
           <a className="btn-fill py-0 px-5 no-underline items-center bg-ink-50 text-ink-950 inline-flex text-[12px] font-semibold justify-center tracking-[0.24em] min-h-[52px] uppercase md:py-0 md:px-[34px] md:justify-normal" href="#enquire">
             {d.common.requestQuote}
           </a>

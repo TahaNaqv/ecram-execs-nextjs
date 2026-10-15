@@ -2,7 +2,7 @@
 export const LOCALES = ["en", "nl"] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE: Locale = "nl";
 
 /**
  * `next/root-params` getters are typed `string | undefined` while other root layouts
