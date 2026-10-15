@@ -41,9 +41,11 @@ export type FleetVehicle = {
   name: string;
   /**
    * Up to eight photographs, first is the cover. Files live in /public. While only one exists the
-   * gallery shows no arrows.
+   * gallery shows no arrows. Order is exterior (front, side, rear), then rear seating, then cockpit.
    * NOTE: the current photographs are AI-generated. Replace with real photographs as they arrive
-   * (16:9, at least 1600px wide, same all-black styling).
+   * (16:9, at least 1600px wide, same all-black styling), under a new filename: /assets is cached by
+   * browsers for 7 days, so overwriting a file in place would keep showing the old photo. The `-gallery-N` files came from the client's
+   * Drive folder on 14 Oct 2026 (PNG, 1672x941) and were resized to 1600px JPEG.
    */
   images: string[];
   /** What the client has told us the vehicle is, shown as the badge. Confirm per model before launch. */
@@ -65,7 +67,16 @@ export const FLEET: FleetVehicle[] = [
   {
     key: "mercedes_vle_300",
     name: "Mercedes-Benz VLE 300",
-    images: ["/assets/fleet-mercedes-vle-300-v2.jpg"],
+    images: [
+      "/assets/fleet-mercedes-vle-300-v2.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-2.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-3.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-4.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-5.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-6.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-7.jpg",
+      "/assets/fleet-mercedes-vle-300-gallery-8.jpg",
+    ],
     drivetrain: "bev",
     specs: {
       passengers: 6,
@@ -89,7 +100,15 @@ export const FLEET: FleetVehicle[] = [
   {
     key: "audi",
     name: "Audi",
-    images: ["/assets/fleet-audi-v2.jpg"],
+    images: [
+      "/assets/fleet-audi-v2.jpg",
+      "/assets/fleet-audi-gallery-2.jpg",
+      "/assets/fleet-audi-gallery-3.jpg",
+      "/assets/fleet-audi-gallery-4.jpg",
+      "/assets/fleet-audi-gallery-5.jpg",
+      "/assets/fleet-audi-gallery-6.jpg",
+      "/assets/fleet-audi-gallery-7.jpg",
+    ],
     drivetrain: "bev",
     specs: {
       passengers: 5,
@@ -113,7 +132,15 @@ export const FLEET: FleetVehicle[] = [
   {
     key: "cadillac_escalade",
     name: "Cadillac Escalade",
-    images: ["/assets/fleet-cadillac-escalade-v2.jpg"],
+    images: [
+      "/assets/fleet-cadillac-escalade-v2.jpg",
+      "/assets/fleet-cadillac-escalade-gallery-2.jpg",
+      "/assets/fleet-cadillac-escalade-gallery-3.jpg",
+      "/assets/fleet-cadillac-escalade-gallery-4.jpg",
+      "/assets/fleet-cadillac-escalade-gallery-5.jpg",
+      "/assets/fleet-cadillac-escalade-gallery-6.jpg",
+      "/assets/fleet-cadillac-escalade-gallery-7.jpg",
+    ],
     drivetrain: "bev",
     specs: {
       passengers: 7,
@@ -138,7 +165,14 @@ export const FLEET: FleetVehicle[] = [
   {
     key: "range_rover",
     name: "Range Rover",
-    images: ["/assets/fleet-range-rover-v2.jpg"],
+    images: [
+      "/assets/fleet-range-rover-v2.jpg",
+      "/assets/fleet-range-rover-gallery-2.jpg",
+      "/assets/fleet-range-rover-gallery-3.jpg",
+      "/assets/fleet-range-rover-gallery-4.jpg",
+      "/assets/fleet-range-rover-gallery-5.jpg",
+      "/assets/fleet-range-rover-gallery-6.jpg",
+    ],
     drivetrain: "bev",
     specs: {
       passengers: 5,
@@ -160,7 +194,15 @@ export const FLEET: FleetVehicle[] = [
   {
     key: "hongqi_e_hs9",
     name: "Hongqi E-HS9",
-    images: ["/assets/fleet-hongqi-e-hs9-v2.jpg"],
+    images: [
+      "/assets/fleet-hongqi-e-hs9-v2.jpg",
+      "/assets/fleet-hongqi-e-hs9-gallery-2.jpg",
+      "/assets/fleet-hongqi-e-hs9-gallery-3.jpg",
+      "/assets/fleet-hongqi-e-hs9-gallery-4.jpg",
+      "/assets/fleet-hongqi-e-hs9-gallery-5.jpg",
+      "/assets/fleet-hongqi-e-hs9-gallery-6.jpg",
+      "/assets/fleet-hongqi-e-hs9-gallery-7.jpg",
+    ],
     drivetrain: "bev",
     specs: {
       passengers: 6,
