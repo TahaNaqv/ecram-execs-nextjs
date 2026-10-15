@@ -95,5 +95,5 @@ Existing rows are untouched: all new `quote_requests` columns are nullable.
 - [ ] Legal read of the new privacy section (§8, EN + NL) and the consent checkbox wording.
 - [ ] Native Dutch review of the new Dutch copy.
 - [ ] Vehicle specs: fill `specs` in `lib/fleet/vehicles.ts` once models and manufacturer figures are confirmed (each needs `verified.source/url/checkedOn/by`); only then do the specification answers appear.
-- [ ] Real fleet photos (up to 8 each) and 8 destination photos (add Eindhoven's image to `lib/site-config.ts` `destinations`).
+- [ ] Real fleet photos (up to 8 each; the current ones are AI-generated). All 8 destinations now have a photo; Eindhoven's is a stock photo (Pexels, free licence), so swap in the client's own if they supply one.
 - [ ] Run the e2e suite once against a local Postgres: `CORPORATE_OTP_SECRET=… npm run test:e2e` (the Corporate Partner spec skips without the secret). It has not been run yet.

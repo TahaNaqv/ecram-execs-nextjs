@@ -52,15 +52,16 @@ export const siteConfig: SiteConfig = {
   /** Rear cabin, shown beneath the fleet to illustrate the black executive leather interior. */
   fleetInterior: "/assets/fleet-interior-v2.jpg",
 
-  // Shown in this order. Eindhoven has no photograph yet, so it stays hidden until one is added.
+  // Shown in the client's order (their caption list); a destination without an image is hidden. Eindhoven's is a landscape crop of a photo by
+  // Mahmood Alhussein (Pexels, 34002112; free licence, no attribution required): the Blob and the Philips building.
   destinations: [
     { key: "amsterdam", image: "/assets/52de87fce1028743a6cc606de596dd57.jpg", focus: "50% 55%" },
     { key: "rotterdam", image: "/assets/c01091ac467f57c8ccacd1d28b8caa6f.jpg", focus: "60% 62%" },
     { key: "theHague", image: "/assets/3f6c76e3791d854e6974e39f5db1d665.jpg", focus: "60% 60%" },
     { key: "utrecht", image: "/assets/d38555c6a11a07329e901cbb09fa90bb.jpg", focus: "50% 60%" },
     { key: "maastricht", image: "/assets/015c3f4881474d5c1c3690861a6d2221.jpg", focus: "40% 62%" },
-    { key: "eindhoven", focus: "50% 55%" },
     { key: "bulbRegion", image: "/assets/9ba09fb8d24f8c76d2d91a2b893186bf.jpg", focus: "50% 55%", muted: true },
+    { key: "eindhoven", image: "/assets/destination-eindhoven.jpg", focus: "50% 55%" },
     { key: "kinderdijk", image: "/assets/74497cf7361df1d7830d0f8ebc1d8e7a.jpg", focus: "28% 50%" },
   ],
 
