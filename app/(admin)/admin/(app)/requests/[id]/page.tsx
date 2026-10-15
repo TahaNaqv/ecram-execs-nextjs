@@ -123,6 +123,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const rd = d.admin.requestDetail;
   const bespokeCopy = d.bespokeSection;
 
+  const allStops = bespoke
+    ? []
+    : [r.collection, ...(Array.isArray((r as any).destinations) && (r as any).destinations.length > 0 ? (r as any).destinations : [r.destination])].filter(Boolean);
+
   return (
     <div className="mt-4 animate-fade-in">
       {/* Header */}
@@ -200,22 +204,36 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                 </>
               ) : (
                 <>
-                  <ol className="relative">
-                    <span aria-hidden="true" className="absolute bottom-6 left-[7px] top-6 w-px bg-[repeating-linear-gradient(to_bottom,#d4d4d8_0_4px,transparent_4px_8px)]" />
-                    <li className="relative flex gap-4 pb-6">
-                      <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full border-[3px] border-zinc-950 bg-white" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.collection}</p>
-                        <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.collection}</p>
-                      </div>
-                    </li>
-                    <li className="relative flex gap-4">
-                      <span aria-hidden="true" className="mt-1 size-[15px] shrink-0 rounded-full bg-zinc-950 ring-4 ring-zinc-200" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{d.admin.requestDetail.destination}</p>
-                        <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{r.destination}</p>
-                      </div>
-                    </li>
+                  <ol className="relative flex flex-col gap-3 py-1">
+                    {allStops.map((stop, i, arr) => {
+                      const isFirst = i === 0;
+                      const isLast = i === arr.length - 1;
+
+                      return (
+                        <li key={i} className="relative flex items-center gap-4">
+                          <span aria-hidden="true" className="relative flex size-4 shrink-0 items-center justify-center">
+                            {!isFirst && (
+                              <span className="absolute -top-3.5 left-[7px] h-4 w-px bg-zinc-300" />
+                            )}
+                            <span
+                              className={`size-2 rounded-full ${
+                                isFirst
+                                  ? "size-[15px] rounded-full border-[3px] border-zinc-950 bg-white"
+                                  : isLast
+                                  ? "size-[15px] rounded-full bg-zinc-950 ring-4 ring-zinc-200"
+                                  : "size-2 bg-zinc-900 ring-2 ring-zinc-100"
+                              }`}
+                            />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                              {isFirst ? d.admin.requestDetail.collection : isLast ? d.admin.requestDetail.destination : `Stopover ${i}`}
+                            </p>
+                            <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{stop}</p>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ol>
 
                   <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-4">

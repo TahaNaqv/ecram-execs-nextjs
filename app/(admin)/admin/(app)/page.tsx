@@ -196,8 +196,9 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
         <>
           {/* Phones and tablets: stacked list */}
           <ul className="divide-y divide-zinc-100 lg:hidden">
-            {rows.map((r) => {
+            {rows.map((r: any) => {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
+              const destinationsArray = Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination];
               return (
                 <li key={r.id}>
                   <Link href={`/admin/requests/${r.id}`} className="flex gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
@@ -215,7 +216,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           (r.entity ?? r.itinerary)
                         ) : (
                           <>
-                            {r.collection} <span className="text-zinc-400">→</span> {r.destination}
+                            {r.collection} <span className="text-zinc-400">→</span> {destinationsArray.join(" → ")}
                           </>
                         )}
                       </p>
@@ -249,13 +250,16 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {rows.map((r) => {
+                {rows.map((r: any) => {
                   const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
                   const pickupAt = r.pickupAt ? pickupInstant(r.pickupAt) : null;
                   const past = pickupAt ? isPast(pickupAt) : false;
-                  // A bespoke programme has no single pick-up and drop-off: show who it is for and what it is.
-                  const from = r.collection ?? r.entity ?? "";
-                  const to = r.destination ?? r.itinerary ?? "";
+                  
+                  const isBespoke = r.collection === null;
+                  const allStops = isBespoke
+                    ? []
+                    : [r.collection, ...(Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination])].filter(Boolean);
+
                   return (
                     <tr key={r.id} className="group relative transition-colors hover:bg-zinc-50/80">
                       <td className="py-3.5 pl-5 pr-3">
@@ -277,17 +281,39 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         </div>
                       </td>
                       <td className="max-w-70 px-3 py-3.5">
-                        <div className="flex gap-2.5">
-                          <span aria-hidden="true" className="mt-1.5 flex flex-col items-center">
-                            <span className="size-1.5 rounded-full border border-zinc-400" />
-                            <span className="my-0.5 h-3 w-px bg-zinc-300" />
-                            <span className="size-1.5 rounded-full bg-zinc-900" />
-                          </span>
-                          <div className="min-w-0 text-[13px] leading-5 text-zinc-700">
-                            <p className="truncate" title={from}>{from}</p>
-                            <p className="truncate" title={to}>{to}</p>
+                        {isBespoke ? (
+                          <div className="text-[13px] leading-5 text-zinc-700">
+                            <p className="truncate" title={r.entity ?? ""}>{r.entity}</p>
+                            <p className="truncate" title={r.itinerary ?? ""}>{r.itinerary}</p>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="relative flex flex-col gap-1.5 py-0.5 text-[13px] leading-4 text-zinc-700">
+                            {allStops.map((stop, i, arr) => {
+                              const isFirst = i === 0;
+                              const isLast = i === arr.length - 1;
+                              
+                              return (
+                                <div key={i} className="flex items-center gap-2.5">
+                                  <span aria-hidden="true" className="relative flex size-2 shrink-0 items-center justify-center">
+                                    {!isFirst && (
+                                      <span className="absolute -top-3 left-[3px] h-3 w-px bg-zinc-300" />
+                                    )}
+                                    <span
+                                      className={`size-1.5 rounded-full ${
+                                        isFirst
+                                          ? "border border-zinc-400 bg-white"
+                                          : isLast
+                                          ? "bg-zinc-950"
+                                          : "bg-zinc-900 ring-2 ring-zinc-100"
+                                      }`}
+                                    />
+                                  </span>
+                                  <span className="truncate" title={stop as string}>{stop}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5">
                         {pickup && pickupAt ? (
