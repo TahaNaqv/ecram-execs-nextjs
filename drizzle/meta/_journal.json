@@ -57,6 +57,13 @@
       "when": 1791901104805,
       "tag": "0007_corporate_partner",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792095558440,
+      "tag": "0008_flowery_siren",
+      "breakpoints": true
     }
   ]
 }

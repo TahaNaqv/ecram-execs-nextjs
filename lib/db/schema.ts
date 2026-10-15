@@ -41,6 +41,7 @@ export const quoteRequests = pgTable(
     // programme has an itinerary, not a single pick-up and drop-off.
     collection: text("collection"),
     destination: text("destination"),
+    destinations: text("destinations").array(),
     // Wall-clock time in the Netherlands (Europe/Amsterdam), as entered by the client
     pickupAt: timestamp("pickup_at", { mode: "string" }),
     service: serviceKind("service").notNull(),
