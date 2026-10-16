@@ -111,7 +111,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const { id } = await params;
   const data = await getRequest(id);
   if (!data) notFound();
-  const { request: r, events } = data as { request: QuoteRequest; events: any[] };
+  const { request: r, events } = data as { 
+    request: QuoteRequest; 
+    events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
+  };
   const d = await adminDictionary();
   const serviceLabels = d.services;
   const waNumber = r.phone.replace(/[^\d]/g, "");
