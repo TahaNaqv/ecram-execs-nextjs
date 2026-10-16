@@ -17,11 +17,6 @@ const AMENITY_KEY = {
   refreshments: "amenityRefreshments",
 } as const satisfies Record<Amenity, keyof Dictionary>;
 
-/**
- * At most five questions per vehicle. A question about specifications is only asked when the vehicle
- * has verified specifications, so an unconfirmed figure is never shown; the booking duration is house
- * policy and applies to every vehicle.
- */
 function questionsFor(vehicle: FleetVehicle, t: Dictionary, locale: "en" | "nl"): [question: string, answer: string][] {
   const { specs } = vehicle;
   const items: [string, string][] = [];
@@ -60,40 +55,48 @@ export async function Fleet() {
           </p>
         </div>
 
-        <ul className="p-0 m-0 gap-6 list-none grid grid-cols-1 sm:grid-cols-2 md:gap-8 lg:grid-cols-6">
+        {/* Increased grid column gap (gap-x-8 md:gap-x-12) to create breathing room between the bottom cards */}
+        <ul className="p-0 m-0 gap-y-6 gap-x-8 md:gap-y-8 md:gap-x-12 list-none grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 items-stretch justify-center">
           {FLEET.map((vehicle, i) => {
             const images = vehicle.images.slice(0, MAX_GALLERY_IMAGES);
             const alt = interpolate(t.imageAlt, { name: vehicle.name });
+            
+            const spanClass = 
+              i === 3 ? "lg:col-span-2 lg:col-start-2" : 
+              i === 4 ? "lg:col-span-2 lg:col-start-4" : 
+              "lg:col-span-2";
+
             return (
               <li
                 key={vehicle.key}
-                // Five cards: three across the first row, two wider ones beneath, so no row is left ragged.
-                className={`reveal gap-[14px] flex flex-col ${i >= 3 ? "lg:col-span-3" : "lg:col-span-2"}`}
+                className={`reveal flex flex-col h-full ${spanClass}`}
               >
                 {images.length > 0 ? (
-                  <VehicleGallery
-                    name={vehicle.name}
-                    images={images}
-                    alt={alt}
-                    copy={{
-                      label: t.galleryLabel,
-                      prev: t.galleryPrev,
-                      next: t.galleryNext,
-                      enlarge: t.galleryEnlarge,
-                      close: t.galleryClose,
-                      counter: t.galleryCounter,
-                      lightbox: t.galleryLightbox,
-                    }}
-                  />
+                  <div className="w-full aspect-[16/9] relative">
+                    <VehicleGallery
+                      name={vehicle.name}
+                      images={images}
+                      alt={alt}
+                      copy={{
+                        label: t.galleryLabel,
+                        prev: t.galleryPrev,
+                        next: t.galleryNext,
+                        enlarge: t.galleryEnlarge,
+                        close: t.galleryClose,
+                        counter: t.galleryCounter,
+                        lightbox: t.galleryLightbox,
+                      }}
+                    />
+                  </div>
                 ) : (
-                  // No photograph yet: the name stands in on the same canvas.
-                  <div className="border border-ink-800 items-center aspect-video box-border flex justify-center bg-ink-900">
+                  <div className="border border-ink-800 items-center aspect-[16/9] shrink-0 box-border flex justify-center bg-ink-900 w-full">
                     <span className="px-6 text-ink-150 text-center font-serif text-[clamp(26px,3vw,38px)] font-light" aria-hidden="true">
                       {vehicle.name}
                     </span>
                   </div>
                 )}
-                <div className="gap-4 items-baseline flex justify-between">
+                
+                <div className="gap-4 items-baseline flex justify-between pt-[14px]">
                   <h3 className="m-0 text-white font-serif text-[22px] font-light md:text-[26px]">
                     {vehicle.name}
                   </h3>
@@ -104,7 +107,7 @@ export async function Fleet() {
                   )}
                 </div>
 
-                <div className="border-t border-t-ink-800">
+                <div className="border-t border-t-ink-800 my-4">
                   {questionsFor(vehicle, t, locale).map(([question, answer]) => (
                     <details key={question} name={`qa-${vehicle.key}`} className="group border-b border-b-ink-800">
                       <summary className="py-3 gap-4 items-center flex cursor-pointer justify-between list-none text-ink-150 text-[14px] [&::-webkit-details-marker]:hidden">
@@ -120,14 +123,16 @@ export async function Fleet() {
                   ))}
                 </div>
 
-                <BookLink
-                  href={`${home}?vehicle=${vehicle.key}#enquire`}
-                  vehicleKey={vehicle.key}
-                  label={interpolate(t.bookAria, { name: vehicle.name })}
-                  className="btn-fill mt-auto py-0 px-5 no-underline items-center bg-ink-50 text-ink-950 inline-flex text-[12px] font-semibold justify-center tracking-[0.24em] min-h-[48px] uppercase"
-                >
-                  {t.bookCta}
-                </BookLink>
+                <div className="mt-auto pt-4">
+                  <BookLink
+                    href={`${home}?vehicle=${vehicle.key}#enquire`}
+                    vehicleKey={vehicle.key}
+                    label={interpolate(t.bookAria, { name: vehicle.name })}
+                    className="btn-fill py-0 px-5 no-underline items-center bg-ink-50 text-ink-950 inline-flex text-[12px] font-semibold justify-center tracking-[0.24em] min-h-[48px] uppercase w-full"
+                  >
+                    {t.bookCta}
+                  </BookLink>
+                </div>
               </li>
             );
           })}
