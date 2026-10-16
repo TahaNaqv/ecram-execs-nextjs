@@ -24,12 +24,6 @@ const Chevron = ({ direction }: { direction: "left" | "right" }) => (
   </svg>
 );
 
-/**
- * A vehicle's photographs: swipe or use the arrows to browse, and the button in the corner opens the
- * current photo large. The strip is native scroll-snap, so touch scrolling and momentum are the
- * browser's own; the enlarged view is a native <dialog>, which supplies the focus trap, Escape to
- * close and restoring focus to the button for free.
- */
 export function VehicleGallery({ name, images, alt, copy }: { name: string; images: string[]; alt: string; copy: GalleryCopy }) {
   const [index, setIndex] = useState(0);
   const track = useRef<HTMLDivElement>(null);
@@ -61,20 +55,19 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
   const status = interpolate(copy.counter, { current: index + 1, total: images.length });
 
   return (
-    <div className="border border-ink-800 relative overflow-hidden bg-ink-900" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
+    <div className="border border-ink-800 relative overflow-hidden bg-ink-900 w-full h-full" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
       <div
         ref={track}
         onScroll={onScroll}
-        className="flex aspect-video snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {images.map((src, i) => (
-          <div key={src} className="relative aspect-video w-full shrink-0 snap-center" aria-hidden={i !== index}>
+          <div key={src} className="relative h-full w-full shrink-0 snap-center" aria-hidden={i !== index}>
             <Image
-              className="block h-full w-full object-cover"
+              className="block h-full w-full object-cover object-center"
               src={src}
               alt={many ? `${alt} (${i + 1}/${images.length})` : alt}
-              width={1600}
-              height={900}
+              fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           </div>
