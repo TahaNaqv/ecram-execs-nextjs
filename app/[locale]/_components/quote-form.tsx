@@ -1,7 +1,7 @@
 "use client";
 
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useRef } from "react";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
 import { VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { SELECT_VEHICLE_EVENT } from "./book-link";
@@ -10,7 +10,7 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import type { QuoteField } from "@/lib/quotes/validation";
-import { control, Field } from "./form-field";
+import { control } from "./form-field";
 
 export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
@@ -19,7 +19,7 @@ export type QuoteFormCopy = Record<
   | "labelVehicle" | "vehicleAdvise" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
->;
+> & { labelAddStop?: string; labelRemoveStop?: string };
 
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
@@ -37,23 +37,33 @@ export function QuoteForm({
 }) {
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
 
-  // The vehicle can be chosen from the fleet section above ("Book"), either by an event while the page is
-  // open or by `?vehicle=` when the link was followed from elsewhere. It is state rather than a default
-  // value because it has to change after the form has mounted.
   const [vehicle, setVehicle] = useState("");
-  // Until the visitor touches the select, what the server echoed after a failed attempt is shown
   const [vehicleTouched, setVehicleTouched] = useState(false);
+
+  // Additional stops state (Max 5) with unique IDs for correct deletion handling
+  const [stops, setStops] = useState<{ id: string; value: string }[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const isChoice = (value: string | null): value is VehicleChoice => !!value && (VEHICLE_CHOICES as readonly string[]).includes(value);
     const fromQuery = new URLSearchParams(window.location.search).get("vehicle");
-    // Deferred a tick: this runs after hydration, and the select must first render with the server's value
     const initial = isChoice(fromQuery) ? window.setTimeout(() => setVehicle(fromQuery), 0) : undefined;
     const onSelect = (e: Event) => {
       const chosen = (e as CustomEvent<string>).detail;
       if (isChoice(chosen)) {
         setVehicle(chosen);
         setVehicleTouched(true);
-        // Land on the first thing left to fill in, once the smooth scroll has arrived
         window.setTimeout(() => document.getElementById("q-collection")?.focus({ preventScroll: true }), 600);
       }
     };
@@ -82,103 +92,249 @@ export function QuoteForm({
   const describedBy = (f: QuoteField) => (err[f] ? `q-${f}-error` : undefined);
 
   return (
-    // Remount after each failed attempt so fields re-fill from the submitted values
     <form key={state.status === "error" ? state.attempt : 0} action={action} noValidate>
       <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2 xl:grid-cols-5">
-        <Field label={t.labelCollection} name="collection" error={err.collection}>
-          <input id="q-collection" name="collection" type="text" placeholder={t.phCollection} required
-            maxLength={200} autoComplete="off" defaultValue={v.collection} aria-invalid={!!err.collection}
-            aria-describedby={describedBy("collection")} className={control} />
-        </Field>
-        <Field label={t.labelDestination} name="destination" error={err.destination}>
-          <input id="q-destination" name="destination" type="text" placeholder={t.phDestination} required
-            maxLength={200} autoComplete="off" defaultValue={v.destination} aria-invalid={!!err.destination}
-            aria-describedby={describedBy("destination")} className={control} />
-        </Field>
-        <Field label={t.labelDateTime} name="pickupAt" error={err.pickupAt}>
-          <input id="q-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt}
-            aria-invalid={!!err.pickupAt} aria-describedby={describedBy("pickupAt")} className={control} />
-        </Field>
-        <Field label={t.labelService} name="service" error={err.service}>
-          <select id="q-service" name="service" defaultValue={v.service || SERVICES[0]} className={control}>
-            {SERVICES.map((s) => (
-              <option key={s} value={s}>
-                {serviceLabels[s]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t.labelPassengers} name="passengers" error={err.passengers}>
-          <select id="q-passengers" name="passengers" defaultValue={v.passengers || ""} className={control}>
-            <option value="">{t.selectPlaceholder}</option>
-            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-            <option value="8">{t.eightOrMore}</option>
-          </select>
-        </Field>
+        
+        {/* Collection */}
+        <div className="flex flex-col bg-white">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-collection" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelCollection}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <input id="q-collection" name="collection" type="text" placeholder={t.phCollection} required
+              maxLength={200} autoComplete="off" defaultValue={v.collection} aria-invalid={!!err.collection}
+              aria-describedby={describedBy("collection")} className={control} />
+          </div>
+        </div>
 
-        <Field label={t.labelName} name="name" error={err.name}>
-          <input id="q-name" name="name" type="text" placeholder={t.phName} required maxLength={120}
-            autoComplete="name" defaultValue={v.name} aria-invalid={!!err.name}
-            aria-describedby={describedBy("name")} className={control} />
-        </Field>
-        <Field label={t.labelEmail} name="email" error={err.email} className="xl:col-span-2">
-          <input id="q-email" name="email" type="email" placeholder={t.phEmail} required maxLength={200}
-            autoComplete="email" defaultValue={v.email} aria-invalid={!!err.email}
-            aria-describedby={describedBy("email")} className={control} />
-        </Field>
-        {/* One phone field: a small country selector (Netherlands by default) sits inside it, beside the number */}
-        <Field label={t.labelPhone} name="phone" error={err.phone ?? err.phoneCountry} className="md:col-span-2 xl:col-span-2">
-          <div className="flex items-center gap-3">
-            <select id="q-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} defaultValue={v.phoneCountry || "31"}
-              className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-ink-225 bg-transparent p-0 pr-2 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]">
-              {COUNTRY_CODES.map(([code, iso]) => (
-                <option key={code} value={code}>
-                  {iso} +{code}
+        {/* Destination with Clean Trigger Button & Dropdown */}
+        <div className="relative flex flex-col bg-white" ref={dropdownRef}>
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-destination" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelDestination}
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-50 hover:bg-ink-100 border border-ink-200 px-2.5 py-1 rounded-sm shadow-2xs"
+            >
+              <span>{stops.length > 0 ? `Stops (${stops.length}/5)` : "+ Add Stop"}</span>
+            </button>
+          </div>
+
+          <div className="px-3 pb-2.5">
+            <input id="q-destination" name="destination" type="text" placeholder={t.phDestination} required
+              maxLength={200} autoComplete="off" defaultValue={v.destination} aria-invalid={!!err.destination}
+              aria-describedby={describedBy("destination")} className={control} />
+          </div>
+
+          {/* Hidden inputs using unique IDs to pass exact values on submit */}
+          {stops.map((stop) => (
+            <input key={stop.id} type="hidden" name="destinations" value={stop.value} />
+          ))}
+
+          {/* Elegant Dropdown Popover (Capped at 5 stops) */}
+          {isOpen && (
+            <div className="absolute left-0 right-0 top-[calc(100%+2px)] z-50 bg-white border border-ink-225 shadow-xl p-3 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between text-[11px] tracking-wider uppercase text-ink-500 font-semibold border-b border-ink-100 pb-1.5">
+                <span>Additional Stopovers (Max 5)</span>
+                <button type="button" onClick={() => setIsOpen(false)} className="text-ink-400 hover:text-ink-950">✕</button>
+              </div>
+
+              {stops.length === 0 && (
+                <p className="text-[12px] text-ink-475 m-0 italic">No extra stopovers added yet.</p>
+              )}
+
+              {stops.map((stop, index) => (
+                <div key={stop.id} className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder={`Stop ${index + 2} (Optional)`}
+                    maxLength={200}
+                    defaultValue={stop.value}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStops(prev => prev.map(s => s.id === stop.id ? { ...s, value: val } : s));
+                    }}
+                    className="w-full bg-ink-50 border border-ink-225 text-[13px] px-2 py-1.5 text-ink-950 placeholder:text-ink-400 focus:outline-none focus:border-ink-950"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setStops(prev => prev.filter(s => s.id !== stop.id))}
+                    className="text-ink-400 hover:text-red-600 px-1.5 text-sm transition-colors"
+                    title="Remove stop"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+
+              {stops.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => setStops(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), value: "" }])}
+                  className="mt-1 w-full py-1.5 bg-ink-950 text-white text-[11px] font-semibold tracking-[0.15em] uppercase hover:bg-ink-800 transition-colors text-center"
+                >
+                  + Add Stopover
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Date & Time */}
+        <div className="flex flex-col bg-white">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-pickupAt" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelDateTime}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <input id="q-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt}
+              aria-invalid={!!err.pickupAt} aria-describedby={describedBy("pickupAt")} className={control} />
+          </div>
+        </div>
+
+        {/* Service */}
+        <div className="flex flex-col bg-white">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-service" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelService}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <select id="q-service" name="service" defaultValue={v.service || SERVICES[0]} className={control}>
+              {SERVICES.map((s) => (
+                <option key={s} value={s}>
+                  {serviceLabels[s]}
                 </option>
               ))}
             </select>
-            <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={20}
-              autoComplete="tel-national" defaultValue={v.phone} aria-invalid={!!err.phone}
-              aria-describedby={describedBy("phone")} className={control} />
           </div>
-        </Field>
+        </div>
 
-        <Field label={t.labelNotes} name="notes" error={err.notes} className="col-span-full">
-          <textarea id="q-notes" name="notes" rows={4} placeholder={t.phNotes} maxLength={2000}
-            autoComplete="off" defaultValue={v.notes} aria-invalid={!!err.notes}
-            aria-describedby={describedBy("notes")}
-            className={`${control} min-h-[104px] resize-y`} />
-        </Field>
-        <Field label={t.labelVehicle} name="vehicle" error={err.vehicle} className="col-span-full">
-          <select id="q-vehicle" name="vehicle" value={vehicleTouched ? vehicle : vehicle || v.vehicle || ""}
-            onChange={(e) => {
-              setVehicleTouched(true);
-              setVehicle(e.target.value);
-            }}
-            aria-invalid={!!err.vehicle} aria-describedby={describedBy("vehicle")} className={control}>
-            <option value="">{t.selectPlaceholder}</option>
-            {vehicles.map(({ key, name }) => (
-              <option key={key} value={key}>
-                {name}
-              </option>
-            ))}
-            <option value="advise">{t.vehicleAdvise}</option>
-          </select>
-        </Field>
+        {/* Passengers */}
+        <div className="flex flex-col bg-white">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-passengers" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelPassengers}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <select id="q-passengers" name="passengers" defaultValue={v.passengers || ""} className={control}>
+              <option value="">{t.selectPlaceholder}</option>
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+              <option value="8">{t.eightOrMore}</option>
+            </select>
+          </div>
+        </div>
 
-        {/* A Server Action cannot read `next/root-params`, so the form carries the locale. */}
+        {/* Full Name */}
+        <div className="flex flex-col bg-white">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-name" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelName}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <input id="q-name" name="name" type="text" placeholder={t.phName} required maxLength={120}
+              autoComplete="name" defaultValue={v.name} aria-invalid={!!err.name}
+              aria-describedby={describedBy("name")} className={control} />
+          </div>
+        </div>
+
+        {/* Email */}
+        <div className="flex flex-col bg-white xl:col-span-2">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-email" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelEmail}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <input id="q-email" name="email" type="email" placeholder={t.phEmail} required maxLength={200}
+              autoComplete="email" defaultValue={v.email} aria-invalid={!!err.email}
+              aria-describedby={describedBy("email")} className={control} />
+          </div>
+        </div>
+
+        {/* Phone */}
+        <div className="flex flex-col bg-white md:col-span-2 xl:col-span-2">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-phone" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelPhone}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <div className="flex items-center gap-3">
+              <select id="q-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} defaultValue={v.phoneCountry || "31"}
+                className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-ink-225 bg-transparent p-0 pr-2 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]">
+                {COUNTRY_CODES.map(([code, iso]) => (
+                  <option key={code} value={code}>
+                    {iso} +{code}
+                  </option>
+                ))}
+              </select>
+              <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={20}
+                autoComplete="tel-national" defaultValue={v.phone} aria-invalid={!!err.phone}
+                aria-describedby={describedBy("phone")} className={control} />
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="flex flex-col bg-white col-span-full">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-notes" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelNotes}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <textarea id="q-notes" name="notes" rows={4} placeholder={t.phNotes} maxLength={2000}
+              autoComplete="off" defaultValue={v.notes} aria-invalid={!!err.notes}
+              aria-describedby={describedBy("notes")}
+              className={`${control} min-h-[104px] resize-y`} />
+          </div>
+        </div>
+
+        {/* Vehicle */}
+        <div className="flex flex-col bg-white col-span-full">
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
+            <label htmlFor="q-vehicle" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
+              {t.labelVehicle}
+            </label>
+          </div>
+          <div className="px-3 pb-2.5">
+            <select id="q-vehicle" name="vehicle" value={vehicleTouched ? vehicle : vehicle || v.vehicle || ""}
+              onChange={(e) => {
+                setVehicleTouched(true);
+                setVehicle(e.target.value);
+              }}
+              aria-invalid={!!err.vehicle} aria-describedby={describedBy("vehicle")} className={control}>
+              <option value="">{t.selectPlaceholder}</option>
+              {vehicles.map(({ key, name }) => (
+                <option key={key} value={key}>
+                  {name}
+                </option>
+              ))}
+              <option value="advise">{t.vehicleAdvise}</option>
+            </select>
+          </div>
+        </div>
+
         <input type="hidden" name="locale" value={locale} />
 
-        {/* Honeypot for bots — hidden from people and assistive tech */}
         <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
           <input type="text" name="company_website" tabIndex={-1} autoComplete="off" defaultValue="" />
         </div>
 
       </div>
+
       <div className="mt-6 flex justify-center">
         <button
           type="submit"
@@ -188,6 +344,7 @@ export function QuoteForm({
           {pending ? t.sending : t.submit}
         </button>
       </div>
+
       <p aria-live="polite" className={`mt-3 mb-0 text-[13px] ${state.status === "error" ? "text-error" : "text-ink-475"}`}>
         {state.status === "error" ? (
           state.message

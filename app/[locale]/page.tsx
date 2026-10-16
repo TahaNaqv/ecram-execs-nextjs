@@ -82,11 +82,12 @@ export default async function HomePage() {
       <main id="main">
         <Hero />
         <Enquiry />
+        <Fleet />
         <Concierge />
         <Statement />
         <Services />
         <Experience />
-        <Fleet />
+        
         <ElectricBand />
         <RegionsMarquee />
         <Destinations />

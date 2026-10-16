@@ -2,19 +2,6 @@ import Image from "next/image";
 import { siteConfig } from "@/lib/site-config";
 import { getDict } from "@/lib/i18n/get-dictionary";
 
-/**
- * Four-column grid: a tall first photo on the left, rows of three beside it, and the final photo across
- * the full width. If the middle photos don't fill their last row, the final one of them stretches so
- * the grid never ends ragged — which is what lets a destination come and go as photographs arrive.
- */
-function stretchClass(count: number, index: number) {
-  if (count < 3 || index !== count - 2) return "";
-  const remainder = (count - 2) % 3;
-  if (remainder === 2) return "md:col-[span_2/auto]";
-  if (remainder === 1) return "md:col-[span_2/auto] lg:col-[span_3/auto]";
-  return "";
-}
-
 export async function Destinations() {
   const d = await getDict();
   const t = d.destinationsSection;
@@ -41,30 +28,24 @@ export async function Destinations() {
             </p>
           </div>
         </div>
-        <div className="gap-3 grid grid-cols-[1fr] xs:grid-cols-[1fr_1fr] md:gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {shown.map((place, i) => {
-            const first = i === 0;
-            const last = i === shown.length - 1;
-            const stretch = last && !first ? "md:col-[1/-1]" : stretchClass(shown.length, i);
+        {/* Uniform 4-column grid where every card has the exact same dimensions */}
+        <div className="gap-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {shown.map((place) => {
             return (
               <figure
                 key={place.key}
-                className={`dest reveal m-0 gap-[14px] row-auto flex flex-col ${
-                  first ? "col-[1/-1] md:row-[span_2/auto] md:col-auto" : "col-auto"
-                } ${stretch}`}
+                className="dest reveal m-0 gap-[14px] flex flex-col"
               >
-                <div
-                  className={`shot flex-none h-[200px] min-h-0 ${
-                    first ? "xs:h-[300px] md:flex-1 md:min-h-[560px] md:h-auto" : "xs:h-[180px] md:h-[240px] md:flex-initial md:min-h-auto"
-                  }`}
-                >
+                <div className="shot relative h-[220px] w-full md:h-[260px]">
                   <Image
-                    className={place.muted ? "[filter:saturate(0.4)_contrast(1.05)_brightness(0.7)]" : undefined}
-                    style={{ objectPosition: place.focus }}
+                    style={{ 
+                      objectPosition: place.focus,
+                      filter: "brightness(1.15) contrast(1.1) saturate(1.2)" 
+                    }}
                     src={place.image!}
                     alt={t[`${place.key}Alt`]}
                     fill
-                    sizes="(max-width: 760px) 50vw, 40vw"
+                    sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw"
                   />
                 </div>
                 <figcaption className="text-ink-250 font-display text-[10px] tracking-[0.06em] md:text-[12px] md:tracking-[0.1em]">

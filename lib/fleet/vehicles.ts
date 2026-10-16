@@ -75,7 +75,6 @@ export const FLEET: FleetVehicle[] = [
       "/assets/fleet-mercedes-vle-300-gallery-5.jpg",
       "/assets/fleet-mercedes-vle-300-gallery-6.jpg",
       "/assets/fleet-mercedes-vle-300-gallery-7.jpg",
-      "/assets/fleet-mercedes-vle-300-gallery-8.jpg",
     ],
     drivetrain: "bev",
     specs: {
@@ -171,6 +170,7 @@ export const FLEET: FleetVehicle[] = [
       "/assets/fleet-range-rover-gallery-3.jpg",
       "/assets/fleet-range-rover-gallery-4.jpg",
       "/assets/fleet-range-rover-gallery-5.jpg",
+      "/assets/fleet-range-rover-v3.jpg",
       "/assets/fleet-range-rover-gallery-6.jpg",
     ],
     drivetrain: "bev",

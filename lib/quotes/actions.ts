@@ -27,6 +27,14 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   // The visitor's language came in with the form; every message below is theirs to read.
   const { forms: t } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(FIELDS.map((f) => [f, String(formData.get(f) ?? "")]));
+  
+  // Extract all dynamic additional stopovers submitted from the form (capped at 5)
+  const rawDestinations = formData.getAll("destinations");
+  const destinations = rawDestinations
+    .map((d) => String(d).trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
   const attempt = prev.status === "error" ? prev.attempt + 1 : 1;
   const fail = (message: string, fieldErrors: Partial<Record<QuoteField, string>> = {}) =>
     ({ status: "error", message, fieldErrors, values, attempt }) as const;
@@ -69,6 +77,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
         .insert(schema.quoteRequests)
         .values({
           ...parsed.data,
+          destinations: destinations.length > 0 ? destinations : null, // Saves the stops array to Postgres
           reference: makeReference("EE"),
           ipHash,
           userAgent,
