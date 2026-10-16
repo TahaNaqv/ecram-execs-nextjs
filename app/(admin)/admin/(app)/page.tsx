@@ -5,6 +5,7 @@ import { formatEuro, formatRelative, formatTimestamp, isPast, pickupInstant, pic
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
 import { REQUEST_STATUSES, serviceLabel } from "@/lib/quotes/constants";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import type { QuoteRequest } from "@/lib/db/schema";
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -196,7 +197,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
         <>
           {/* Phones and tablets: stacked list */}
           <ul className="divide-y divide-zinc-100 lg:hidden">
-            {rows.map((r: any) => {
+            {rows.map((r: QuoteRequest) => {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
               const destinationsArray = Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination];
               return (
@@ -250,7 +251,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {rows.map((r: any) => {
+                {rows.map((r: QuoteRequest) => {
                   const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
                   const pickupAt = r.pickupAt ? pickupInstant(r.pickupAt) : null;
                   const past = pickupAt ? isPast(pickupAt) : false;

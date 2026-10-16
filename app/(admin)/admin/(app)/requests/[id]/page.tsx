@@ -7,6 +7,7 @@ import { getRequest } from "@/lib/admin/queries";
 import { serviceLabel, type RequestStatus } from "@/lib/quotes/constants";
 import { eventLabels, renderEvent } from "@/lib/admin/events";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import type { QuoteRequest } from "@/lib/db/schema";
 import {
   ActivityIcon,
   ArrowLeftIcon,
@@ -110,7 +111,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const { id } = await params;
   const data = await getRequest(id);
   if (!data) notFound();
-  const { request: r, events } = data;
+  const { request: r, events } = data as { request: QuoteRequest; events: any[] };
   const d = await adminDictionary();
   const serviceLabels = d.services;
   const waNumber = r.phone.replace(/[^\d]/g, "");
@@ -125,7 +126,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
   const allStops = bespoke
     ? []
-    : [r.collection, ...(Array.isArray((r as any).destinations) && (r as any).destinations.length > 0 ? (r as any).destinations : [r.destination])].filter(Boolean);
+    : [r.collection, ...(Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination])].filter(Boolean);
 
   return (
     <div className="mt-4 animate-fade-in">
