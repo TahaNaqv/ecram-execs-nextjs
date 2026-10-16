@@ -59,8 +59,10 @@ export async function Destinations() {
                   }`}
                 >
                   <Image
-                    className={place.muted ? "[filter:saturate(0.4)_contrast(1.05)_brightness(0.7)]" : undefined}
-                    style={{ objectPosition: place.focus }}
+                    style={{ 
+                      objectPosition: place.focus,
+                      filter: "brightness(1.15) contrast(1.1) saturate(1.2)" 
+                    }}
                     src={place.image!}
                     alt={t[`${place.key}Alt`]}
                     fill
