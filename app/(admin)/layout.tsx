@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
+// Use an empty object or omit params since admin routes don't use [locale]
+export default async function AdminRootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={fontVariables}>
       <body className="min-h-screen font-sans antialiased">{children}</body>
