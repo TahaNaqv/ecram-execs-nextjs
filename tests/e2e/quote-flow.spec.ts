@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { E2E_ADMIN, fillAdminLogin } from "./helpers";
+import { fillAdminLogin } from "./helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 
@@ -111,9 +111,7 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
 
   // The admin is English, so the same request must read back as the English label.
   await page.goto("/admin/login");
-  await page.getByLabel(en.admin.common.email).fill(E2E_ADMIN.email);
-  await page.getByLabel(en.admin.login.password).fill(E2E_ADMIN.password);
-  await page.getByRole("button", { name: en.admin.login.signIn }).click();
+  await fillAdminLogin(page);
   await page.getByPlaceholder(en.admin.requests.searchPlaceholder).fill(reference);
   await page.getByRole("button", { name: en.admin.common.search }).click();
 
@@ -124,9 +122,7 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
 
 test("an admin can switch the panel language and it sticks", async ({ page }) => {
   await page.goto("/admin/login");
-  await page.getByLabel(en.admin.common.email).fill(E2E_ADMIN.email);
-  await page.getByLabel(en.admin.login.password).fill(E2E_ADMIN.password);
-  await page.getByRole("button", { name: en.admin.login.signIn }).click();
+  await fillAdminLogin(page);
   await expect(page.getByRole("heading", { name: en.admin.requests.title })).toBeVisible();
 
   const switcher = page.getByRole("form", { name: en.admin.common.language });

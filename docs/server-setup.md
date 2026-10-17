@@ -107,7 +107,7 @@ Set at least:
 |---|---|
 | `DATABASE_URL` and `DATABASE_URL_DIRECT` | `postgres://ecram:PASSWORD@127.0.0.1:5432/ecram` (both the same here) |
 | `SITE_URL` | `https://example.nl` |
-| `DOCUMENTS_DIR` | `/var/lib/ecram-execs/documents` — where driver documents are stored (create it first, below). Download and upload links are signed with a key derived from `DOCUMENTS_SECRET` (or `IP_HASH_SALT` if that is unset): **treat it as a secret and don't rotate it casually** (links in use stop working). Optional: `DOCUMENTS_MIN_FREE_MB` (default 2048) — uploads are refused when free disk would fall below this. |
+| `DOCUMENTS_DIR` | `/var/lib/ecram-execs/documents` — where driver documents are stored (create it first, below). Download and upload links are signed with a key derived from `DOCUMENTS_SECRET` (or `IP_HASH_SALT` if that is unset): **treat it as a secret and don't rotate it casually** (links in use stop working). Optional: `DOCUMENTS_MIN_FREE_MB` (default 2048) — uploads are refused when free disk would fall below this. **Also read when the site is built**: the application form shows its upload fields only if it was built with `DOCUMENTS_DIR` set, so after adding or changing it run `scripts/deploy.sh` (a rebuild), not just a restart. |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_EMAIL_TO` | unchanged; the sending domain must be verified in Resend |
 | `IP_HASH_SALT` | copy the current value (or `openssl rand -hex 32` for a new one — rate-limit history just resets) |
 | `CORPORATE_OTP_SECRET` | **new**: `openssl rand -hex 32` |

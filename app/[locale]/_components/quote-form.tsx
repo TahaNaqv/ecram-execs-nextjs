@@ -93,6 +93,13 @@ export function QuoteForm({
   const v = state.status === "error" ? state.values : {};
   const err = state.status === "error" ? state.fieldErrors : {};
   const describedBy = (f: QuoteField) => (err[f] ? `q-${f}-error` : undefined);
+  // The message sits under its input; aria-describedby (above) points at this id
+  const fieldError = (f: QuoteField, message = err[f]) =>
+    message ? (
+      <p id={`q-${f}-error`} className="m-0 px-3 pb-2.5 text-[11px] tracking-[0] text-error normal-case">
+        {message}
+      </p>
+    ) : null;
 
   return (
     <form key={state.status === "error" ? state.attempt : 0} action={action} noValidate>
@@ -110,6 +117,7 @@ export function QuoteForm({
               maxLength={200} autoComplete="off" defaultValue={v.collection} aria-invalid={!!err.collection}
               aria-describedby={describedBy("collection")} className={control} />
           </div>
+          {fieldError("collection")}
         </div>
 
         {/* Destination with Clean Trigger Button & Dropdown */}
@@ -132,6 +140,7 @@ export function QuoteForm({
               maxLength={200} autoComplete="off" defaultValue={v.destination} aria-invalid={!!err.destination}
               aria-describedby={describedBy("destination")} className={control} />
           </div>
+          {fieldError("destination")}
 
           {/* Hidden inputs using unique IDs to pass exact values on submit */}
           {stops.map((stop) => (
@@ -198,6 +207,7 @@ export function QuoteForm({
             <input id="q-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt}
               aria-invalid={!!err.pickupAt} aria-describedby={describedBy("pickupAt")} className={control} />
           </div>
+          {fieldError("pickupAt")}
         </div>
 
         {/* Service */}
@@ -208,7 +218,8 @@ export function QuoteForm({
             </label>
           </div>
           <div className="px-3 pb-2.5">
-            <select id="q-service" name="service" defaultValue={v.service || SERVICES[0]} className={control}>
+            <select id="q-service" name="service" defaultValue={v.service || SERVICES[0]} aria-invalid={!!err.service}
+              aria-describedby={describedBy("service")} className={control}>
               {SERVICES.map((s) => (
                 <option key={s} value={s}>
                   {serviceLabels[s]}
@@ -216,6 +227,7 @@ export function QuoteForm({
               ))}
             </select>
           </div>
+          {fieldError("service")}
         </div>
 
         {/* Passengers */}
@@ -226,7 +238,8 @@ export function QuoteForm({
             </label>
           </div>
           <div className="px-3 pb-2.5">
-            <select id="q-passengers" name="passengers" defaultValue={v.passengers || ""} className={control}>
+            <select id="q-passengers" name="passengers" defaultValue={v.passengers || ""} aria-invalid={!!err.passengers}
+              aria-describedby={describedBy("passengers")} className={control}>
               <option value="">{t.selectPlaceholder}</option>
               {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                 <option key={n} value={n}>
@@ -236,6 +249,7 @@ export function QuoteForm({
               <option value="8">{t.eightOrMore}</option>
             </select>
           </div>
+          {fieldError("passengers")}
         </div>
 
         {/* Full Name */}
@@ -250,6 +264,7 @@ export function QuoteForm({
               autoComplete="name" defaultValue={v.name} aria-invalid={!!err.name}
               aria-describedby={describedBy("name")} className={control} />
           </div>
+          {fieldError("name")}
         </div>
 
         {/* Email */}
@@ -264,6 +279,7 @@ export function QuoteForm({
               autoComplete="email" defaultValue={v.email} aria-invalid={!!err.email}
               aria-describedby={describedBy("email")} className={control} />
           </div>
+          {fieldError("email")}
         </div>
 
         {/* Phone */}
@@ -288,6 +304,7 @@ export function QuoteForm({
                 aria-describedby={describedBy("phone")} className={control} />
             </div>
           </div>
+          {fieldError("phone", err.phone ?? err.phoneCountry)}
         </div>
 
         {/* Notes */}
@@ -303,6 +320,7 @@ export function QuoteForm({
               aria-describedby={describedBy("notes")}
               className={`${control} min-h-[104px] resize-y`} />
           </div>
+          {fieldError("notes")}
         </div>
 
         {/* Vehicle */}
@@ -328,6 +346,7 @@ export function QuoteForm({
               <option value="advise">{t.vehicleAdvise}</option>
             </select>
           </div>
+          {fieldError("vehicle")}
         </div>
 
         <input type="hidden" name="locale" value={locale} />

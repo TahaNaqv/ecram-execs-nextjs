@@ -41,22 +41,6 @@ async function seedChallenge(email: string, code: string, opts: { expired?: bool
 
 const t = en.corporatePartner;
 
-test("the introduction form lists the client's vehicles and options", async () => {
-  // Static facts about the form, checked against the dictionary rather than a browser
-  const { CORPORATE_VEHICLES, DURATIONS, TRIP_TIMES, CONTACT_METHODS } = await import("../../lib/corporate/validation");
-  expect(CORPORATE_VEHICLES.map((v) => v.name)).toEqual([
-    "Mercedes-Benz EQS",
-    "Audi e-tron GT",
-    "Mercedes-Benz VLE 300",
-    "Cadillac Escalade IQ",
-    "Range Rover EV",
-    "Hongqi E-HS9",
-  ]);
-  expect(TRIP_TIMES).toEqual(["morning", "afternoon", "evening"]);
-  expect(DURATIONS).toEqual(["2_4", "2_8", "2_12", "2_24"]);
-  expect(CONTACT_METHODS).toEqual(["email", "phone", "whatsapp"]);
-});
-
 test("the request step validates its fields", async ({ page }) => {
   await page.goto("/en/corporate-partner");
   await page.getByRole("button", { name: t.sendCode }).click();
@@ -88,6 +72,21 @@ test("a correct code opens the restricted form, and the request reaches the admi
   await expect(page.locator("#c-bookerName")).toHaveValue("Anouk Jansen");
   await expect(page.locator("#c-phoneCountry")).toHaveValue("31");
 
+  // The client's vehicles and choices, in the client's order (the first option is the placeholder)
+  const optionTexts = (id: string) => page.locator(`${id} option`).evaluateAll((os) => os.slice(1).map((o) => (o as HTMLOptionElement).text));
+  const optionValues = (id: string) => page.locator(`${id} option`).evaluateAll((os) => os.slice(1).map((o) => (o as HTMLOptionElement).value));
+  expect(await optionTexts("#c-vehicle")).toEqual([
+    "Mercedes-Benz EQS",
+    "Audi e-tron GT",
+    "Mercedes-Benz VLE 300",
+    "Cadillac Escalade IQ",
+    "Range Rover EV",
+    "Hongqi E-HS9",
+  ]);
+  expect(await optionValues("#c-contactMethod")).toEqual(["email", "phone", "whatsapp"]);
+  expect(await optionValues("#c-tripTime")).toEqual(["morning", "afternoon", "evening"]);
+  expect(await optionValues("#c-duration")).toEqual(["2_4", "2_8", "2_12", "2_24"]);
+
   await page.fill("#c-company", "Orion Holdings B.V.");
   await page.fill("#c-companyNumber", "12345678");
   await page.fill("#c-phone", "6 1234 5678");
@@ -106,6 +105,8 @@ test("a correct code opens the restricted form, and the request reaches the admi
 
   await page.goto("/admin/login");
   await fillAdminLogin(page);
+  // Navigating before the sign-in response lands would abort it and bounce back to the login form
+  await page.waitForURL((url) => !url.pathname.endsWith("/login"));
   await page.goto("/admin/corporate");
   await expect(page.getByText(email)).toBeVisible();
 });
@@ -120,12 +121,15 @@ test("a wrong code is refused, and five wrong codes lock the challenge", async (
   await page.getByRole("button", { name: t.verifyCta }).click();
   await expect(page.locator("#c-code-error")).toContainText("Attempts left: 4");
 
-  for (let i = 0; i < 4; i++) {
+  // Wait for each answer before guessing again: the form is replaced after every response
+  for (const left of [3, 2, 1]) {
     await page.fill("#c-code", "000000");
     await page.getByRole("button", { name: t.verifyCta }).click();
-    await page.waitForTimeout(250);
+    await expect(page.locator("#c-code-error")).toContainText(`Attempts left: ${left}`);
   }
-  // Even the right code no longer works once the attempts are spent
+  await page.fill("#c-code", "000000");
+  await page.getByRole("button", { name: t.verifyCta }).click();
+  // The fifth wrong guess spends the attempts; a new code is needed
   await expect(page.getByText(t.tooManyAttempts)).toBeVisible();
   await expect(page.locator("#c-company")).toHaveCount(0);
 });

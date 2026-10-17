@@ -1,10 +1,13 @@
 import "server-only";
-import { and, desc, eq, gt, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { db, schema } from "@/lib/db";
 import type { CorporateContact } from "@/lib/db/schema";
 import { ACCESS_COOKIE, CHALLENGE_COOKIE, MAX_ATTEMPTS, hashToken } from "./otp";
+
+// "Now" is the database's `now()`, not a JavaScript Date: these run while a page renders, where Next.js rejects reading
+// the current time in code (it logs "unstable value new Date() while prerendering" and skips the optimisation).
 
 /**
  * The verified contact for this request, or null. The cookie alone is never trusted: it is only a
@@ -18,7 +21,7 @@ export const getCorporateContact = cache(async (): Promise<CorporateContact | nu
     .select({ contact: schema.corporateContacts })
     .from(schema.corporateAccess)
     .innerJoin(schema.corporateContacts, eq(schema.corporateAccess.contactId, schema.corporateContacts.id))
-    .where(and(eq(schema.corporateAccess.id, hashToken(token)), gt(schema.corporateAccess.expiresAt, new Date())))
+    .where(and(eq(schema.corporateAccess.id, hashToken(token)), gt(schema.corporateAccess.expiresAt, sql`now()`)))
     .limit(1);
   return row?.contact ?? null;
 });
@@ -35,7 +38,7 @@ export const getPendingChallenge = cache(async () => {
       and(
         eq(schema.corporateChallenges.id, id),
         isNull(schema.corporateChallenges.consumedAt),
-        gt(schema.corporateChallenges.expiresAt, new Date()),
+        gt(schema.corporateChallenges.expiresAt, sql`now()`),
         // A challenge whose guesses are spent is dead; a reload shouldn't offer it
         lt(schema.corporateChallenges.attempts, MAX_ATTEMPTS),
       ),

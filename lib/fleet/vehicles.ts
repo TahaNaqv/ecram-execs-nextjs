@@ -170,7 +170,7 @@ export const FLEET: FleetVehicle[] = [
       "/assets/fleet-range-rover-gallery-3.jpg",
       "/assets/fleet-range-rover-gallery-4.jpg",
       "/assets/fleet-range-rover-gallery-5.jpg",
-      "/assets/fleet-range-rover-v3.jpg",
+      "/assets/fleet-range-rover-v3.png",
       "/assets/fleet-range-rover-gallery-6.jpg",
     ],
     drivetrain: "bev",

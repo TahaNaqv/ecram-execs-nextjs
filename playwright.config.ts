@@ -9,6 +9,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
+  // Raise this when the database is remote (e.g. through an SSH tunnel): admin pages make a dozen queries, and every one pays the round trip
+  expect: { timeout: Number(process.env.E2E_EXPECT_TIMEOUT ?? 5_000) },
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   globalSetup: "./tests/e2e/global-setup.ts",
   globalTeardown: "./tests/e2e/global-teardown.ts",

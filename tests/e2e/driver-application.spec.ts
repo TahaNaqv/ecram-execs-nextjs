@@ -1,3 +1,5 @@
+import { readdir } from "node:fs/promises";
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { fillAdminLogin } from "./helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
@@ -13,6 +15,8 @@ const t = en.driveWithUs;
  * fail, and the message says why.
  */
 async function skipIfDocumentsRequired(page: Page) {
+  // Count only once the form is on screen: the file inputs are part of it, and counting earlier reads 0
+  await page.getByLabel(t.labelPlate).waitFor();
   const required = await page.locator('input[type="file"]').count();
   test.skip(
     required > 0,
@@ -27,13 +31,21 @@ const QUALIFYING_PLATE = "KXD-26-R";
 const UNAPPROVED_MODEL_PLATE = "GHL-93-X";
 const FAILING_PLATE = "13-TFN-3";
 
-async function fillApplication(page: Page, name: string, plate: string) {
+const DOCUMENT_FIELDS = ["chauffeurCard", "kvkExtract", "vog", "insurance"] as const;
+const PDF = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(300, 7)]);
+
+async function fillApplication(page: Page, name: string, plate: string, opts: { documents?: boolean } = {}) {
   await page.getByLabel(t.labelPlate).fill(plate);
   await page.getByLabel(t.labelName).fill(name);
   await page.getByLabel(t.labelEmail).fill(`partner-${Date.now()}@e2e.ecramexecs.test`);
   await page.getByLabel(t.labelPhone).fill("+31 6 0000 0002");
   await page.getByLabel(t.labelKvk).fill("1234 5678");
   await page.getByLabel(t.labelExperience).fill("6");
+  if (opts.documents) {
+    for (const field of DOCUMENT_FIELDS) {
+      await page.locator(`#a-${field}`).setInputFiles({ name: `${field}.pdf`, mimeType: "application/pdf", buffer: PDF });
+    }
+  }
   for (const box of await page.getByRole("checkbox").all()) await box.check();
   await page.getByRole("button", { name: t.submit }).click();
 }
@@ -96,4 +108,44 @@ test("an independent driver applies with their own car and an admin approves the
   await expect(row).toContainText("Partner");
   await expect(row).toContainText("KXD26R");
   await expect(row.getByRole("button", { name: "Start shift" })).toBeVisible();
+});
+
+test("with document storage on, an application keeps its four documents, an admin opens one, and deleting it removes them", async ({
+  page,
+  request,
+}) => {
+  const name = `E2E Driver Docs ${Date.now()}`;
+  const root = process.env.DOCUMENTS_DIR;
+  await page.goto("/drive-with-us");
+  await page.getByLabel(t.labelPlate).waitFor();
+  test.skip(!root || (await page.locator('input[type="file"]').count()) === 0, "document storage is not configured — set DOCUMENTS_DIR (and run the server with it) to run this");
+
+  // 1. Apply with the four documents; the browser uploads them straight to the server's disk
+  await fillApplication(page, name, QUALIFYING_PLATE, { documents: true });
+  await expect(page.getByRole("status")).toContainText("Your car meets our criteria", { timeout: 30_000 });
+
+  // 2. The admin sees four documents and can open one, but only while signed in
+  await page.goto("/admin/drivers/applications");
+  await fillAdminLogin(page);
+  await expect(page.getByRole("heading", { name: "Driver applications" })).toBeVisible();
+  await page.getByRole("link").filter({ hasText: name }).click();
+  const open = page.getByRole("link", { name: /^Open PDF/ });
+  await expect(open).toHaveCount(4);
+  const href = new URL((await open.first().getAttribute("href"))!, page.url()).toString();
+
+  const signedIn = await page.request.get(href);
+  expect(signedIn.status()).toBe(200);
+  expect(signedIn.headers()["content-disposition"]).toContain("attachment");
+  expect((await signedIn.body()).subarray(0, 4).toString()).toBe("%PDF");
+  expect((await request.get(href)).status()).toBe(401);
+
+  // 3. The four files are on disk, in one folder named in the signed link
+  const claim = JSON.parse(Buffer.from(new URL(href).searchParams.get("t")!.split(".")[0], "base64url").toString());
+  const dir = path.join(root!, String(claim.path).split("/")[0]);
+  expect((await readdir(dir)).sort()).toEqual(DOCUMENT_FIELDS.map((f) => `${f}.pdf`).sort());
+
+  // 4. Deleting the application (a GDPR erasure) takes the files with it
+  await page.getByRole("button", { name: /Delete this application/ }).click();
+  await page.getByRole("button", { name: "Yes, delete permanently" }).click();
+  await expect.poll(() => readdir(dir).then(() => true, () => false), { timeout: 15_000 }).toBe(false);
 });

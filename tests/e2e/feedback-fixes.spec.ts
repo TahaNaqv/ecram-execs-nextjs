@@ -57,6 +57,19 @@ test("every vehicle shows its own questions, not the same one repeated", async (
   for (const n of counts) expect(n).toBeGreaterThan(1);
 });
 
+test("every fleet photo exists and is served", async ({ page, request }) => {
+  await page.goto("/en");
+  // next/image gives each slide an optimiser URL; a photo that is missing on disk makes that URL fail
+  const sources = await page.locator("#fleet img").evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).getAttribute("src")!));
+  expect(sources.length).toBeGreaterThan(20);
+  const broken: string[] = [];
+  for (const src of new Set(sources)) {
+    const response = await request.get(src);
+    if (!response.ok()) broken.push(`${response.status()} ${decodeURIComponent(new URL(src, "http://x").searchParams.get("url") ?? src)}`);
+  }
+  expect(broken).toEqual([]);
+});
+
 test("header and hero buttons glide to their section instead of jumping", async ({ page }) => {
   await page.goto("/en");
   const positions: number[] = [];
