@@ -257,7 +257,7 @@
     "amenityEntertainment": "Entertainmentsysteem",
     "amenityClimateControl": "Klimaatregeling",
     "amenityRefreshments": "Versnaperingen",
-    "bookCta": "Boeken",
+    "bookCta": "Boek",
     "bookAria": "Boek de {name}",
     "galleryLabel": "Fotogalerij van de {name}",
     "galleryPrev": "Vorige foto",
@@ -473,7 +473,13 @@
     "privacyNote": "Uw gegevens gebruiken wij alleen om uw prijsopgave op te stellen en te versturen.",
     "privacyLink": "Privacybeleid",
     "vehicleAdvise": "Adviseer mij",
-    "removeStop": "Stop verwijderen"
+    "removeStop": "Stop verwijderen",
+    "stopsCount": "Tussenstops ({count}/{max})",
+    "addStop": "+ Tussenstop toevoegen",
+    "stopoversTitle": "Extra tussenstops (max. {max})",
+    "noStops": "Nog geen extra tussenstops toegevoegd.",
+    "stopPlaceholder": "Tussenstop {number} (optioneel)",
+    "addStopover": "+ Tussenstop toevoegen"
   },
   "privacy": {
     "metaTitle": "Privacybeleid — Ecram Execs",

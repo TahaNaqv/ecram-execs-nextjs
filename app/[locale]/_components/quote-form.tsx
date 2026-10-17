@@ -16,10 +16,13 @@ export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
   | "labelEmail" | "phEmail" | "labelPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "labelNotes" | "phNotes"
+  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "stopsCount" | "addStop" | "stopoversTitle" | "noStops" | "stopPlaceholder" | "addStopover" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
 > & { labelAddStop?: string; labelRemoveStop?: string };
+
+/** How many extra stops one request can carry (the server keeps the first five, see lib/quotes/actions.ts). */
+const MAX_STOPS = 5;
 
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
@@ -40,7 +43,7 @@ export function QuoteForm({
   const [vehicle, setVehicle] = useState("");
   const [vehicleTouched, setVehicleTouched] = useState(false);
 
-  // Additional stops state (Max 5) with unique IDs for correct deletion handling
+  // Additional stops state (capped at MAX_STOPS) with unique IDs for correct deletion handling
   const [stops, setStops] = useState<{ id: string; value: string }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -120,7 +123,7 @@ export function QuoteForm({
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-50 hover:bg-ink-100 border border-ink-200 px-2.5 py-1 rounded-sm shadow-2xs"
             >
-              <span>{stops.length > 0 ? `Stops (${stops.length}/5)` : "+ Add Stop"}</span>
+              <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : t.addStop}</span>
             </button>
           </div>
 
@@ -135,23 +138,23 @@ export function QuoteForm({
             <input key={stop.id} type="hidden" name="destinations" value={stop.value} />
           ))}
 
-          {/* Elegant Dropdown Popover (Capped at 5 stops) */}
+          {/* Elegant Dropdown Popover (capped at MAX_STOPS) */}
           {isOpen && (
             <div className="absolute left-0 right-0 top-[calc(100%+2px)] z-50 bg-white border border-ink-225 shadow-xl p-3 flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-[11px] tracking-wider uppercase text-ink-500 font-semibold border-b border-ink-100 pb-1.5">
-                <span>Additional Stopovers (Max 5)</span>
+                <span>{fill(t.stopoversTitle, { max: String(MAX_STOPS) })}</span>
                 <button type="button" onClick={() => setIsOpen(false)} className="text-ink-400 hover:text-ink-950">✕</button>
               </div>
 
               {stops.length === 0 && (
-                <p className="text-[12px] text-ink-475 m-0 italic">No extra stopovers added yet.</p>
+                <p className="text-[12px] text-ink-475 m-0 italic">{t.noStops}</p>
               )}
 
               {stops.map((stop, index) => (
                 <div key={stop.id} className="flex items-center gap-1.5">
                   <input
                     type="text"
-                    placeholder={`Stop ${index + 2} (Optional)`}
+                    placeholder={fill(t.stopPlaceholder, { number: String(index + 2) })}
                     maxLength={200}
                     defaultValue={stop.value}
                     onChange={(e) => {
@@ -171,13 +174,13 @@ export function QuoteForm({
                 </div>
               ))}
 
-              {stops.length < 5 && (
+              {stops.length < MAX_STOPS && (
                 <button
                   type="button"
                   onClick={() => setStops(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), value: "" }])}
                   className="mt-1 w-full py-1.5 bg-ink-950 text-white text-[11px] font-semibold tracking-[0.15em] uppercase hover:bg-ink-800 transition-colors text-center"
                 >
-                  + Add Stopover
+                  {t.addStopover}
                 </button>
               )}
             </div>

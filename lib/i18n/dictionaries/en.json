@@ -473,7 +473,13 @@
     "privacyNote": "Your details are used only to prepare and send your quotation.",
     "privacyLink": "Privacy policy",
     "vehicleAdvise": "Advise me",
-    "removeStop": "Remove stop"
+    "removeStop": "Remove stop",
+    "stopsCount": "Stops ({count}/{max})",
+    "addStop": "+ Add Stop",
+    "stopoversTitle": "Additional Stopovers (Max {max})",
+    "noStops": "No extra stopovers added yet.",
+    "stopPlaceholder": "Stop {number} (Optional)",
+    "addStopover": "+ Add Stopover"
   },
   "privacy": {
     "metaTitle": "Privacy policy — Ecram Execs",

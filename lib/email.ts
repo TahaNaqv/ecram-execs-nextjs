@@ -27,6 +27,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
     ["Destination", q.destination],
+    ["Additional stops", q.destinations && q.destinations.length > 0 ? q.destinations.join(" → ") : null],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
     ["Corporate entity / account", q.entity],
     [bespoke ? "Delegation size" : "Passengers", q.passengers],

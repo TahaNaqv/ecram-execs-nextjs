@@ -84,3 +84,29 @@ test("with reduced motion requested, the same buttons jump straight there", asyn
   expect(Math.abs(fleetTop - 88)).toBeLessThan(6);
   await context.close();
 });
+
+test("a vehicle gallery's counter follows the arrows, even if a scroll event reports the old position", async ({ page }) => {
+  await page.goto("/en");
+  const card = page.locator("#fleet li").first();
+  await card.scrollIntoViewIfNeeded();
+  const counter = () =>
+    card.evaluate((li) => [...li.querySelector("[aria-roledescription=carousel]")!.querySelectorAll("span")].find((s) => /^\d+ \/ \d+$/.test(s.textContent!.trim()))?.textContent?.trim());
+  // Some browsers report a scroll event at the position being left as a glide begins; that used to reset the counter
+  await card.evaluate((li) => {
+    const track = li.querySelector("[aria-roledescription=carousel]")!.children[0] as HTMLElement;
+    const original = track.scrollTo.bind(track);
+    track.scrollTo = ((options: ScrollToOptions) => {
+      original(options);
+      setTimeout(() => track.dispatchEvent(new Event("scroll")), 0);
+    }) as typeof track.scrollTo;
+  });
+  expect(await counter()).toMatch(/^1 \/ \d+$/);
+  await card.getByRole("button", { name: /Next photo/ }).click();
+  await page.waitForTimeout(250);
+  expect(await counter()).toMatch(/^2 \/ \d+$/);
+  await page.waitForTimeout(1200);
+  expect(await counter()).toMatch(/^2 \/ \d+$/);
+  await card.getByRole("button", { name: /Previous photo/ }).click();
+  await page.waitForTimeout(1200);
+  expect(await counter()).toMatch(/^1 \/ \d+$/);
+});

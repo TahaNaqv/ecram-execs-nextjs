@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { interpolate } from "@/lib/i18n/interpolate";
 
 export type GalleryCopy = {
@@ -31,19 +31,36 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
   const [open, setOpen] = useState(false);
   const many = images.length > 1;
 
+  // Which photo the strip is actually showing, worked out from how far it has scrolled
+  const syncFromScroll = () => {
+    const el = track.current;
+    if (el && el.clientWidth) setIndex(Math.round(el.scrollLeft / el.clientWidth));
+  };
+
+  // While an arrow-triggered glide is under way, scroll events are ignored: a browser may report one at the OLD
+  // position as the glide begins (or throughout a slow glide), which used to snap the counter back to the photo
+  // that was just left and make it look as if the arrow did nothing. Afterwards the counter is re-read from the
+  // strip itself, so it never disagrees with the photo on screen.
+  const gliding = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(gliding.current), []);
+
   const go = (to: number) => {
     const next = (to + images.length) % images.length;
     setIndex(next);
     const el = track.current;
     if (el) {
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.clearTimeout(gliding.current);
+      gliding.current = window.setTimeout(() => {
+        gliding.current = undefined;
+        syncFromScroll();
+      }, reduce ? 50 : 900);
       el.scrollTo({ left: next * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
     }
   };
 
   const onScroll = () => {
-    const el = track.current;
-    if (el && el.clientWidth) setIndex(Math.round(el.scrollLeft / el.clientWidth));
+    if (gliding.current === undefined) syncFromScroll();
   };
 
   const onDialogKey = (e: KeyboardEvent<HTMLDialogElement>) => {
