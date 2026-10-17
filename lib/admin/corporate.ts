@@ -1,14 +1,16 @@
 import "server-only";
 import { count, desc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
+import { contactColumns } from "@/lib/corporate/columns";
 import { db, schema } from "@/lib/db";
 
 const { corporateContacts: c } = schema;
 
 export async function listCorporateContacts(optedInOnly = false, limit: number | null = 500) {
   await requireAdmin();
+  // Named columns: the password hash is never selected for a page or an export
   const query = db
-    .select()
+    .select(contactColumns)
     .from(c)
     .where(optedInOnly ? eq(c.marketingConsent, true) : undefined)
     .orderBy(desc(c.createdAt));
@@ -35,7 +37,7 @@ function cell(value: string | null | undefined) {
 export async function corporateContactsCsv(optedInOnly: boolean) {
   // The export is the whole list; only the on-screen list is capped
   const rows = await listCorporateContacts(optedInOnly, null);
-  const header = ["name", "email", "position", "company", "kvk", "language", "verified_at", "marketing_consent", "consented_at", "created_at"];
+  const header = ["name", "email", "position", "company", "kvk", "language", "verified_at", "account_created_at", "last_login_at", "marketing_consent", "consented_at", "created_at"];
   const lines = rows.map((r) =>
     [
       r.name,
@@ -45,6 +47,8 @@ export async function corporateContactsCsv(optedInOnly: boolean) {
       r.kvkNumber,
       r.locale,
       r.verifiedAt?.toISOString(),
+      r.passwordSetAt?.toISOString(),
+      r.lastLoginAt?.toISOString(),
       r.marketingConsent ? "yes" : "no",
       r.consentedAt?.toISOString(),
       r.createdAt.toISOString(),

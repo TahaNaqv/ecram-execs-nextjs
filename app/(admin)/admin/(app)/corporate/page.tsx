@@ -86,6 +86,10 @@ async function Contacts() {
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.verifiedAt ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-500"}`}>
                     {r.verifiedAt ? t.verified : t.notVerified}
                   </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.passwordSetAt ? "bg-sky-50 text-sky-700" : "bg-zinc-100 text-zinc-500"}`}
+                    title={r.lastLoginAt ? formatTimestamp(r.lastLoginAt) : undefined}>
+                    {r.passwordSetAt ? t.hasAccount : t.noAccount}
+                  </span>
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.marketingConsent ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-500"}`}>
                     {r.marketingConsent ? t.optedIn : t.noConsent}
                   </span>

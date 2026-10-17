@@ -3,14 +3,23 @@ import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 
 
 /** Rules for the Corporate Partner area, in one place so the emails, copy and checks agree. */
 export const CODE_MINUTES = 10;
-export const ACCESS_HOURS = 24;
+/** How long a sign-in lasts. It ends sooner on sign-out, and every sign-in ends when the password is changed. */
+export const SESSION_DAYS = 7;
 export const MAX_ATTEMPTS = 5;
 export const RESEND_SECONDS = 60;
 /** At most this many codes per visitor address in the window, and per contact per hour. */
 export const IP_LIMIT = { max: 3, windowMinutes: 15 };
 export const CONTACT_LIMIT = { max: 3, windowMinutes: 60 };
 
+/** Failed sign-ins before the account pauses, and for how long. The pause is invisible to the visitor (see login). */
+export const LOGIN_LOCK = { max: 5, minutes: 15 };
+/** Sign-in attempts per visitor address, counted before any password is hashed (hashing is the expensive part). */
+export const LOGIN_IP_LIMIT = { max: 20, windowMs: 15 * 60_000 };
+/** Password-reset requests per visitor address; the reset form does not write anything for an unknown address. */
+export const RESET_IP_LIMIT = { max: 10, windowMs: 15 * 60_000 };
+
 export const CHALLENGE_COOKIE = "ee_cp_challenge";
+/** The signed-in session. The name is older than accounts: it first held the 24-hour access after a code. */
 export const ACCESS_COOKIE = "ee_cp_access";
 
 /** Which wording of the marketing consent the person agreed to; bump when the form's text changes. */

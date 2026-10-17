@@ -5,6 +5,7 @@ import { colourLabel, makeLabel } from "@/lib/partners/criteria";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { localizedPath } from "@/lib/i18n/pathnames";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { siteConfig } from "@/lib/site-config";
 
@@ -171,12 +172,15 @@ export async function sendVerificationCode({
   code,
   locale,
   minutes,
+  purpose,
 }: {
   email: string;
   name: string;
   code: string;
   locale: QuoteRequest["locale"];
   minutes: number;
+  /** "signup" creates an account (or sets a new password for an address that has one); "reset" is a forgotten password. */
+  purpose: "signup" | "reset";
 }): Promise<boolean> {
   const { EMAIL_FROM } = process.env;
   if (!provider() || !EMAIL_FROM) {
@@ -188,12 +192,37 @@ export async function sendVerificationCode({
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: name.split(" ")[0] }))}</p>
-      <p>${esc(t.codeIntro)}</p>
+      <p>${esc(purpose === "reset" ? t.resetIntro : t.codeIntro)}</p>
       <p style="font-family:Arial,sans-serif;font-size:32px;letter-spacing:10px;font-weight:bold;margin:20px 0">${esc(code)}</p>
       <p style="color:#52525b">${esc(interpolate(t.codeExpiry, { minutes: String(minutes) }))}</p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("corporate", email, "verification code", { from: EMAIL_FROM, to: [email], subject: t.codeSubject, html });
+  return send("corporate", email, "verification code", {
+    from: EMAIL_FROM,
+    to: [email],
+    subject: purpose === "reset" ? t.resetSubject : t.codeSubject,
+    html,
+  });
+}
+
+/**
+ * Tells the owner of an address that the password of their Corporate Partner account was just replaced, with the way
+ * back in if it wasn't them. Best-effort: the change has already happened, so a failure is logged, not shown.
+ */
+export async function sendPasswordChanged({ email, name, locale }: { email: string; name: string; locale: QuoteRequest["locale"] }) {
+  const { EMAIL_FROM, SITE_URL } = process.env;
+  if (!provider() || !EMAIL_FROM) return false;
+  const { email: t } = await getDictionary(locale);
+  const link = `${SITE_URL ?? ""}${localizedPath("/corporate-partner/forgot-password", locale)}`;
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: name.split(" ")[0] }))}</p>
+      <p>${esc(t.passwordChangedBody)}</p>
+      <p><a href="${esc(link)}">${esc(t.passwordChangedLink)}</a></p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("corporate", email, "password changed", { from: EMAIL_FROM, to: [email], subject: t.passwordChangedSubject, html });
 }
 
 function teamAlert(heading: string, rows: [string, string | number | null][], adminUrl: string) {

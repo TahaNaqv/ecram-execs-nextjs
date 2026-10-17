@@ -283,7 +283,7 @@ Steps and cautions:
 - [ ] `https://example.nl` and `https://www.example.nl` load over HTTPS; `http://` redirects.
 - [ ] `/en`, `/nl`, `/en/privacy`, `/en/drive-with-us`, `/en/corporate-partner` all load; language switch works.
 - [ ] Submit a quote; the team alert and customer confirmation emails arrive.
-- [ ] Corporate Partner: the six-digit code email arrives within a minute (see `docs/rollout-corporate-partner.md` §4).
+- [ ] Corporate Partner: sign up, log in, forgot password — the code and "password changed" emails arrive within a minute (see `docs/rollout-corporate-partner.md`, "Corporate Partner accounts").
 - [ ] `/admin` login works; restored requests are visible; a driver application's documents open.
 - [ ] Rate limiting sees real visitor IPs: in the DB, `select ip_hash from quote_requests order by created_at desc limit 3` should differ between visitors (not all the same hash).
 - [ ] `curl -sI https://example.nl | grep -i -E 'strict-transport|content-security'` shows the security headers.

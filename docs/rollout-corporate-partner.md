@@ -97,3 +97,62 @@ Existing rows are untouched: all new `quote_requests` columns are nullable.
 - [ ] Vehicle specs: fill `specs` in `lib/fleet/vehicles.ts` once models and manufacturer figures are confirmed (each needs `verified.source/url/checkedOn/by`); only then do the specification answers appear.
 - [ ] Real fleet photos (up to 8 each; the current ones are AI-generated). All 8 destinations now have a photo; Eindhoven's is a stock photo (Pexels, free licence), so swap in the client's own if they supply one.
 - [ ] Run the e2e suite once against a local Postgres: `CORPORATE_OTP_SECRET=… npm run test:e2e` (the Corporate Partner spec skips without the secret). It has not been run yet.
+
+---
+
+# Corporate Partner accounts (login, sign-up, password reset)
+
+"Become a Corporate Partner" now leads to `/en/corporate-partner` (`/nl/zakelijke-partner`), which offers **Log in** and **Sign up**.
+
+| Screen | English | Dutch |
+|---|---|---|
+| Choose | `/corporate-partner` | `/zakelijke-partner` |
+| Log in (email + password) | `/corporate-partner/login` | `/zakelijke-partner/inloggen` |
+| Sign up (details → emailed code + choose a password) | `/corporate-partner/signup` | `/zakelijke-partner/registreren` |
+| Forgot password (email → emailed code + new password) | `/corporate-partner/forgot-password` | `/zakelijke-partner/wachtwoord-vergeten` |
+| The partner's page (introduction form, past introductions, sign out) | `/corporate-partner/account` | `/zakelijke-partner/account` |
+
+How it behaves:
+- The emailed code proves the address; the password is chosen in the same step and stored (scrypt) only when the code is right. A password is never sent back to the page.
+- Signing in lasts 7 days. Changing a password signs out every other browser. The owner gets a "your password was changed" email.
+- Five failed sign-ins pause that account for 15 minutes. The visitor is told this in advance and every failure reads the same, so the form says nothing about who has an account. A password reset lifts the pause.
+- Signing up with an address that already has an account behaves exactly like a new sign-up (a code is emailed); entering it sets a new password. Only the owner of the address can do that.
+- Sign-in, sign-up, forgot-password and account screens are `noindex` and not in the sitemap.
+- Contacts created before this release have no password: they sign up (or use "Forgot password") once. Old 24-hour code sessions stop working.
+
+## Rolling it out
+
+The change adds **migration `0009_corporate_accounts`** (additive: five nullable/defaulted columns on `corporate_contacts`, one on `corporate_challenges`). The new code reads those columns, so the migration must be applied before the new build starts. `deploy.sh` enforces that: if a migration is pending and you haven't said to apply it, it **stops before building or restarting** and the site keeps running the previous version. On the server, as the `ecram` user:
+
+```bash
+cd /srv/ecram-execs && ./scripts/deploy.sh                 # pulls, installs, lists pending migrations, then stops
+```
+
+Read the list. It must show exactly `0009_corporate_accounts` as pending. Then:
+
+```bash
+cd /srv/ecram-execs && APPLY_MIGRATIONS=1 ./scripts/deploy.sh   # applies it, builds, restarts
+```
+
+Verify afterwards:
+
+```sql
+select column_name from information_schema.columns
+ where table_name = 'corporate_contacts' and column_name in ('password_hash','password_set_at','failed_logins','locked_until','last_login_at'); -- 5 rows
+select column_name from information_schema.columns
+ where table_name = 'corporate_challenges' and column_name = 'purpose'; -- 1 row
+```
+
+## Smoke test on the real domain (use your own address)
+
+1. `/en/corporate-partner` → **Sign up** → details → the code email arrives → enter the code, choose a password → you land on `/en/corporate-partner/account`.
+2. Submit the introduction form; the team alert arrives at `NOTIFY_EMAIL_TO`; the request shows in `/admin` and `/admin/corporate` ("Has account").
+3. **Sign out**, then **Log in** with the password. A wrong password shows the generic message.
+4. **Forgot your password?** → code email → new password → "password changed" email arrives. Another browser that was signed in is signed out.
+5. Repeat step 1 in Dutch (`/nl/zakelijke-partner`) and confirm the emails are Dutch.
+
+Clean up afterwards: delete the test requests in the admin, and `delete from corporate_contacts where email = 'you@yourdomain';`.
+
+## Rollback
+
+Redeploy the previous commit. The old code ignores the new columns (it never selects `password_hash`), so nothing breaks; partners who created accounts simply can't use them until the new code is back. The migration is additive and is left in place.

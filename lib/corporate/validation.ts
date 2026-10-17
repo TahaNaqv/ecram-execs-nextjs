@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { LOCALES } from "@/lib/i18n/config";
+import { interpolate } from "@/lib/i18n/interpolate";
 import type { Dictionary } from "@/lib/i18n/types";
+
+/** Long enough that a passphrase of a few words fits, short enough that hashing one can't be used to burn the CPU. */
+export const PASSWORD_MIN = 12;
+export const PASSWORD_MAX = 128;
+/** The same typed password must hash the same way whatever keyboard or device it was typed on. */
+export const normalizePassword = (value: string) => value.normalize("NFKC");
 
 export const CONTACT_METHODS = ["email", "phone", "whatsapp"] as const;
 export const TRIP_TIMES = ["morning", "afternoon", "evening"] as const;
@@ -41,6 +48,9 @@ type CorporateMessages = Pick<
   | "signatoryRequired"
   | "pointOfCallRequired"
   | "fieldTooLong"
+  | "passwordTooShort"
+  | "passwordTooLong"
+  | "passwordMismatch"
 >;
 
 const email = (message: string) => z.string().trim().toLowerCase().max(200, message).pipe(z.email(message));
@@ -55,7 +65,30 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
     locale: z.enum(LOCALES).catch("en"),
   });
 
-export const codeSchema = (c: CorporateMessages) => z.object({ code: z.string().trim().regex(/^[0-9]{6}$/, c.codeInvalidFormat) });
+/** The reset form asks for the address only. */
+export const resetRequestSchema = (f: FormMessages) => z.object({ email: email(f.emailInvalid), locale: z.enum(LOCALES).catch("en") });
+
+/**
+ * The last step of sign-up and of a reset: the emailed code and the new password, in one submission. The password is
+ * checked here, before the server counts a guess at the code, so a too-short password never costs an attempt.
+ */
+export const completeSchema = (c: CorporateMessages) =>
+  z
+    .object({
+      code: z.string().trim().regex(/^[0-9]{6}$/, c.codeInvalidFormat),
+      password: z
+        .string()
+        .transform(normalizePassword)
+        .pipe(
+          z
+            .string()
+            .min(PASSWORD_MIN, interpolate(c.passwordTooShort, { min: PASSWORD_MIN }))
+            .max(PASSWORD_MAX, interpolate(c.passwordTooLong, { max: PASSWORD_MAX })),
+        ),
+      confirmPassword: z.string().transform(normalizePassword),
+      locale: z.enum(LOCALES).catch("en"),
+    })
+    .refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], error: c.passwordMismatch });
 
 export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
   z.object({
@@ -85,3 +118,4 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
 
 export type RequestField = keyof z.input<ReturnType<typeof requestSchema>>;
 export type OnboardingField = keyof z.input<ReturnType<typeof onboardingSchema>>;
+export type CompleteField = keyof z.input<ReturnType<typeof completeSchema>>;

@@ -11,6 +11,11 @@ export const PATHNAMES = {
   "/": { en: "", nl: "" },
   "/drive-with-us": { en: "drive-with-us", nl: "rijd-met-ons" },
   "/corporate-partner": { en: "corporate-partner", nl: "zakelijke-partner" },
+  // Nested slugs: the proxy and the language switcher match the whole path after the locale, so these work as they are
+  "/corporate-partner/login": { en: "corporate-partner/login", nl: "zakelijke-partner/inloggen" },
+  "/corporate-partner/signup": { en: "corporate-partner/signup", nl: "zakelijke-partner/registreren" },
+  "/corporate-partner/forgot-password": { en: "corporate-partner/forgot-password", nl: "zakelijke-partner/wachtwoord-vergeten" },
+  "/corporate-partner/account": { en: "corporate-partner/account", nl: "zakelijke-partner/account" },
   "/privacy": { en: "privacy", nl: "privacybeleid" },
 } as const satisfies Record<string, Record<Locale, string>>;
 

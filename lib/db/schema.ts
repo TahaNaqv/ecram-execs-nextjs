@@ -237,6 +237,15 @@ export const corporateContacts = pgTable(
     // Set the first time the emailed code is entered correctly
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
+    // The account: set by the person at sign-up (or a password reset), after the emailed code proved the address.
+    // Null until then. scrypt, in the same format as admin users (lib/auth/password.ts). Never select this column
+    // outside the sign-in and password actions (see lib/corporate/access.ts).
+    passwordHash: text("password_hash"),
+    passwordSetAt: timestamp("password_set_at", { withTimezone: true }),
+    // Sign-in lockout, counted in one atomic UPDATE (lib/corporate/account-actions.ts)
+    failedLogins: integer("failed_logins").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     marketingConsent: boolean("marketing_consent").notNull().default(false),
     // Which wording the person agreed to, so a later change to the text doesn't rewrite history
     consentTextVersion: text("consent_text_version"),
@@ -263,6 +272,9 @@ export const corporateChallenges = pgTable(
       .notNull()
       .references(() => corporateContacts.id, { onDelete: "cascade" }),
     codeHmac: text("code_hmac").notNull(),
+    // What the code is for: creating an account ("signup") or choosing a new password ("reset"). The code only ever
+    // completes the purpose it was issued for.
+    purpose: text("purpose").$type<"signup" | "reset">().notNull().default("signup"),
     // What the person typed, held here until the code is entered. Nothing about a contact (or any
     // marketing consent) changes on the strength of an unverified request: this is applied in verifyCode.
     pendingName: text("pending_name"),
