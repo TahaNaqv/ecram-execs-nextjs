@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { DEFAULT_LOCALE } from "../../lib/i18n/config";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 
@@ -66,11 +67,11 @@ for (const locale of LOCALES) {
   }
 }
 
-test("the bare domain sends a Dutch browser to /nl and an English one to /en", async ({ browser }) => {
+test("the bare domain sends a Dutch browser to /nl and an English one to /en, and anyone else to the default (Dutch)", async ({ browser }) => {
   for (const [browserLocale, expected] of [
     ["nl-NL", "/nl"],
     ["en-GB", "/en"],
-    ["de-DE", "/en"], // unsupported language falls back to the default
+    ["de-DE", `/${DEFAULT_LOCALE}`], // an unsupported language falls back to the default language
   ] as const) {
     // `locale` sets Accept-Language properly; `extraHTTPHeaders` loses to Chromium's own header.
     const context = await browser.newContext({ locale: browserLocale });
@@ -126,7 +127,8 @@ test("unprefixed paths redirect into a language", async ({ request }) => {
   for (const path of ["/privacy", "/drive-with-us"]) {
     const res = await request.get(path, { maxRedirects: 0 });
     expect(res.status()).toBe(307);
-    expect(res.headers()["location"]).toContain("/en");
+    // These requests carry no Accept-Language, so the default language applies
+    expect(res.headers()["location"]).toContain(`/${DEFAULT_LOCALE}`);
   }
 });
 

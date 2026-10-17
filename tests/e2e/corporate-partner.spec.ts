@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
 import en from "../../lib/i18n/dictionaries/en.json";
-import { E2E_ADMIN } from "./helpers";
+import { fillAdminLogin } from "./helpers";
 
 /**
  * The emailed code can't be read in tests (no mail provider runs), and production code must not grow a
@@ -41,6 +41,22 @@ async function seedChallenge(email: string, code: string, opts: { expired?: bool
 
 const t = en.corporatePartner;
 
+test("the introduction form lists the client's vehicles and options", async () => {
+  // Static facts about the form, checked against the dictionary rather than a browser
+  const { CORPORATE_VEHICLES, DURATIONS, TRIP_TIMES, CONTACT_METHODS } = await import("../../lib/corporate/validation");
+  expect(CORPORATE_VEHICLES.map((v) => v.name)).toEqual([
+    "Mercedes-Benz EQS",
+    "Audi e-tron GT",
+    "Mercedes-Benz VLE 300",
+    "Cadillac Escalade IQ",
+    "Range Rover EV",
+    "Hongqi E-HS9",
+  ]);
+  expect(TRIP_TIMES).toEqual(["morning", "afternoon", "evening"]);
+  expect(DURATIONS).toEqual(["2_4", "2_8", "2_12", "2_24"]);
+  expect(CONTACT_METHODS).toEqual(["email", "phone", "whatsapp"]);
+});
+
 test("the request step validates its fields", async ({ page }) => {
   await page.goto("/en/corporate-partner");
   await page.getByRole("button", { name: t.sendCode }).click();
@@ -67,12 +83,20 @@ test("a correct code opens the restricted form, and the request reaches the admi
   await page.getByRole("button", { name: t.verifyCta }).click();
   await expect(page.getByRole("heading", { name: t.formHeading })).toBeVisible();
 
+  // The booker's own details are shown, not typed
+  await expect(page.locator("#c-bookerEmail")).toHaveValue(email);
+  await expect(page.locator("#c-bookerName")).toHaveValue("Anouk Jansen");
+  await expect(page.locator("#c-phoneCountry")).toHaveValue("31");
+
   await page.fill("#c-company", "Orion Holdings B.V.");
-  await page.fill("#c-billingName", "Finance Desk");
-  await page.fill("#c-billingEmail", `finance-${Date.now()}@e2e.ecramexecs.test`);
-  await page.fill("#c-phone", "+31 6 1234 5678");
-  await page.selectOption("#c-volume", "6_15");
-  await page.selectOption("#c-invoicing", "monthly");
+  await page.fill("#c-companyNumber", "12345678");
+  await page.fill("#c-phone", "6 1234 5678");
+  await page.selectOption("#c-contactMethod", "whatsapp");
+  await page.fill("#c-signatory", "Marieke van Dijk");
+  await page.fill("#c-pointOfCall", "Jeroen Bakker");
+  await page.selectOption("#c-vehicle", "mercedes_vle_300");
+  await page.selectOption("#c-tripTime", "morning");
+  await page.selectOption("#c-duration", "2_8");
   await page.getByRole("button", { name: t.submit }).click();
   await expect(page.getByRole("status")).toContainText("Anouk");
 
@@ -81,9 +105,7 @@ test("a correct code opens the restricted form, and the request reaches the admi
   await expect(page.getByRole("heading", { name: t.formHeading })).toBeVisible();
 
   await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(E2E_ADMIN.email);
-  await page.getByLabel("Password").fill(E2E_ADMIN.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await fillAdminLogin(page);
   await page.goto("/admin/corporate");
   await expect(page.getByText(email)).toBeVisible();
 });

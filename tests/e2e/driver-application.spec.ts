@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { E2E_ADMIN } from "./helpers";
+import { fillAdminLogin } from "./helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 
 // The form is locale-routed, so /drive-with-us lands on the English page; labels come from the
@@ -79,9 +79,7 @@ test("an independent driver applies with their own car and an admin approves the
 
   // 3. Review it in the admin
   await page.goto("/admin/drivers/applications");
-  await page.getByLabel("Email").fill(E2E_ADMIN.email);
-  await page.getByLabel("Password").fill(E2E_ADMIN.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await fillAdminLogin(page);
   await expect(page.getByRole("heading", { name: "Driver applications" })).toBeVisible();
   await page.getByRole("link").filter({ hasText: name }).click();
   await expect(page.getByText(reference)).toBeVisible();

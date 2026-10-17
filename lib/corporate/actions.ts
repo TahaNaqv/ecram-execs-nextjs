@@ -10,7 +10,6 @@ import { confirmToClient, notifyNewQuote, sendVerificationCode } from "@/lib/ema
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
-import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { getCorporateContact } from "./access";
 import {
   ACCESS_COOKIE,
@@ -28,7 +27,7 @@ import {
   newCode,
   newToken,
 } from "./otp";
-import { codeSchema, onboardingSchema, requestSchema, type OnboardingField, type RequestField } from "./validation";
+import { CORPORATE_VEHICLES, codeSchema, onboardingSchema, requestSchema, type OnboardingField, type RequestField } from "./validation";
 
 export type CorporateState =
   | { status: "idle" }
@@ -273,9 +272,11 @@ const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
 export async function submitOnboarding(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
-  const fields = ["company", "kvk", "billingName", "billingEmail", "phone", "volume", "routes", "invoicing", "notes", "locale"] as const;
+  const fields = [
+    "company", "companyNumber", "phoneCountry", "phone", "contactMethod", "signatory", "pointOfCall",
+    "vehicle", "tripTime", "duration", "notes", "locale",
+  ] as const;
   const values: Record<string, string> = Object.fromEntries(fields.map((k) => [k, String(formData.get(k) ?? "")]));
-  values.vehicles = formData.getAll("vehicles").map(String).join(",");
   const fail = (message: string, fieldErrors: Partial<Record<OnboardingField, string>> = {}) =>
     ({ status: "error", message, fieldErrors, values }) as const;
 
@@ -285,13 +286,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
 
   if (String(formData.get("company_website") ?? "") !== "") return { status: "success", reference: "EE-RECEIVED", name: contact.name };
 
-  const parsed = onboardingSchema(f, c).safeParse({
-    ...values,
-    kvk: values.kvk || undefined,
-    routes: values.routes || undefined,
-    notes: values.notes || undefined,
-    vehicles: formData.getAll("vehicles").map(String),
-  });
+  const parsed = onboardingSchema(f, c).safeParse({ ...values, notes: values.notes || undefined });
   if (!parsed.success) {
     const fieldErrors: Partial<Record<OnboardingField, string>> = {};
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as OnboardingField] ??= issue.message;
@@ -308,19 +303,21 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       .where(and(eq(schema.quoteRequests.ipHash, ipHash), gt(schema.quoteRequests.createdAt, since)));
     if (recent >= RATE_LIMIT.max) return fail(f.quoteRateLimited);
 
-    // Internal text, read by the team in the admin: always English, like the team alerts
-    const chosen = input.vehicles.map((key) => vehicleByKey(key)?.name ?? key);
+    // The booker's name and email are the verified contact's, never taken from the form
+    const chosen = CORPORATE_VEHICLES.find((v) => v.key === input.vehicle)!;
+    const label = (word: string) => word.replace(/_/g, " ");
+    // Internal text, read by the dispatch team in the admin: always English, like the team alerts
     const itinerary = [
-      "Corporate account request",
-      `Expected monthly journeys: ${input.volume.replace("_plus", "+").replace("_", "–")}`,
-      input.routes && `Typical routes / airports: ${input.routes}`,
-      chosen.length > 0 && `Preferred vehicles: ${chosen.join(", ")}`,
-      `Invoicing: ${input.invoicing.replace(/_/g, " ")}`,
-      `Billing contact: ${input.billingName} <${input.billingEmail}>`,
-      `Position: ${contact.position}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+      "Corporate Partner introduction (KYB)",
+      `Company number: ${input.companyNumber}`,
+      `Signatory: ${input.signatory}`,
+      `Point of call: ${input.pointOfCall}`,
+      `Preferred contact method: ${label(input.contactMethod)}`,
+      `Preferred vehicle: ${chosen.name}`,
+      `Majority of trips: ${input.tripTime}`,
+      `Average duration needed: ${input.duration.replace("_", "–")} hours`,
+      `Booker position: ${contact.position}`,
+    ].join("\n");
 
     let saved: typeof schema.quoteRequests.$inferSelect | undefined;
     for (let i = 0; i < 3 && !saved; i++) {
@@ -332,9 +329,11 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             source: "website-corporate",
             corporateContactId: contact.id,
             entity: input.company,
-            entityKvk: input.kvk ?? null,
-            vehicle: input.vehicles.length === 1 ? input.vehicles[0] : null,
+            entityKvk: input.companyNumber,
+            vehicle: chosen.fleetKey,
             itinerary,
+            // Where the dispatch manager follows up: the team alert and the admin page both show it
+            contactPreference: input.contactMethod,
             name: contact.name,
             email: contact.email,
             phone: input.phone,
@@ -353,7 +352,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
     await db.insert(schema.requestEvents).values({ requestId: request.id, event: "received" });
     await db
       .update(schema.corporateContacts)
-      .set({ companyName: input.company, kvkNumber: input.kvk ?? null })
+      .set({ companyName: input.company, kvkNumber: input.companyNumber })
       .where(eq(schema.corporateContacts.id, contact.id));
 
     after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));

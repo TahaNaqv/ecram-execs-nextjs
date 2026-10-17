@@ -33,13 +33,13 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Vehicle class", q.vehicleClass && (bespokeLabels.vehicleClasses as Record<string, string>)[q.vehicleClass]],
     ["Vehicle", q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? "Advise me" : q.vehicle))],
     ["Itinerary & instructions", q.itinerary],
-    ["Preferred contact", q.contactPreference && (q.contactPreference === "whatsapp" ? "WhatsApp" : "Phone")],
+    ["Preferred contact", q.contactPreference && ({ whatsapp: "WhatsApp", email: "Email" }[q.contactPreference] ?? "Phone")],
     ["Name", q.name],
     ["Email", q.email],
     ["Phone", q.phone],
     ["Notes", q.notes],
     ["Source", q.corporateContactId ? "Verified Corporate Partner" : null],
-    ["KvK", q.entityKvk],
+    ["KvK / company number", q.entityKvk],
   ];
   const html = teamAlert(`New ${bespoke ? "bespoke inquiry" : "quote request"} <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`);
 
@@ -63,7 +63,7 @@ export async function confirmToClient(q: QuoteRequest) {
   const row = (label: string, value: string) =>
     `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const bespoke = q.service === "bespoke";
-  const channel = q.contactPreference === "whatsapp" ? t.channelWhatsapp : t.channelPhone;
+  const channel = q.contactPreference === "whatsapp" ? t.channelWhatsapp : q.contactPreference === "email" ? t.channelEmail : t.channelPhone;
   const details = bespoke
     ? [row(t.fieldReference, q.reference), row(t.fieldService, serviceLabel(q.service, services)), q.entity ? row(t.fieldEntity, q.entity) : ""]
     : [

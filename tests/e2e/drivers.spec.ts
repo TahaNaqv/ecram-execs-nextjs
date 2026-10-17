@@ -1,13 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { E2E_ADMIN } from "./helpers";
+import { fillAdminLogin } from "./helpers";
 
 test("an admin can add a driver, run their 10-hour shift clock and archive them", async ({ page }) => {
   const name = `E2E Driver ${Date.now()}`;
 
   await page.goto("/admin/drivers");
-  await page.getByLabel("Email").fill(E2E_ADMIN.email);
-  await page.getByLabel("Password").fill(E2E_ADMIN.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await fillAdminLogin(page);
   await expect(page.getByRole("heading", { name: "Drivers" })).toBeVisible();
 
   // 1. Add a driver

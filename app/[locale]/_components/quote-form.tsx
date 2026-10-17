@@ -16,7 +16,7 @@ export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
   | "labelEmail" | "phEmail" | "labelPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelVehicle" | "vehicleAdvise" | "labelNotes" | "phNotes"
+  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
 > & { labelAddStop?: string; labelRemoveStop?: string };
@@ -164,7 +164,7 @@ export function QuoteForm({
                     type="button"
                     onClick={() => setStops(prev => prev.filter(s => s.id !== stop.id))}
                     className="text-ink-400 hover:text-red-600 px-1.5 text-sm transition-colors"
-                    title="Remove stop"
+                    title={t.removeStop}
                   >
                     ×
                   </button>

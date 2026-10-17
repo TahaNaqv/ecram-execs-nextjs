@@ -1,14 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { E2E_ADMIN } from "./helpers";
+import { E2E_ADMIN, fillAdminLogin } from "./helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 
 async function signIn(page: Page) {
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login/);
-  await page.getByLabel("Email").fill(E2E_ADMIN.email);
-  await page.getByLabel("Password").fill(E2E_ADMIN.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await fillAdminLogin(page);
   await expect(page.getByRole("heading", { name: "Quote requests" })).toBeVisible();
 }
 
@@ -75,9 +73,7 @@ test("a quote request flows from the website into the admin panel and can be man
 
 test("the admin panel rejects wrong passwords and signs out", async ({ page }) => {
   await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(E2E_ADMIN.email);
-  await page.getByLabel("Password").fill("definitely-wrong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await fillAdminLogin(page, "definitely-wrong");
   await expect(page.locator("form [role=alert]")).toHaveText("Incorrect email or password.");
 
   await signIn(page);

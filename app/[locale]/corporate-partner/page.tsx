@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getCorporateContact, getPendingChallenge } from "@/lib/corporate/access";
 import { CODE_MINUTES } from "@/lib/corporate/otp";
-import { FLEET } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { companyLookupEnabled } from "@/lib/companies/provider";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
@@ -23,7 +22,7 @@ async function Flow() {
   const [locale, d, contact] = await Promise.all([currentLocale(), getDict(), getCorporateContact()]);
   const pending = contact ? null : await getPendingChallenge();
   const initial = contact
-    ? ({ step: "form", email: contact.email } as const)
+    ? ({ step: "form", email: contact.email, name: contact.name } as const)
     : pending
       ? ({ step: "verify", email: pending.email } as const)
       : ({ step: "request" } as const);
@@ -34,7 +33,6 @@ async function Flow() {
       initial={initial}
       copy={d.corporatePartner}
       minutes={CODE_MINUTES}
-      vehicles={FLEET.map(({ key, name }) => ({ key, name }))}
       privacyHref={localizedPath("/privacy", locale)}
       lookup={{ enabled: companyLookupEnabled(), copy: d.companySearch }}
     />
