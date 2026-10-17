@@ -85,6 +85,15 @@
     scroll-padding-top: 88px;
   }
 
+  /* Header and hero buttons are plain #anchor links: this makes them glide to their section instead of jumping.
+     Left off for visitors who ask their device to reduce motion. Scripts that must not animate (reloading to the
+     top, restoring the position after a language switch) say behavior: "instant" explicitly. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
   img {
     max-width: 100%;
   }

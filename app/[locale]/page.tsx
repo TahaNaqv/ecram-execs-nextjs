@@ -72,7 +72,7 @@ export default async function HomePage() {
       <script
         dangerouslySetInnerHTML={{
           __html:
-            'try{var n=performance.getEntriesByType("navigation")[0];if(n&&n.type==="reload"){history.scrollRestoration="manual";if(location.hash)history.replaceState(null,"",location.pathname+location.search);var toTop=function(){scrollTo(0,0)};addEventListener("load",toTop);addEventListener("pageshow",toTop);setTimeout(toTop,150);setTimeout(toTop,600)}}catch(e){}',
+            'try{var n=performance.getEntriesByType("navigation")[0];if(n&&n.type==="reload"){history.scrollRestoration="manual";if(location.hash)history.replaceState(null,"",location.pathname+location.search);var toTop=function(){scrollTo({top:0,behavior:"instant"})};addEventListener("load",toTop);addEventListener("pageshow",toTop);setTimeout(toTop,150);setTimeout(toTop,600)}}catch(e){}',
         }}
       />
       <a className="skip-link" href="#main">
