@@ -130,7 +130,7 @@ export const FLEET: FleetVehicle[] = [
   },
   {
     key: "cadillac_escalade",
-    name: "Cadillac Escalade",
+    name: "Cadillac Escalade IQ",
     images: [
       "/assets/fleet-cadillac-escalade-v2.jpg",
       "/assets/fleet-cadillac-escalade-gallery-2.jpg",
@@ -143,21 +143,22 @@ export const FLEET: FleetVehicle[] = [
     drivetrain: "bev",
     specs: {
       passengers: 7,
-      rangeKm: 740,
+      // 465 miles, Cadillac's US estimate for the Escalade IQ (1 mile = 1.609 km)
+      rangeKm: 748,
       rangeStandard: "EPA",
       luggage: {
-        en: "About 686 litres behind the third row.",
-        nl: "Ongeveer 686 liter achter de derde zetelrij.",
+        en: "About 668 litres behind the third row, and about 345 litres more in the front trunk.",
+        nl: "Ongeveer 668 liter achter de derde zetelrij en ongeveer 345 liter extra in de voorste kofferbak.",
       },
       amenities: COMMON_AMENITIES,
       verified: {
         status: "draft",
-        source: "Cadillac Escalade IQL (cadillac.com) and Dutch coverage",
-        url: "https://www.cadillac.com/electric/escalade-iql",
-        checkedOn: "2026-10-14",
-        by: "Claude (research)",
+        source: "Escalade IQ key specifications supplied by the client (screenshot, 18 Oct 2026), cross-checked against press and dealer listings",
+        url: "https://www.cadillac.com/electric/escalade-iq",
+        checkedOn: "2026-10-18",
+        by: "Claude (client-supplied figures)",
         caveat:
-          "Only the Escalade IQL is electric. The 740 km figure is the US EPA rating (no WLTP found), which reads higher than WLTP. Dutch coverage notes its weight (~4.7 t) may need more than a standard B licence: check with RDW before it is offered.",
+          "These are the standard-wheelbase Escalade IQ (224.3 in), not the longer IQL the earlier draft used (740 km, 686 L). The 465 mi range is the US estimate (EPA-style, reads higher than a European WLTP figure); Cadillac's own page quotes 460 mi, dealer listings 465. The luggage figures (23.6 cu ft behind the third row, 12.2 cu ft front trunk) come from press listings, not from the client's screenshot, which gives only the 131.3 cu ft maximum with the seats folded (119.1 + 12.2). Other figures supplied and not shown on the site: 205 kWh battery, up to 750 hp, 0–60 mph in about 4.7 s, up to 350 kW fast charging, dual-motor AWD. Dutch coverage notes the weight may need more than a standard B licence: check with RDW before it is offered. Confirm the exact variant the client runs, then mark verified.",
       },
     },
   },
