@@ -46,7 +46,7 @@ export async function CorporateShell({
       <main id="main">
         <section className="border-b border-ink-850">
           <div className="mx-auto flex max-w-[1280px] flex-col gap-10 px-5 pt-16 pb-20 md:px-6 md:pt-24 md:pb-28 2xl:max-w-[1440px]">
-            <div className="flex max-w-[720px] flex-col gap-6">
+            <div className="mx-auto flex max-w-[720px] flex-col items-center gap-6 text-center">
               <span className="font-display text-[12px] tracking-[0.3em] text-ink-450 md:tracking-[0.42em]">{t.eyebrow}</span>
               <h1 className="m-0 font-serif text-[clamp(36px,8.6vw,40px)] leading-[1.05] font-light text-white md:text-[clamp(40px,5vw,68px)]">
                 {heading}

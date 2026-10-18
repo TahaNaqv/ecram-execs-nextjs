@@ -26,7 +26,6 @@ type SiteConfig = {
   tagline: Record<Locale, string>;
   contact: { phone: string; email: string; address: string };
   kvk: string;
-  fleetInterior: string;
   destinations: Destination[];
   social: { instagram: string; tiktok: string; linkedin: string; youtube: string; x: string };
 };
@@ -48,9 +47,6 @@ export const siteConfig: SiteConfig = {
 
   /** Kamer van Koophandel registration number */
   kvk: "", // TODO: awaiting the client's KvK number — hidden until set
-
-  /** Rear cabin, shown beneath the fleet to illustrate the black executive leather interior. */
-  fleetInterior: "/assets/fleet-interior-v2.jpg",
 
   // Shown in the client's order (their caption list); a destination without an image is hidden. Eindhoven's is a landscape crop of a photo by
   // Mahmood Alhussein (Pexels, 34002112; free licence, no attribution required): the Blob and the Philips building.

@@ -1,9 +1,7 @@
-import { siteConfig } from "@/lib/site-config";
 import { FLEET, MAX_GALLERY_IMAGES, type Amenity, type FleetVehicle } from "@/lib/fleet/vehicles";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import Image from "next/image";
 import { BookLink } from "../book-link";
 import { VehicleGallery } from "../vehicle-gallery";
 
@@ -96,16 +94,9 @@ export async function Fleet() {
                   </div>
                 )}
                 
-                <div className="gap-4 items-baseline flex justify-between pt-[14px]">
-                  <h3 className="m-0 text-white font-serif text-[22px] font-light md:text-[26px]">
-                    {vehicle.name}
-                  </h3>
-                  {vehicle.drivetrain === "bev" && (
-                    <span className="text-ink-450 font-display text-[10px] tracking-[0.22em] md:text-[11px] md:tracking-[0.3em]">
-                      {t.badge}
-                    </span>
-                  )}
-                </div>
+                <h3 className="m-0 pt-[14px] text-white font-serif text-[22px] font-light md:text-[26px]">
+                  {vehicle.name}
+                </h3>
 
                 <div className="border-t border-t-ink-800 my-4">
                   {questionsFor(vehicle, t, locale).map(([question, answer]) => (
@@ -138,20 +129,9 @@ export async function Fleet() {
           })}
         </ul>
 
-        <figure className="reveal m-0 gap-4 flex flex-col">
-          <div className="border border-ink-800 aspect-[16/9] relative overflow-hidden bg-ink-900 md:aspect-[21/9]">
-            <Image
-              className="object-cover"
-              src={siteConfig.fleetInterior}
-              alt={t.interiorAlt}
-              fill
-              sizes="(max-width: 1280px) 100vw, 1280px"
-            />
-          </div>
-          <figcaption className="m-0 text-ink-450 text-[13px] font-light max-w-[760px]">
-            {t.specNote}
-          </figcaption>
-        </figure>
+        <p className="reveal m-0 text-ink-450 text-[13px] font-light max-w-[760px]">
+          {t.specNote}
+        </p>
       </div>
     </section>
   );

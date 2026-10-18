@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/db";
 import { emailPartnerBooking } from "@/lib/email";
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
 import { isUniqueViolation, makeReference } from "@/lib/request-meta";
+import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
 export type NewBookingState = { error?: string; values?: Record<string, string> };
@@ -18,7 +19,7 @@ const FIELDS = ["contactId", "service", "collection", "destination", "stops", "p
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const schemaFor = z.object({
   contactId: z.preprocess(blank, z.uuid().optional()),
-  // Bespoke programmes have an itinerary rather than one journey, and their own form on the website
+  // Bespoke programmes have an itinerary rather than one journey, and were once submitted through their own form on the website
   service: z.enum(["airport_transfer", "business_travel", "hourly", "private_occasion"]),
   collection: z.string().trim().min(1, "Enter the collection point.").max(200),
   destination: z.string().trim().min(1, "Enter the destination.").max(200),
@@ -64,7 +65,15 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   if (!name) return fail("Enter the contact's name.");
   if (!email || !z.email().safeParse(email).success) return fail("Enter a valid contact email.");
 
-  const stops = input.stops.split("\n").map((s) => s.trim().slice(0, 200)).filter(Boolean).slice(0, 5);
+  // One stop per line, optionally "Place | minutes of waiting"
+  const stops = input.stops
+    .split("\n")
+    .map((line) => {
+      const [place, wait] = line.split("|");
+      return { place: place.trim().slice(0, 200), wait: asWait(wait?.trim()) };
+    })
+    .filter((s) => s.place)
+    .slice(0, MAX_STOPS);
   let created: typeof schema.quoteRequests.$inferSelect | undefined;
   for (let i = 0; i < 3 && !created; i++) {
     try {
@@ -75,7 +84,8 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
             service: input.service,
             collection: input.collection,
             destination: input.destination,
-            destinations: stops.length > 0 ? stops : null,
+            destinations: stops.length > 0 ? stops.map((s) => s.place) : null,
+            destinationWaits: stops.length > 0 ? stops.map((s) => s.wait) : null,
             pickupAt: input.pickupAt,
             passengers: input.passengers,
             vehicle: input.vehicle,

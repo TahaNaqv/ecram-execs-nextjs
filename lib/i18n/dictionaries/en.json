@@ -216,25 +216,24 @@
     "experience": "The Experience",
     "fleet": "Fleet",
     "destinations": "Destinations",
-    "corporate": "Corporate",
-    "bespoke": "Bespoke"
+    "corporate": "Corporate"
   },
   "hero": {
     "imageAlt": "Ecram Execs chauffeur waiting beside an electric Mercedes VLE as an executive leaves a private jet at dusk",
     "headingBefore": "Every Journey Is Part",
     "headingEmphasis": "of the Experience",
     "intro": "Experience premium electric chauffeur services across the Netherlands, combining refined comfort, discretion, and effortless travel. From collection to arrival, every journey is tailored around your comfort, with punctuality and exceptional service at the heart of every ride.",
-    "watchArrival": "Experience the Journey",
+    "corporateLogin": "Corporate Login",
     "scroll": "SCROLL",
     "stripQuiet": "QUIET · REFINED · ELECTRIC",
     "stripServing": "SERVING THE WHOLE OF THE NETHERLANDS",
     "stripAvailable": "AVAILABLE 24 / 7"
   },
   "enquiry": {
-    "heading": "Plan your journey"
+    "heading": "Plan Your Journey"
   },
   "servicesSection": {
-    "eyebrow": "I — SERVICES",
+    "eyebrow": "II — SERVICES",
     "heading": "Executive Chauffeur Services, From Start To Finish",
     "airportTitle": "Airport Transfers",
     "airportText": "Flight-tracked collections at Schiphol, Rotterdam The Hague and Eindhoven. Met in arrivals, luggage handled, straight to the cabin.",
@@ -250,7 +249,7 @@
     "bespokeText": "Multi-day delegations, events and itineraries planned around your requirements, not ours."
   },
   "experienceSection": {
-    "eyebrow": "II — THE EXPERIENCE",
+    "eyebrow": "III — THE EXPERIENCE",
     "heading": "Experience The Journey"
   },
   "fleetSection": {
@@ -258,9 +257,7 @@
     "heading": "Uncompromising Standards.",
     "intro": "Every vehicle in our fleet is chosen for exceptional comfort, whisper-quiet electric performance, and refined executive luxury. Combining cutting-edge electric technology with elegant, premium interiors, our top-of-the-range vehicles deliver a seamless travel experience where sophistication, comfort, and sustainability go hand in hand.",
     "specNote": "Every vehicle operates strictly in an all-black exterior finish with a black executive leather interior, in full top-of-the-range specification.",
-    "badge": "100% ELECTRIC",
     "imageAlt": "{name} in obsidian black",
-    "interiorAlt": "Rear cabin with black executive leather seating",
     "qaPassengersQ": "How Many Passengers Can The Vehicle Accommodate?",
     "qaPassengersA": "Up to {count} passengers.",
     "qaRangeQ": "What Is The Vehicle’s Electric Range?",
@@ -285,22 +282,15 @@
     "galleryCounter": "Photo {current} of {total}",
     "galleryLightbox": "{name}, enlarged photo"
   },
-  "electric": {
-    "eyebrow": "IV — SUSTAINABILITY & ESG",
-    "heading": "Sustainability and luxury need not be separate.",
-    "body": "As a Netherlands-based company, ECRAM EXECS is redefining executive travel through a modern, fully electric fleet. Driven by a commitment to cleaner mobility, we combine zero tailpipe emissions with whisper-quiet performance, exceptional comfort, and effortless sophistication.",
-    "body2": "For our corporate partners, we provide comprehensive Scope 3 emissions reporting to support sustainability objectives and ESG reporting requirements, bringing greater transparency to every journey.",
-    "motto": "QUIET. REFINED. ELECTRIC."
-  },
   "marquee": {
     "label": "Cities we serve",
     "theHague": "The Hague"
   },
   "destinationsSection": {
-    "eyebrow": "V — ACROSS THE NETHERLANDS",
-    "heading": "Wherever Business Or Leisure Takes You, ECRAM EXECS Gets You There In Style.",
+    "eyebrow": "IV — ACROSS THE NETHERLANDS",
+    "heading": "Wherever Business Or Leisure Takes You, Ecram Execs Gets You There In Style.",
     "intro": "From Amsterdam’s canals to Rotterdam’s skyline, The Hague’s royal charm, where elegance shines. Utrecht’s historic beauty, Maastricht’s fine cuisine, The Bulb Region’s tulips, a colourful scene.",
-    "intro2": "Eindhoven’s innovation, Kinderdijk’s windmills in sight, ECRAM brings luxury to every journey, day or night.",
+    "intro2": "Eindhoven’s innovation, Kinderdijk’s windmills in sight, Ecram brings luxury to every journey, day or night.",
     "kinderdijk": "Kinderdijk: Iconic Windmills & Dutch Heritage",
     "kinderdijkAlt": "Windmills at Kinderdijk",
     "rotterdam": "Rotterdam: Modern Skyline & Erasmus Bridge",
@@ -319,8 +309,8 @@
     "eindhovenAlt": "Eindhoven city centre"
   },
   "whoWeServe": {
-    "eyebrow": "VI — WHO WE SERVE",
-    "heading": "Trusted by those for whom every minute — and every impression — counts.",
+    "eyebrow": "I — WHO WE SERVE",
+    "heading": "Trusted by those for whom every minute, and every impression, counts.",
     "cta": "Become A Corporate Partner",
     "segmentExecutives": "Executives & boards",
     "segmentCorporate": "Corporate clients",
@@ -355,7 +345,7 @@
     "inputLabel": "Message the concierge",
     "inputPlaceholder": "Ask about a journey…",
     "send": "Send message",
-    "noAnswer": "I couldn't find an exact answer to that. A member of our reservations team will gladly help you personally: send us your request with the Plan your journey form above, or call us.",
+    "noAnswer": "I couldn't find an exact answer to that. A member of our reservations team will gladly help you personally: send us your request with the Plan Your Journey form above, or call us.",
     "isTyping": "The concierge is typing",
     "faq1Q": "How Far In Advance Should I Book?",
     "faq1A": "We recommend booking as early as you can, particularly for airport transfers, events and busy periods. For short-notice requests, contact our reservations team and we will do everything possible to accommodate you.",
@@ -497,7 +487,10 @@
     "stopoversTitle": "Additional Stopovers (Max {max})",
     "noStops": "No extra stopovers added yet.",
     "stopPlaceholder": "Stop {number} (Optional)",
-    "addStopover": "+ Add Stopover"
+    "addStopover": "+ Add Stopover",
+    "labelStopWait": "Waiting time",
+    "waitNone": "No waiting",
+    "waitMinutes": "{minutes} min"
   },
   "privacy": {
     "metaTitle": "Privacy policy — Ecram Execs",
@@ -647,7 +640,8 @@
       "vehicleClass": "Vehicle class",
       "contactPreference": "Preferred contact",
       "itinerary": "Itinerary & special instructions",
-      "vehicle": "Vehicle"
+      "vehicle": "Vehicle",
+      "stopWait": "Waiting {minutes} min"
     },
     "drivers": {
       "title": "Drivers",
@@ -832,7 +826,7 @@
       "service": "Service",
       "collection": "Collection",
       "destination": "Destination",
-      "stops": "Stops on the way (one per line)",
+      "stops": "Stops on the way (one per line; add “ | 30” for 30 minutes of waiting)",
       "pickup": "Pick-up date & time (NL)",
       "passengers": "Passengers",
       "vehicle": "Vehicle",
@@ -1138,6 +1132,7 @@
     "submitBooking": "Request Booking",
     "submittingBooking": "Sending…",
     "repeatNote": "Filled in from {reference}. Choose a new date and time.",
-    "bookingNotFound": "We could not find that booking."
+    "bookingNotFound": "We could not find that booking.",
+    "stopWait": "Waiting time: {minutes} min"
   }
 }

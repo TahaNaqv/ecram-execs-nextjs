@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { createBooking } from "@/lib/corporate/portal-actions";
 import type { PortalState } from "@/lib/corporate/portal-state";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
+import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { ghostClass, submitClass } from "./corporate-styles";
@@ -14,14 +15,14 @@ import { control, Field } from "./form-field";
 export type BookingFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime" | "labelService" | "labelPassengers"
   | "selectPlaceholder" | "eightOrMore" | "labelVehicle" | "vehicleAdvise" | "labelNotes" | "phNotes" | "labelPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelBookerName" | "labelBookerEmail" | "addStopCta" | "phStop" | "submitBooking" | "submittingBooking" | "removeStop" | "loginLink",
+  | "labelBookerName" | "labelBookerEmail" | "labelStopWait" | "waitNone" | "waitMinutes" | "addStopCta" | "phStop" | "submitBooking" | "submittingBooking" | "removeStop" | "loginLink",
   string
 > & { stopLabel: string };
 
 export type BookingDefaults = {
   collection?: string;
   destination?: string;
-  stops?: string[];
+  stops?: { place: string; wait: number }[];
   service?: string;
   passengers?: string;
   vehicle?: string;
@@ -30,7 +31,6 @@ export type BookingDefaults = {
   phone?: string;
 };
 
-const MAX_STOPS = 5;
 const SERVICE_CHOICES = SERVICES.filter((s): s is Exclude<Service, "bespoke"> => s !== "bespoke");
 
 /**
@@ -54,7 +54,7 @@ export function BookingForm({
   loginHref: string;
   copy: BookingFormCopy;
 }) {
-  const [stops, setStops] = useState<{ id: number; value: string }[]>((defaults.stops ?? []).map((value, id) => ({ id, value })));
+  const [stops, setStops] = useState<{ id: number; value: string; wait: number }[]>((defaults.stops ?? []).map((s, id) => ({ id, value: s.place, wait: s.wait })));
   const [nextId, setNextId] = useState(stops.length);
   const [attempt, setAttempt] = useState(0);
   const [state, action, pending] = useActionState<PortalState, FormData>(async (prev, formData) => {
@@ -95,6 +95,19 @@ export function BookingForm({
                 </label>
                 <input id={`b-stop-${stop.id}`} name="destinations" type="text" maxLength={200} placeholder={t.phStop} value={stop.value}
                   onChange={(e) => setStops((all) => all.map((x) => (x.id === stop.id ? { ...x, value: e.target.value } : x)))} autoComplete="off" className={control} />
+                <select
+                  name="destinationWaits"
+                  aria-label={t.labelStopWait}
+                  value={stop.wait}
+                  onChange={(e) => setStops((all) => all.map((x) => (x.id === stop.id ? { ...x, wait: Number(e.target.value) } : x)))}
+                  className="w-[112px] shrink-0 cursor-pointer border-0 border-l border-ink-225 bg-transparent p-0 pl-2 text-[14px] tracking-[0] text-ink-950 normal-case outline-none"
+                >
+                  {STOP_WAITS.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes === 0 ? t.waitNone : t.waitMinutes.replace("{minutes}", String(minutes))}
+                    </option>
+                  ))}
+                </select>
                 <button type="button" onClick={() => setStops((s) => s.filter((x) => x.id !== stop.id))} className={`${ghostClass} shrink-0`} aria-label={t.removeStop}>
                   ×
                 </button>
@@ -107,7 +120,7 @@ export function BookingForm({
             <button
               type="button"
               onClick={() => {
-                setStops((s) => [...s, { id: nextId, value: "" }]);
+                setStops((s) => [...s, { id: nextId, value: "", wait: 0 }]);
                 setNextId((n) => n + 1);
               }}
               className={ghostClass}

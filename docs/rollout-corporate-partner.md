@@ -76,7 +76,7 @@ Existing rows are untouched: all new `quote_requests` columns are nullable.
 4. Wrong code ×5 → locked message. Wait for / request a new code → works.
 5. Home page: Fleet section → **Book** on a vehicle → page scrolls to the quote form with that vehicle selected. Submit a quote, confirm `vehicle` shows in the admin request.
 6. `/api/companies?q=a` → `400`; `?q=orion` → `200` (with `available:false` until a KvK key is set).
-7. Bespoke form and the home page still submit normally.
+7. The home page's booking form still submits normally (the separate bespoke form was taken off the home page).
 
 **Clean up afterwards** (the test rows are real data and your address is now on the contact list):
 - Delete the test requests in the admin (Delete on the request page).

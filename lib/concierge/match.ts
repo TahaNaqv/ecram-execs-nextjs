@@ -27,12 +27,13 @@ const tokens = (text: string) =>
 /** Minimum score to answer. Two question-word hits, or one in the question and a couple in the answer. */
 const THRESHOLD = 3;
 
-export function bestAnswer(message: string, faqs: readonly (readonly [question: string, answer: string])[]) {
+/** The FAQ that best fits a typed question — its position in `faqs` and its answer — or null when none fits well enough. */
+export function bestMatch(message: string, faqs: readonly (readonly [question: string, answer: string])[]) {
   const asked = new Set(tokens(message));
   if (asked.size === 0) return null;
 
-  let best: { answer: string; score: number } | null = null;
-  for (const [question, answer] of faqs) {
+  let best: { index: number; answer: string; score: number } | null = null;
+  faqs.forEach(([question, answer], index) => {
     const inQuestion = new Set(tokens(question));
     const inAnswer = new Set(tokens(answer));
     let score = 0;
@@ -40,7 +41,9 @@ export function bestAnswer(message: string, faqs: readonly (readonly [question: 
       if (inQuestion.has(word)) score += 2;
       else if (inAnswer.has(word)) score += 1;
     }
-    if (!best || score > best.score) best = { answer, score };
-  }
-  return best && best.score >= THRESHOLD ? best.answer : null;
+    if (!best || score > best.score) best = { index, answer, score };
+  });
+  return best && (best as { score: number }).score >= THRESHOLD ? { index: (best as { index: number }).index, answer: (best as { answer: string }).answer } : null;
 }
+
+export const bestAnswer = (message: string, faqs: readonly (readonly [question: string, answer: string])[]) => bestMatch(message, faqs)?.answer ?? null;

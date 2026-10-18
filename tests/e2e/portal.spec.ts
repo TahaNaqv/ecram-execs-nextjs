@@ -264,6 +264,7 @@ test("a new booking from the portal carries the partner's details, and can be re
   await page.fill("#b-destination", "Hotel Des Indes, The Hague");
   await page.getByRole("button", { name: new RegExp(p.addStopCta) }).click();
   await page.getByPlaceholder(p.phStop).fill("Rotterdam Centraal");
+  await page.getByLabel(en.quoteForm.labelStopWait).selectOption("30");
   await page.fill("#b-pickupAt", `${year}-03-14T08:30`);
   await page.selectOption("#b-passengers", "3");
   await page.fill("#b-phone", "6 1234 5678");
@@ -276,16 +277,25 @@ test("a new booking from the portal carries the partner's details, and can be re
   await expect(page.locator("ol li").filter({ hasText: "1. Schiphol Airport, Arrivals 2" })).toBeVisible();
   await expect(page.locator("ol li").filter({ hasText: "2. Rotterdam Centraal" })).toBeVisible();
   await expect(page.locator("ol li").filter({ hasText: "3. Hotel Des Indes, The Hague" })).toBeVisible();
+  // The wait is shown at the stop it belongs to, and nowhere else
+  await expect(page.locator("ol li").filter({ hasText: "2. Rotterdam Centraal" })).toContainText(p.stopWait.replace("{minutes}", "30"));
+  await expect(page.locator("ol li").filter({ hasText: "1. Schiphol Airport, Arrivals 2" })).not.toContainText(p.stopWait.replace(": {minutes} min", ""));
 
   const row = await bookingRow(reference);
   expect(row?.source).toBe("portal");
   expect(row?.corporate_contact_id).toBe(contactId);
+  const db = sql();
+  const [stored] = await db`select destinations, destination_waits from quote_requests where reference = ${reference}`;
+  await db.end();
+  expect(stored.destinations).toEqual(["Rotterdam Centraal"]);
+  expect(stored.destination_waits).toEqual([30]);
 
   // Repeating starts from the same trip, with no date
   await page.getByRole("link", { name: p.repeatCta }).click();
   await expect(page.getByText(p.repeatNote.replace("{reference}", reference))).toBeVisible();
   await expect(page.locator("#b-collection")).toHaveValue("Schiphol Airport, Arrivals 2");
   await expect(page.getByPlaceholder(p.phStop)).toHaveValue("Rotterdam Centraal");
+  await expect(page.getByLabel(en.quoteForm.labelStopWait)).toHaveValue("30");
   await expect(page.locator("#b-pickupAt")).toHaveValue("");
 });
 
@@ -361,6 +371,7 @@ test("the team links a request to a partner, they talk, and detaching takes it o
 });
 
 test("a request with a partner's messages or invoices can only be attached to that same partner again", async ({ page, context }) => {
+  test.slow(); // several admin round trips
   await ownAddress(context);
   const first = await seedContact(newEmail("first"), PASSWORD, "First Partner", "First Co");
   const second = await seedContact(newEmail("second"), PASSWORD, "Second Partner", "Second Co");
@@ -429,12 +440,16 @@ test("the team can enter a phone booking for a partner, and it appears in their 
   await page.selectOption("#nb-contactId", contactId);
   await page.fill("#nb-collection", "Eindhoven Airport");
   await page.fill("#nb-destination", "Amsterdam Zuid");
+  await page.fill("#nb-stops", "Utrecht Centraal | 45\nBreda");
   await page.fill("#nb-pickupAt", "2031-04-02T09:15");
   await page.fill("#nb-phone", "+31 6 1234 5678");
   await page.selectOption("#nb-status", "confirmed");
   await page.getByRole("button", { name: a.newBooking.submit }).click();
   await expect(page).toHaveURL(/\/admin\/requests\/[0-9a-f-]{36}$/);
   await expect(page.getByText(a.events.createdByTeam)).toBeVisible();
+  // The stop's wait is on the request, and the stop with no wait says nothing
+  await expect(page.getByText(a.requestDetail.stopWait.replace("{minutes}", "45"))).toBeVisible();
+  await expect(page.getByText(/^Waiting \d+ min$/)).toHaveCount(1);
 
   const partnerContext = await browser.newContext({ baseURL: ORIGIN });
   await ownAddress(partnerContext);

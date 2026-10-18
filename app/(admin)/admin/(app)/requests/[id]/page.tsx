@@ -7,6 +7,8 @@ import { getRequest } from "@/lib/admin/queries";
 import { serviceLabel, type RequestStatus } from "@/lib/quotes/constants";
 import { eventLabels, renderEvent } from "@/lib/admin/events";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { interpolate } from "@/lib/i18n/interpolate";
+import { stopsWithWaits } from "@/lib/quotes/stops";
 import type { QuoteRequest } from "@/lib/db/schema";
 import {
   ActivityIcon,
@@ -132,7 +134,12 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
   const allStops = bespoke
     ? []
-    : [r.collection, ...(r.destinations ?? []), r.destination].filter(Boolean); // from, stops on the way, to
+    : // from, stops on the way (each with how long the chauffeur waits), to
+      [
+        { text: r.collection, wait: 0 },
+        ...stopsWithWaits(r.destinations, r.destinationWaits).map((s) => ({ text: s.place, wait: s.wait })),
+        { text: r.destination, wait: 0 },
+      ].filter((s) => s.text);
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -236,7 +243,8 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                             <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
                               {isFirst ? d.admin.requestDetail.collection : isLast ? d.admin.requestDetail.destination : `Stopover ${i}`}
                             </p>
-                            <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{stop}</p>
+                            <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{stop.text}</p>
+                            {stop.wait > 0 && <p className="mt-0.5 text-xs text-zinc-500">{interpolate(d.admin.requestDetail.stopWait, { minutes: stop.wait })}</p>}
                           </div>
                         </li>
                       );

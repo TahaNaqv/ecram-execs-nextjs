@@ -10,6 +10,7 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
+import { stopsWithWaits } from "@/lib/quotes/stops";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { outlineButton } from "../../../_components/corporate-styles";
 import { MessageForm } from "../../../_components/portal-message-form";
@@ -55,7 +56,11 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
   const open = (MESSAGEABLE as readonly string[]).includes(booking.status);
   const bespoke = booking.service === "bespoke";
   // In travelling order: where from, any stops on the way, where to
-  const stops = [booking.collection, ...(booking.destinations ?? []), booking.destination].filter(Boolean);
+  const stops = [
+    { text: booking.collection, wait: 0 },
+    ...stopsWithWaits(booking.destinations, booking.destinationWaits).map((s) => ({ text: s.place, wait: s.wait })),
+    { text: booking.destination, wait: 0 },
+  ].filter((s) => s.text);
   const loginHref = localizedPath("/corporate-partner/login", locale);
 
   return (
@@ -105,7 +110,8 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
                 <ol className="m-0 flex list-none flex-col gap-1 p-0">
                   {stops.map((stop, i) => (
                     <li key={i}>
-                      {i + 1}. {stop}
+                      {i + 1}. {stop.text}
+                      {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
                     </li>
                   ))}
                 </ol>

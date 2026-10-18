@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import postgres from "postgres";
 import { fillAdminLogin } from "./helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
@@ -137,4 +138,42 @@ test("an admin can switch the panel language and it sticks", async ({ page }) =>
   await page.goto("/admin");
   await page.getByRole("form", { name: nl.admin.common.language }).getByRole("button", { name: "en" }).click();
   await expect(page.getByRole("heading", { name: en.admin.requests.title })).toBeVisible();
+});
+
+test("a stopover carries its waiting time to the team", async ({ page }) => {
+  const email = `client-wait-${Date.now()}@e2e.ecramexecs.test`;
+  await page.goto("/en");
+  await page.fill("#q-collection", "Schiphol Airport, Arrivals 2");
+  await page.fill("#q-destination", "Hotel Des Indes, The Hague");
+  await page.fill("#q-pickupAt", `${new Date().getFullYear() + 1}-03-14T08:30`);
+  await page.fill("#q-name", "Jan de Vries");
+  await page.fill("#q-email", email);
+  await page.fill("#q-phone", "6 1234 5678");
+
+  // Two stops; the first is a half-hour wait, the second is left at "no waiting"
+  await page.getByRole("button", { name: en.quoteForm.addStop }).click();
+  for (const [stop, place] of [[0, "Rotterdam Centraal"], [1, "Utrecht Centraal"]] as const) {
+    await page.getByRole("button", { name: en.quoteForm.addStopover }).click();
+    await page.getByPlaceholder(en.quoteForm.stopPlaceholder.replace("{number}", String(stop + 2))).fill(place);
+  }
+  await page.getByLabel(en.quoteForm.labelStopWait).first().selectOption("30");
+  await page.getByRole("button", { name: /request bespoke quote/i }).click();
+  const status = page.getByRole("status");
+  await expect(status).toContainText("Thank you, Jan");
+  const reference = (await status.innerText()).match(/EE-[A-Z0-9]{6}/)![0];
+
+  // Stored beside the stops, in the same order
+  const db = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+  const [row] = await db`select id, destinations, destination_waits from quote_requests where reference = ${reference}`;
+  await db.end();
+  expect(row.destinations).toEqual(["Rotterdam Centraal", "Utrecht Centraal"]);
+  expect(row.destination_waits).toEqual([30, 0]);
+
+  // The team sees the wait under the stop it belongs to
+  await page.goto("/admin/login");
+  await fillAdminLogin(page);
+  await page.waitForURL((url) => !url.pathname.endsWith("/login"));
+  await page.goto(`/admin/requests/${row.id}`);
+  await expect(page.getByText(en.admin.requestDetail.stopWait.replace("{minutes}", "30"))).toBeVisible();
+  await expect(page.getByText(/^Waiting \d+ min$/)).toHaveCount(1);
 });

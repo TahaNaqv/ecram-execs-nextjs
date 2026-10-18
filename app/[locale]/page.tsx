@@ -6,10 +6,8 @@ import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { NavAutoClose } from "./_components/nav-auto-close";
 import { SectionNav } from "./_components/section-nav";
 import {
-  Bespoke,
   Concierge,
   Destinations,
-  ElectricBand,
   Enquiry,
   Experience,
   FinalCta,
@@ -82,17 +80,14 @@ export default async function HomePage() {
       <main id="main">
         <Hero />
         <Enquiry />
+        <WhoWeServe />
         <Fleet />
         <Concierge />
         <Statement />
         <Services />
         <Experience />
-        
-        <ElectricBand />
         <RegionsMarquee />
         <Destinations />
-        <WhoWeServe />
-        <Bespoke />
         <FinalCta />
       </main>
       <SiteFooter />

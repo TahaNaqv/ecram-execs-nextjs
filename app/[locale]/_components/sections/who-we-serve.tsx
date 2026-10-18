@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -5,13 +6,16 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 export async function WhoWeServe() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const w = d.whoWeServe;
+  // The picture that fades in behind each audience when the pointer rests on it. The `serve-*` files are
+  // resized copies of the client's photographs; the other three are destination photos (Rotterdam, Utrecht,
+  // Amsterdam). Decorative only: the heading and text beside them already say who it is for.
   const segments = [
-    [w.segmentExecutives, w.segmentExecutivesText],
-    [w.segmentCorporate, w.segmentCorporateText],
-    [w.segmentPrivate, w.segmentPrivateText],
-    [w.segmentHotels, w.segmentHotelsText],
-    [w.segmentInternational, w.segmentInternationalText],
-    [w.segmentEvents, w.segmentEventsText],
+    [w.segmentExecutives, w.segmentExecutivesText, "/assets/serve-executives-v1.jpg", "50% 50%"],
+    [w.segmentCorporate, w.segmentCorporateText, "/assets/c01091ac467f57c8ccacd1d28b8caa6f.jpg", "60% 62%"],
+    [w.segmentPrivate, w.segmentPrivateText, "/assets/serve-private-v1.jpg", "50% 50%"],
+    [w.segmentHotels, w.segmentHotelsText, "/assets/d38555c6a11a07329e901cbb09fa90bb.jpg", "50% 60%"],
+    [w.segmentInternational, w.segmentInternationalText, "/assets/52de87fce1028743a6cc606de596dd57.jpg", "50% 55%"],
+    [w.segmentEvents, w.segmentEventsText, "/assets/serve-events-v1.jpg", "50% 50%"],
   ] as const;
   return (
     <section className="border-b border-b-ink-850" id="corporate">
@@ -31,10 +35,27 @@ export async function WhoWeServe() {
           </Link>
         </div>
         <ul className="flex-[999_1_560px] gap-x-12 grid grid-cols-[1fr] min-w-0 gap-y-0 p-0 m-0 list-none md:grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
-          {segments.map(([title, text]) => (
-            <li key={title} className="py-6 px-0 gap-2 border-t border-t-ink-800 flex flex-col">
+          {segments.map(([title, text, image, focus]) => (
+            // The picture exists only where a pointer can hover: on touch screens it would never be seen, and
+            // `display: none` keeps the browser from downloading it. It reaches 16px past the text on each side
+            // so the words keep a margin inside it.
+            <li key={title} className="group relative isolate py-6 px-0 gap-2 border-t border-t-ink-800 flex flex-col">
+              <div
+                className="pointer-events-none absolute inset-y-0 -inset-x-4 -z-10 hidden overflow-hidden opacity-0 [@media(hover:hover)]:block transition-opacity duration-500 group-hover:opacity-100"
+                aria-hidden="true"
+              >
+                <Image
+                  className="object-cover scale-110 transition-transform duration-[900ms] ease-out group-hover:scale-100 motion-reduce:scale-100 motion-reduce:transition-none"
+                  style={{ objectPosition: focus }}
+                  src={image}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1280px) 320px, (min-width: 768px) 30vw, 100vw"
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.76)_0%,rgba(10,10,11,0.88)_100%)]"></div>
+              </div>
               <h3 className="m-0 text-ink-50 font-serif text-[22px] font-normal md:text-[26px]">{title}</h3>
-              <p className="m-0 text-ink-400 text-[14px] font-light">{text}</p>
+              <p className="m-0 text-ink-400 text-[14px] font-light transition-colors duration-500 group-hover:text-ink-150">{text}</p>
             </li>
           ))}
         </ul>

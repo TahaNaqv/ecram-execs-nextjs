@@ -216,15 +216,14 @@
     "experience": "De ervaring",
     "fleet": "Vloot",
     "destinations": "Bestemmingen",
-    "corporate": "Zakelijk",
-    "bespoke": "Op maat"
+    "corporate": "Zakelijk"
   },
   "hero": {
     "imageAlt": "Een chauffeur van Ecram Execs wacht bij een elektrische Mercedes VLE terwijl een executive bij schemer een privéjet verlaat",
     "headingBefore": "Elke rit is deel",
     "headingEmphasis": "van de ervaring",
     "intro": "Beleef premium elektrische chauffeursdiensten in heel Nederland, met verfijnd comfort, discretie en moeiteloos reizen. Van ophalen tot aankomst is elke rit afgestemd op uw wensen, waarbij punctualiteit en uitzonderlijke service centraal staan.",
-    "watchArrival": "Beleef de reis",
+    "corporateLogin": "Zakelijk inloggen",
     "scroll": "SCROLL",
     "stripQuiet": "STIL · GERAFFINEERD · ELEKTRISCH",
     "stripServing": "ACTIEF IN HEEL NEDERLAND",
@@ -234,7 +233,7 @@
     "heading": "Plan uw rit"
   },
   "servicesSection": {
-    "eyebrow": "I — DIENSTEN",
+    "eyebrow": "II — DIENSTEN",
     "heading": "Executive chauffeursdiensten, van begin tot eind",
     "airportTitle": "Luchthaventransfers",
     "airportText": "Ophalen met vluchtmonitoring op Schiphol, Rotterdam The Hague en Eindhoven. Opgewacht bij aankomst, bagage verzorgd, direct naar de auto.",
@@ -250,7 +249,7 @@
     "bespokeText": "Meerdaagse delegaties, evenementen en reisschema's, afgestemd op uw wensen en niet op de onze."
   },
   "experienceSection": {
-    "eyebrow": "II — DE ERVARING",
+    "eyebrow": "III — DE ERVARING",
     "heading": "Beleef de reis"
   },
   "fleetSection": {
@@ -258,9 +257,7 @@
     "heading": "Compromisloze standaarden.",
     "intro": "Elk voertuig in onze vloot is gekozen vanwege uitzonderlijk comfort, fluisterstille elektrische prestaties en verfijnde executive luxe. Door geavanceerde elektrische technologie te combineren met elegante, hoogwaardige interieurs bieden onze voertuigen in de topuitvoering een naadloze reiservaring waarin verfijning, comfort en duurzaamheid hand in hand gaan.",
     "specNote": "Elk voertuig rijdt uitsluitend met een volledig zwart exterieur en een zwart executive leren interieur, in de volledige topuitvoering.",
-    "badge": "100% ELEKTRISCH",
     "imageAlt": "{name} in obsidiaanzwart",
-    "interiorAlt": "Achterin met zwart executive leren zetels",
     "qaPassengersQ": "Hoeveel passagiers passen er in het voertuig?",
     "qaPassengersA": "Maximaal {count} passagiers.",
     "qaRangeQ": "Wat is de elektrische actieradius van het voertuig?",
@@ -285,22 +282,15 @@
     "galleryCounter": "Foto {current} van {total}",
     "galleryLightbox": "{name}, vergrote foto"
   },
-  "electric": {
-    "eyebrow": "IV — DUURZAAMHEID & ESG",
-    "heading": "Duurzaamheid en luxe hoeven niet los van elkaar te staan.",
-    "body": "Als Nederlands bedrijf geeft ECRAM EXECS een nieuwe invulling aan executive vervoer met een moderne, volledig elektrische vloot. Vanuit een toewijding aan schonere mobiliteit combineren wij emissievrij rijden met fluisterstille prestaties, uitzonderlijk comfort en moeiteloze verfijning.",
-    "body2": "Voor onze zakelijke partners bieden wij uitgebreide Scope 3-emissierapportage ter ondersteuning van duurzaamheidsdoelstellingen en ESG-rapportagevereisten, voor meer transparantie bij elke rit.",
-    "motto": "STIL. GERAFFINEERD. ELEKTRISCH."
-  },
   "marquee": {
     "label": "Steden waar wij rijden",
     "theHague": "Den Haag"
   },
   "destinationsSection": {
-    "eyebrow": "V — IN HEEL NEDERLAND",
-    "heading": "Waar zaken of vrije tijd u ook heen brengt, ECRAM EXECS brengt u er in stijl naartoe.",
+    "eyebrow": "IV — IN HEEL NEDERLAND",
+    "heading": "Waar zaken of vrije tijd u ook heen brengt, Ecram Execs brengt u er in stijl naartoe.",
     "intro": "Van de grachten van Amsterdam tot de skyline van Rotterdam, van het koninklijke Den Haag, waar elegantie schittert, tot het historische Utrecht, de fijne keuken van Maastricht en de tulpen van de Bollenstreek.",
-    "intro2": "Van het innovatieve Eindhoven tot de molens van Kinderdijk: ECRAM brengt luxe naar elke rit, dag en nacht.",
+    "intro2": "Van het innovatieve Eindhoven tot de molens van Kinderdijk: Ecram brengt luxe naar elke rit, dag en nacht.",
     "kinderdijk": "Kinderdijk: iconische molens & Nederlands erfgoed",
     "kinderdijkAlt": "Molens bij Kinderdijk",
     "rotterdam": "Rotterdam: moderne skyline & Erasmusbrug",
@@ -319,8 +309,8 @@
     "eindhovenAlt": "Het centrum van Eindhoven"
   },
   "whoWeServe": {
-    "eyebrow": "VI — VOOR WIE WIJ RIJDEN",
-    "heading": "Vertrouwd door wie elke minuut — en elke indruk — laat meetellen.",
+    "eyebrow": "I — VOOR WIE WIJ RIJDEN",
+    "heading": "Vertrouwd door wie elke minuut, en elke indruk, laat meetellen.",
     "cta": "Word zakelijke partner",
     "segmentExecutives": "Directie & besturen",
     "segmentCorporate": "Zakelijke klanten",
@@ -497,7 +487,10 @@
     "stopoversTitle": "Extra tussenstops (max. {max})",
     "noStops": "Nog geen extra tussenstops toegevoegd.",
     "stopPlaceholder": "Tussenstop {number} (optioneel)",
-    "addStopover": "+ Tussenstop toevoegen"
+    "addStopover": "+ Tussenstop toevoegen",
+    "labelStopWait": "Wachttijd",
+    "waitNone": "Geen wachttijd",
+    "waitMinutes": "{minutes} min"
   },
   "privacy": {
     "metaTitle": "Privacybeleid — Ecram Execs",
@@ -647,7 +640,8 @@
       "vehicleClass": "Voertuigklasse",
       "contactPreference": "Voorkeur voor contact",
       "itinerary": "Reisschema en bijzondere wensen",
-      "vehicle": "Voertuig"
+      "vehicle": "Voertuig",
+      "stopWait": "Wachttijd {minutes} min"
     },
     "drivers": {
       "title": "Chauffeurs",
@@ -832,7 +826,7 @@
       "service": "Dienst",
       "collection": "Ophaaladres",
       "destination": "Bestemming",
-      "stops": "Stops onderweg (één per regel)",
+      "stops": "Stops onderweg (één per regel; voeg “ | 30” toe voor 30 minuten wachttijd)",
       "pickup": "Ophaaldatum en -tijd (NL)",
       "passengers": "Passagiers",
       "vehicle": "Voertuig",
@@ -1138,6 +1132,7 @@
     "submitBooking": "Boeking aanvragen",
     "submittingBooking": "Versturen…",
     "repeatNote": "Ingevuld vanuit {reference}. Kies een nieuwe datum en tijd.",
-    "bookingNotFound": "Wij konden die boeking niet vinden."
+    "bookingNotFound": "Wij konden die boeking niet vinden.",
+    "stopWait": "Wachttijd: {minutes} min"
   }
 }

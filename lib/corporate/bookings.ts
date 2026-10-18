@@ -33,6 +33,7 @@ const bookingColumns = {
   collection: q.collection,
   destination: q.destination,
   destinations: q.destinations,
+  destinationWaits: q.destinationWaits,
   pickupAt: q.pickupAt,
   passengers: q.passengers,
   vehicle: q.vehicle,

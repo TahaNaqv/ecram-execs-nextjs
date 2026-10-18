@@ -27,6 +27,7 @@ const ALLOW_IDENTICAL = new Set([
   "admin.events.statusChanged",
   "admin.events.none",
   "admin.newBooking.status",
+  "quoteForm.waitMinutes",
   "admin.messages.fromPartner",
   "admin.messages.fromTeam",
   "portal.stopLabel",

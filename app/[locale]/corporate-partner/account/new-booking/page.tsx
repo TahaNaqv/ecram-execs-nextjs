@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { getBooking, latestPhone } from "@/lib/corporate/bookings";
 import { requirePartner } from "@/lib/corporate/portal";
 import { FLEET } from "@/lib/fleet/vehicles";
+import { stopsWithWaits } from "@/lib/quotes/stops";
 import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -22,7 +23,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
     ...(source && {
       collection: source.collection ?? "",
       destination: source.destination ?? "",
-      stops: source.destinations ?? [],
+      stops: stopsWithWaits(source.destinations, source.destinationWaits),
       service: source.service,
       passengers: source.passengers?.toString() ?? "",
       vehicle: source.vehicle ?? "",
@@ -66,6 +67,9 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
           labelPhone: q.labelPhone,
           phPhone: q.phPhone,
           removeStop: q.removeStop,
+          labelStopWait: q.labelStopWait,
+          waitNone: q.waitNone,
+          waitMinutes: q.waitMinutes,
           labelBookerName: c.labelBookerName,
           labelBookerEmail: c.labelBookerEmail,
           loginLink: c.loginLink,

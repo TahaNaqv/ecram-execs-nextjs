@@ -1,4 +1,4 @@
-import { ConciergeInput } from "../concierge-input";
+import { ConciergeChat } from "../concierge-chat";
 import { getDict } from "@/lib/i18n/get-dictionary";
 
 const FAQ_COUNT = 13;
@@ -42,22 +42,7 @@ export async function Concierge() {
             </div>
             <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
           </div>
-          <div className="max-h-[480px] overflow-y-auto" role="group" aria-label={t.faqLabel}>
-            {faqs.map(([question, answer]) => (
-              <details key={question} className="group border-b border-b-ink-800 last:border-b-0">
-                <summary className="py-4 px-4 gap-4 items-center flex cursor-pointer justify-between list-none text-ink-150 text-[14px] md:px-[22px] [&::-webkit-details-marker]:hidden">
-                  <span>{question}</span>
-                  <svg className="shrink-0 transition-transform duration-300 group-open:rotate-45" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14"></path>
-                  </svg>
-                </summary>
-                <p className="m-0 pb-5 px-4 text-ink-400 text-[14px] font-light md:px-[22px]">
-                  {answer}
-                </p>
-              </details>
-            ))}
-          </div>
-          <ConciergeInput copy={t} faqs={faqs} />
+          <ConciergeChat copy={t} faqs={faqs} />
         </div>
       </div>
     </section>

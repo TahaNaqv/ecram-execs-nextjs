@@ -26,24 +26,21 @@ export async function SiteHeader() {
           <span></span>
           <span></span>
         </label>
-        <nav className="primary-nav gap-3 lg:gap-3.5 xl:gap-5 flex flex-wrap text-[11px] lg:text-[11.5px] xl:text-[12px] tracking-[0.12em] lg:tracking-[0.14em] uppercase shrink" id="primary-nav" aria-label={d.nav.primaryLabel}>
-          <a className="navlink" href="#services">
-            {d.nav.services}
-          </a>
-          <a className="navlink" href="#experience">
-            {d.nav.experience}
+        <nav className="primary-nav gap-3 lg:gap-3.5 xl:gap-5 flex flex-wrap text-[13px] lg:text-[13px] xl:text-[14px] tracking-[0.02em] shrink" id="primary-nav" aria-label={d.nav.primaryLabel}>
+          <a className="navlink" href="#corporate">
+            {d.nav.corporate}
           </a>
           <a className="navlink" href="#fleet">
             {d.nav.fleet}
           </a>
+          <a className="navlink" href="#experience">
+            {d.nav.experience}
+          </a>
           <a className="navlink" href="#netherlands">
             {d.nav.destinations}
           </a>
-          <a className="navlink" href="#corporate">
-            {d.nav.corporate}
-          </a>
-          <a className="navlink" href="#bespoke">
-            {d.nav.bespoke}
+          <a className="navlink" href="#services">
+            {d.nav.services}
           </a>
         </nav>
         <div className="nav-lang flex items-center shrink-0">

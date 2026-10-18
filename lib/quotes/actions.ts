@@ -7,6 +7,7 @@ import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
+import { readStops } from "./stops";
 import { quoteSchema, type QuoteField } from "./validation";
 
 export type QuoteFormState =
@@ -28,12 +29,8 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   const { forms: t } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(FIELDS.map((f) => [f, String(formData.get(f) ?? "")]));
   
-  // Extract all dynamic additional stopovers submitted from the form (capped at 5)
-  const rawDestinations = formData.getAll("destinations");
-  const destinations = rawDestinations
-    .map((d) => String(d).trim())
-    .filter(Boolean)
-    .slice(0, 5);
+  // The stops on the way, each with the minutes to wait there (at most five; see lib/quotes/stops.ts)
+  const { destinations, destinationWaits } = readStops(formData);
 
   const attempt = prev.status === "error" ? prev.attempt + 1 : 1;
   const fail = (message: string, fieldErrors: Partial<Record<QuoteField, string>> = {}) =>
@@ -77,7 +74,8 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
         .insert(schema.quoteRequests)
         .values({
           ...parsed.data,
-          destinations: destinations.length > 0 ? destinations : null, // Saves the stops array to Postgres
+          destinations: destinations.length > 0 ? destinations : null,
+          destinationWaits: destinations.length > 0 ? destinationWaits : null,
           reference: makeReference("EE"),
           ipHash,
           userAgent,

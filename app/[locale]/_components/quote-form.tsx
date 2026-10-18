@@ -10,19 +10,18 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import type { QuoteField } from "@/lib/quotes/validation";
+import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import { control } from "./form-field";
 
 export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
   | "labelEmail" | "phEmail" | "labelPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "stopsCount" | "addStop" | "stopoversTitle" | "noStops" | "stopPlaceholder" | "addStopover" | "labelNotes" | "phNotes"
+  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "labelStopWait" | "waitNone" | "waitMinutes" | "stopsCount" | "addStop" | "stopoversTitle" | "noStops" | "stopPlaceholder" | "addStopover" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
   string
 > & { labelAddStop?: string; labelRemoveStop?: string };
 
-/** How many extra stops one request can carry (the server keeps the first five, see lib/quotes/actions.ts). */
-const MAX_STOPS = 5;
 
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
@@ -44,7 +43,7 @@ export function QuoteForm({
   const [vehicleTouched, setVehicleTouched] = useState(false);
 
   // Additional stops state (capped at MAX_STOPS) with unique IDs for correct deletion handling
-  const [stops, setStops] = useState<{ id: string; value: string }[]>([]);
+  const [stops, setStops] = useState<{ id: string; value: string; wait: number }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -144,7 +143,10 @@ export function QuoteForm({
 
           {/* Hidden inputs using unique IDs to pass exact values on submit */}
           {stops.map((stop) => (
-            <input key={stop.id} type="hidden" name="destinations" value={stop.value} />
+            <span key={stop.id} hidden>
+              <input type="hidden" name="destinations" value={stop.value} />
+              <input type="hidden" name="destinationWaits" value={stop.wait} />
+            </span>
           ))}
 
           {/* Elegant Dropdown Popover (capped at MAX_STOPS) */}
@@ -160,33 +162,53 @@ export function QuoteForm({
               )}
 
               {stops.map((stop, index) => (
-                <div key={stop.id} className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    placeholder={fill(t.stopPlaceholder, { number: String(index + 2) })}
-                    maxLength={200}
-                    defaultValue={stop.value}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setStops(prev => prev.map(s => s.id === stop.id ? { ...s, value: val } : s));
-                    }}
-                    className="w-full bg-ink-50 border border-ink-225 text-[13px] px-2 py-1.5 text-ink-950 placeholder:text-ink-400 focus:outline-none focus:border-ink-950"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setStops(prev => prev.filter(s => s.id !== stop.id))}
-                    className="text-ink-400 hover:text-red-600 px-1.5 text-sm transition-colors"
-                    title={t.removeStop}
-                  >
-                    ×
-                  </button>
+                <div key={stop.id} className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      placeholder={fill(t.stopPlaceholder, { number: String(index + 2) })}
+                      maxLength={200}
+                      defaultValue={stop.value}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setStops(prev => prev.map(s => s.id === stop.id ? { ...s, value: val } : s));
+                      }}
+                      className="w-full bg-ink-50 border border-ink-225 text-[13px] px-2 py-1.5 text-ink-950 placeholder:text-ink-400 focus:outline-none focus:border-ink-950"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setStops(prev => prev.filter(s => s.id !== stop.id))}
+                      className="text-ink-400 hover:text-red-600 px-1.5 text-sm transition-colors"
+                      title={t.removeStop}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {/* How long the chauffeur waits at this stop (0 = not at all) */}
+                  <label className="flex items-center gap-2 text-[10px] tracking-[0.14em] text-ink-500 uppercase">
+                    <span className="shrink-0">{t.labelStopWait}</span>
+                    <select
+                      value={stop.wait}
+                      onChange={(e) => {
+                        const wait = Number(e.target.value);
+                        setStops(prev => prev.map(s => s.id === stop.id ? { ...s, wait } : s));
+                      }}
+                      className="min-w-0 flex-1 cursor-pointer bg-ink-50 border border-ink-225 px-2 py-1 text-[12px] tracking-normal text-ink-950 normal-case focus:outline-none focus:border-ink-950"
+                    >
+                      {STOP_WAITS.map((minutes) => (
+                        <option key={minutes} value={minutes}>
+                          {minutes === 0 ? t.waitNone : fill(t.waitMinutes, { minutes: String(minutes) })}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               ))}
 
               {stops.length < MAX_STOPS && (
                 <button
                   type="button"
-                  onClick={() => setStops(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), value: "" }])}
+                  onClick={() => setStops(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), value: "", wait: 0 }])}
                   className="mt-1 w-full py-1.5 bg-ink-950 text-white text-[11px] font-semibold tracking-[0.15em] uppercase hover:bg-ink-800 transition-colors text-center"
                 >
                   {t.addStopover}

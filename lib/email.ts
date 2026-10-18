@@ -8,6 +8,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { amsterdamNow } from "@/lib/quotes/validation";
+import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 
 const esc = (s: string) =>
@@ -29,7 +30,14 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
     ["Destination", q.destination],
-    ["Additional stops", q.destinations && q.destinations.length > 0 ? q.destinations.join(" → ") : null],
+    [
+      "Additional stops",
+      q.destinations && q.destinations.length > 0
+        ? stopsWithWaits(q.destinations, q.destinationWaits)
+            .map((s) => (s.wait > 0 ? `${s.place} (waits ${s.wait} min)` : s.place))
+            .join(" → ")
+        : null,
+    ],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
     ["Corporate entity / account", q.entity],
     [bespoke ? "Delegation size" : "Passengers", q.passengers],

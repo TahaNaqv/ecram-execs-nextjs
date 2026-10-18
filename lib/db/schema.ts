@@ -42,6 +42,9 @@ export const quoteRequests = pgTable(
     collection: text("collection"),
     destination: text("destination"),
     destinations: text("destinations").array(),
+    // Minutes the chauffeur waits at each stop in `destinations`, same length and order. Null on requests made before
+    // waiting times existed, and where there are no stops (lib/quotes/stops.ts)
+    destinationWaits: integer("destination_waits").array(),
     // Wall-clock time in the Netherlands (Europe/Amsterdam), as entered by the client
     pickupAt: timestamp("pickup_at", { mode: "string" }),
     service: serviceKind("service").notNull(),

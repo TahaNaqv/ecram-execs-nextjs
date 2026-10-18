@@ -1,8 +1,10 @@
 import Image from "next/image";
-import { getDict } from "@/lib/i18n/get-dictionary";
+import Link from "next/link";
+import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
+import { localizedPath } from "@/lib/i18n/pathnames";
 
 export async function Hero() {
-  const d = await getDict();
+  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   return (
     <section className="overflow-hidden flex flex-col justify-center min-h-[calc(-77px_+_100svh)] relative md:min-h-[860px]" id="top">
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
@@ -28,12 +30,13 @@ export async function Hero() {
             {d.common.requestQuote}
           </a>
           {" "}
-          <a className="btn-line py-0 px-5 gap-3 no-underline items-center text-ink-250 inline-flex text-[11px] justify-center tracking-[0.24em] min-h-[44px] uppercase md:border md:border-ink-700 md:text-white md:text-[12px] md:min-h-[52px] md:py-0 md:px-[30px] md:justify-normal" href="#experience">
+          <Link prefetch={false} className="btn-line py-0 px-5 gap-3 no-underline items-center text-ink-250 inline-flex text-[11px] justify-center tracking-[0.24em] min-h-[44px] uppercase md:border md:border-ink-700 md:text-white md:text-[12px] md:min-h-[52px] md:py-0 md:px-[30px] md:justify-normal" href={localizedPath("/corporate-partner/login", locale)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <path d="M7 4l13 8-13 8z"></path>
+              <circle cx="12" cy="8" r="4"></circle>
+              <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>
             </svg>
-            {d.hero.watchArrival}
-          </a>
+            {d.hero.corporateLogin}
+          </Link>
         </div>
       </div>
       <div className="rise d4 pb-7 gap-3 items-center hidden flex-col relative md:flex">

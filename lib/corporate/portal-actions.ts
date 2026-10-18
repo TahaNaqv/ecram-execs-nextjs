@@ -13,6 +13,7 @@ import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
 import { SERVICES } from "@/lib/quotes/constants";
+import { readStops } from "@/lib/quotes/stops";
 import { quoteSchema, type QuoteField } from "@/lib/quotes/validation";
 import { getCorporateContact } from "./access";
 import { MESSAGEABLE, REF_RE } from "./bookings";
@@ -36,7 +37,7 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const locale = formLocale(formData);
   const values = Object.fromEntries(FIELDS.map((k) => [k, String(formData.get(k) ?? "")]));
-  const stops = formData.getAll("destinations").map((d) => String(d).trim().slice(0, 200)).filter(Boolean).slice(0, 5);
+  const { destinations: stops, destinationWaits } = readStops(formData);
   const fail = (message: string, fieldErrors: Partial<Record<QuoteField, string>> = {}) =>
     ({ status: "error", message, fieldErrors, values: { ...values, stops: stops.join("\n") } }) as const;
 
@@ -77,6 +78,7 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
           .values({
             ...parsed.data,
             destinations: stops.length > 0 ? stops : null,
+            destinationWaits: stops.length > 0 ? destinationWaits : null,
             entity: contact.companyName,
             entityKvk: contact.kvkNumber,
             corporateContactId: contact.id,

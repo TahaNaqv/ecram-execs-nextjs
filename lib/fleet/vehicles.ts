@@ -48,7 +48,7 @@ export type FleetVehicle = {
    * Drive folder on 14 Oct 2026 (PNG, 1672x941) and were resized to 1600px JPEG.
    */
   images: string[];
-  /** What the client has told us the vehicle is, shown as the badge. Confirm per model before launch. */
+  /** What the client has told us the vehicle is. Decides whether an electric-range answer is offered (not for "ice"); no badge is shown. Confirm per model before launch. */
   drivetrain: "bev" | "phev" | "ice";
   specs?: VehicleSpecs;
 };
@@ -188,7 +188,7 @@ export const FLEET: FleetVehicle[] = [
         checkedOn: "2026-10-14",
         by: "Claude (research)",
         caveat:
-          "Range Rover Electric's launch was delayed and figures were still provisional. If the fleet car is a plug-in hybrid (e.g. P460e) the range and the '100% electric' badge are wrong. Luggage left out until Land Rover publishes it.",
+          "Range Rover Electric's launch was delayed and figures were still provisional. If the fleet car is a plug-in hybrid (e.g. P460e) the range answer is wrong. Luggage left out until Land Rover publishes it.",
       },
     },
   },
