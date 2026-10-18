@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import type { CompanyHit } from "@/lib/companies/provider";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { cardControl } from "./form-cards";
 import { control } from "./form-field";
 
 export type CompanySearchCopy = {
@@ -25,6 +26,8 @@ type Props = {
   describedBy?: string;
   /** Called with the chosen company, or null when the visitor edits the text after choosing one. */
   onSelect?: (company: CompanyHit | null) => void;
+  /** `cell` sits in the bordered cells of the light enquiry forms; `card` is the rounded field of the portal's card forms. */
+  variant?: "cell" | "card";
 };
 
 const DEBOUNCE_MS = 250;
@@ -35,7 +38,7 @@ const DEBOUNCE_MS = 250;
  * register doesn't know — or a registry that is down — never blocks anyone. Choosing a suggestion fills the
  * name and reports the KvK number to the form.
  */
-export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = "", required, maxLength = 200, invalid, describedBy, onSelect }: Props) {
+export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = "", required, maxLength = 200, invalid, describedBy, onSelect, variant = "cell" }: Props) {
   const listId = useId();
   const [value, setValue] = useState(defaultValue);
   const [items, setItems] = useState<CompanyHit[]>([]);
@@ -150,7 +153,7 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
         maxLength={maxLength}
         placeholder={placeholder}
         value={value}
-        className={control}
+        className={variant === "card" ? cardControl : control}
         onKeyDown={onKeyDown}
         onFocus={() => items.length > 0 && setOpen(true)}
         onBlur={() => setOpen(false)}
@@ -171,7 +174,9 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-full right-[-18px] left-[-18px] z-20 m-0 mt-3 max-h-[320px] list-none overflow-y-auto border border-ink-225 bg-white p-0 shadow-lg"
+          className={`absolute top-full z-20 m-0 max-h-[320px] list-none overflow-y-auto border border-ink-225 bg-white p-0 shadow-lg ${
+            variant === "card" ? "right-0 left-0 mt-1 rounded-md" : "right-[-18px] left-[-18px] mt-3"
+          }`}
         >
           {items.map((hit, i) => (
             <li
@@ -185,7 +190,9 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
                 pick(hit);
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex min-h-[44px] cursor-pointer flex-col justify-center px-[18px] py-2 text-[14px] normal-case tracking-normal ${
+              className={`flex min-h-[44px] cursor-pointer flex-col justify-center py-2 text-[14px] normal-case tracking-normal ${
+                variant === "card" ? "px-3" : "px-[18px]"
+              } ${
                 i === active ? "bg-ink-100 text-ink-950" : "text-ink-800"
               }`}
             >
@@ -196,7 +203,7 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
               </span>
             </li>
           ))}
-          <li role="presentation" className="border-t border-ink-225 px-[18px] py-2 text-[12px] normal-case tracking-normal text-ink-600">
+          <li role="presentation" className={`border-t border-ink-225 py-2 text-[12px] normal-case tracking-normal text-ink-600 ${variant === "card" ? "px-3" : "px-[18px]"}`}>
             {items.length === 0 ? copy.noResults : copy.manualHint}
           </li>
         </ul>

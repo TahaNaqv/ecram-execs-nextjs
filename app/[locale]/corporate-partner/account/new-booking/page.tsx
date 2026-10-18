@@ -78,6 +78,19 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
           stopLabel: p.stopLabel,
           submitBooking: p.submitBooking,
           submittingBooking: p.submittingBooking,
+          cardBooker: p.cardBooker,
+          cardBookerHint: p.cardBookerHint,
+          cardService: p.cardService,
+          cardServiceHint: p.cardServiceHint,
+          cardJourney: p.cardJourney,
+          cardJourneyHint: p.cardJourneyHint,
+          cardVehicle: p.cardVehicle,
+          cardVehicleHint: p.cardVehicleHint,
+          cardNotes: p.cardNotes,
+          cardNotesHint: p.cardNotesHint,
+          submitHint: p.submitHint,
+          lockedHint: c.lockedHint,
+          charCount: c.charCount,
         }}
       />
     </div>

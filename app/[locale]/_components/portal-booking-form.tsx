@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { createBooking } from "@/lib/corporate/portal-actions";
 import type { PortalState } from "@/lib/corporate/portal-state";
-import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
+import { SERVICES, type Service } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { ghostClass, submitClass } from "./corporate-styles";
+import { ghostClass } from "./corporate-styles";
 import { Status } from "./corporate-ui";
-import { control, Field } from "./form-field";
+import { ActionCard, cardSubmit, CardField, CardGrid, CardSelect, ChoiceGroup, cardControl, CountedTextarea, FormCard, LockedInput, PhoneField, SendIcon } from "./form-cards";
 
 export type BookingFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime" | "labelService" | "labelPassengers"
   | "selectPlaceholder" | "eightOrMore" | "labelVehicle" | "vehicleAdvise" | "labelNotes" | "phNotes" | "labelPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelBookerName" | "labelBookerEmail" | "labelStopWait" | "waitNone" | "waitMinutes" | "addStopCta" | "phStop" | "submitBooking" | "submittingBooking" | "removeStop" | "loginLink",
+  | "labelBookerName" | "labelBookerEmail" | "labelStopWait" | "waitNone" | "waitMinutes" | "addStopCta" | "phStop" | "submitBooking" | "submittingBooking" | "removeStop" | "loginLink"
+  | "cardBooker" | "cardBookerHint" | "cardService" | "cardServiceHint" | "cardJourney" | "cardJourneyHint" | "cardVehicle" | "cardVehicleHint"
+  | "cardNotes" | "cardNotesHint" | "submitHint" | "lockedHint" | "charCount",
   string
 > & { stopLabel: string };
 
@@ -56,146 +58,145 @@ export function BookingForm({
 }) {
   const [stops, setStops] = useState<{ id: number; value: string; wait: number }[]>((defaults.stops ?? []).map((s, id) => ({ id, value: s.place, wait: s.wait })));
   const [nextId, setNextId] = useState(stops.length);
-  const [attempt, setAttempt] = useState(0);
-  const [state, action, pending] = useActionState<PortalState, FormData>(async (prev, formData) => {
-    const next = await createBooking(prev, formData);
-    if (next.status === "error") setAttempt((n) => n + 1);
-    return next;
-  }, { status: "idle" });
-  const v = state.status === "error" ? state.values : (defaults as Record<string, string | undefined>);
+  const [state, action, pending] = useActionState<PortalState, FormData>(createBooking, { status: "idle" });
+  // The values of a repeated booking. After an error the fields simply keep what was typed: the form is submitted
+  // from here rather than through `<form action>`, because React empties a form once its action has finished, and
+  // that cleared the pills and the drop-downs (the text fields came back only because they were refilled).
+  const v = defaults as Record<string, string | undefined>;
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    startTransition(() => action(data));
+  };
   const err = state.status === "error" ? state.fieldErrors : {};
   const d = (name: string) => (err[name as keyof typeof err] ? `b-${name}-error` : undefined);
 
+  const stopCard = "flex flex-wrap items-center gap-2 rounded-md border border-solid border-ink-225 bg-ink-50 p-2";
+  const vehicleOptions = [
+    ...vehicles.map(({ key, name }) => ({ value: key, label: name })),
+    { value: "advise", label: t.vehicleAdvise, wide: true },
+  ];
+
   return (
-    <form key={attempt} action={action} noValidate className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2">
-        <Field idPrefix="b" label={t.labelBookerName} name="bookerName">
-          <input id="b-bookerName" type="text" value={booker.name} readOnly className={`${control} cursor-default text-ink-700`} />
-        </Field>
-        <Field idPrefix="b" label={t.labelBookerEmail} name="bookerEmail">
-          <input id="b-bookerEmail" type="email" value={booker.email} readOnly className={`${control} cursor-default text-ink-700`} />
-        </Field>
+    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+      <CardGrid>
+        <FormCard as="h2" icon="building" step={1} title={t.cardBooker} hint={t.cardBookerHint}>
+          <CardField idPrefix="b" name="bookerName" label={t.labelBookerName}>
+            <LockedInput id="b-bookerName" value={booker.name} hint={t.lockedHint} />
+          </CardField>
+          <CardField idPrefix="b" name="bookerEmail" label={t.labelBookerEmail}>
+            <LockedInput id="b-bookerEmail" type="email" value={booker.email} hint={t.lockedHint} />
+          </CardField>
+          <PhoneField idPrefix="b" label={t.labelPhone} countryLabel={t.labelPhoneCountry} placeholder={t.phPhone}
+            defaultCountry={v.phoneCountry} defaultNumber={v.phone} error={err.phone ?? err.phoneCountry} />
+        </FormCard>
 
-        <Field idPrefix="b" label={t.labelCollection} name="collection" error={err.collection}>
-          <input id="b-collection" name="collection" type="text" required maxLength={200} placeholder={t.phCollection} defaultValue={v.collection}
-            aria-invalid={!!err.collection} aria-describedby={d("collection")} autoComplete="off" className={control} />
-        </Field>
-        <Field idPrefix="b" label={t.labelDestination} name="destination" error={err.destination}>
-          <input id="b-destination" name="destination" type="text" required maxLength={200} placeholder={t.phDestination} defaultValue={v.destination}
-            aria-invalid={!!err.destination} aria-describedby={d("destination")} autoComplete="off" className={control} />
-        </Field>
+        <FormCard as="h2" icon="briefcase" step={2} title={t.cardService} hint={t.cardServiceHint}>
+          <ChoiceGroup idPrefix="b" name="service" legend={t.labelService} defaultValue={v.service || SERVICE_CHOICES[0]} error={err.service} required
+            options={SERVICE_CHOICES.map((s) => ({ value: s, label: serviceLabels[s] }))} />
+          <CardField idPrefix="b" name="passengers" label={t.labelPassengers} error={err.passengers}>
+            <CardSelect id="b-passengers" name="passengers" defaultValue={v.passengers || ""} aria-invalid={!!err.passengers} aria-describedby={d("passengers")}>
+              <option value="">{t.selectPlaceholder}</option>
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+              <option value="8">{t.eightOrMore}</option>
+            </CardSelect>
+          </CardField>
+        </FormCard>
 
-        {/* Stops between the two: each its own input, sent as `destinations` */}
-        {stops.length > 0 && (
-          <div className="col-span-full flex flex-col gap-px bg-ink-225">
-            {stops.map((stop, i) => (
-              <div key={stop.id} className="flex items-center gap-3 bg-white px-[18px] py-3">
-                <label htmlFor={`b-stop-${stop.id}`} className="shrink-0 text-[10px] tracking-[0.22em] text-ink-600 uppercase">
-                  {interpolate(t.stopLabel, { number: i + 1 })}
-                </label>
-                <input id={`b-stop-${stop.id}`} name="destinations" type="text" maxLength={200} placeholder={t.phStop} value={stop.value}
-                  onChange={(e) => setStops((all) => all.map((x) => (x.id === stop.id ? { ...x, value: e.target.value } : x)))} autoComplete="off" className={control} />
-                <select
-                  name="destinationWaits"
-                  aria-label={t.labelStopWait}
-                  value={stop.wait}
-                  onChange={(e) => setStops((all) => all.map((x) => (x.id === stop.id ? { ...x, wait: Number(e.target.value) } : x)))}
-                  className="w-[112px] shrink-0 cursor-pointer border-0 border-l border-ink-225 bg-transparent p-0 pl-2 text-[14px] tracking-[0] text-ink-950 normal-case outline-none"
-                >
-                  {STOP_WAITS.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes === 0 ? t.waitNone : t.waitMinutes.replace("{minutes}", String(minutes))}
-                    </option>
-                  ))}
-                </select>
-                <button type="button" onClick={() => setStops((s) => s.filter((x) => x.id !== stop.id))} className={`${ghostClass} shrink-0`} aria-label={t.removeStop}>
-                  ×
-                </button>
-              </div>
-            ))}
+        <FormCard as="h2" icon="pin" step={3} title={t.cardJourney} hint={interpolate(t.cardJourneyHint, { max: MAX_STOPS })} wide>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <CardField idPrefix="b" name="collection" label={t.labelCollection} error={err.collection}>
+              <input id="b-collection" name="collection" type="text" required maxLength={200} placeholder={t.phCollection} defaultValue={v.collection}
+                aria-invalid={!!err.collection} aria-describedby={d("collection")} autoComplete="off" className={cardControl} />
+            </CardField>
+            <CardField idPrefix="b" name="destination" label={t.labelDestination} error={err.destination}>
+              <input id="b-destination" name="destination" type="text" required maxLength={200} placeholder={t.phDestination} defaultValue={v.destination}
+                aria-invalid={!!err.destination} aria-describedby={d("destination")} autoComplete="off" className={cardControl} />
+            </CardField>
           </div>
-        )}
-        {stops.length < MAX_STOPS && (
-          <div className="col-span-full bg-white px-[18px] py-3">
+
+          {/* Stops between the two: each its own input, sent as `destinations`, with the wait beside it as `destinationWaits` */}
+          {stops.length > 0 && (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {stops.map((stop, i) => (
+                <li key={stop.id} className={stopCard}>
+                  <label htmlFor={`b-stop-${stop.id}`} className="w-full shrink-0 px-1 text-[11px] font-semibold tracking-[0.18em] text-ink-600 uppercase sm:w-auto">
+                    {interpolate(t.stopLabel, { number: i + 1 })}
+                  </label>
+                  <input id={`b-stop-${stop.id}`} name="destinations" type="text" maxLength={200} placeholder={t.phStop} value={stop.value}
+                    onChange={(e) => setStops((all) => all.map((x) => (x.id === stop.id ? { ...x, value: e.target.value } : x)))} autoComplete="off"
+                    className={`${cardControl} min-w-[180px] flex-1 bg-white`} />
+                  <div className="w-[150px] shrink-0">
+                    <CardSelect
+                      name="destinationWaits"
+                      aria-label={t.labelStopWait}
+                      value={stop.wait}
+                      onChange={(e) => setStops((all) => all.map((x) => (x.id === stop.id ? { ...x, wait: Number(e.target.value) } : x)))}
+                      className="bg-white"
+                    >
+                      {STOP_WAITS.map((minutes) => (
+                        <option key={minutes} value={minutes}>
+                          {minutes === 0 ? t.waitNone : t.waitMinutes.replace("{minutes}", String(minutes))}
+                        </option>
+                      ))}
+                    </CardSelect>
+                  </div>
+                  <button type="button" onClick={() => setStops((s) => s.filter((x) => x.id !== stop.id))} aria-label={t.removeStop}
+                    className="grid size-[42px] shrink-0 cursor-pointer place-items-center rounded-md font-sans border border-solid border-ink-225 bg-white text-[20px] leading-none text-ink-700 hover:border-ink-950 hover:text-ink-950">
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {stops.length < MAX_STOPS && (
             <button
               type="button"
               onClick={() => {
                 setStops((s) => [...s, { id: nextId, value: "", wait: 0 }]);
                 setNextId((n) => n + 1);
               }}
-              className={ghostClass}
+              className="min-h-[44px] w-full cursor-pointer rounded-md border border-dashed font-sans border-ink-350 bg-transparent px-4 text-[13px] font-semibold text-ink-700 hover:border-ink-950 hover:text-ink-950 sm:w-auto sm:self-start"
             >
               + {t.addStopCta}
             </button>
-          </div>
-        )}
+          )}
 
-        <Field idPrefix="b" label={t.labelDateTime} name="pickupAt" error={err.pickupAt}>
-          <input id="b-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt} aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={control} />
-        </Field>
-        <Field idPrefix="b" label={t.labelService} name="service" error={err.service}>
-          <select id="b-service" name="service" defaultValue={v.service || SERVICE_CHOICES[0]} aria-invalid={!!err.service} aria-describedby={d("service")} className={control}>
-            {SERVICE_CHOICES.map((s) => (
-              <option key={s} value={s}>
-                {serviceLabels[s]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field idPrefix="b" label={t.labelPassengers} name="passengers" error={err.passengers}>
-          <select id="b-passengers" name="passengers" defaultValue={v.passengers || ""} aria-invalid={!!err.passengers} aria-describedby={d("passengers")} className={control}>
-            <option value="">{t.selectPlaceholder}</option>
-            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-            <option value="8">{t.eightOrMore}</option>
-          </select>
-        </Field>
-        <Field idPrefix="b" label={t.labelVehicle} name="vehicle" error={err.vehicle}>
-          <select id="b-vehicle" name="vehicle" defaultValue={v.vehicle || ""} aria-invalid={!!err.vehicle} aria-describedby={d("vehicle")} className={control}>
-            <option value="">{t.selectPlaceholder}</option>
-            {vehicles.map(({ key, name }) => (
-              <option key={key} value={key}>
-                {name}
-              </option>
-            ))}
-            <option value="advise">{t.vehicleAdvise}</option>
-          </select>
-        </Field>
-        <Field idPrefix="b" label={t.labelPhone} name="phone" error={err.phone ?? err.phoneCountry} className="md:col-span-2">
-          <div className="flex items-center gap-3">
-            <select id="b-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} defaultValue={v.phoneCountry || "31"}
-              className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-ink-225 bg-transparent p-0 pr-2 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]">
-              {COUNTRY_CODES.map(([code, iso]) => (
-                <option key={code} value={code}>
-                  {iso} +{code}
-                </option>
-              ))}
-            </select>
-            <input id="b-phone" name="phone" type="tel" required maxLength={20} autoComplete="tel-national" placeholder={t.phPhone} defaultValue={v.phone}
-              aria-invalid={!!(err.phone ?? err.phoneCountry)} aria-describedby={d("phone") ?? d("phoneCountry")} className={control} />
-          </div>
-        </Field>
-        <Field idPrefix="b" label={t.labelNotes} name="notes" error={err.notes} className="md:col-span-2">
-          <textarea id="b-notes" name="notes" rows={4} maxLength={2000} placeholder={t.phNotes} defaultValue={v.notes}
-            aria-invalid={!!err.notes} aria-describedby={d("notes")} className={`${control} min-h-[104px] resize-y`} />
-        </Field>
-      </div>
+          <CardField idPrefix="b" name="pickupAt" label={t.labelDateTime} error={err.pickupAt} className="md:max-w-[calc(50%-10px)]">
+            <input id="b-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt} aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={cardControl} />
+          </CardField>
+        </FormCard>
 
-      <input type="hidden" name="locale" value={locale} />
-      <div className="flex flex-col items-start gap-3">
-        <button type="submit" disabled={pending} className={submitClass}>
-          {pending ? t.submittingBooking : t.submitBooking}
-        </button>
-        <Status error={state.status === "error" || state.status === "locked"}>{state.status === "error" || state.status === "locked" ? state.message : undefined}</Status>
-        {state.status === "locked" && (
-          <Link href={loginHref} className={ghostClass}>
-            {t.loginLink}
-          </Link>
-        )}
-      </div>
+        <FormCard as="h2" icon="car" step={4} title={t.cardVehicle} hint={t.cardVehicleHint}>
+          <ChoiceGroup idPrefix="b" name="vehicle" legend={t.labelVehicle} defaultValue={v.vehicle || ""} error={err.vehicle} options={vehicleOptions} />
+        </FormCard>
+
+        <FormCard as="h2" icon="doc" step={5} title={t.cardNotes} hint={t.cardNotesHint}>
+          <CardField idPrefix="b" name="notes" label={t.labelNotes} error={err.notes}>
+            <CountedTextarea id="b-notes" name="notes" rows={6} max={2000} counter={t.charCount} placeholder={t.phNotes} defaultValue={v.notes}
+              invalid={!!err.notes} describedBy={d("notes")} />
+          </CardField>
+        </FormCard>
+
+        <input type="hidden" name="locale" value={locale} />
+        <ActionCard>
+          <button type="submit" disabled={pending} className={cardSubmit}>
+            <SendIcon />
+            {pending ? t.submittingBooking : t.submitBooking}
+          </button>
+          <p className="m-0 max-w-[520px] text-[13px] text-ink-600">{t.submitHint}</p>
+          <Status error={state.status === "error" || state.status === "locked"}>{state.status === "error" || state.status === "locked" ? state.message : undefined}</Status>
+          {state.status === "locked" && (
+            <Link href={loginHref} className={ghostClass}>
+              {t.loginLink}
+            </Link>
+          )}
+        </ActionCard>
+      </CardGrid>
     </form>
   );
 }

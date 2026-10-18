@@ -127,6 +127,7 @@ test("a booking page asks for sign-in and brings the partner straight back to it
 });
 
 test("a login cannot send the partner to another site", async ({ page, context }) => {
+  test.slow(); // four sign-ins in a row, each several database round trips
   await ownAddress(context);
   const email = newEmail("redirect");
   await seedContact(email, PASSWORD);
@@ -268,6 +269,13 @@ test("a new booking from the portal carries the partner's details, and can be re
   await page.fill("#b-pickupAt", `${year}-03-14T08:30`);
   await page.selectOption("#b-passengers", "3");
   await page.fill("#b-phone", "6 1234 5678");
+  // The form is numbered cards; the service and the vehicle are choice pills, and the notes count their characters
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText([p.cardBooker, p.cardService, p.cardJourney, p.cardVehicle, p.cardNotes].map((title, i) => `${i + 1}. ${title}`));
+  await expect(page.locator("#b-service-airport_transfer")).toBeChecked(); // the first service is preselected
+  await page.locator("#b-service-business_travel").check();
+  await page.locator("#b-vehicle-mercedes_vle_300").check();
+  await page.fill("#b-notes", "Flight KL1234");
+  await expect(page.getByText("13 / 2000")).toBeVisible();
   await submit(page, p.submitBooking);
 
   await expect(page).toHaveURL(/\/account\/booking\?ref=EE-[A-Z0-9]{6}&created=1$/);
@@ -285,10 +293,11 @@ test("a new booking from the portal carries the partner's details, and can be re
   expect(row?.source).toBe("portal");
   expect(row?.corporate_contact_id).toBe(contactId);
   const db = sql();
-  const [stored] = await db`select destinations, destination_waits from quote_requests where reference = ${reference}`;
+  const [stored] = await db`select destinations, destination_waits, service, vehicle, passengers, notes from quote_requests where reference = ${reference}`;
   await db.end();
   expect(stored.destinations).toEqual(["Rotterdam Centraal"]);
   expect(stored.destination_waits).toEqual([30]);
+  expect([stored.service, stored.vehicle, stored.passengers, stored.notes]).toEqual(["business_travel", "mercedes_vle_300", 3, "Flight KL1234"]);
 
   // Repeating starts from the same trip, with no date
   await page.getByRole("link", { name: p.repeatCta }).click();
@@ -297,14 +306,22 @@ test("a new booking from the portal carries the partner's details, and can be re
   await expect(page.getByPlaceholder(p.phStop)).toHaveValue("Rotterdam Centraal");
   await expect(page.getByLabel(en.quoteForm.labelStopWait)).toHaveValue("30");
   await expect(page.locator("#b-pickupAt")).toHaveValue("");
+  // …and the pills start from the earlier trip too
+  await expect(page.locator("#b-service-business_travel")).toBeChecked();
+  await expect(page.locator("#b-vehicle-mercedes_vle_300")).toBeChecked();
 });
 
 test("the booking form says what is wrong, and a past date is refused", async ({ page, context }) => {
   await signedInPartner(page, context, "validate");
   await page.goto("/en/corporate-partner/account/new-booking");
+  // What was picked with a pill survives the server's answer (the form is rebuilt when it answers with errors)
+  await page.locator("#b-service-hourly").check();
+  await page.locator("#b-vehicle-audi").check();
   await submit(page, p.submitBooking);
   await expect(page.locator("#b-collection-error")).toBeVisible();
   await expect(page.locator("#b-pickupAt-error")).toBeVisible();
+  await expect(page.locator("#b-service-hourly")).toBeChecked();
+  await expect(page.locator("#b-vehicle-audi")).toBeChecked();
   await page.fill("#b-collection", "Schiphol");
   await page.fill("#b-destination", "Hotel");
   await page.fill("#b-pickupAt", "2020-01-01T10:00");
@@ -512,4 +529,36 @@ test("an invoice uploaded by the team is downloadable by its partner and nobody 
   expect(await readdir(dir)).toEqual(before);
   await partnerContext.close();
   await strangerContext.close();
+});
+
+test("the introduction form keeps its pills after an error, and no pill spills out of its card on a tablet or phone, in Dutch too", async ({ page, context }) => {
+  await signedInPartner(page, context, "intro-pills");
+  await page.goto("/en/corporate-partner/account/introduction");
+  await page.locator("#c-contactMethod-whatsapp").check();
+  await page.locator("#c-tripTime-morning").check();
+  await submit(page, en.corporatePartner.submit);
+  await expect(page.locator("#c-company-error")).toBeVisible();
+  await expect(page.locator("#c-contactMethod-whatsapp")).toBeChecked();
+  await expect(page.locator("#c-tripTime-morning")).toBeChecked();
+
+  // Nothing may run past the edge of its own box: the longer Dutch labels at a tablet's narrow cards are the risk
+  for (const path of ["/nl/zakelijke-partner/account/kennismaking", "/nl/zakelijke-partner/account/nieuwe-boeking"]) {
+    for (const width of [390, 440, 768, 1024]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(path);
+      await expect(page.locator("form section").first()).toBeVisible();
+      // Text may not run past its pill or card; a long value inside a field scrolls within it, which is fine, but the field itself may not leave its card
+      const spills = await page.evaluate(() => {
+        const out: string[] = [];
+        for (const el of document.querySelectorAll("form section, form fieldset label")) {
+          if (el.scrollWidth > el.clientWidth + 1) out.push(`${el.tagName} ${el.textContent?.slice(0, 20)}`);
+        }
+        for (const el of document.querySelectorAll("form section :is(input, select, textarea, label)")) {
+          if (el.getBoundingClientRect().right > el.closest("section")!.getBoundingClientRect().right + 1) out.push(`${el.tagName}#${el.id}`);
+        }
+        return out;
+      });
+      expect(spills, `${path} at ${width}px`).toEqual([]);
+    }
+  }
 });

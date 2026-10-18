@@ -134,7 +134,6 @@ test("a code and a password create an account; the partner can sign out, sign in
 
   // The client's vehicles and choices, in the client's order (the first option is the placeholder)
   const optionTexts = (id: string) => page.locator(`${id} option`).evaluateAll((os) => os.slice(1).map((o) => (o as HTMLOptionElement).text));
-  const optionValues = (id: string) => page.locator(`${id} option`).evaluateAll((os) => os.slice(1).map((o) => (o as HTMLOptionElement).value));
   expect(await optionTexts("#c-vehicle")).toEqual([
     "Mercedes-Benz EQS",
     "Audi e-tron GT",
@@ -143,19 +142,21 @@ test("a code and a password create an account; the partner can sign out, sign in
     "Range Rover EV",
     "Hongqi E-HS9",
   ]);
-  expect(await optionValues("#c-contactMethod")).toEqual(["email", "phone", "whatsapp"]);
-  expect(await optionValues("#c-tripTime")).toEqual(["morning", "afternoon", "evening"]);
-  expect(await optionValues("#c-duration")).toEqual(["2_4", "2_8", "2_12", "2_24"]);
+  // The short lists are choice pills (radio buttons), not drop-downs
+  const radioValues = (name: string) => page.locator(`input[type=radio][name=${name}]`).evaluateAll((os) => os.map((o) => (o as HTMLInputElement).value));
+  expect(await radioValues("contactMethod")).toEqual(["email", "phone", "whatsapp"]);
+  expect(await radioValues("tripTime")).toEqual(["morning", "afternoon", "evening"]);
+  expect(await radioValues("duration")).toEqual(["2_4", "2_8", "2_12", "2_24"]);
 
   await page.fill("#c-company", "Orion Holdings B.V.");
   await page.fill("#c-companyNumber", "12345678");
   await page.fill("#c-phone", "6 1234 5678");
-  await page.selectOption("#c-contactMethod", "whatsapp");
+  await page.locator("#c-contactMethod-whatsapp").check();
   await page.fill("#c-signatory", "Marieke van Dijk");
   await page.fill("#c-pointOfCall", "Jeroen Bakker");
   await page.selectOption("#c-vehicle", "mercedes_vle_300");
-  await page.selectOption("#c-tripTime", "morning");
-  await page.selectOption("#c-duration", "2_8");
+  await page.locator("#c-tripTime-morning").check();
+  await page.locator("#c-duration-2_8").check();
   await page.getByRole("button", { name: t.submit }).click();
   await expect(page.getByRole("status")).toContainText("Anouk");
 
