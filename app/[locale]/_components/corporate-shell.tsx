@@ -7,6 +7,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath, unprefixedPath, type AppRoute } from "@/lib/i18n/pathnames";
+import { linkButton } from "./corporate-styles";
 import { LanguageSwitcher } from "./language-switcher";
 import { SiteFooter } from "./sections";
 
@@ -64,6 +65,8 @@ export async function CorporateShell({
   );
 }
 
+export { linkButton };
+
 export function PanelSkeleton() {
   return (
     <div className="flex flex-col gap-6" aria-hidden="true">
@@ -88,10 +91,6 @@ export async function SignedInNotice() {
     </div>
   );
 }
-
-/** A link that looks like the forms' main button. `box-border`: a link is content-box here (a button is not), so the padding would otherwise push it past its card. */
-export const linkButton =
-  "box-border inline-flex min-h-[56px] w-full max-w-[420px] items-center justify-center bg-ink-950 px-10 font-sans text-[12px] font-semibold tracking-[0.24em] text-white uppercase no-underline hover:bg-ink-800";
 
 /** Metadata for a Corporate Partner screen. The screens behind a sign-in are kept out of search results. */
 export async function corporateMetadata(route: AppRoute, title: string, description: string, indexable: boolean): Promise<Metadata> {

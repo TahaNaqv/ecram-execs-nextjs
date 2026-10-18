@@ -4,11 +4,10 @@ import { useState, type ReactNode } from "react";
 import { PASSWORD_MAX } from "@/lib/corporate/validation";
 import { control } from "./form-field";
 
+import { ghostClass, submitClass } from "./corporate-styles";
+
 /** Small pieces the Corporate Partner forms share. */
-export const submitClass =
-  "min-h-[56px] w-full max-w-[420px] cursor-pointer border-none bg-ink-950 px-10 font-sans text-[12px] font-semibold tracking-[0.24em] text-white uppercase hover:bg-ink-800 disabled:pointer-events-none disabled:cursor-progress disabled:opacity-70";
-export const ghostClass =
-  "cursor-pointer border-none bg-transparent p-0 font-sans text-[12px] tracking-[0.18em] text-ink-700 uppercase underline underline-offset-4 hover:text-ink-950 disabled:cursor-progress disabled:opacity-60";
+export { ghostClass, submitClass };
 
 export const Honeypot = () => (
   <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">

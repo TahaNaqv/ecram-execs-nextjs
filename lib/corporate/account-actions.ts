@@ -13,6 +13,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { withinLimit } from "@/lib/rate-limit";
 import { visitor } from "@/lib/request-meta";
+import { safeNext } from "./portal";
 import { contactColumns } from "./columns";
 import {
   CHALLENGE_COOKIE,
@@ -135,6 +136,20 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
         })
         .where(eq(schema.corporateContacts.id, used.contactId))
         .returning(contactColumns);
+
+      // The first time this address gets an account, requests it was used for earlier become theirs: the code just
+      // proved the address, so they are the person those requests were made by. Only now, never when a form is submitted
+      // (anyone could type a partner's address there), and never again after this first time.
+      if (row && !before.hadPassword) {
+        const linked = await tx
+          .update(schema.quoteRequests)
+          .set({ corporateContactId: row.id })
+          .where(and(isNull(schema.quoteRequests.corporateContactId), sql`lower(${schema.quoteRequests.email}) = ${row.email}`))
+          .returning({ id: schema.quoteRequests.id });
+        if (linked.length > 0) {
+          await tx.insert(schema.requestEvents).values(linked.map((l) => ({ requestId: l.id, event: "attached", params: { partner: row.name, by: "signup" as const } })));
+        }
+      }
       return row;
     });
     if (!contact) return { status: "locked", message: c.codeExpired };
@@ -206,7 +221,8 @@ export async function login(_prev: CorporateState, formData: FormData): Promise<
     console.error("[corporate] login failed", err);
     return refuse(c.serverError);
   }
-  redirect(localizedPath("/corporate-partner/account", locale));
+  // Back to the page the visitor was sent from, if it is one of the portal's
+  redirect(safeNext(String(formData.get("next") ?? ""), locale) ?? localizedPath("/corporate-partner/account", locale));
 }
 
 /** Signs this browser out and returns to the Corporate Partner start page. */

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
+import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
 import { REQUEST_STATUSES, serviceLabel } from "@/lib/quotes/constants";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -31,6 +32,15 @@ async function Heading({ part }: { part: "title" | "description" }) {
   return admin.requests[part];
 }
 
+async function NewBookingLink() {
+  const { admin } = await adminDictionary();
+  return (
+    <Link href="/admin/requests/new" className={`${btn.base} ${btn.primary} ${btn.md}`}>
+      {admin.newBooking.cta}
+    </Link>
+  );
+}
+
 export default function RequestsPage({ searchParams }: PageProps<"/admin">) {
   return (
     <PageBody>
@@ -45,6 +55,11 @@ export default function RequestsPage({ searchParams }: PageProps<"/admin">) {
         description={
           <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
             <Heading part="description" />
+          </Suspense>
+        }
+        actions={
+          <Suspense fallback={null}>
+            <NewBookingLink />
           </Suspense>
         }
       />
@@ -114,6 +129,10 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   ]);
   const serviceLabels = dict.services;
   const t = dict.admin;
+  // Requests on this page where a partner has written and nobody on the team has opened it yet
+  const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
+  const partnerBadge = (id: string) =>
+    unseen.has(id) ? <span className="mt-1 inline-block rounded bg-zinc-950 px-1.5 py-0.5 text-[10px] font-medium text-white">{t.requests.partnerMessage}</span> : null;
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const tabs = [
@@ -199,7 +218,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
           <ul className="divide-y divide-zinc-100 lg:hidden">
             {rows.map((r: QuoteRequest) => {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
-              const destinationsArray = Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination];
+              const destinationsArray = [...(r.destinations ?? []), r.destination]; // stops on the way, then where to
               return (
                 <li key={r.id}>
                   <Link href={`/admin/requests/${r.id}`} className="flex gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
@@ -209,6 +228,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <div className="min-w-0">
                           <p className={`truncate text-sm ${r.status === "new" ? "font-semibold" : "font-medium"} text-zinc-950`}>{r.name}</p>
                           <p className="truncate text-xs text-zinc-500">{r.email}</p>
+                          {partnerBadge(r.id)}
                         </div>
                         <StatusBadge status={r.status} />
                       </div>
@@ -259,7 +279,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                   const isBespoke = r.collection === null;
                   const allStops = isBespoke
                     ? []
-                    : [r.collection, ...(Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination])].filter(Boolean);
+                    : [r.collection, ...(r.destinations ?? []), r.destination].filter(Boolean);
 
                   return (
                     <tr key={r.id} className="group relative transition-colors hover:bg-zinc-50/80">
@@ -278,6 +298,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                               {r.name}
                             </Link>
                             <span className="block max-w-50 truncate text-xs text-zinc-500">{r.email}</span>
+                            {partnerBadge(r.id)}
                           </div>
                         </div>
                       </td>

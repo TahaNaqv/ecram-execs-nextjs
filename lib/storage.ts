@@ -1,4 +1,5 @@
 import "server-only";
+import { readFile } from "node:fs/promises";
 import * as local from "./storage-local";
 import * as supabase from "./storage-supabase";
 
@@ -24,6 +25,21 @@ export const signedUploadUrl = (path: string) => backend()!.signedUploadUrl(path
 
 /** A link to view a file, valid for `expiresIn` seconds. */
 export const signedDownloadUrl = (path: string, expiresIn?: number) => backend()!.signedDownloadUrl(path, expiresIn);
+
+/**
+ * One stored file's bytes, read by the server itself (for a download it has already authorised), or null if there is
+ * none. Only for small files such as invoices: the whole file is read into memory.
+ */
+export async function readStoredFile(path: string): Promise<Uint8Array | null> {
+  const b = backend();
+  if (!b) return null;
+  if (b === local) {
+    const absolute = local.absolutePath(path);
+    return absolute ? readFile(absolute).catch(() => null) : null;
+  }
+  const res = await fetch(await supabase.signedDownloadUrl(path, 60)).catch(() => null);
+  return res?.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+}
 
 /** Files directly inside `folder`. */
 export const listFiles = (folder: string) => backend()!.listFiles(folder);

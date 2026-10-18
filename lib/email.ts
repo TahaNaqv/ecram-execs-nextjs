@@ -7,6 +7,7 @@ import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
+import { amsterdamNow } from "@/lib/quotes/validation";
 import { siteConfig } from "@/lib/site-config";
 
 const esc = (s: string) =>
@@ -223,6 +224,108 @@ export async function sendPasswordChanged({ email, name, locale }: { email: stri
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   return send("corporate", email, "password changed", { from: EMAIL_FROM, to: [email], subject: t.passwordChangedSubject, html });
+}
+
+export type PartnerActivity = "accepted" | "declined" | "message" | "change" | "cancel";
+
+const PARTNER_ACTIVITY_LABEL: Record<PartnerActivity, string> = {
+  accepted: "Quote accepted",
+  declined: "Quote declined",
+  message: "New message",
+  change: "Change requested",
+  cancel: "Cancellation requested",
+};
+
+/**
+ * Tells the team what a partner did on one of their bookings. Internal, so always English like the other team
+ * alerts; whatever the partner wrote is escaped by the table renderer. A change or cancellation of a trip that is
+ * less than a day away is flagged in the subject, because someone has to act on it today.
+ */
+export async function notifyTeamPartnerActivity({
+  request: q,
+  partner,
+  kind,
+  body,
+}: {
+  request: QuoteRequest;
+  partner: { name: string; email: string };
+  kind: PartnerActivity;
+  /** The message, or the reason given when declining */
+  body?: string | null;
+}) {
+  const { EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
+  if (!provider() || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
+    console.info(`[portal] ${q.reference} ${kind}: email alert skipped (no mail provider, or EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
+    return;
+  }
+  const site = process.env.SITE_URL ?? "";
+  // Within the next day, or started in the last few hours: a cancellation of a trip already underway is the most urgent
+  const soon = (kind === "change" || kind === "cancel") && !!q.pickupAt && q.pickupAt >= amsterdamNow(-6 * 60) && q.pickupAt <= amsterdamNow(24 * 60);
+  const label = PARTNER_ACTIVITY_LABEL[kind];
+  const rows: [string, string | number | null][] = [
+    ["Reference", q.reference],
+    ["Partner", partner.name],
+    ["Company", q.entity],
+    ["Email", partner.email],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+    ["Pick-up within 24 hours", soon ? "Yes — please act today" : null],
+    ["Quoted amount", q.quotedAmount && `€ ${q.quotedAmount}`],
+    [kind === "declined" ? "Reason" : "Message", body ?? null],
+  ];
+  await send("portal", q.reference, `team alert (${kind})`, {
+    from: EMAIL_FROM,
+    to: NOTIFY_EMAIL_TO.split(",").map((e) => e.trim()),
+    reply_to: partner.email,
+    subject: `[Partner] ${label} ${q.reference} — ${partner.name}${soon ? " (pick-up within 24h)" : ""}`,
+    html: teamAlert(`${esc(label)} on <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`),
+  });
+}
+
+export type PartnerEmailKind = "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
+
+const euro = (amount: string | null, locale: QuoteRequest["locale"]) =>
+  amount === null ? "" : new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { style: "currency", currency: "EUR" }).format(Number(amount));
+
+/**
+ * Emails the partner about one of their bookings, in their language, with a link straight to it. Best-effort: the
+ * change has already happened, so a failed send is logged, not shown.
+ */
+export async function emailPartnerBooking({
+  request: q,
+  to,
+  kind,
+  message,
+}: {
+  request: QuoteRequest;
+  to: { email: string; name: string; locale: QuoteRequest["locale"] };
+  kind: PartnerEmailKind;
+  /** The team's reply, for `reply` */
+  message?: string | null;
+}) {
+  const { EMAIL_FROM, SITE_URL } = process.env;
+  if (!provider() || !EMAIL_FROM) return false;
+  const { email: t } = await getDictionary(to.locale);
+  const copy: Record<PartnerEmailKind, [string, string]> = {
+    quoted: [t.bookingSubjectQuoted, t.bookingIntroQuoted],
+    confirmed: [t.bookingSubjectConfirmed, t.bookingIntroConfirmed],
+    completed: [t.bookingSubjectCompleted, t.bookingIntroCompleted],
+    cancelled: [t.bookingSubjectCancelled, t.bookingIntroCancelled],
+    reply: [t.bookingSubjectReply, t.bookingIntroReply],
+    invoice: [t.bookingSubjectInvoice, t.bookingIntroInvoice],
+  };
+  const values = { reference: q.reference, amount: euro(q.quotedAmount, to.locale) };
+  const [subject, intro] = copy[kind];
+  const link = `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", to.locale)}?ref=${encodeURIComponent(q.reference)}`;
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: to.name.split(" ")[0] }))}</p>
+      <p>${esc(interpolate(intro, values))}</p>
+      ${kind === "reply" && message ? `<blockquote style="margin:16px 0;padding:0 0 0 14px;border-left:3px solid #d4d4d8;color:#27272a">${esc(message).replace(/\n/g, "<br>")}</blockquote>` : ""}
+      <p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("portal", q.reference, `partner email (${kind})`, { from: EMAIL_FROM, to: [to.email], subject: interpolate(subject, values), html });
 }
 
 function teamAlert(heading: string, rows: [string, string | number | null][], adminUrl: string) {

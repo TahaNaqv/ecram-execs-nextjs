@@ -156,3 +156,69 @@ Clean up afterwards: delete the test requests in the admin, and `delete from cor
 ## Rollback
 
 Redeploy the previous commit. The old code ignores the new columns (it never selects `password_hash`), so nothing breaks; partners who created accounts simply can't use them until the new code is back. The migration is additive and is left in place.
+
+
+---
+
+# Partner portal: bookings, quotes, messages, invoices
+
+After signing in, a partner's page (`/corporate-partner/account`, NL `/zakelijke-partner/account`) is their booking portal.
+
+| Screen | English | Dutch |
+|---|---|---|
+| Bookings (tabs: needs your answer / open / past) | `/corporate-partner/account` | `/zakelijke-partner/account` |
+| One booking | `…/account/booking?ref=EE-XXXXXX` | `…/account/boeking?ref=EE-XXXXXX` |
+| New booking (and repeat a past one: `?repeat=EE-…`) | `…/account/new-booking` | `…/account/nieuwe-boeking` |
+| Company introduction (the short KYB form) | `…/account/introduction` | `…/account/kennismaking` |
+
+**What a partner can do:** see their own bookings with status, trip, quoted price and history; request a booking (their details are filled in; repeating a booking copies the trip, never the date); **accept or decline a quote** (accepting confirms the booking and emails the team; the acceptance only applies if the quote is still the amount they were looking at); write to the team, or **request a change or a cancellation** (a request never changes the booking, the team does); download **invoices** the team attached. Each login sees only its own bookings.
+
+**What the team can do** (on a request in the admin):
+- *Corporate partner* card: attach the request to a partner's account (one click when the request's email matches a partner), or detach it. A request that already holds a partner's messages or invoices can only go back to that same partner, so one partner can never inherit another's conversation or invoices.
+- *Partner messages* card: read and reply (the reply is emailed and shows in the portal). Requests with unread partner messages carry a "Partner message" badge in the list.
+- *Invoices* card: upload a PDF (≤ 5 MB) for a partner-linked request, or delete it. Needs document storage (`DOCUMENTS_DIR`).
+- **New booking** button on the requests page: enter a phone/email booking, optionally for a partner, so it appears in their portal.
+- Saving a request is refused if its status changed while the page was open (for example the partner just accepted the quote); reload and try again.
+
+**Linking:** requests made on the public forms are linked to a partner only (a) when that partner first creates an account (requests earlier made with their verified address become theirs, noted in the history) or (b) when the team attaches them. A form submission never links itself, because anyone can type any address there.
+
+**Emails to partners** (their language, with a link to the booking): quote ready, confirmed, completed, cancelled (when the team changes the status or quote), a reply from the team, an invoice available. **To the team:** quote accepted/declined, a message, a change or cancellation request (flagged "pick-up within 24h" when the trip is near or underway), and the existing new-request alerts. `SITE_URL` must be set (it is on the server) or the links in these emails are not clickable.
+
+## Rolling it out
+
+The change adds **migration `0010_partner_portal`** (additive: tables `booking_messages` and `booking_invoices`, a unique index on invoice file paths, an index on `quote_requests(corporate_contact_id, created_at)`). The new admin pages and the portal read these tables, so apply the migration **before** the new build starts; `deploy.sh` stops and lists it if you forget. On the server, as the `ecram` user:
+
+```bash
+cd /srv/ecram-execs && ./scripts/deploy.sh                       # pulls, lists the pending migration (must be exactly 0010_partner_portal), stops
+cd /srv/ecram-execs && APPLY_MIGRATIONS=1 ./scripts/deploy.sh    # applies it, builds, restarts
+```
+
+Take a database backup first (`sudo -u postgres /usr/local/bin/ecram-backup`). Then verify:
+
+```sql
+select count(*) from drizzle.__drizzle_migrations;                                         -- 11
+select table_name from information_schema.tables where table_name in ('booking_messages','booking_invoices'); -- 2 rows
+```
+
+The nightly document sweep (`scripts/sweep-documents.mts`) now also treats invoice folders as claimed. Deploy this version before the next 03:45 run, or the old sweep would delete invoice files older than three hours.
+
+## Smoke test on the real domain (use your own address)
+
+1. Log in as a partner. As the team, make a request for that partner with status **Quoted** and an amount (admin → New booking, choose the partner). The partner gets the "quote ready" email; the booking shows under **Needs your answer**.
+2. As the partner: open it, **Accept**. Status becomes Confirmed; the team gets an alert; the history says "You accepted the quote".
+3. Send a message, a change request and a cancellation request. The admin list shows the "Partner message" badge; reply from the admin; the partner sees the reply and gets an email.
+4. Upload a PDF invoice in the admin; the partner downloads it from the booking page (and a different partner cannot).
+5. As the partner: **New booking**, submit; the team alert arrives; **Repeat this booking** opens the form filled in, without a date.
+6. Delete your test requests in the admin (this also removes their invoice files).
+
+## Rollback and housekeeping
+
+- Redeploy the previous commit. The old code ignores the new tables. Leave the migration in place.
+- Deleting a partner contact by hand in SQL leaves their requests (the link is cleared) and any invoice files: delete the requests in the admin first.
+
+## Open questions for the client
+
+- Is the quoted amount shown to partners **excluding or including VAT**? The portal currently says only "Quoted amount".
+- Partner-facing status wording ("Being reviewed" for Contacted, "Quote ready" for Quoted) is a suggestion.
+- Colleagues at one company each have their own login and see only their own bookings; sharing a booking list per company is a separate piece of work.
+- Online payment, a quote validity period, and PDF invoice generation are not in the portal; invoices are files the team uploads.

@@ -68,7 +68,8 @@ export const listIntroductions = cache(async (contactId: string) =>
       createdAt: schema.quoteRequests.createdAt,
     })
     .from(schema.quoteRequests)
-    .where(eq(schema.quoteRequests.corporateContactId, contactId))
+    // Only the introductions: the partner's bookings have their own pages (lib/corporate/bookings.ts)
+    .where(and(eq(schema.quoteRequests.corporateContactId, contactId), eq(schema.quoteRequests.source, "website-corporate")))
     .orderBy(desc(schema.quoteRequests.createdAt))
     .limit(20),
 );

@@ -25,6 +25,9 @@ import { StatusBadge } from "../../../_components/status-badge";
 import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
+import { InvoicesCard } from "./invoices-card";
+import { MessagesCard } from "./messages-card";
+import { PartnerCard } from "./partner-card";
 import { UpdateForm } from "./update-form";
 
 async function BackLabel() {
@@ -129,7 +132,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
   const allStops = bespoke
     ? []
-    : [r.collection, ...(Array.isArray(r.destinations) && r.destinations.length > 0 ? r.destinations : [r.destination])].filter(Boolean);
+    : [r.collection, ...(r.destinations ?? []), r.destination].filter(Boolean); // from, stops on the way, to
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -322,6 +325,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
               />
             </div>
           </Card>
+
+          <PartnerCard requestId={r.id} />
+          <MessagesCard requestId={r.id} linked={!!r.corporateContactId} />
+          <InvoicesCard requestId={r.id} linked={!!r.corporateContactId} />
 
           <Card>
             <CardHeader title={d.admin.requestDetail.client} />

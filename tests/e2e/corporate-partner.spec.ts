@@ -1,84 +1,26 @@
-import { createHmac, randomInt, randomUUID } from "node:crypto";
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import postgres from "postgres";
-import { hashPassword } from "../../lib/auth/password";
+import { expect, test, type Page } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
+import {
+  NEW_PASSWORD,
+  ORIGIN,
+  PASSWORD,
+  SECRET,
+  holdChallenge,
+  logIn,
+  newEmail,
+  ownAddress,
+  seedBooking,
+  seedChallenge,
+  seedContact,
+  submit,
+  t,
+} from "./corporate-helpers";
 import { fillAdminLogin } from "./helpers";
-
-/**
- * The emailed code can't be read in tests (no mail provider runs), and production code must not grow a
- * test-only backdoor — `next start` has NODE_ENV=production here, so a NODE_ENV guard would ship. Instead
- * the test writes a challenge row itself, using the same secret and HMAC the server uses, and the server
- * verifies it exactly as it would a real one. Accounts are seeded the same way, with the real password hash.
- */
-try {
-  process.loadEnvFile?.(".env.local");
-} catch {
-  // No .env.local (CI sets the variables directly)
-}
-const SECRET = process.env.CORPORATE_OTP_SECRET ?? "";
-const sql = () => postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
-const hmac = (id: string, code: string) => createHmac("sha256", SECRET).update(`${id}:${code}`).digest("hex");
 
 test.skip(!SECRET, "Set CORPORATE_OTP_SECRET (the same value the server runs with) to run the Corporate Partner flow");
 
-const PASSWORD = "correct horse battery staple";
-const NEW_PASSWORD = "another long passphrase here";
-const ORIGIN = `http://localhost:${process.env.E2E_PORT ?? 3100}`;
-const t = en.corporatePartner;
 const failedMessage = t.loginFailed.replace("{max}", "5").replace("{minutes}", "15");
-
-/** Sign-in attempts are limited per visitor address, so each test presents its own. */
-const ownAddress = (context: BrowserContext) =>
-  context.setExtraHTTPHeaders({ "x-forwarded-for": `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}` });
-
-const newEmail = (label: string) => `${label}-${Date.now()}-${randomInt(1000)}@e2e.ecramexecs.test`;
-
-/** A contact, optionally with an account (a password already chosen). */
-async function seedContact(email: string, password?: string) {
-  const db = sql();
-  try {
-    const hash = password ? await hashPassword(password) : null;
-    const [contact] = await db`
-      insert into corporate_contacts (email, email_domain, name, position, locale, password_hash, password_set_at, verified_at)
-      values (${email}, 'e2e.ecramexecs.test', 'Anouk Jansen', 'Head of Travel', 'en', ${hash}, ${hash ? new Date() : null}, ${hash ? new Date() : null})
-      on conflict (email) do update set name = excluded.name returning id`;
-    return contact.id as string;
-  } finally {
-    await db.end();
-  }
-}
-
-async function seedChallenge(email: string, code: string, opts: { purpose?: "signup" | "reset"; expired?: boolean; password?: string } = {}) {
-  const contactId = await seedContact(email, opts.password);
-  const db = sql();
-  try {
-    const id = randomUUID();
-    const expiresAt = new Date(Date.now() + (opts.expired ? -60_000 : 10 * 60_000));
-    await db`insert into corporate_challenges (id, contact_id, code_hmac, purpose, pending_name, pending_position, expires_at)
-             values (${id}, ${contactId}, ${hmac(id, code)}, ${opts.purpose ?? "signup"}, 'Anouk Jansen', 'Head of Travel', ${expiresAt})`;
-    return id;
-  } finally {
-    await db.end();
-  }
-}
-
-const holdChallenge = (context: BrowserContext, id: string) => context.addCookies([{ name: "ee_cp_challenge", value: id, url: ORIGIN }]);
-
-/** Submits whichever form is on screen and waits for the server's answer before the test looks at it. */
-async function submit(page: Page, button: string) {
-  const answered = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByRole("button", { name: button, exact: true }).click();
-  await answered;
-}
-
-async function logIn(page: Page, email: string, password: string) {
-  await page.goto("/en/corporate-partner/login");
-  await page.fill("#c-email", email);
-  await page.fill("#c-password", password);
-  await submit(page, t.loginCta);
-}
 
 /**
  * Waits for a refused sign-in to have been answered. The form is replaced after every answer, which empties the
@@ -118,7 +60,7 @@ test("the entry page offers log in and sign up, in both languages", async ({ pag
 
 test("the account page is behind sign-in, and the sign-in screens stay out of search results", async ({ page, request }) => {
   await page.goto("/en/corporate-partner/account");
-  await expect(page).toHaveURL(/\/en\/corporate-partner\/login$/);
+  await expect(page).toHaveURL(/\/en\/corporate-partner\/login(\?.*)?$/);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 
   const sitemap = await (await request.get("/sitemap.xml")).text();
@@ -157,7 +99,7 @@ test("signing in says the same thing for every failure, and a paused account sta
   await submit(page, t.loginCta);
   await refused(page);
   await page.goto("/en/corporate-partner/account");
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login(\?.*)?$/);
 
   // A password reset is the way back in, and it lifts the pause
   await holdChallenge(context, await seedChallenge(email, "135790", { purpose: "reset" }));
@@ -177,9 +119,14 @@ test("a code and a password create an account; the partner can sign out, sign in
   await expect(page.getByRole("heading", { name: t.verifyHeading })).toBeVisible();
   await finish(page, "246810", PASSWORD);
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
-  await expect(page.getByText(t.accountWelcome.replace("{name}", "Anouk").replace("{email}", email))).toBeVisible();
+  await expect(page.getByRole("heading", { name: en.portal.headingBookings, level: 1 })).toBeVisible();
 
-  // The introduction form is the first thing on the page; the booker's own details are shown, not typed
+  // No bookings yet, and the company introduction is still to do: that is offered, and leads to the form
+  await expect(page.getByText(en.portal.emptyOpen)).toBeVisible();
+  await page.getByRole("link", { name: en.portal.introCtaLink }).click();
+  await expect(page).toHaveURL(/\/en\/corporate-partner\/account\/introduction$/);
+
+  // The booker's own details are shown, not typed
   await expect(page.getByRole("heading", { name: t.formHeading })).toBeVisible();
   await expect(page.locator("#c-bookerEmail")).toHaveValue(email);
   await expect(page.locator("#c-bookerName")).toHaveValue("Anouk Jansen");
@@ -212,17 +159,22 @@ test("a code and a password create an account; the partner can sign out, sign in
   await page.getByRole("button", { name: t.submit }).click();
   await expect(page.getByRole("status")).toContainText("Anouk");
 
-  // Reloading keeps the session (checked against the database every time)
-  await page.goto("/en/corporate-partner/account");
+  // Reloading keeps the session (checked against the database every time), and the introduction is listed
+  await page.goto("/en/corporate-partner/account/introduction");
   await expect(page.getByRole("heading", { name: t.introductionsHeading })).toBeVisible();
   await expect(page.getByText(/EE-[A-Z0-9]{6}/)).toBeVisible();
   await expect(page.getByText("Orion Holdings B.V.")).toBeVisible();
+
+  // An introduction is not a booking: it is not in the bookings list, and the prompt to send one is gone
+  await page.goto("/en/corporate-partner/account");
+  await expect(page.getByText(en.portal.emptyOpen)).toBeVisible();
+  await expect(page.getByRole("heading", { name: en.portal.introCtaTitle })).toHaveCount(0);
 
   // Sign out: the page closes, and signing back in with the password opens it again
   await page.getByRole("button", { name: t.signOut }).click();
   await expect(page).toHaveURL(/\/en\/corporate-partner$/);
   await page.goto("/en/corporate-partner/account");
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login(\?.*)?$/);
   await logIn(page, email, PASSWORD);
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
 
@@ -339,13 +291,13 @@ test("signing up with an address that already has an account sets a new password
 
   // The other browser was signed out by the change; the old password no longer opens anything
   await other.goto("/en/corporate-partner/account");
-  await expect(other).toHaveURL(/\/login$/);
+  await expect(other).toHaveURL(/\/login(\?.*)?$/);
   await other.fill("#c-email", email);
   await other.fill("#c-password", PASSWORD);
   await submit(other, t.loginCta);
   await refused(other);
   await other.goto("/en/corporate-partner/account");
-  await expect(other).toHaveURL(/\/login$/);
+  await expect(other).toHaveURL(/\/login(\?.*)?$/);
   await other.fill("#c-email", email);
   await other.fill("#c-password", NEW_PASSWORD);
   await submit(other, t.loginCta);
@@ -367,4 +319,19 @@ test("a signed-in visitor is offered their account instead of the sign-in screen
   await expect(page.getByRole("link", { name: t.goToAccount })).toBeVisible();
   await page.goto("/en/corporate-partner/signup");
   await expect(page.getByRole("link", { name: t.goToAccount })).toBeVisible();
+});
+
+test("the first sign-up links the requests that were made earlier with that address, and only those", async ({ page, context }) => {
+  await ownAddress(context);
+  const email = newEmail("earlier");
+  // Earlier requests: one with this address (typed in capitals, as people do), one with someone else's
+  const mine = await seedBooking({ contactId: null, email: email.toUpperCase(), status: "confirmed" });
+  const other = await seedBooking({ contactId: null, email: newEmail("someone-else"), status: "confirmed" });
+  await holdChallenge(context, await seedChallenge(email, "246810"));
+
+  await page.goto("/en/corporate-partner/signup");
+  await finish(page, "246810", PASSWORD);
+  await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
+  await expect(page.getByText(mine.reference)).toBeVisible();
+  await expect(page.getByText(other.reference)).toHaveCount(0);
 });

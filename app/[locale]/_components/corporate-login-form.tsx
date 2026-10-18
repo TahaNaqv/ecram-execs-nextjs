@@ -18,11 +18,14 @@ export function LoginForm({
   copy: t,
   forgotHref,
   signupHref,
+  next,
 }: {
   locale: Locale;
   copy: LoginCopy;
   forgotHref: string;
   signupHref: string;
+  /** The portal page the visitor was sent from; the server checks it again before using it. */
+  next?: string;
 }) {
   const [state, action, pending] = useActionState<CorporateState, FormData>(login, { status: "idle" });
   // Only the address comes back after a failed attempt, never the password
@@ -42,6 +45,7 @@ export function LoginForm({
           </Field>
         </div>
         <input type="hidden" name="locale" value={locale} />
+        {next && <input type="hidden" name="next" value={next} />}
         <Honeypot />
         <button type="submit" disabled={pending} className={submitClass}>
           {pending ? t.loggingIn : t.loginCta}

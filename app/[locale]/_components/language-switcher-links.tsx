@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import type { Locale } from "@/lib/i18n/config";
 
 type Option = { locale: Locale; href: string; aria: string };
@@ -37,6 +37,11 @@ function Flag({ locale }: { locale: Locale }) {
   );
 }
 
+function subscribeToLocation(onChange: () => void) {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
 /** Where the visitor was on the page when they switched, so the new language opens at the same spot. */
 const SCROLL_KEY = "ecram:language-scroll";
 
@@ -56,6 +61,9 @@ export function LanguageSwitcherLinks({
   current: Locale;
   options: Option[];
 }) {
+  // The page's own query (a booking's ?ref=…) goes along, so the other language opens the same page, not its start
+  const search = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
+
   useEffect(() => {
     try {
       const saved = window.sessionStorage.getItem(SCROLL_KEY);
@@ -87,7 +95,7 @@ export function LanguageSwitcherLinks({
           ) : (
             <Link
               className="inline-flex h-11 w-9 items-center justify-center opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-4px] focus-visible:outline-white"
-              href={option.href}
+              href={`${option.href}${search}`}
               hrefLang={option.locale}
               aria-label={option.aria}
               scroll={false}

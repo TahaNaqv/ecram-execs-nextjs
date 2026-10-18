@@ -16,6 +16,10 @@ export const PATHNAMES = {
   "/corporate-partner/signup": { en: "corporate-partner/signup", nl: "zakelijke-partner/registreren" },
   "/corporate-partner/forgot-password": { en: "corporate-partner/forgot-password", nl: "zakelijke-partner/wachtwoord-vergeten" },
   "/corporate-partner/account": { en: "corporate-partner/account", nl: "zakelijke-partner/account" },
+  // The portal. A booking is opened with ?ref=EE-XXXXXX: the proxy matches exact slugs only, so there is no [reference] segment
+  "/corporate-partner/account/booking": { en: "corporate-partner/account/booking", nl: "zakelijke-partner/account/boeking" },
+  "/corporate-partner/account/new-booking": { en: "corporate-partner/account/new-booking", nl: "zakelijke-partner/account/nieuwe-boeking" },
+  "/corporate-partner/account/introduction": { en: "corporate-partner/account/introduction", nl: "zakelijke-partner/account/kennismaking" },
   "/privacy": { en: "privacy", nl: "privacybeleid" },
 } as const satisfies Record<string, Record<Locale, string>>;
 

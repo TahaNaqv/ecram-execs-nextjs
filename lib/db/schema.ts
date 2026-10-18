@@ -84,6 +84,8 @@ export const quoteRequests = pgTable(
   (t) => [
     index("quote_requests_status_created_idx").on(t.status, t.createdAt),
     index("quote_requests_ip_created_idx").on(t.ipHash, t.createdAt),
+    // A partner's own bookings, newest first (the portal lists them by this)
+    index("quote_requests_contact_created_idx").on(t.corporateContactId, t.createdAt),
     check(
       "quote_requests_journey_required",
       sql`${t.service} = 'bespoke' OR (${t.collection} IS NOT NULL AND ${t.destination} IS NOT NULL AND ${t.pickupAt} IS NOT NULL)`,
@@ -112,6 +114,61 @@ export const requestEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("request_events_request_idx").on(t.requestId, t.createdAt)],
+);
+
+/**
+ * The conversation between a partner and the team about one booking: messages, and requests to change or cancel it.
+ * A change or cancel REQUEST never alters the booking by itself; the team does that in the admin. Not mirrored into
+ * request_events (the thread is merged into the history when it is shown), so there is one record of each message.
+ */
+export const bookingMessages = pgTable(
+  "booking_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => quoteRequests.id, { onDelete: "cascade" }),
+    authorKind: text("author_kind").$type<"partner" | "team">().notNull(),
+    contactId: uuid("contact_id").references(() => corporateContacts.id, { onDelete: "set null" }),
+    adminId: uuid("admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    kind: text("kind").$type<"message" | "change" | "cancel">().notNull().default("message"),
+    body: text("body").notNull(),
+    // When a team member first opened the booking after a partner message (drives the badge in the admin list)
+    seenByTeamAt: timestamp("seen_by_team_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("booking_messages_request_idx").on(t.requestId, t.createdAt),
+    // Only unseen partner messages: tiny, and exactly what the badge counts
+    index("booking_messages_unseen_idx")
+      .on(t.requestId)
+      .where(sql`${t.authorKind} = 'partner' AND ${t.seenByTeamAt} IS NULL`),
+    check("booking_messages_author_kind", sql`${t.authorKind} IN ('partner', 'team')`),
+    check("booking_messages_kind", sql`${t.kind} IN ('message', 'change', 'cancel')`),
+  ],
+);
+
+/** An invoice PDF the team attached to a booking. The file lives in document storage (lib/storage.ts) at `path`. */
+export const bookingInvoices = pgTable(
+  "booking_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => quoteRequests.id, { onDelete: "cascade" }),
+    // <folder-uuid>/invoice.pdf — what storage accepts; the name the partner sees is `fileName`
+    path: text("path").notNull(),
+    fileName: text("file_name").notNull(),
+    size: integer("size").notNull(),
+    uploadedBy: uuid("uploaded_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("booking_invoices_request_idx").on(t.requestId),
+    // One stored file belongs to exactly one invoice row: a path recorded against two requests would let one request's
+    // deletion remove the file from under the other, and one partner download another's
+    uniqueIndex("booking_invoices_path_key").on(t.path),
+  ],
 );
 
 export const adminUsers = pgTable("admin_users", {
@@ -308,3 +365,5 @@ export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;
+export type BookingMessage = typeof bookingMessages.$inferSelect;
+export type BookingInvoice = typeof bookingInvoices.$inferSelect;

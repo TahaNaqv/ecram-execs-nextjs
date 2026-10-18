@@ -20,6 +20,8 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={id} />
+      {/* What this form was showing: the save is refused if the booking has moved on since (e.g. the partner answered it) */}
+      <input type="hidden" name="seenStatus" value={status} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="req-status" className={fieldLabel}>
           {copy.status}
