@@ -1,0 +1,36 @@
+"use client";
+
+import { useEffect } from "react";
+
+/**
+ * An error boundary is a Client Component, so it cannot read `next/root-params`, and the error
+ * may well have come from the layout that would have told us the locale. Both languages are
+ * therefore shown — the same reasoning as `app/global-not-found.tsx` (T9).
+ */
+const COPY = {
+  heading: "Something went wrong. · Er is iets misgegaan.",
+  body:
+    "Please try again. If it keeps happening, contact us directly and we will gladly arrange your journey. · Probeer het opnieuw. Blijft dit gebeuren, neem dan direct contact met ons op — wij regelen uw rit graag.",
+  retry: "Try again · Opnieuw",
+};
+
+export default function SiteError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-ink-950 px-5 py-12 text-center font-sans text-ink-150">
+      <h1 className="m-0 font-serif text-[clamp(32px,6vw,52px)] font-light text-white">{COPY.heading}</h1>
+      <p className="m-0 max-w-[460px] text-ink-400">
+        {COPY.body}
+      </p>
+      <button
+        onClick={() => retry()}
+        className="btn-fill min-h-[52px] cursor-pointer border-none bg-ink-50 px-[34px] text-[12px] font-semibold tracking-[0.24em] text-ink-950 uppercase"
+      >
+        {COPY.retry}
+      </button>
+    </main>
+  );
+}

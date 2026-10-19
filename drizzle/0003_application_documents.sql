@@ -1,0 +1,1 @@
+ALTER TABLE "driver_applications" ADD COLUMN "documents" jsonb;
