@@ -191,10 +191,15 @@ export async function sendVerificationCode({
   /** "signup" creates an account (or sets a new password for an address that has one); "reset" is a forgotten password. */
   purpose: "signup" | "reset";
 }): Promise<boolean> {
+  const isDev = process.env.NODE_ENV !== "production";
+  if (isDev) {
+    console.info(`\n==================================================\n[corporate] [DEV MODE] Verification Code for ${email}: ${code} (purpose: ${purpose})\n==================================================\n`);
+  }
+
   const { EMAIL_FROM } = process.env;
   if (!provider() || !EMAIL_FROM) {
     console.warn("[corporate] verification code not sent: no RESEND_API_KEY or SMTP_*, or EMAIL_FROM not set");
-    return false;
+    return isDev;
   }
   const { email: t } = await getDictionary(locale);
   const html = `
@@ -206,12 +211,18 @@ export async function sendVerificationCode({
       <p style="color:#52525b">${esc(interpolate(t.codeExpiry, { minutes: String(minutes) }))}</p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("corporate", email, "verification code", {
+  const sent = await send("corporate", email, "verification code", {
     from: EMAIL_FROM,
     to: [email],
     subject: purpose === "reset" ? t.resetSubject : t.codeSubject,
     html,
   });
+
+  if (!sent && isDev) {
+    console.warn(`[corporate] [DEV MODE] Email dispatch failed (e.g. Resend restrictions or timeout). Bypassing failure in local dev; use code: ${code}`);
+    return true;
+  }
+  return sent;
 }
 
 /**
@@ -353,9 +364,10 @@ function teamAlert(heading: string, rows: [string, string | number | null][], ad
     </div>`;
 }
 
-/** Resend when RESEND_API_KEY is set (production, needs a verified domain); otherwise SMTP, e.g. Gmail for demos. */
+/** Resend when RESEND_API_KEY is set (production, needs a verified domain); otherwise SMTP, e.g. Gmail or custom mail server. */
 function provider(): "resend" | "smtp" | null {
-  const { RESEND_API_KEY, SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
+  const { RESEND_API_KEY, SMTP_HOST, SMTP_USER, SMTP_PASS, EMAIL_PROVIDER } = process.env;
+  if (EMAIL_PROVIDER === "smtp" && SMTP_HOST && SMTP_USER && SMTP_PASS) return "smtp";
   if (RESEND_API_KEY) return "resend";
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) return "smtp";
   return null;
@@ -365,35 +377,65 @@ let smtp: Transporter | undefined;
 
 type Payload = { from: string; to: string[]; reply_to?: string; subject: string; html: string };
 
-/** Resolves true only when the provider accepted the message, so a caller that must not leave someone waiting can tell. */
-async function send(tag: string, reference: string, kind: string, payload: Payload): Promise<boolean> {
+async function sendSmtp(tag: string, reference: string, kind: string, payload: Payload): Promise<boolean> {
   try {
-    if (provider() === "smtp") {
-      const port = Number(process.env.SMTP_PORT ?? 465);
-      smtp ??= nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port,
-        secure: port === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        connectionTimeout: 10_000,
-      });
-      const { reply_to, ...rest } = payload;
-      await smtp.sendMail({ ...rest, replyTo: reply_to });
-      return true;
-    }
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10_000),
+    const port = Number(process.env.SMTP_PORT ?? 465);
+    smtp ??= nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: port === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      connectionTimeout: 10_000,
     });
-    if (!res.ok) {
-      console.error(`[${tag}] ${reference} ${kind} failed: ${res.status} ${await res.text()}`);
-      return false;
-    }
+    const { reply_to, ...rest } = payload;
+    await smtp.sendMail({ ...rest, replyTo: reply_to });
     return true;
   } catch (err) {
-    console.error(`[${tag}] ${reference} ${kind} failed`, err);
+    console.error(`[${tag}] ${reference} ${kind} via SMTP failed:`, err);
     return false;
   }
+}
+
+/** Resolves true only when the provider accepted the message, so a caller that must not leave someone waiting can tell. */
+async function send(tag: string, reference: string, kind: string, payload: Payload): Promise<boolean> {
+  const hasSmtp = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  const activeProvider = provider();
+
+  if (activeProvider === "smtp") {
+    return sendSmtp(tag, reference, kind, payload);
+  }
+
+  if (activeProvider === "resend") {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`[${tag}] ${reference} ${kind} failed: ${res.status} ${errorText}`);
+        if (errorText.includes("domain is not verified")) {
+          console.warn(`[email] To send real emails from '${payload.from}', verify the domain at https://resend.com/domains by adding the required DNS records.`);
+        }
+        if (hasSmtp) {
+          console.info(`[${tag}] Falling back to SMTP dispatch...`);
+          return sendSmtp(tag, reference, kind, payload);
+        }
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error(`[${tag}] ${reference} ${kind} failed`, err);
+      if (hasSmtp) {
+        console.info(`[${tag}] Falling back to SMTP dispatch...`);
+        return sendSmtp(tag, reference, kind, payload);
+      }
+      return false;
+    }
+  }
+
+  return false;
 }

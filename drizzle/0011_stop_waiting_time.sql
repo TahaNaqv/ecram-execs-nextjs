@@ -1,1 +1,1 @@
-ALTER TABLE "quote_requests" ADD COLUMN "destination_waits" integer[];
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "destination_waits" integer[];

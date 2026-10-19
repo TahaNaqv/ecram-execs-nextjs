@@ -25,6 +25,7 @@ export type IssueResult = "ok" | "rate" | "wait" | "fail";
 
 /** Whether this visitor address has used up its codes for now. Checked before anything is written. */
 export async function ipLimited(ipHash: string) {
+  if (process.env.NODE_ENV !== "production") return false;
   const [{ fromIp }] = await db
     .select({ fromIp: count() })
     .from(schema.corporateChallenges)
@@ -43,21 +44,25 @@ export async function issueCode(
   pending: Pending,
   purpose: "signup" | "reset",
 ): Promise<IssueResult> {
-  if (await ipLimited(ipHash)) return "rate";
+  const isDev = process.env.NODE_ENV !== "production";
 
-  const [{ forContact }] = await db
-    .select({ forContact: count() })
-    .from(schema.corporateChallenges)
-    .where(and(eq(schema.corporateChallenges.contactId, contact.id), gt(schema.corporateChallenges.createdAt, minutesAgo(CONTACT_LIMIT.windowMinutes))));
-  if (forContact >= CONTACT_LIMIT.max) return "rate";
+  if (!isDev) {
+    if (await ipLimited(ipHash)) return "rate";
 
-  const [latest] = await db
-    .select({ createdAt: schema.corporateChallenges.createdAt })
-    .from(schema.corporateChallenges)
-    .where(eq(schema.corporateChallenges.contactId, contact.id))
-    .orderBy(desc(schema.corporateChallenges.createdAt))
-    .limit(1);
-  if (latest && Date.now() - latest.createdAt.getTime() < RESEND_SECONDS * 1000) return "wait";
+    const [{ forContact }] = await db
+      .select({ forContact: count() })
+      .from(schema.corporateChallenges)
+      .where(and(eq(schema.corporateChallenges.contactId, contact.id), gt(schema.corporateChallenges.createdAt, minutesAgo(CONTACT_LIMIT.windowMinutes))));
+    if (forContact >= CONTACT_LIMIT.max) return "rate";
+
+    const [latest] = await db
+      .select({ createdAt: schema.corporateChallenges.createdAt })
+      .from(schema.corporateChallenges)
+      .where(eq(schema.corporateChallenges.contactId, contact.id))
+      .orderBy(desc(schema.corporateChallenges.createdAt))
+      .limit(1);
+    if (latest && Date.now() - latest.createdAt.getTime() < RESEND_SECONDS * 1000) return "wait";
+  }
 
   const id = randomUUID();
   const code = newCode();
@@ -74,19 +79,30 @@ export async function issueCode(
     ipHash,
   });
 
-  const sent = await sendVerificationCode({
-    email: contact.email,
-    name: pending.name,
-    code,
-    locale: contact.locale,
-    minutes: CODE_MINUTES,
-    purpose,
-  });
+  let sent = false;
+  try {
+    sent = await sendVerificationCode({
+      email: contact.email,
+      name: pending.name,
+      code,
+      locale: contact.locale,
+      minutes: CODE_MINUTES,
+      purpose,
+    });
+  } catch (err) {
+    console.error("[corporate] sendVerificationCode error:", err);
+  }
+
   if (!sent) {
-    // Withdrawn rather than deleted: it still counts toward the limits, so a broken mail setup can't be
-    // used to create contacts without end
-    await db.update(schema.corporateChallenges).set({ consumedAt: new Date() }).where(eq(schema.corporateChallenges.id, id));
-    return "fail";
+    if (isDev) {
+      console.warn(`[corporate] [DEV MODE] Verification code dispatch failed, bypassing for local development. Code: ${code}`);
+      sent = true;
+    } else {
+      // Withdrawn rather than deleted: it still counts toward the limits, so a broken mail setup can't be
+      // used to create contacts without end
+      await db.update(schema.corporateChallenges).set({ consumedAt: new Date() }).where(eq(schema.corporateChallenges.id, id));
+      return "fail";
+    }
   }
   // The cookie outlives the code, so "send a new code" still works a little after the first has expired
   (await cookies()).set(CHALLENGE_COOKIE, id, cookieOptions(new Date(Date.now() + 60 * 60_000)));

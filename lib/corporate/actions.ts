@@ -42,8 +42,9 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
 
   try {
     const { ipHash, userAgent } = await visitor();
+    const isDev = process.env.NODE_ENV !== "production";
     // Before anything is written: contact rows can't be created without limit by repeating this form
-    if (await ipLimited(ipHash)) return fail(c.rateLimited);
+    if (!isDev && (await ipLimited(ipHash))) return fail(c.rateLimited);
 
     // A request is only a request. An existing contact is left exactly as it is — nobody can rewrite
     // someone else's details, or record consent on their behalf, by typing their address — and what was
@@ -84,9 +85,12 @@ export async function requestReset(_prev: CorporateState, formData: FormData): P
 
   try {
     const { ipHash } = await visitor();
+    const isDev = process.env.NODE_ENV !== "production";
     // An unknown address writes nothing, so the database counts below never see it: this limit covers that path
-    if (!withinLimit(`cp-reset:${ipHash}`, RESET_IP_LIMIT.max, RESET_IP_LIMIT.windowMs)) return fail(c.rateLimited);
-    if (await ipLimited(ipHash)) return fail(c.rateLimited);
+    if (!isDev) {
+      if (!withinLimit(`cp-reset:${ipHash}`, RESET_IP_LIMIT.max, RESET_IP_LIMIT.windowMs)) return fail(c.rateLimited);
+      if (await ipLimited(ipHash)) return fail(c.rateLimited);
+    }
 
     const [contact] = await db.select(contactColumns).from(schema.corporateContacts).where(eq(schema.corporateContacts.email, email)).limit(1);
     if (!contact) return { status: "sent", email };

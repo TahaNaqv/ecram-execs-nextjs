@@ -187,8 +187,9 @@ export async function login(_prev: CorporateState, formData: FormData): Promise<
 
   try {
     const { ipHash } = await visitor();
+    const isDev = process.env.NODE_ENV !== "production";
     // Counted before any hashing: hashing is the expensive part, and this form is linked from the home page
-    if (!withinLimit(`cp-login:${ipHash}`, LOGIN_IP_LIMIT.max, LOGIN_IP_LIMIT.windowMs)) return refuse(c.rateLimited);
+    if (!isDev && !withinLimit(`cp-login:${ipHash}`, LOGIN_IP_LIMIT.max, LOGIN_IP_LIMIT.windowMs)) return refuse(c.rateLimited);
 
     const t = schema.corporateContacts;
     const [contact] = await db
@@ -198,6 +199,9 @@ export async function login(_prev: CorporateState, formData: FormData): Promise<
       .limit(1);
 
     if (!contact?.passwordHash || contact.locked) {
+      if (isDev && contact?.locked) {
+        console.warn(`[corporate] [DEV MODE] Account ${email} is currently locked due to failed attempts.`);
+      }
       await verifyPassword(password, DUMMY_HASH); // the same work as a real check
       return generic();
     }
