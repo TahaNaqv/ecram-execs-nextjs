@@ -96,6 +96,17 @@ export const quoteRequests = pgTable(
   ],
 );
 
+// Fleet vehicles table to track real-time availability status
+export const vehicles = pgTable("vehicles", {
+  id: text("id").primaryKey(), // matches keys from lib/fleet/vehicles.ts
+  name: text("name").notNull(),
+  status: text("status").notNull().default("available"), // "available" | "unavailable"
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 // Audit trail shown on the request detail page
 export const requestEvents = pgTable(
   "request_events",
@@ -365,6 +376,7 @@ export const corporateAccess = pgTable("corporate_access", {
 
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
+export type Vehicle = typeof vehicles.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;

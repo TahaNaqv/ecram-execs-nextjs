@@ -15,7 +15,9 @@ export default async function AdminRootLayout({
 }) {
   return (
     <html lang="en" className={fontVariables}>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased bg-zinc-50 text-zinc-900">
+        {children}
+      </body>
     </html>
   );
 }
