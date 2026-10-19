@@ -4,11 +4,10 @@ import { db } from "@/lib/db";
 import { vehicles as vehiclesTable } from "@/lib/db/schema";
 import { QuoteForm } from "../quote-form";
 
-// Async component that fetches the database records
 async function VehicleQuoteLoader() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
 
-  let dbVehicles = [];
+  let dbVehicles: { id: string; name: string; status: string }[] = [];
   try {
     dbVehicles = await db.select().from(vehiclesTable);
   } catch (error) {

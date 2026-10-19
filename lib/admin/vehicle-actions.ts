@@ -44,7 +44,7 @@ export async function toggleVehicleStatus(formData: FormData) {
   try {
     await db
       .update(vehicles)
-      .set({ status: newStatus, updated_at: new Date() })
+      .set({ status: newStatus, updatedAt: new Date() })
       .where(eq(vehicles.id, id));
     console.log(`✔ Successfully toggled vehicle ${id} to ${newStatus}`);
   } catch (error) {
