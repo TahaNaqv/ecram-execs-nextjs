@@ -3,19 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BriefcaseIcon, CarIcon, InboxIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons"; // Added CarIcon
+import { BriefcaseIcon, InboxIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
 
 /** Labels arrive from the server as `copy`, since a Client Component cannot read the dictionary. */
 export type AdminNavCopy = {
   brand: string; subtitle: string; sectionsLabel: string; operations: string;
   requests: string; drivers: string; applications: string; corporate: string;
-  vehicles: string; // <-- Added vehicles label type
   openMenu: string; closeMenu: string;
 };
 
 const LINKS = [
   { href: "/admin", key: "requests", icon: InboxIcon, match: (p: string) => p === "/admin" || p.startsWith("/admin/requests") },
-  { href: "/admin/vehicles", key: "vehicles", icon: CarIcon, match: (p: string) => p.startsWith("/admin/vehicles") }, // <-- Added Vehicles link
   {
     href: "/admin/drivers",
     key: "drivers",
@@ -49,6 +47,7 @@ export function AdminChrome({
   copy: AdminNavCopy;
 }) {
   const pathname = usePathname();
+  // The drawer is only open on the page it was opened from, so navigating closes it
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
 

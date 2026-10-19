@@ -109,13 +109,6 @@ export const TrashIcon = icon(
     <path d="M10 11v6M14 11v6" />
   </>,
 );
-export const CarIcon = icon(
-  <>
-    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2.7-4.4c-.3-.5-.9-.8-1.5-.8h-3.6c-.6 0-1.2.3-1.5.8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2" />
-    <circle cx="7" cy="17" r="2" />
-    <circle cx="17" cy="17" r="2" />
-  </>,
-);
 export const PlusIcon = icon(<path d="M5 12h14M12 5v14" />);
 export const PlayIcon = icon(<path d="m6 3 14 9-14 9z" />);
 export const StopIcon = icon(<rect width="14" height="14" x="5" y="5" rx="2" />);
