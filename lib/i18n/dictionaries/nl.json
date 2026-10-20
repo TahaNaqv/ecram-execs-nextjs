@@ -372,7 +372,13 @@
     "faq12Q": "Zijn uw chauffeurs professioneel gescreend en verzekerd?",
     "faq12A": "Elke chauffeur is ervaren, gescreend en onberispelijk gekleed en beschikt over de vergunningen en verzekering die in Nederland vereist zijn voor betaald personenvervoer.",
     "faq13Q": "Kan ik rekenen op volledige discretie en vertrouwelijkheid?",
-    "faq13A": "Absoluut. Discretie en vertrouwelijkheid staan centraal in alles wat wij doen."
+    "faq13A": "Absoluut. Discretie en vertrouwelijkheid staan centraal in alles wat wij doen.",
+    "welcome": "Goedendag. Ik ben de Ecram Execs Concierge. Hoe kan ik u vandaag helpen met uw reis?",
+    "whatsappCta": "Doorgaan via WhatsApp",
+    "whatsappHandoff": "Overdragen naar WhatsApp",
+    "chipAirport": "Luchthaventransfers",
+    "chipFleet": "Executive Vloot",
+    "chipCorporate": "Zakelijke Accounts"
   },
   "finalCta": {
     "eyebrow": "AFGESTEMD OP UW RIT",
@@ -395,7 +401,6 @@
     "linkDestinations": "Bestemmingen",
     "linkContact": "Contact",
     "linkDriveWithUs": "Rijd met ons",
-    "serving": "Actief in heel Nederland",
     "privacy": "Privacy",
     "socialLabel": "Sociale media",
     "linkBespoke": "Reizen op maat"
@@ -490,7 +495,23 @@
     "addStopover": "+ Tussenstop toevoegen",
     "labelStopWait": "Wachttijd",
     "waitNone": "Geen wachttijd",
-    "waitMinutes": "{minutes} min"
+    "waitMinutes": "{minutes} min",
+    "selectedVehicle": "Geselecteerd Voertuig",
+    "passengersLabel": "Passagiers",
+    "electricLabel": "100% Elektrisch",
+    "changeVehicle": "Selectie wissen"
+  },
+  "dateTimePicker": {
+    "placeholder": "dd-mm-jjjj uu:mm",
+    "open": "Kies datum en tijd",
+    "dialog": "Kies datum en tijd",
+    "prevMonth": "Vorige maand",
+    "nextMonth": "Volgende maand",
+    "hour": "Uur",
+    "minute": "Minuut",
+    "done": "Klaar",
+    "clear": "Wissen",
+    "selected": "{date} om {time}"
   },
   "privacy": {
     "metaTitle": "Privacybeleid — Ecram Execs",
@@ -570,7 +591,11 @@
       "drivers": "Chauffeurs",
       "applications": "Aanmeldingen",
       "corporate": "Zakelijk",
+<<<<<<< HEAD
       "vehicles": "Voertuigbeschikbaarheid"
+=======
+      "vehicles": "Voertuigen"
+>>>>>>> qa-fixes-and-date-picker
     },
     "login": {
       "heading": "Welkom terug",
@@ -766,6 +791,7 @@
       "totals": "{total} contacten · {optedIn} met toestemming voor e-mail",
       "exportAll": "Alles exporteren (CSV)",
       "exportOptedIn": "Alleen met toestemming exporteren (CSV)",
+      "exportStarted": "CSV-download gestart. Het bestand staat in uw map met downloads.",
       "emptyAll": "Nog geen zakelijke contacten",
       "emptyNote": "Mensen verschijnen hier zodra zij hun e-mailadres verifiëren om zich aan te melden voor het zakelijke partnergedeelte.",
       "verified": "Geverifieerd",
@@ -852,7 +878,8 @@
       "vehicleNone": "Niet opgegeven",
       "name": "Naam contactpersoon",
       "email": "E-mailadres contactpersoon",
-      "phone": "Telefoon contactpersoon (met landcode)",
+      "phone": "Telefoon contactpersoon",
+      "phoneCountry": "Landcode",
       "contactHint": "Leeg gelaten worden de naam en het e-mailadres van de partner gebruikt.",
       "status": "Status",
       "quote": "Offertebedrag (EUR)",
@@ -861,6 +888,24 @@
       "submit": "Boeking aanmaken",
       "creating": "Aanmaken…",
       "cta": "Nieuwe boeking"
+    },
+    "vehicles": {
+      "title": "Wagenparkbeheer",
+      "description": "Beheer voertuigen en realtime operationele beschikbaarheid.",
+      "totalFleet": "Totale vloot",
+      "registered": "Geregistreerde voertuigen",
+      "available": "Beschikbaar",
+      "availableNote": "Klaar voor inzet",
+      "unavailable": "Niet beschikbaar",
+      "unavailableNote": "Buiten dienst of onderhoud",
+      "registeredHeader": "Geregistreerde voertuigen",
+      "noVehicles": "Geen voertuigen geregistreerd",
+      "noVehiclesNote": "Voeg een nieuw voertuig toe om beschikbaarheid bij te houden.",
+      "removeVehicle": "Voertuig verwijderen",
+      "toggleStatus": "Beschikbaarheid wijzigen",
+      "addNew": "Nieuw voertuig toevoegen",
+      "namePlaceholder": "bijv. Mercedes-Benz S-Klasse",
+      "addCta": "Voertuig toevoegen"
     }
   },
   "bespokeSection": {
@@ -918,7 +963,8 @@
     "intro": "Log in op uw account voor zakelijke partners, of meld u aan om uw bedrijf aan Ecram Execs voor te stellen.",
     "back": "Terug naar home",
     "stepRequest": "Uw gegevens",
-    "stepVerify": "Verificatie en wachtwoord",
+    "stepCode": "E-mail verifiëren",
+    "stepPassword": "Wachtwoord kiezen",
     "labelEmail": "Zakelijk e-mailadres",
     "phEmail": "u@bedrijf.nl",
     "labelName": "Volledige naam",
@@ -930,8 +976,12 @@
     "privacyLink": "Privacybeleid",
     "sendCode": "Verificatiecode versturen",
     "sending": "Versturen…",
-    "verifyHeading": "Verifieer uw e-mailadres en kies een wachtwoord",
+    "verifyHeading": "Verifieer uw e-mailadres",
     "verifyIntro": "Wij hebben een code van zes cijfers gestuurd naar {email}. De code is {minutes} minuten geldig.",
+    "passwordHeading": "Kies een wachtwoord",
+    "passwordIntro": "{email} is geverifieerd. Kies een wachtwoord voor uw account.",
+    "verifyCta": "Code controleren",
+    "verifying": "Controleren…",
     "labelCode": "Verificatiecode",
     "phCode": "000000",
     "resend": "Nieuwe code versturen",
@@ -997,7 +1047,7 @@
     "optionLoginText": "Log in met uw e-mailadres en wachtwoord.",
     "optionLoginCta": "Inloggen",
     "optionSignupTitle": "Ik ben nieuw",
-    "optionSignupText": "Maak in twee korte stappen een account aan: wij verifiëren uw zakelijke e-mailadres, daarna kiest u zelf een wachtwoord.",
+    "optionSignupText": "Maak in drie korte stappen een account aan: uw gegevens, een code om uw zakelijke e-mailadres te verifiëren, daarna uw eigen wachtwoord.",
     "optionSignupCta": "Aanmelden",
     "signedInAs": "U bent ingelogd als {email}.",
     "goToAccount": "Naar uw account",
@@ -1015,7 +1065,7 @@
     "hidePassword": "Verbergen",
     "signupMetaTitle": "Aanmelden — Zakelijke partner — Ecram Execs",
     "signupHeading": "Maak uw account aan",
-    "signupIntro": "Twee korte stappen: wij verifiëren uw zakelijke e-mailadres met een code van zes cijfers ({minutes} minuten geldig), daarna kiest u zelf een wachtwoord.",
+    "signupIntro": "Drie korte stappen: uw gegevens, een code van zes cijfers om uw zakelijke e-mailadres te verifiëren ({minutes} minuten geldig), daarna uw eigen wachtwoord.",
     "labelNewPassword": "Kies een wachtwoord",
     "labelConfirmPassword": "Herhaal wachtwoord",
     "passwordHint": "Minimaal {min} tekens. Een paar woorden achter elkaar vormen een sterk wachtwoord dat u makkelijk onthoudt.",
@@ -1027,10 +1077,13 @@
     "resetHeading": "Stel uw wachtwoord opnieuw in",
     "resetIntro": "Voer uw zakelijke e-mailadres in. Hoort het bij een account, dan sturen wij een code van zes cijfers ({minutes} minuten geldig) waarmee u een nieuw wachtwoord kiest.",
     "resetStepRequest": "Uw e-mailadres",
-    "resetStepVerify": "Code en nieuw wachtwoord",
+    "resetStepCode": "Code invoeren",
+    "resetStepPassword": "Nieuw wachtwoord",
     "sendResetCode": "Resetcode versturen",
-    "resetVerifyHeading": "Voer uw code in en kies een nieuw wachtwoord",
+    "resetVerifyHeading": "Voer uw code in",
     "resetVerifyIntro": "Hoort {email} bij een account, dan hebben wij een code van zes cijfers gestuurd. De code is {minutes} minuten geldig.",
+    "resetPasswordHeading": "Kies een nieuw wachtwoord",
+    "resetPasswordIntro": "Uw code is correct. Kies een nieuw wachtwoord voor {email}.",
     "resetCta": "Nieuw wachtwoord instellen en doorgaan",
     "resetting": "Opslaan…",
     "backToLogin": "Terug naar inloggen",

@@ -68,14 +68,17 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
 /** The reset form asks for the address only. */
 export const resetRequestSchema = (f: FormMessages) => z.object({ email: email(f.emailInvalid), locale: z.enum(LOCALES).catch("en") });
 
-/**
- * The last step of sign-up and of a reset: the emailed code and the new password, in one submission. The password is
- * checked here, before the server counts a guess at the code, so a too-short password never costs an attempt.
- */
+/** The emailed code, entered on its own: the first of the two last steps of sign-up and of a reset. */
+export const codeSchema = (c: CorporateMessages) =>
+  z.object({
+    code: z.string().trim().regex(/^[0-9]{6}$/, c.codeInvalidFormat),
+    locale: z.enum(LOCALES).catch("en"),
+  });
+
+/** The new password, chosen once the code has been proved. */
 export const completeSchema = (c: CorporateMessages) =>
   z
     .object({
-      code: z.string().trim().regex(/^[0-9]{6}$/, c.codeInvalidFormat),
       password: z
         .string()
         .transform(normalizePassword)
@@ -119,3 +122,4 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
 export type RequestField = keyof z.input<ReturnType<typeof requestSchema>>;
 export type OnboardingField = keyof z.input<ReturnType<typeof onboardingSchema>>;
 export type CompleteField = keyof z.input<ReturnType<typeof completeSchema>>;
+export type CodeField = keyof z.input<ReturnType<typeof codeSchema>>;

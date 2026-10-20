@@ -17,15 +17,19 @@ import { safeNext } from "./portal";
 import { contactColumns } from "./columns";
 import {
   CHALLENGE_COOKIE,
+  CODE_MINUTES,
   CONSENT_TEXT_VERSION,
   LOGIN_IP_LIMIT,
   LOGIN_LOCK,
   MAX_ATTEMPTS,
+  VERIFIED_COOKIE,
   codeMatches,
+  signVerified,
+  verifiedValid,
 } from "./otp";
 import { endSession, startSession } from "./session";
 import type { CorporateState } from "./state";
-import { PASSWORD_MAX, completeSchema, normalizePassword, type CompleteField } from "./validation";
+import { PASSWORD_MAX, codeSchema, completeSchema, normalizePassword, type CodeField, type CompleteField } from "./validation";
 
 const formLocale = (formData: FormData): Locale => {
   const value = String(formData.get("locale") ?? "");
@@ -33,45 +37,22 @@ const formLocale = (formData: FormData): Locale => {
 };
 
 /**
- * The last step of sign-up and of a password reset: the emailed code and the chosen password together. A correct code
- * is what proves the address, so the password is only stored — and the person only signed in — once it is accepted.
- * Nothing in the returned state carries a password.
+ * The first of the two last steps of sign-up and of a password reset: the emailed code, on its own. A right code is what
+ * proves the address. It does not sign anyone in or store anything; it only leaves a signed cookie saying this browser
+ * proved this challenge's code, which is what lets the password be chosen next (see completeCode).
  */
-export async function completeCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
+export async function verifyCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
-  const locale = formLocale(formData);
-  // The code is sent back with a password error so it need not be typed again; a wrong code is not (it must be re-read)
-  const fail = (message: string, fieldErrors: Partial<Record<CompleteField, string>> = {}, keepCode = "") =>
-    ({ status: "error", message, fieldErrors, values: (keepCode ? { code: keepCode } : {}) as Record<string, string> }) as const;
+  const fail = (message: string, fieldErrors: Partial<Record<CodeField, string>> = {}) =>
+    ({ status: "error", message, fieldErrors, values: {} }) as const;
 
-  // The password is checked before a guess at the code is counted, so a too-short password never costs an attempt
-  const parsed = completeSchema(c).safeParse({
-    code: String(formData.get("code") ?? ""),
-    password: String(formData.get("password") ?? ""),
-    confirmPassword: String(formData.get("confirmPassword") ?? ""),
-    locale,
-  });
-  if (!parsed.success) {
-    const fieldErrors: Partial<Record<CompleteField, string>> = {};
-    for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as CompleteField] ??= issue.message;
-    return fail(f.checkHighlighted, fieldErrors, String(formData.get("code") ?? "").trim());
-  }
-  const { code, password } = parsed.data;
+  const parsed = codeSchema(c).safeParse({ code: String(formData.get("code") ?? ""), locale: formLocale(formData) });
+  if (!parsed.success) return fail(f.checkHighlighted, { code: parsed.error.issues[0]?.message ?? c.codeInvalidFormat });
 
   const id = (await cookies()).get(CHALLENGE_COOKIE)?.value;
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return { status: "locked", message: c.codeExpired };
 
   try {
-    // Read first, change nothing: whose code this is, and whether a password is about to be replaced
-    const [before] = await db
-      .select({ email: schema.corporateContacts.email, hadPassword: sql<boolean>`(${schema.corporateContacts.passwordHash} is not null)` })
-      .from(schema.corporateChallenges)
-      .innerJoin(schema.corporateContacts, eq(schema.corporateChallenges.contactId, schema.corporateContacts.id))
-      .where(eq(schema.corporateChallenges.id, id))
-      .limit(1);
-    if (!before) return { status: "locked", message: c.codeExpired };
-    if (password.toLowerCase() === before.email) return fail(f.checkHighlighted, { password: c.passwordSameAsEmail }, code);
-
     // Count the attempt first and atomically, so parallel guesses can't exceed the limit
     const [challenge] = await db
       .update(schema.corporateChallenges)
@@ -92,12 +73,76 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
       return { status: "locked", message: c.codeExpired };
     }
 
-    if (!codeMatches(challenge.id, code, challenge.codeHmac)) {
+    if (!codeMatches(challenge.id, parsed.data.code, challenge.codeHmac)) {
       // The last allowed guess was wrong: say so now, rather than "0 attempts left" and a refusal next time
       if (challenge.attempts >= MAX_ATTEMPTS) return { status: "locked", message: c.tooManyAttempts };
       const message = interpolate(c.codeInvalid, { remaining: MAX_ATTEMPTS - challenge.attempts });
       return fail(message, { code: message });
     }
+
+    // Good for as long as the code itself, and no longer than a code's lifetime from now
+    const until = Math.min(challenge.expiresAt.getTime(), Date.now() + CODE_MINUTES * 60_000);
+    (await cookies()).set(VERIFIED_COOKIE, signVerified(challenge.id, until), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires: new Date(until),
+    });
+  } catch (err) {
+    console.error("[corporate] verify failed", err);
+    return fail(c.serverError);
+  }
+  return { status: "verified" };
+}
+
+/**
+ * The last step of sign-up and of a password reset: the chosen password. It is only accepted for a challenge whose code
+ * this browser has proved (verifyCode), and it is only stored — and the person only signed in — then, together with the
+ * challenge being used up. Nothing in the returned state carries a password.
+ */
+export async function completeCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
+  const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
+  const locale = formLocale(formData);
+  const fail = (message: string, fieldErrors: Partial<Record<CompleteField, string>> = {}) =>
+    ({ status: "error", message, fieldErrors, values: {} }) as const;
+
+  const parsed = completeSchema(c).safeParse({
+    password: String(formData.get("password") ?? ""),
+    confirmPassword: String(formData.get("confirmPassword") ?? ""),
+    locale,
+  });
+  if (!parsed.success) {
+    const fieldErrors: Partial<Record<CompleteField, string>> = {};
+    for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as CompleteField] ??= issue.message;
+    return fail(f.checkHighlighted, fieldErrors);
+  }
+  const { password } = parsed.data;
+
+  const jar = await cookies();
+  const id = jar.get(CHALLENGE_COOKIE)?.value;
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return { status: "locked", message: c.codeExpired };
+  // No proof of the code, or proof for another challenge: back to the start
+  if (!verifiedValid(id, jar.get(VERIFIED_COOKIE)?.value)) return { status: "locked", message: c.codeExpired };
+
+  try {
+    // Read first, change nothing: whose code this is, and whether a password is about to be replaced
+    const [before] = await db
+      .select({ email: schema.corporateContacts.email, hadPassword: sql<boolean>`(${schema.corporateContacts.passwordHash} is not null)` })
+      .from(schema.corporateChallenges)
+      .innerJoin(schema.corporateContacts, eq(schema.corporateChallenges.contactId, schema.corporateContacts.id))
+      .where(eq(schema.corporateChallenges.id, id))
+      .limit(1);
+    if (!before) return { status: "locked", message: c.codeExpired };
+    if (password.toLowerCase() === before.email) return fail(f.checkHighlighted, { password: c.passwordSameAsEmail });
+
+    // Still usable: not used up, not expired (the code was right a moment ago, but may not have been used since)
+    const [challenge] = await db
+      .select()
+      .from(schema.corporateChallenges)
+      .where(and(eq(schema.corporateChallenges.id, id), isNull(schema.corporateChallenges.consumedAt), gt(schema.corporateChallenges.expiresAt, sql`now()`)))
+      .limit(1);
+    if (!challenge) return { status: "locked", message: c.codeExpired };
 
     const passwordHash = await hashPassword(password);
 
@@ -156,7 +201,8 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
 
     // A password change ends every other sign-in of this account, and the browser gets a brand-new session
     await startSession(contact.id, { revokeOthers: true });
-    (await cookies()).delete(CHALLENGE_COOKIE);
+    jar.delete(CHALLENGE_COOKIE);
+    jar.delete(VERIFIED_COOKIE);
     // Whoever owns the address is told when a password that existed is replaced
     if (before.hadPassword) after(() => sendPasswordChanged({ email: contact.email, name: contact.name, locale }));
   } catch (err) {

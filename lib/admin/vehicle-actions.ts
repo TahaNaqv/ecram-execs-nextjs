@@ -4,8 +4,12 @@ import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/session";
+import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 
 export async function addVehicle(formData: FormData) {
+  await requireAdmin();
+
   const name = (formData.get("name") as string)?.trim();
 
   if (!name) {
@@ -13,7 +17,8 @@ export async function addVehicle(formData: FormData) {
     return;
   }
 
-  const key = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const rawKey = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const key = normalizeVehicleKey(rawKey) ?? rawKey;
 
   try {
     await db.insert(vehicles).values({
@@ -31,6 +36,8 @@ export async function addVehicle(formData: FormData) {
 }
 
 export async function toggleVehicleStatus(formData: FormData) {
+  await requireAdmin();
+
   const id = formData.get("id") as string;
   const currentStatus = formData.get("status") as string;
 
@@ -56,6 +63,8 @@ export async function toggleVehicleStatus(formData: FormData) {
 }
 
 export async function deleteVehicle(formData: FormData) {
+  await requireAdmin();
+
   const id = formData.get("id") as string;
 
   if (!id) {

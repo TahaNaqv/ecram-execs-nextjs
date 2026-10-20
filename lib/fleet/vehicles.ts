@@ -164,7 +164,7 @@ export const FLEET: FleetVehicle[] = [
   },
   {
     key: "range_rover",
-    name: "Range Rover",
+    name: "Range Rover EV",
     images: [
       "/assets/fleet-range-rover-v2.jpg",
       "/assets/fleet-range-rover-gallery-2.jpg",
@@ -179,7 +179,10 @@ export const FLEET: FleetVehicle[] = [
       passengers: 5,
       rangeKm: 611,
       rangeStandard: "WLTP",
-      // No luggage figure: published values conflict (733 L vs 1,050 L behind the second row).
+      luggage: {
+        en: "About 818 litres with the rear seats in place.",
+        nl: "Ongeveer 818 liter met de achterzetels op hun plaats.",
+      },
       amenities: COMMON_AMENITIES,
       verified: {
         status: "draft",
@@ -188,7 +191,7 @@ export const FLEET: FleetVehicle[] = [
         checkedOn: "2026-10-14",
         by: "Claude (research)",
         caveat:
-          "Range Rover Electric's launch was delayed and figures were still provisional. If the fleet car is a plug-in hybrid (e.g. P460e) the range answer is wrong. Luggage left out until Land Rover publishes it.",
+          "Range Rover Electric's launch was delayed and figures were still provisional. If the fleet car is a plug-in hybrid (e.g. P460e) the range answer is wrong. The 818 L luggage figure comes from the QA report of 19 Oct 2026 (published sources disagreed earlier: 733 L and 1,050 L): confirm it against the exact car.",
       },
     },
   },
@@ -230,4 +233,24 @@ export const FLEET: FleetVehicle[] = [
 export const VEHICLE_CHOICES = [...VEHICLE_KEYS, "advise"] as const;
 export type VehicleChoice = (typeof VEHICLE_CHOICES)[number];
 
-export const vehicleByKey = (key: string | null | undefined) => FLEET.find((v) => v.key === key);
+
+const ID_ALIASES: Record<string, VehicleKey> = {
+  "mercedes-benz-vle-300": "mercedes_vle_300",
+  "cadillac-escalade": "cadillac_escalade",
+  "range-rover": "range_rover",
+  "hongqi-ehs9": "hongqi_e_hs9",
+  "hongqi-e-hs9": "hongqi_e_hs9",
+};
+
+export function normalizeVehicleKey(key: string | null | undefined): VehicleKey | undefined {
+  if (!key) return undefined;
+  if ((VEHICLE_KEYS as readonly string[]).includes(key)) {
+    return key as VehicleKey;
+  }
+  return ID_ALIASES[key];
+}
+
+export const vehicleByKey = (key: string | null | undefined) => {
+  const normalized = normalizeVehicleKey(key) ?? key;
+  return FLEET.find((v) => v.key === normalized);
+};

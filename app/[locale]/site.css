@@ -565,7 +565,9 @@
 }
 
 /* ---------- Interaction states (hover, focus) and motion preferences ---------- */
-a:hover {
+/* White on hover suits the dark page. Links on the light surfaces (the Corporate Partner panel, the booking form, the
+   footer's white strip) keep their own colours, or the text would vanish against the background. */
+a:not(:where(.light-surface *)):hover {
   color: #fff;
 }
 

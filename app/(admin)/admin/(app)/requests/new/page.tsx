@@ -27,8 +27,13 @@ async function Back() {
 }
 
 async function Form() {
+<<<<<<< HEAD
   await requireAdmin();
   const [d, partners, dbVehicles] = await Promise.all([
+=======
+  const admin = await requireAdmin();
+  const [d, partners] = await Promise.all([
+>>>>>>> qa-fixes-and-date-picker
     adminDictionary(),
     db
       .select({ id: schema.corporateContacts.id, name: schema.corporateContacts.name, companyName: schema.corporateContacts.companyName, email: schema.corporateContacts.email })
@@ -57,6 +62,8 @@ async function Form() {
         statuses={REQUEST_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
         vehicles={vehicleOptions}
         copy={t}
+        locale={admin.locale}
+        dateTimeCopy={d.dateTimePicker}
       />
     </Card>
   );

@@ -9,6 +9,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { setAdminLocale } from "../actions";
 import { LogOutIcon } from "../_components/icons";
 import { Avatar } from "../_components/ui";
+import { AdminLang } from "../_components/admin-lang";
 
 /** Shell shared by every signed-in admin page: sidebar navigation plus the page content. */
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
@@ -84,10 +85,11 @@ async function Account({ admin }: { admin: Admin }) {
   const { admin: t } = await adminDictionary();
   return (
     <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+      <AdminLang locale={admin.locale} />
       <Avatar name={admin.name} size="sm" />
       <div className="min-w-0 flex-1 leading-tight">
         <p className="truncate text-sm font-medium text-zinc-100">{admin.name}</p>
-        <p className="truncate text-xs text-zinc-500">{admin.email}</p>
+        <p className="break-all text-xs text-zinc-500">{admin.email}</p>
       </div>
       {/* Language preference: admin is not locale-routed, so it lives on the account (D3). */}
       <form action={setAdminLocale} className="flex items-center gap-0.5" aria-label={t.common.language}>

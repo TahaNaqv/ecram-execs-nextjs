@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/db";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 
 const { quoteRequests: q, requestEvents: ev, adminUsers } = schema;
-export const PAGE_SIZE = 25;
+export const PAGE_SIZE = 10;
 
 export type ListFilters = { status?: string; search?: string; page?: number };
 

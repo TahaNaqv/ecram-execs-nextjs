@@ -18,6 +18,7 @@ import {
   XIcon,
 } from "../_components/icons";
 import { StatusBadge } from "../_components/status-badge";
+import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
 
 // Allow blocking dynamic rendering under cacheComponents for this route
@@ -175,9 +176,8 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
           {status && <input type="hidden" name="status" value={status} />}
           <div className="relative min-w-0 flex-1 2xl:w-72 2xl:flex-none">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              name="q"
-              type="search"
+            <LiveSearchInput
+              status={status}
               defaultValue={q}
               placeholder={t.requests.searchPlaceholder}
               aria-label={t.requests.searchLabel}
@@ -217,8 +217,8 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
         />
       ) : (
         <>
-          {/* Phones and tablets: stacked list */}
-          <ul className="divide-y divide-zinc-100 lg:hidden">
+          {/* Phones, tablets and small laptops: stacked list (the table needs about a thousand pixels) */}
+          <ul className="divide-y divide-zinc-100 xl:hidden">
             {rows.map((r: QuoteRequest) => {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
               const destinationsArray = [...(r.destinations ?? []), r.destination]; // stops on the way, then where to
@@ -259,11 +259,11 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
             })}
           </ul>
 
-          {/* Desktop: table */}
-          <div className="hidden overflow-x-auto lg:block">
+          {/* Wide screens: table. It scrolls inside the card in both directions, so its scrollbars are always in view */}
+          <div className="hidden max-h-[calc(100dvh-9rem)] overflow-auto xl:block">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50/60 text-xs font-medium text-zinc-500">
+                <tr className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500">
                   <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">{t.requests.colClient}</th>
                   <th scope="col" className="px-3 py-2.5 font-medium">{t.requests.colJourney}</th>
                   <th scope="col" className="px-3 py-2.5 font-medium">{t.requests.colPickup}</th>
@@ -294,18 +294,18 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                             {/* Stretched link: the whole row is clickable */}
                             <Link
                               href={`/admin/requests/${r.id}`}
-                              className={`block max-w-50 truncate text-zinc-950 after:absolute after:inset-0 after:content-[''] ${
+                              className={`block max-w-44 truncate text-zinc-950 after:absolute after:inset-0 after:content-[''] ${
                                 r.status === "new" ? "font-semibold" : "font-medium"
                               }`}
                             >
                               {r.name}
                             </Link>
-                            <span className="block max-w-50 truncate text-xs text-zinc-500">{r.email}</span>
+                            <span className="block max-w-44 truncate text-xs text-zinc-500" title={r.email}>{r.email}</span>
                             {partnerBadge(r.id)}
                           </div>
                         </div>
                       </td>
-                      <td className="max-w-70 px-3 py-3.5">
+                      <td className="max-w-56 px-3 py-3.5">
                         {isBespoke ? (
                           <div className="text-[13px] leading-5 text-zinc-700">
                             <p className="truncate" title={r.entity ?? ""}>{r.entity}</p>
@@ -383,12 +383,25 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
           </p>
           {pages > 1 && (
             <nav className="flex items-center gap-2" aria-label={t.common.pagination}>
-              <span className="mr-1 hidden tabular-nums sm:inline">
-                Page {page} of {pages}
-              </span>
               <PageLink disabled={page <= 1} href={href({ status, q, page: String(page - 1) })} label={t.common.previousPage}>
                 <ChevronLeftIcon />
               </PageLink>
+              {pageWindow(page, pages).map((n, i) =>
+                n === null ? (
+                  <span key={`gap-${i}`} aria-hidden="true" className="px-1">
+                    …
+                  </span>
+                ) : (
+                  <Link
+                    key={n}
+                    href={href({ status, q, page: n === 1 ? undefined : String(n) })}
+                    aria-current={n === page ? "page" : undefined}
+                    className={`${btn.base} size-8 px-0 tabular-nums ${n === page ? btn.primary : btn.secondary}`}
+                  >
+                    {n}
+                  </Link>
+                ),
+              )}
               <PageLink disabled={page >= pages} href={href({ status, q, page: String(page + 1) })} label={t.common.nextPage}>
                 <ChevronRightIcon />
               </PageLink>
@@ -398,6 +411,12 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
       )}
     </Card>
   );
+}
+
+/** The page numbers to show: the first, the last and the ones around the current page, with a gap (null) where numbers are left out. */
+function pageWindow(page: number, pages: number): (number | null)[] {
+  const shown = [...new Set([1, page - 1, page, page + 1, pages].filter((n) => n >= 1 && n <= pages))].sort((a, b) => a - b);
+  return shown.flatMap((n, i) => (i > 0 && n - shown[i - 1] > 1 ? [null, n] : [n]));
 }
 
 function PageLink({ disabled, href, label, children }: { disabled: boolean; href: string; label: string; children: React.ReactNode }) {

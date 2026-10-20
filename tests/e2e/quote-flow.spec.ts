@@ -151,11 +151,13 @@ test("a stopover carries its waiting time to the team", async ({ page }) => {
   await page.fill("#q-phone", "6 1234 5678");
 
   // Two stops; the first is a half-hour wait, the second is left at "no waiting"
+  // One press of "Add stop" opens the panel with the first stop field already there, ready to type into
   await page.getByRole("button", { name: en.quoteForm.addStop }).click();
-  for (const [stop, place] of [[0, "Rotterdam Centraal"], [1, "Utrecht Centraal"]] as const) {
-    await page.getByRole("button", { name: en.quoteForm.addStopover }).click();
-    await page.getByPlaceholder(en.quoteForm.stopPlaceholder.replace("{number}", String(stop + 2))).fill(place);
-  }
+  const stopField = (n: number) => page.getByPlaceholder(en.quoteForm.stopPlaceholder.replace("{number}", String(n)));
+  await expect(stopField(2)).toBeFocused();
+  await stopField(2).fill("Rotterdam Centraal");
+  await page.getByRole("button", { name: en.quoteForm.addStopover }).click();
+  await stopField(3).fill("Utrecht Centraal");
   await page.getByLabel(en.quoteForm.labelStopWait).first().selectOption("30");
   await page.getByRole("button", { name: /request bespoke quote/i }).click();
   const status = page.getByRole("status");

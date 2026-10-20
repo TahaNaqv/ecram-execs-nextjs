@@ -4,6 +4,7 @@ import { fontVariables } from "@/lib/fonts";
 import { locale as localeParam } from "next/root-params";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
+import { WhatsAppFloat } from "@/components/whatsapp-float";
 import "./site.css";
 
 // Required by cacheComponents: every root param needs at least one value or the build fails.
@@ -19,8 +20,6 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(process.env.SITE_URL ?? "https://ecramexecs.vercel.app"),
     title: d.meta.title,
     description: d.meta.description,
-    // `alternates` is deliberately NOT set here: metadata is inherited, so a canonical on the
-    // root layout would wrongly apply to /privacy and /drive-with-us. Each page sets its own.
     openGraph: {
       title: d.meta.title,
       description: d.meta.ogDescription,
@@ -40,14 +39,20 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const viewport: Viewport = { themeColor: "#0a0a0b", viewportFit: "cover" };
 
-export default async function SiteLayout({ children }: LayoutProps<"/[locale]">) {
-  // `[locale]` matches any first segment, so anything that isn't a locale is a 404.
+export default async function SiteLayout({ 
+  children 
+}: { 
+  children: React.ReactNode; 
+}) {
   const value: string | undefined = await localeParam();
   if (!isLocale(value)) notFound();
 
   return (
     <html lang={value} className={fontVariables}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <WhatsAppFloat />
+      </body>
     </html>
   );
 }

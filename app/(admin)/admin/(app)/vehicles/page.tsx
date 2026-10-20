@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
+<<<<<<< HEAD
 import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon } from "../../_components/icons";
 
 // Allow blocking dynamic rendering under cacheComponents
@@ -78,12 +80,25 @@ function VehicleGridSkeleton() {
       </div>
     </div>
   );
+=======
+import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon, TrashIcon } from "../../_components/icons";
+
+type Vehicle = typeof vehicles.$inferSelect;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { admin } = await adminDictionary();
+  return { title: admin.vehicles.title };
+>>>>>>> qa-fixes-and-date-picker
 }
 
 async function VehicleMetrics() {
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
+<<<<<<< HEAD
   let allVehicles: any[] = [];
+=======
+  let allVehicles: Vehicle[] = [];
+>>>>>>> qa-fixes-and-date-picker
   try {
     allVehicles = await db.select().from(vehicles);
   } catch (error) {
@@ -144,17 +159,21 @@ async function VehicleMetrics() {
 async function VehicleGrid() {
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
+<<<<<<< HEAD
   let allVehicles: any[] = [];
+=======
+  let allVehicles: Vehicle[] = [];
+>>>>>>> qa-fixes-and-date-picker
   try {
     allVehicles = await db.select().from(vehicles);
 
     if (allVehicles.length === 0) {
       const defaultFleet = [
-        { id: "mercedes-benz-vle-300", name: "Mercedes-Benz VLE 300", status: "available" },
+        { id: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", status: "available" },
         { id: "audi", name: "Audi", status: "available" },
-        { id: "cadillac-escalade", name: "Cadillac Escalade", status: "available" },
-        { id: "range-rover", name: "Range Rover", status: "available" },
-        { id: "hongqi-ehs9", name: "Hongqi E-HS9", status: "available" },
+        { id: "cadillac_escalade", name: "Cadillac Escalade", status: "available" },
+        { id: "range_rover", name: "Range Rover", status: "available" },
+        { id: "hongqi_e_hs9", name: "Hongqi E-HS9", status: "available" },
       ];
 
       for (const vehicle of defaultFleet) {
@@ -249,7 +268,11 @@ async function VehicleGrid() {
   );
 }
 
+<<<<<<< HEAD
 export default async function AdminVehiclesPage() {
+=======
+async function VehiclesContent() {
+>>>>>>> qa-fixes-and-date-picker
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
 
@@ -260,10 +283,14 @@ export default async function AdminVehiclesPage() {
         <p className="text-sm text-zinc-500 mt-1">{t.description}</p>
       </div>
 
+<<<<<<< HEAD
       {/* Metrics Section with Skeleton Placeholder matching box layout */}
       <Suspense fallback={<MetricsSkeleton />}>
         <VehicleMetrics />
       </Suspense>
+=======
+      <VehicleMetrics />
+>>>>>>> qa-fixes-and-date-picker
 
       {/* Add New Vehicle Box (Static & Immediate) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/85">
@@ -290,10 +317,22 @@ export default async function AdminVehiclesPage() {
         </form>
       </div>
 
+<<<<<<< HEAD
       {/* Vehicle Grid Section with Skeleton Cards Placeholder matching layout */}
       <Suspense fallback={<VehicleGridSkeleton />}>
         <VehicleGrid />
       </Suspense>
+=======
+      <VehicleGrid />
+>>>>>>> qa-fixes-and-date-picker
     </div>
+  );
+}
+
+export default function AdminVehiclesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 max-w-7xl mx-auto space-y-8 animate-pulse" />}>
+      <VehiclesContent />
+    </Suspense>
   );
 }

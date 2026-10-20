@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { completeCode } from "@/lib/corporate/account-actions";
+import { completeCode, verifyCode } from "@/lib/corporate/account-actions";
 import { requestCode, requestReset, resendCode } from "@/lib/corporate/actions";
 import type { CorporateState } from "@/lib/corporate/state";
 import { PASSWORD_MIN } from "@/lib/corporate/validation";
@@ -11,13 +11,14 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { Honeypot, PasswordInput, Status, ghostClass, submitClass } from "./corporate-ui";
 import { control, Field } from "./form-field";
 
-type Step = "request" | "verify";
+type Step = "request" | "code" | "password";
 type Mode = "signup" | "reset";
 
 export type AccountFlowCopy = Record<
-  | "stepRequest" | "stepVerify" | "resetStepRequest" | "resetStepVerify" | "progressLabel"
+  | "stepRequest" | "stepCode" | "stepPassword" | "resetStepRequest" | "resetStepCode" | "resetStepPassword" | "progressLabel"
   | "labelEmail" | "phEmail" | "labelName" | "phName" | "labelPosition" | "phPosition" | "consentLabel" | "privacyNote" | "privacyLink"
-  | "sendCode" | "sendResetCode" | "sending" | "verifyHeading" | "verifyIntro" | "resetVerifyHeading" | "resetVerifyIntro"
+  | "sendCode" | "sendResetCode" | "sending" | "verifyHeading" | "verifyIntro" | "resetVerifyHeading" | "resetVerifyIntro" | "verifyCta" | "verifying"
+  | "passwordHeading" | "passwordIntro" | "resetPasswordHeading" | "resetPasswordIntro"
   | "labelCode" | "phCode" | "labelNewPassword" | "labelConfirmPassword" | "passwordHint" | "createAccountCta" | "creating"
   | "resetCta" | "resetting" | "resend" | "changeEmail" | "showPassword" | "hidePassword" | "haveAccount" | "loginLink" | "backToLogin",
   string
@@ -36,9 +37,9 @@ type Props = {
 type HeadingRef = { headingRef: React.RefObject<HTMLHeadingElement | null> };
 
 /**
- * Sign-up and password reset share one flow: say which address, then enter the emailed code together with the
- * password in a single step. Signing up with an address that already has an account therefore looks exactly like
- * signing up with a new one, and only the owner of the address can set its password.
+ * Sign-up and password reset share one flow of three screens: say which address, enter the emailed code, then choose the
+ * password. Signing up with an address that already has an account therefore looks exactly like signing up with a new
+ * one, and only the owner of the address (who has the code) can set its password.
  */
 export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHref, loginHref }: Props) {
   const [step, setStep] = useState<Step>(initial.step);
@@ -58,12 +59,13 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
 
   const steps: [Step, string][] = [
     ["request", mode === "signup" ? t.stepRequest : t.resetStepRequest],
-    ["verify", mode === "signup" ? t.stepVerify : t.resetStepVerify],
+    ["code", mode === "signup" ? t.stepCode : t.resetStepCode],
+    ["password", mode === "signup" ? t.stepPassword : t.resetStepPassword],
   ];
 
   return (
-    <div className="flex flex-col gap-8">
-      <ol className="m-0 flex list-none gap-6 p-0 text-[11px] tracking-[0.22em] uppercase" aria-label={t.progressLabel}>
+    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8">
+      <ol className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0 text-[11px] tracking-[0.22em] uppercase" aria-label={t.progressLabel}>
         {steps.map(([key, label], i) => (
           <li key={key} aria-current={key === step ? "step" : undefined} className={key === step ? "text-ink-950" : "text-ink-450"}>
             <span className="mr-2">{String(i + 1).padStart(2, "0")}</span>
@@ -83,16 +85,29 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
           onSent={(sentTo) => {
             setEmail(sentTo);
             setBanner(undefined);
-            setStep("verify");
+            setStep("code");
           }}
         />
-      ) : (
-        <VerifyForm
+      ) : step === "code" ? (
+        <CodeForm
           mode={mode}
           locale={locale}
           copy={t}
           email={email}
           minutes={minutes}
+          headingRef={heading}
+          onVerified={() => setStep("password")}
+          onRestart={(message) => {
+            setBanner(message);
+            setStep("request");
+          }}
+        />
+      ) : (
+        <PasswordForm
+          mode={mode}
+          locale={locale}
+          copy={t}
+          email={email}
           headingRef={heading}
           onRestart={(message) => {
             setBanner(message);
@@ -192,19 +207,20 @@ function RequestForm({
   );
 }
 
-function VerifyForm({
+function CodeForm({
   mode,
   locale,
   copy: t,
   email,
   minutes,
   headingRef,
+  onVerified,
   onRestart,
-}: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; email: string; minutes: number; onRestart: (message?: string) => void }) {
+}: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; email: string; minutes: number; onVerified: () => void; onRestart: (message?: string) => void }) {
   const [attempt, setAttempt] = useState(0);
-  // Success redirects to the account page, so the only answers seen here are refusals
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
-    const next = await completeCode(prev, formData);
+    const next = await verifyCode(prev, formData);
+    if (next.status === "verified") onVerified();
     if (next.status === "locked") onRestart(next.message);
     if (next.status === "error") setAttempt((n) => n + 1);
     return next;
@@ -215,7 +231,6 @@ function VerifyForm({
     return next;
   }, { status: "idle" });
   const err = state.status === "error" ? state.fieldErrors : {};
-  const describedBy = (field: "code" | "password" | "confirmPassword") => (err[field] ? `c-${field}-error` : undefined);
   const heading = mode === "signup" ? t.verifyHeading : t.resetVerifyHeading;
   const intro = mode === "signup" ? t.verifyIntro : t.resetVerifyIntro;
 
@@ -224,33 +239,20 @@ function VerifyForm({
       <h2 ref={headingRef} tabIndex={-1} className="m-0 font-serif text-[28px] font-normal leading-[1.1] text-ink-950 outline-none md:text-[32px]">
         {heading}
       </h2>
-      <p className="m-0 max-w-[560px] text-[15px] text-ink-700">{interpolate(intro, { email, minutes })}</p>
-      {/* Each refusal gets a new form, which empties the password boxes: a password is never sent back to the page */}
-      <form key={attempt} action={action} noValidate className="flex max-w-[420px] flex-col gap-4">
+      <p className="m-0 text-[15px] text-ink-700">{interpolate(intro, { email, minutes })}</p>
+      <form key={attempt} action={action} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
           <Field idPrefix="c" label={t.labelCode} name="code" error={err.code}>
             <input id="c-code" name="code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code"
-              placeholder={t.phCode} defaultValue={state.status === "error" ? state.values.code : undefined}
-              aria-invalid={!!err.code} aria-describedby={describedBy("code")}
+              placeholder={t.phCode} aria-invalid={!!err.code} aria-describedby={err.code ? "c-code-error" : undefined}
               className={`${control} text-[22px] tracking-[0.5em] md:text-[22px]`} />
           </Field>
-          <Field idPrefix="c" label={t.labelNewPassword} name="password" error={err.password}>
-            <PasswordInput id="c-password" name="password" autoComplete="new-password" invalid={!!err.password}
-              describedBy={describedBy("password")} copy={{ show: t.showPassword, hide: t.hidePassword }} />
-          </Field>
-          <Field idPrefix="c" label={t.labelConfirmPassword} name="confirmPassword" error={err.confirmPassword}>
-            <PasswordInput id="c-confirmPassword" name="confirmPassword" autoComplete="new-password" invalid={!!err.confirmPassword}
-              describedBy={describedBy("confirmPassword")} copy={{ show: t.showPassword, hide: t.hidePassword }} />
-          </Field>
         </div>
-        <p className="m-0 text-[13px] text-ink-600">{interpolate(t.passwordHint, { min: PASSWORD_MIN })}</p>
         <input type="hidden" name="locale" value={locale} />
         <button type="submit" disabled={pending} className={submitClass}>
-          {pending ? (mode === "signup" ? t.creating : t.resetting) : mode === "signup" ? t.createAccountCta : t.resetCta}
+          {pending ? t.verifying : t.verifyCta}
         </button>
-        <Status error={state.status === "error" && !err.code && !err.password && !err.confirmPassword}>
-          {state.status === "error" && !err.code && !err.password && !err.confirmPassword ? state.message : undefined}
-        </Status>
+        <Status error={state.status === "error" && !err.code}>{state.status === "error" && !err.code ? state.message : undefined}</Status>
       </form>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <form action={resendAction}>
@@ -266,6 +268,58 @@ function VerifyForm({
       <Status error={resendState.status === "error"}>
         {resendState.status === "error" ? resendState.message : resendState.status === "sent" ? resendState.notice : undefined}
       </Status>
+    </div>
+  );
+}
+
+function PasswordForm({
+  mode,
+  locale,
+  copy: t,
+  email,
+  headingRef,
+  onRestart,
+}: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; email: string; onRestart: (message?: string) => void }) {
+  const [attempt, setAttempt] = useState(0);
+  // Success redirects to the account page, so the only answers seen here are refusals
+  const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
+    const next = await completeCode(prev, formData);
+    if (next.status === "locked") onRestart(next.message);
+    if (next.status === "error") setAttempt((n) => n + 1);
+    return next;
+  }, { status: "idle" });
+  const err = state.status === "error" ? state.fieldErrors : {};
+  const describedBy = (field: "password" | "confirmPassword") => (err[field] ? `c-${field}-error` : undefined);
+  const heading = mode === "signup" ? t.passwordHeading : t.resetPasswordHeading;
+  const intro = mode === "signup" ? t.passwordIntro : t.resetPasswordIntro;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <h2 ref={headingRef} tabIndex={-1} className="m-0 font-serif text-[28px] font-normal leading-[1.1] text-ink-950 outline-none md:text-[32px]">
+        {heading}
+      </h2>
+      <p className="m-0 text-[15px] text-ink-700">{interpolate(intro, { email })}</p>
+      {/* Each refusal gets a new form, which empties the password boxes: a password is never sent back to the page */}
+      <form key={attempt} action={action} noValidate className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
+          <Field idPrefix="c" label={t.labelNewPassword} name="password" error={err.password}>
+            <PasswordInput id="c-password" name="password" autoComplete="new-password" invalid={!!err.password}
+              describedBy={describedBy("password")} copy={{ show: t.showPassword, hide: t.hidePassword }} />
+          </Field>
+          <Field idPrefix="c" label={t.labelConfirmPassword} name="confirmPassword" error={err.confirmPassword}>
+            <PasswordInput id="c-confirmPassword" name="confirmPassword" autoComplete="new-password" invalid={!!err.confirmPassword}
+              describedBy={describedBy("confirmPassword")} copy={{ show: t.showPassword, hide: t.hidePassword }} />
+          </Field>
+        </div>
+        <p className="m-0 text-[13px] text-ink-600">{interpolate(t.passwordHint, { min: PASSWORD_MIN })}</p>
+        <input type="hidden" name="locale" value={locale} />
+        <button type="submit" disabled={pending} className={submitClass}>
+          {pending ? (mode === "signup" ? t.creating : t.resetting) : mode === "signup" ? t.createAccountCta : t.resetCta}
+        </button>
+        <Status error={state.status === "error" && !err.password && !err.confirmPassword}>
+          {state.status === "error" && !err.password && !err.confirmPassword ? state.message : undefined}
+        </Status>
+      </form>
     </div>
   );
 }

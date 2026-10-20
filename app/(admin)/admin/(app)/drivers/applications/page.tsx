@@ -7,7 +7,7 @@ import { APPLICATION_STATUSES, colourLabel, makeLabel } from "@/lib/partners/cri
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { AlertIcon, ArrowLeftIcon, InboxIcon } from "../../../_components/icons";
 import { ApplicationBadge } from "../../../_components/status-badge";
-import { Avatar, Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
+import { Avatar, btn, Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
@@ -24,6 +24,15 @@ async function Description() {
       </a>
       {admin.applications.applicationsDescAfter}
     </>
+  );
+}
+
+async function DriveWithUsButton() {
+  const { admin } = await adminDictionary();
+  return (
+    <a href="/drive-with-us" target="_blank" rel="noopener noreferrer" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+      {admin.common.driveWithUs}
+    </a>
   );
 }
 
@@ -51,6 +60,11 @@ export default function ApplicationsPage({ searchParams }: PageProps<"/admin/dri
         description={
           <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
             <Description />
+          </Suspense>
+        }
+        actions={
+          <Suspense fallback={null}>
+            <DriveWithUsButton />
           </Suspense>
         }
       />

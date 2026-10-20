@@ -91,7 +91,7 @@ async function Pipeline({ status }: { status: RequestStatus }) {
 function Meta({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3">
-      <span className="mt-0.5 text-zinc-400">{icon}</span>
+      <span className="mt-0.5 shrink-0 text-zinc-400">{icon}</span>
       <div className="min-w-0">
         <dt className="text-xs text-zinc-500">{label}</dt>
         <dd className="mt-0.5 wrap-break-word text-sm font-medium text-zinc-900">{children}</dd>
@@ -193,7 +193,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
             <div className="p-5">
               {bespoke ? (
                 <>
-                  <dl className="grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-2">
+                  <dl className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 rounded-lg bg-zinc-50 p-4">
                     <Meta icon={<BriefcaseIcon />} label={rd.entity}>
                       {r.entity ?? "—"}
                     </Meta>
@@ -251,7 +251,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     })}
                   </ol>
 
-                  <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg bg-zinc-50 p-4 sm:grid-cols-4">
+                  <dl className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 rounded-lg bg-zinc-50 p-4">
                     <Meta icon={<CalendarIcon />} label={d.admin.requestDetail.pickupDate}>
                       {pickup?.date}
                     </Meta>

@@ -8,8 +8,12 @@ import { BriefcaseIcon, CarIcon, InboxIcon, MenuIcon, NoteIcon, SteeringIcon, XI
 /** Labels arrive from the server as `copy`, since a Client Component cannot read the dictionary. */
 export type AdminNavCopy = {
   brand: string; subtitle: string; sectionsLabel: string; operations: string;
+<<<<<<< HEAD
   requests: string; drivers: string; applications: string; corporate: string;
   vehicles: string;
+=======
+  requests: string; drivers: string; applications: string; corporate: string; vehicles: string;
+>>>>>>> qa-fixes-and-date-picker
   openMenu: string; closeMenu: string;
 };
 

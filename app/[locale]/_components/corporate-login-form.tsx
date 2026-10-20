@@ -32,7 +32,7 @@ export function LoginForm({
   const email = state.status === "error" ? state.values.email : "";
 
   return (
-    <div className="flex max-w-[460px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-6">
       {/* A new key after each answer clears the password box */}
       <form key={state.status === "error" ? state.message + email : "fresh"} action={action} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">

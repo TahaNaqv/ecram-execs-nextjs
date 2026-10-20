@@ -62,6 +62,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
             : FLEET.map(({ key, name }) => ({ key, name }))
         }
         serviceLabels={d.services}
+        dateTimeCopy={d.dateTimePicker}
         loginHref={localizedPath("/corporate-partner/login", locale)}
         copy={{
           labelCollection: q.labelCollection,
