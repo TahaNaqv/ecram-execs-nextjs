@@ -39,59 +39,47 @@ test("the phone field offers many country codes, Netherlands first and selected"
   await expect(page.locator("#q-phoneCountry")).toHaveValue("44");
 });
 
-test("the concierge answers a question in the chat and leaves the quote form alone", async ({ page }) => {
+// The concierge is a chat with a message bar and a few starter topics. Without an AI key configured (as in these tests) it
+// answers from the questions on the page and hands anything else to the team on WhatsApp.
+test("the concierge answers a typed question, hands an unknown one to WhatsApp, and leaves the quote form alone", async ({ page }) => {
   await page.goto("/en");
   const box = page.locator("input[name=message]");
   await box.fill("How far in advance should I book?");
   await box.press("Enter");
-  await expect(page.getByRole("log")).toContainText(en.conciergeSection.faq1A, { timeout: 5000 });
+  await expect(page.getByRole("log")).toContainText(en.conciergeSection.faq1A, { timeout: 8000 });
   await box.fill("qwerty zzzz");
   await box.press("Enter");
-  await expect(page.getByRole("log")).toContainText(en.conciergeSection.noAnswer, { timeout: 5000 });
+  await expect(page.getByRole("link", { name: en.conciergeSection.whatsappCta })).toBeVisible({ timeout: 8000 });
   await expect(page.locator("#q-notes")).toHaveValue("");
 });
 
-test("choosing a concierge question sends it into the chat, the concierge answers, and the question leaves the list", async ({ page }) => {
-  const c = en.conciergeSection as Record<string, string>;
+test("a starter topic is sent into the chat as the visitor's own message and answered, and the topics then leave", async ({ page }) => {
   await page.goto("/en");
-  const list = page.getByRole("list", { name: c.faqLabel });
   const log = page.getByRole("log");
-  const questions = list.getByRole("button");
-  const before = await questions.count();
-  expect(before).toBe(13);
-
-  await list.getByRole("button", { name: c.faq1Q }).click();
-  // It is sent as the visitor's own message, and answered with that question's answer
-  await expect(log).toContainText(c.faq1Q);
-  await expect(log).toContainText(c.faq1A, { timeout: 5000 });
-  await expect(list.getByRole("button", { name: c.faq1Q })).toHaveCount(0);
-  await expect(questions).toHaveCount(before - 1);
-  // Focus moved on to the next question rather than being lost with the one that left
-  await expect(questions.first()).toBeFocused();
-
-  // A question typed in the bar is answered from the closest one, and that one leaves the list too
-  const box = page.locator("input[name=message]");
-  await box.fill(c.faq3Q.toLowerCase().replace("?", ""));
-  await box.press("Enter");
-  await expect(log).toContainText(c.faq3A, { timeout: 5000 });
-  await expect(list.getByRole("button", { name: c.faq3Q, exact: true })).toHaveCount(0);
-  await expect(questions).toHaveCount(before - 2);
+  const chip = page.getByRole("button", { name: en.conciergeSection.chipAirport });
+  await chip.click();
+  await expect(log).toContainText("Can you explain your airport transfer services", { timeout: 8000 });
+  await expect(log.locator("> div")).toHaveCount(3, { timeout: 8000 }); // the greeting, the visitor's message, the answer
+  await expect(chip).toHaveCount(0);
 });
 
-test("once every concierge question has been asked, the list is gone and the conversation remains", async ({ page }) => {
-  test.slow();
-  const c = en.conciergeSection as Record<string, string>;
-  await page.goto("/en");
-  const list = page.getByRole("list", { name: c.faqLabel });
-  const log = page.getByRole("log");
-  for (let i = 1; i <= 13; i++) {
-    await list.getByRole("button", { name: c[`faq${i}Q`], exact: true }).click();
-    await expect(log).toContainText(c[`faq${i}A`], { timeout: 5000 });
-  }
-  await expect(list).toHaveCount(0);
-  await expect(log).toContainText(c.faq13A);
-  // The message bar is still there for anything else
-  await expect(page.locator("input[name=message]")).toBeVisible();
+test("the concierge endpoint takes short messages only, builds its own knowledge, and limits how often one visitor can ask", async ({ playwright, baseURL }) => {
+  const api = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `10.77.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
+  const ask = (data: object) => api.post("/api/concierge", { data });
+
+  expect((await ask({ message: "x".repeat(501) })).status()).toBe(400);
+  expect((await ask({ message: "" })).status()).toBe(400);
+  expect((await ask({})).status()).toBe(400);
+
+  // Questions and answers come from the dictionary in the visitor's language, not from the request
+  const reply = await (await ask({ message: "How far in advance should I book?", locale: "en", faqs: [["How far in advance should I book?", "INJECTED"]] })).json();
+  expect(reply.reply).toBe(en.conciergeSection.faq1A);
+
+  // One visitor gets 20 questions in ten minutes
+  let refused = 0;
+  for (let i = 0; i < 25; i++) if ((await ask({ message: `question ${i}` })).status() === 429) refused++;
+  expect(refused).toBeGreaterThanOrEqual(4);
+  await api.dispose();
 });
 
 test("every vehicle shows its own questions, not the same one repeated", async ({ page }) => {

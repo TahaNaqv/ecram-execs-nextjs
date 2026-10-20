@@ -6,7 +6,8 @@ export const CODE_MINUTES = 10;
 /** How long a sign-in lasts. It ends sooner on sign-out, and every sign-in ends when the password is changed. */
 export const SESSION_DAYS = 7;
 export const MAX_ATTEMPTS = 5;
-export const RESEND_SECONDS = 0;
+// No wait while developing, so a code can be asked for again straight away; a minute in production
+export const RESEND_SECONDS = process.env.NODE_ENV === "production" ? 60 : 0;
 /** At most this many codes per visitor address in the window, and per contact per hour. */
 export const IP_LIMIT = { max: 3, windowMinutes: 15 };
 export const CONTACT_LIMIT = { max: 3, windowMinutes: 60 };

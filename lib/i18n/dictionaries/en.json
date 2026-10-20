@@ -591,11 +591,7 @@
       "drivers": "Drivers",
       "applications": "Applications",
       "corporate": "Corporate",
-<<<<<<< HEAD
-      "vehicles": "Vehicle Availability"
-=======
       "vehicles": "Vehicles"
->>>>>>> qa-fixes-and-date-picker
     },
     "login": {
       "heading": "Welcome back",

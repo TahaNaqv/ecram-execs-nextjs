@@ -1,14 +1,9 @@
 import { ConciergeChat } from "../concierge-chat";
-import { getDict } from "@/lib/i18n/get-dictionary";
-
-const FAQ_COUNT = 13;
+import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 
 export async function Concierge() {
-  const d = await getDict();
+  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const t = d.conciergeSection;
-  // Questions and answers live in the dictionary as faq1Q/faq1A … faq13Q/faq13A.
-  const strings = t as Record<string, string>;
-  const faqs = Array.from({ length: FAQ_COUNT }, (_, i) => [strings[`faq${i + 1}Q`], strings[`faq${i + 1}A`]] as const);
   return (
     <section className="border-b border-b-ink-850">
       <div className="py-20 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-30 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
@@ -42,7 +37,7 @@ export async function Concierge() {
             </div>
             <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
           </div>
-          <ConciergeChat copy={t} faqs={faqs} />
+          <ConciergeChat copy={t} locale={locale} />
         </div>
       </div>
     </section>

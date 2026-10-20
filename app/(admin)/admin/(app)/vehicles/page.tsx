@@ -1,86 +1,11 @@
+import { FLEET } from "@/lib/fleet/vehicles";
+import { requireAdmin } from "@/lib/auth/session";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
-<<<<<<< HEAD
-import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon } from "../../_components/icons";
-
-// Allow blocking dynamic rendering under cacheComponents
-export const instant = false;
-
-// Trash/Bin Icon Component
-function TrashIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 6h18" />
-      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-      <line x1="10" y1="11" x2="10" y2="17" />
-      <line x1="14" y1="11" x2="14" y2="17" />
-    </svg>
-  );
-}
-
-// Skeleton Loader that mimics the metric cards
-function MetricsSkeleton() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 h-32 animate-pulse flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <div className="h-4 w-20 bg-zinc-100 rounded" />
-            <div className="size-8 bg-zinc-100 rounded-lg" />
-          </div>
-          <div className="space-y-2">
-            <div className="h-8 w-12 bg-zinc-100 rounded" />
-            <div className="h-3 w-28 bg-zinc-100 rounded" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Skeleton Loader that mimics the vehicle cards grid
-function VehicleGridSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="h-4 w-32 bg-zinc-100 rounded animate-pulse" />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div
-            key={i}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 flex flex-col justify-between space-y-6 animate-pulse h-48"
-          >
-            <div>
-              <div className="flex justify-between items-start">
-                <div className="h-5 w-24 bg-zinc-100 rounded" />
-                <div className="h-5 w-20 bg-zinc-100 rounded-full" />
-              </div>
-              <div className="h-6 w-40 bg-zinc-100 rounded mt-4" />
-            </div>
-            <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-              <div className="h-4 w-20 bg-zinc-100 rounded" />
-              <div className="h-6 w-11 bg-zinc-100 rounded-full" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-=======
 import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon, TrashIcon } from "../../_components/icons";
 
 type Vehicle = typeof vehicles.$inferSelect;
@@ -88,17 +13,12 @@ type Vehicle = typeof vehicles.$inferSelect;
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
   return { title: admin.vehicles.title };
->>>>>>> qa-fixes-and-date-picker
 }
 
 async function VehicleMetrics() {
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
-<<<<<<< HEAD
-  let allVehicles: any[] = [];
-=======
   let allVehicles: Vehicle[] = [];
->>>>>>> qa-fixes-and-date-picker
   try {
     allVehicles = await db.select().from(vehicles);
   } catch (error) {
@@ -159,22 +79,13 @@ async function VehicleMetrics() {
 async function VehicleGrid() {
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
-<<<<<<< HEAD
-  let allVehicles: any[] = [];
-=======
   let allVehicles: Vehicle[] = [];
->>>>>>> qa-fixes-and-date-picker
   try {
     allVehicles = await db.select().from(vehicles);
 
     if (allVehicles.length === 0) {
-      const defaultFleet = [
-        { id: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", status: "available" },
-        { id: "audi", name: "Audi", status: "available" },
-        { id: "cadillac_escalade", name: "Cadillac Escalade", status: "available" },
-        { id: "range_rover", name: "Range Rover", status: "available" },
-        { id: "hongqi_e_hs9", name: "Hongqi E-HS9", status: "available" },
-      ];
+      // The fleet as the website shows it (names and keys from lib/fleet/vehicles.ts)
+      const defaultFleet = FLEET.map(({ key, name }) => ({ id: key, name, status: "available" }));
 
       for (const vehicle of defaultFleet) {
         await db.insert(vehicles).values(vehicle).onConflictDoNothing();
@@ -268,11 +179,10 @@ async function VehicleGrid() {
   );
 }
 
-<<<<<<< HEAD
-export default async function AdminVehiclesPage() {
-=======
 async function VehiclesContent() {
->>>>>>> qa-fixes-and-date-picker
+  // The proxy only sees that a session cookie exists; every admin page proves the session itself. This also stops the
+  // cards below (one of which seeds the table on first view) from rendering for anyone who is not signed in.
+  await requireAdmin();
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
 
@@ -283,14 +193,7 @@ async function VehiclesContent() {
         <p className="text-sm text-zinc-500 mt-1">{t.description}</p>
       </div>
 
-<<<<<<< HEAD
-      {/* Metrics Section with Skeleton Placeholder matching box layout */}
-      <Suspense fallback={<MetricsSkeleton />}>
-        <VehicleMetrics />
-      </Suspense>
-=======
       <VehicleMetrics />
->>>>>>> qa-fixes-and-date-picker
 
       {/* Add New Vehicle Box (Static & Immediate) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/85">
@@ -317,14 +220,7 @@ async function VehiclesContent() {
         </form>
       </div>
 
-<<<<<<< HEAD
-      {/* Vehicle Grid Section with Skeleton Cards Placeholder matching layout */}
-      <Suspense fallback={<VehicleGridSkeleton />}>
-        <VehicleGrid />
-      </Suspense>
-=======
       <VehicleGrid />
->>>>>>> qa-fixes-and-date-picker
     </div>
   );
 }

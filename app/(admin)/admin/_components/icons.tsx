@@ -165,10 +165,3 @@ export const RefreshIcon = icon(
     <path d="M8 16H3v5" />
   </>,
 );
-export const CarIcon = icon(
-  <>
-    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-4-4H8L4 10l-2.5 1.1C.7 11.3 0 12.1 0 13v3c0 .6.4 1 1 1h2" />
-    <circle cx="7" cy="17" r="2" />
-    <circle cx="17" cy="17" r="2" />
-  </>,
-);

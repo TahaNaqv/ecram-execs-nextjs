@@ -4,7 +4,7 @@ import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
 import { useActionState, useEffect, useState, useRef } from "react";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
-import { VEHICLE_CHOICES, type VehicleChoice, vehicleByKey } from "@/lib/fleet/vehicles";
+import { VEHICLE_CHOICES, type VehicleChoice, normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
 import { SELECT_VEHICLE_EVENT } from "./book-link";
 import type { Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -42,6 +42,17 @@ export function QuoteForm({
   dateTimeCopy: DateTimeCopy;
 }) {
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
+
+  // Vehicles the team has switched off. The form is part of the static page, so this is asked after it appears.
+  const [unavailable, setUnavailable] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/vehicles/unavailable", { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { unavailable?: string[] } | null) => data?.unavailable && setUnavailable(new Set(data.unavailable)))
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const [vehicle, setVehicle] = useState("");
   const [vehicleTouched, setVehicleTouched] = useState(false);
@@ -414,7 +425,7 @@ export function QuoteForm({
               aria-invalid={!!err.vehicle} aria-describedby={describedBy("vehicle")} className={control}>
               <option value="">{t.selectPlaceholder}</option>
               {vehicles
-                .filter(({ status }) => status === "available")
+                .filter(({ key, status }) => status === "available" && !unavailable.has(normalizeVehicleKey(key) ?? key))
                 .map(({ key, name }) => (
                   <option key={key} value={key}>
                     {name}

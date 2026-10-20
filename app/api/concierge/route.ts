@@ -1,13 +1,54 @@
 import { NextResponse } from "next/server";
+import { faqsFrom } from "@/lib/concierge/faqs";
 import { bestMatch } from "@/lib/concierge/match";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { withinLimit } from "@/lib/rate-limit";
+import { visitor } from "@/lib/request-meta";
+
+/** Anyone can call this endpoint, and each call can cost money, so what it accepts is small and fixed. */
+const MAX_MESSAGE = 500;
+const MAX_HISTORY = 6;
+const LIMIT = { max: 20, windowMs: 10 * 60_000 };
+
+type Turn = { role: "user" | "assistant"; content: string };
+
+/**
+ * The conversation so far, cleaned: only the last few turns, each a short piece of text. The model's first turn must be
+ * the visitor's (the chat opens with a greeting from the concierge, which is dropped), and the message being answered is
+ * sent separately, so a copy of it at the end is dropped too.
+ */
+function cleanHistory(raw: unknown, message: string): Turn[] {
+  if (!Array.isArray(raw)) return [];
+  const turns: Turn[] = raw
+    .slice(-MAX_HISTORY)
+    .filter((m): m is { role: string; content: string } => !!m && typeof m.content === "string")
+    .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, MAX_MESSAGE) }));
+  if (turns.at(-1)?.role === "user" && turns.at(-1)?.content === message) turns.pop();
+  while (turns[0]?.role === "assistant") turns.shift();
+  return turns;
+}
 
 export async function POST(req: Request) {
   try {
-    const { message, faqs = [], conversationHistory = [] } = await req.json();
-
-    if (!message || typeof message !== "string") {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    const message = typeof body?.message === "string" ? body.message.trim() : "";
+    if (!message || message.length > MAX_MESSAGE) {
+      return NextResponse.json({ error: "Message is required (at most 500 characters)" }, { status: 400 });
     }
+
+    const { ipHash } = await visitor();
+    if (!withinLimit(`concierge:${ipHash}`, LIMIT.max, LIMIT.windowMs)) {
+      return NextResponse.json(
+        { reply: "Our reservations desk is available around the clock. You can connect directly with our team on WhatsApp.", handoff: true },
+        { status: 429 },
+      );
+    }
+
+    // The questions and answers come from our own dictionary, never from the request
+    const locale = isLocale(body?.locale) ? body.locale : DEFAULT_LOCALE;
+    const faqs = faqsFrom((await getDictionary(locale)).conciergeSection);
+    const conversationHistory = cleanHistory(body?.conversationHistory, message);
 
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
 
@@ -28,9 +69,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const faqKnowledgeBase = faqs
-      .map(([q, a]: [string, string]) => `Q: ${q}\nA: ${a}`)
-      .join("\n\n");
+    const faqKnowledgeBase = faqs.map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
 
     const systemPrompt = `You are the AI Concierge for Ecram Execs, an ultra-luxury electric executive chauffeur service in the Netherlands.
 Our Fleet: 100% electric luxury obsidian black vehicles (Mercedes-Benz VLE 300, Audi, Cadillac Escalade, Range Rover, Hongqi E-HS9).
@@ -61,14 +100,6 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
 
     const model = "claude-haiku-4-5-20251001";
 
-    // Format conversation history for Anthropic API
-    const formattedHistory = conversationHistory
-      .slice(-6)
-      .map((m: { role: string; content: string }) => ({
-        role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
-        content: m.content,
-      }));
-
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -80,10 +111,7 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
         model,
         max_tokens: 350,
         system: systemPrompt,
-        messages: [
-          ...formattedHistory,
-          { role: "user", content: message },
-        ],
+        messages: [...conversationHistory, { role: "user", content: message }],
       }),
       signal: AbortSignal.timeout(12000),
     });

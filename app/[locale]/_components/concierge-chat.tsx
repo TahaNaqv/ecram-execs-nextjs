@@ -8,7 +8,6 @@ type Message = {
   handoff?: boolean;
 };
 
-type Faq = readonly [question: string, answer: string];
 
 type Copy = {
   welcome?: string;
@@ -35,7 +34,7 @@ function WhatsAppIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-export function ConciergeChat({ copy, faqs }: { copy: Copy; faqs: readonly Faq[] }) {
+export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       from: "agent",
@@ -87,7 +86,7 @@ export function ConciergeChat({ copy, faqs }: { copy: Copy; faqs: readonly Faq[]
             role: m.from === "guest" ? "user" : "assistant",
             content: m.text,
           })),
-          faqs,
+          locale,
         }),
       });
 

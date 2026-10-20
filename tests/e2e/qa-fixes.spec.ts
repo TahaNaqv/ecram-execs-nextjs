@@ -219,3 +219,35 @@ test("the admin sidebar shows the whole email address", async ({ page }) => {
   const clipped = await page.getByText("e2e-admin@ecramexecs.test").first().evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(clipped).toBe(false);
 });
+
+test("the fleet page of the admin proves the session itself, and the unused availability endpoint is gone", async ({ page, context, request, baseURL }) => {
+  // A cookie that merely exists is enough to pass the proxy; the page must still refuse it
+  await context.addCookies([{ name: "ee_admin_session", value: "not-a-real-session", url: baseURL! }]);
+  await page.goto("/admin/vehicles");
+  await expect(page).toHaveURL(/\/admin\/login/);
+  await expect(page.getByText(/Registered Vehicles|Total Fleet/)).toHaveCount(0);
+
+  expect((await request.get("/api/vehicles/availability")).status()).toBe(404);
+});
+
+test("a vehicle the team switches off disappears from the booking form, and the page itself does not wait for the table", async ({ page, request }) => {
+  const db = sql();
+  try {
+    await db`insert into vehicles (id, name, status) values ('audi', 'Audi', 'unavailable') on conflict (id) do update set status = 'unavailable'`;
+    // Only keys are shared, nothing about bookings
+    expect(await (await request.get("/api/vehicles/unavailable")).json()).toEqual({ unavailable: ["audi"] });
+    await page.goto("/en");
+    await expect(page.locator("#q-vehicle option")).toHaveCount(FLEET.length + 1); // "Select", the four left, "Advise me"
+    await expect(page.locator("#q-vehicle option[value=audi]")).toHaveCount(0);
+  } finally {
+    await db`delete from vehicles where id = 'audi'`;
+    await db.end();
+  }
+});
+
+test("the booking form is on the page from the first paint, with the whole fleet, so nothing below it moves", async ({ page }) => {
+  await page.goto("/en", { waitUntil: "commit" });
+  await expect(page.locator("#q-collection")).toBeVisible();
+  await expect(page.locator("#q-vehicle option")).toHaveCount(FLEET.length + 2); // "Select", every vehicle, "Advise me"
+  await expect(page.locator("#q-collection")).toHaveCount(1); // one form, never a placeholder form that is swapped for another
+});

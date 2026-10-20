@@ -55,9 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function HomePage(props: {
-  searchParams?: Promise<{ vehicle?: string }>;
-}) {
+export default async function HomePage() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const jsonLd = buildJsonLd(locale, d.meta.description);
 
@@ -78,7 +76,7 @@ export default async function HomePage(props: {
       <SiteHeader />
       <main id="main">
         <Hero />
-        <Enquiry locale={locale} dateTimeCopy={d.dateTimePicker} searchParams={props.searchParams} />
+        <Enquiry />
         <WhoWeServe />
         <Fleet />
         <Concierge />
