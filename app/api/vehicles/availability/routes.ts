@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(quoteRequests.status, "confirmed"),
-          eq(quoteRequests.pickupAt, pickupDate)
+          eq(quoteRequests.pickupAt, pickupDate.toISOString())
         )
       );
 
