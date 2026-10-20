@@ -27,7 +27,7 @@ async function Back() {
 }
 
 async function Form() {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const [d, partners] = await Promise.all([
     adminDictionary(),
     db
@@ -46,6 +46,8 @@ async function Form() {
         statuses={REQUEST_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
         vehicles={FLEET.map((v) => ({ value: v.key, label: v.name }))}
         copy={t}
+        locale={admin.locale}
+        dateTimeCopy={d.dateTimePicker}
       />
     </Card>
   );

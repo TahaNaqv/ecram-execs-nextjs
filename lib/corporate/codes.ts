@@ -11,6 +11,7 @@ import {
   CONTACT_LIMIT,
   IP_LIMIT,
   RESEND_SECONDS,
+  VERIFIED_COOKIE,
   codeHmac,
   newCode,
 } from "./otp";
@@ -89,7 +90,10 @@ export async function issueCode(
     return "fail";
   }
   // The cookie outlives the code, so "send a new code" still works a little after the first has expired
-  (await cookies()).set(CHALLENGE_COOKIE, id, cookieOptions(new Date(Date.now() + 60 * 60_000)));
+  const jar = await cookies();
+  jar.set(CHALLENGE_COOKIE, id, cookieOptions(new Date(Date.now() + 60 * 60_000)));
+  // Proof of an earlier code belongs to that code only
+  jar.delete(VERIFIED_COOKIE);
 
   // Opportunistic cleanup, as admin sessions do
   await db.delete(schema.corporateChallenges).where(lt(schema.corporateChallenges.expiresAt, minutesAgo(60 * 24)));

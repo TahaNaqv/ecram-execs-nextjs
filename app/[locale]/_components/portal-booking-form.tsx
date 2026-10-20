@@ -4,6 +4,7 @@ import Link from "next/link";
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { createBooking } from "@/lib/corporate/portal-actions";
 import type { PortalState } from "@/lib/corporate/portal-state";
+import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { SERVICES, type Service } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import type { Locale } from "@/lib/i18n/config";
@@ -47,6 +48,7 @@ export function BookingForm({
   serviceLabels,
   loginHref,
   copy: t,
+  dateTimeCopy,
 }: {
   locale: Locale;
   booker: { name: string; email: string };
@@ -55,6 +57,7 @@ export function BookingForm({
   serviceLabels: Record<Service, string>;
   loginHref: string;
   copy: BookingFormCopy;
+  dateTimeCopy: DateTimeCopy;
 }) {
   const [stops, setStops] = useState<{ id: number; value: string; wait: number }[]>((defaults.stops ?? []).map((s, id) => ({ id, value: s.place, wait: s.wait })));
   const [nextId, setNextId] = useState(stops.length);
@@ -167,7 +170,7 @@ export function BookingForm({
           )}
 
           <CardField idPrefix="b" name="pickupAt" label={t.labelDateTime} error={err.pickupAt} className="md:max-w-[calc(50%-10px)]">
-            <input id="b-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt} aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={cardControl} />
+            <DateTimeField id="b-pickupAt" name="pickupAt" locale={locale} copy={dateTimeCopy} defaultValue={v.pickupAt} invalid={!!err.pickupAt} describedBy={d("pickupAt")} className={cardControl} />
           </CardField>
         </FormCard>
 

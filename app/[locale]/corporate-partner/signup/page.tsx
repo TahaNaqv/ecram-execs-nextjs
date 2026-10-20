@@ -17,7 +17,7 @@ async function Flow() {
     <AccountFlow
       mode="signup"
       locale={locale}
-      initial={pending ? { step: "verify", email: pending.email } : { step: "request" }}
+      initial={pending ? { step: pending.verified ? "password" : "code", email: pending.email } : { step: "request" }}
       copy={d.corporatePartner}
       minutes={CODE_MINUTES}
       privacyHref={localizedPath("/privacy", locale)}

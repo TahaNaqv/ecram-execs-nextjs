@@ -19,6 +19,8 @@ export const LOGIN_IP_LIMIT = { max: 20, windowMs: 15 * 60_000 };
 export const RESET_IP_LIMIT = { max: 10, windowMs: 15 * 60_000 };
 
 export const CHALLENGE_COOKIE = "ee_cp_challenge";
+/** Set once the emailed code has been entered correctly, so choosing the password can be a step of its own. */
+export const VERIFIED_COOKIE = "ee_cp_verified";
 /** The signed-in session. The name is older than accounts: it first held the 24-hour access after a code. */
 export const ACCESS_COOKIE = "ee_cp_access";
 
@@ -52,3 +54,22 @@ export function codeMatches(challengeId: string, code: string, storedHex: string
 
 export const newToken = () => randomBytes(32).toString("base64url");
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+/**
+ * Proof that the code of one challenge was entered correctly: `{expiry}.{hmac}`, keyed with the server secret and bound to
+ * the challenge id, so it cannot be moved to another challenge and cannot be made without the secret. It lives in an
+ * httpOnly cookie and only ever lets a password be chosen for the address that challenge was sent to.
+ */
+const verifiedMac = (challengeId: string, expiresAtMs: number) =>
+  createHmac("sha256", secret()).update(`verified:${challengeId}:${expiresAtMs}`).digest("hex");
+
+export const signVerified = (challengeId: string, expiresAtMs: number) => `${expiresAtMs}.${verifiedMac(challengeId, expiresAtMs)}`;
+
+export function verifiedValid(challengeId: string, token: string | undefined) {
+  const [expires, mac] = (token ?? "").split(".");
+  const expiresAtMs = Number(expires);
+  if (!mac || !Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return false;
+  const expected = Buffer.from(verifiedMac(challengeId, expiresAtMs), "hex");
+  const given = Buffer.from(mac, "hex");
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}

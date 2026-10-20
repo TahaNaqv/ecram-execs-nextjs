@@ -459,7 +459,8 @@ test("the team can enter a phone booking for a partner, and it appears in their 
   await page.fill("#nb-destination", "Amsterdam Zuid");
   await page.fill("#nb-stops", "Utrecht Centraal | 45\nBreda");
   await page.fill("#nb-pickupAt", "2031-04-02T09:15");
-  await page.fill("#nb-phone", "+31 6 1234 5678");
+  await page.selectOption("#nb-phoneCountry", "31");
+  await page.fill("#nb-phone", "6 1234 5678");
   await page.selectOption("#nb-status", "confirmed");
   await page.getByRole("button", { name: a.newBooking.submit }).click();
   await expect(page).toHaveURL(/\/admin\/requests\/[0-9a-f-]{36}$/);

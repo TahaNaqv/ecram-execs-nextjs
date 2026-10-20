@@ -113,7 +113,7 @@ export default async function DriveWithUsPage() {
           </div>
         </section>
 
-        <section className="bg-ink-50 text-ink-950" id="apply">
+        <section className="light-surface bg-ink-50 text-ink-950" id="apply">
           <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-5 py-12 md:px-6 md:py-16 2xl:max-w-[1440px]">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="m-0 font-serif text-[30px] leading-[1.1] font-normal md:text-[34px]">{t.applyHeading}</h2>

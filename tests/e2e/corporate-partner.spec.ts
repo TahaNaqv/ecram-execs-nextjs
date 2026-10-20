@@ -31,11 +31,24 @@ async function refused(page: Page) {
   await expect(page.locator("form p[aria-live]").first()).toHaveText(failedMessage);
 }
 
-async function finish(page: Page, code: string, password: string, confirm = password, button = t.createAccountCta) {
+/** The code step: sign-up and reset first ask for the emailed code on a screen of its own. */
+async function verify(page: Page, code: string) {
   await page.fill("#c-code", code);
+  await submit(page, t.verifyCta);
+}
+
+/** The password step that follows a correct code. */
+async function choose(page: Page, password: string, confirm = password, button = t.createAccountCta) {
   await page.fill("#c-password", password);
   await page.fill("#c-confirmPassword", confirm);
   await submit(page, button);
+}
+
+/** Both steps, for the tests that are not about them. */
+async function finish(page: Page, code: string, password: string, confirm = password, button = t.createAccountCta) {
+  await verify(page, code);
+  await expect(page.locator("#c-password")).toBeVisible();
+  await choose(page, password, confirm, button);
 }
 
 test("the entry page offers log in and sign up, in both languages", async ({ page }) => {
@@ -189,30 +202,55 @@ test("a code and a password create an account; the partner can sign out, sign in
   await expect(row).toContainText(en.admin.corporate.hasAccount);
 });
 
-test("the password is checked before a guess at the code is counted, and never sent back to the page", async ({ page, context }) => {
+test("the code and the password are separate steps; the password is never sent back to the page", async ({ page, context }) => {
   await ownAddress(context);
   const email = `pw-rules-${Date.now()}@e2e.ecramexecs.test`;
   await holdChallenge(context, await seedChallenge(email, "111111"));
   await page.goto("/en/corporate-partner/signup");
 
-  await finish(page, "111111", "short");
+  // A wrong code stays on the code step, with the attempts left; there is no password box to fill in yet
+  await expect(page.locator("#c-password")).toHaveCount(0);
+  await verify(page, "000000");
+  await expect(page.locator("#c-code-error")).toContainText("Attempts left: 4");
+  await expect(page.locator("#c-password")).toHaveCount(0);
+
+  // The right code opens the password step
+  await verify(page, "111111");
+  await expect(page.getByRole("heading", { name: t.passwordHeading })).toBeVisible();
+  await expect(page.getByText(email, { exact: false }).first()).toBeVisible(); // the step says which address the password is for
+  await expect(page.locator("#c-code")).toHaveCount(0);
+
+  await choose(page, "short");
   await expect(page.locator("#c-password-error")).toHaveText(t.passwordTooShort.replace("{min}", "12"));
-  // The code is kept for the retry (it is not secret from the person who just typed it); the password never is
-  await expect(page.locator("#c-code")).toHaveValue("111111");
-  await expect(page.locator("#c-password")).toHaveValue("");
-  await finish(page, "111111", PASSWORD, "something else entirely");
+  await choose(page, PASSWORD, "something else entirely");
   await expect(page.locator("#c-confirmPassword-error")).toHaveText(t.passwordMismatch);
-  await finish(page, "111111", email);
+  await choose(page, email);
   await expect(page.locator("#c-password-error")).toHaveText(t.passwordSameAsEmail);
-  // The boxes are empty again after every refusal
+  // The boxes are empty again after every refusal, and the code is not asked for again
   await expect(page.locator("#c-password")).toHaveValue("");
   await expect(page.locator("#c-confirmPassword")).toHaveValue("");
+  await expect(page.locator("#c-code")).toHaveCount(0);
 
-  // None of those cost an attempt: a wrong code with a good password has all but one of the five left
-  await finish(page, "000000", PASSWORD);
-  await expect(page.locator("#c-code-error")).toContainText("Attempts left: 4");
-  await finish(page, "111111", PASSWORD);
+  await choose(page, PASSWORD);
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
+});
+
+test("a reload after the code was right resumes at the password, and one code's proof does not open another's", async ({ page, context }) => {
+  await ownAddress(context);
+  const email = newEmail("resume");
+  const first = await seedChallenge(email, "222222");
+  await holdChallenge(context, first);
+  await page.goto("/en/corporate-partner/signup");
+  await verify(page, "222222");
+  await expect(page.getByRole("heading", { name: t.passwordHeading })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: t.passwordHeading })).toBeVisible();
+
+  // The same browser, now holding a different challenge (a new code was sent): its code has not been proved
+  await holdChallenge(context, await seedChallenge(newEmail("other"), "333333"));
+  await page.reload();
+  await expect(page.getByRole("heading", { name: t.verifyHeading })).toBeVisible();
+  await expect(page.locator("#c-password")).toHaveCount(0);
 });
 
 test("five wrong codes lock the challenge", async ({ page, context }) => {
@@ -222,13 +260,14 @@ test("five wrong codes lock the challenge", async ({ page, context }) => {
 
   // Wait for each answer before guessing again: the form is replaced after every response
   for (const left of [4, 3, 2, 1]) {
-    await finish(page, "000000", PASSWORD);
+    await verify(page, "000000");
     await expect(page.locator("#c-code-error")).toContainText(`Attempts left: ${left}`);
   }
-  await finish(page, "000000", PASSWORD);
+  await verify(page, "000000");
   // The fifth wrong guess spends the attempts; a new code is needed, and the visitor is taken back to the start
   await expect(page.getByText(t.tooManyAttempts)).toBeVisible();
-  await expect(page.locator("#c-password")).toHaveCount(0);
+  await expect(page.locator("#c-code")).toHaveCount(0);
+  await expect(page.locator("#c-email")).toBeVisible();
 });
 
 test("an expired code is not offered, and a code only belongs to the page it was sent for", async ({ page, context }) => {

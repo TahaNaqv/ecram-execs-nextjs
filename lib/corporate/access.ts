@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { db, schema } from "@/lib/db";
 import { contactColumns, type CorporateContactPublic } from "./columns";
-import { ACCESS_COOKIE, CHALLENGE_COOKIE, MAX_ATTEMPTS, hashToken } from "./otp";
+import { ACCESS_COOKIE, CHALLENGE_COOKIE, MAX_ATTEMPTS, VERIFIED_COOKIE, hashToken, verifiedValid } from "./otp";
 
 // "Now" is the database's `now()`, not a JavaScript Date: these run while a page renders, where Next.js rejects reading
 // the current time in code (it logs "unstable value new Date() while prerendering" and skips the optimisation).
@@ -34,12 +34,14 @@ export const getCorporateContact = cache(async (): Promise<CorporateContactPubli
 });
 
 /**
- * A code of this purpose that was sent and can still be entered: lets a reload land on the code step rather than the
- * start. A code sent for one purpose is not offered on the page for the other.
+ * A code of this purpose that was sent and can still be entered: lets a reload land on the code step (or, once the code
+ * has been proved, the password step) rather than the start. A code sent for one purpose is not offered on the page for the other.
  */
 export const getPendingChallenge = cache(async (purpose: "signup" | "reset") => {
-  const id = (await cookies()).get(CHALLENGE_COOKIE)?.value;
+  const jar = await cookies();
+  const id = jar.get(CHALLENGE_COOKIE)?.value;
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const proven = verifiedValid(id, jar.get(VERIFIED_COOKIE)?.value);
   const [row] = await db
     .select({ id: schema.corporateChallenges.id, email: schema.corporateContacts.email, contactId: schema.corporateContacts.id })
     .from(schema.corporateChallenges)
@@ -50,13 +52,14 @@ export const getPendingChallenge = cache(async (purpose: "signup" | "reset") => 
         eq(schema.corporateChallenges.purpose, purpose),
         isNull(schema.corporateChallenges.consumedAt),
         gt(schema.corporateChallenges.expiresAt, sql`now()`),
-        // A challenge whose guesses are spent is dead; a reload shouldn't offer it
-        lt(schema.corporateChallenges.attempts, MAX_ATTEMPTS),
+        // A challenge whose guesses are spent is dead; a reload shouldn't offer it (unless the last guess was the right one)
+        proven ? undefined : lt(schema.corporateChallenges.attempts, MAX_ATTEMPTS),
       ),
     )
     .orderBy(desc(schema.corporateChallenges.createdAt))
     .limit(1);
-  return row ?? null;
+  // `verified`: the code has been entered correctly in this browser, so a reload resumes at choosing the password
+  return row ? { ...row, verified: proven } : null;
 });
 
 /** What a partner has already sent us, newest first (the references are the ones the team sees). */

@@ -82,7 +82,7 @@ export async function SiteFooter() {
                   {siteConfig.contact.email}
                 </a>
               )}
-              <span>{siteConfig.contact.address ? `${siteConfig.contact.address}, Netherlands` : d.footer.serving}</span>
+              {siteConfig.contact.address && <span>{`${siteConfig.contact.address}, Netherlands`}</span>}
               <Link className="navlink self-start" href={`${home}#enquire`}>
                 {d.common.requestQuote}
               </Link>
@@ -90,7 +90,7 @@ export async function SiteFooter() {
           </div>
         </div>
       </div>
-      <div className="bg-white text-ink-600">
+      <div className="light-surface bg-white text-ink-600">
         <div className="px-5 pt-6 pb-20 my-0 mx-auto gap-5 items-start flex flex-col flex-wrap text-[12px] justify-between max-w-[1280px] md:px-6 md:items-center md:flex-row md:py-6 2xl:max-w-[1440px]">
           <span>
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}

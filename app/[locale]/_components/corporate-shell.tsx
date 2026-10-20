@@ -53,7 +53,7 @@ export async function CorporateShell({
               </h1>
               {intro && <p className="m-0 font-light text-ink-400">{intro}</p>}
             </div>
-            <div className="bg-ink-50 p-6 text-ink-950 md:p-10">{children}</div>
+            <div className="light-surface bg-ink-50 p-6 text-ink-950 md:p-10">{children}</div>
             <Link href={localizedPath("/", locale)} className="text-[12px] tracking-[0.24em] uppercase">
               {t.back}
             </Link>

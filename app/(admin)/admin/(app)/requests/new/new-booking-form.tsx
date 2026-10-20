@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
+import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { AlertIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
 import { createBookingForPartner, type NewBookingState } from "./actions";
@@ -8,7 +10,7 @@ import { createBookingForPartner, type NewBookingState } from "./actions";
 type Option = { value: string; label: string };
 type Copy = Record<
   | "partner" | "noPartner" | "service" | "collection" | "destination" | "stops" | "pickup" | "passengers" | "vehicle" | "vehicleNone" | "name" | "email"
-  | "phone" | "contactHint" | "status" | "quote" | "notes" | "internalNotes" | "submit" | "creating",
+  | "phone" | "phoneCountry" | "contactHint" | "status" | "quote" | "notes" | "internalNotes" | "submit" | "creating",
   string
 >;
 
@@ -45,7 +47,7 @@ function Text({ values, name, label, type = "text", hint }: { values: Values; na
 }
 
 /** The team's own booking form: for the phone and email bookings that should still show up in a partner's portal. */
-export function NewBookingForm({ partners, services, statuses, vehicles, copy }: { partners: Option[]; services: Option[]; statuses: Option[]; vehicles: Option[]; copy: Copy }) {
+export function NewBookingForm({ partners, services, statuses, vehicles, copy, locale, dateTimeCopy }: { partners: Option[]; services: Option[]; statuses: Option[]; vehicles: Option[]; copy: Copy; locale: string; dateTimeCopy: DateTimeCopy }) {
   const [state, action, pending] = useActionState<NewBookingState, FormData>(createBookingForPartner, {});
   const v = state.values ?? {};
 
@@ -55,7 +57,12 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy }:
         <Select values={v} name="contactId" label={copy.partner} options={partners} empty={copy.noPartner} />
       </div>
       <Select values={v} name="service" label={copy.service} options={services} />
-      <Text values={v} name="pickupAt" label={copy.pickup} type="datetime-local" />
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="nb-pickupAt" className={fieldLabel}>
+          {copy.pickup}
+        </label>
+        <DateTimeField id="nb-pickupAt" name="pickupAt" locale={locale} copy={dateTimeCopy} defaultValue={v.pickupAt} className={`${field} h-10`} />
+      </div>
       <Text values={v} name="collection" label={copy.collection} />
       <Text values={v} name="destination" label={copy.destination} />
       <div className="flex flex-col gap-1.5 md:col-span-2">
@@ -68,7 +75,21 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy }:
       <Select values={v} name="vehicle" label={copy.vehicle} options={vehicles} empty={copy.vehicleNone} />
       <Text values={v} name="name" label={copy.name} hint={copy.contactHint} />
       <Text values={v} name="email" label={copy.email} type="email" />
-      <Text values={v} name="phone" label={copy.phone} type="tel" />
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="nb-phone" className={fieldLabel}>
+          {copy.phone}
+        </label>
+        <div className="flex gap-2">
+          <select id="nb-phoneCountry" name="phoneCountry" aria-label={copy.phoneCountry} defaultValue={v.phoneCountry || "31"} className={`${field} h-10 w-[104px] shrink-0 cursor-pointer`}>
+            {COUNTRY_CODES.map(([code, iso]) => (
+              <option key={code} value={code}>
+                {iso} +{code}
+              </option>
+            ))}
+          </select>
+          <input id="nb-phone" name="phone" type="tel" defaultValue={v.phone ?? ""} autoComplete="off" className={`${field} h-10 min-w-0 flex-1`} />
+        </div>
+      </div>
       <Select values={v} name="status" label={copy.status} options={statuses} />
       <Text values={v} name="quotedAmount" label={copy.quote} />
       <div className="flex flex-col gap-1.5 md:col-span-2">

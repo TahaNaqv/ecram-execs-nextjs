@@ -1,5 +1,6 @@
 "use client";
 
+import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
 import { useActionState, useEffect, useState, useRef } from "react";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
@@ -31,11 +32,13 @@ export function QuoteForm({
   serviceLabels,
   vehicles,
   copy: t,
+  dateTimeCopy,
 }: {
   locale: Locale;
   serviceLabels: Record<Service, string>;
   vehicles: { key: string; name: string }[];
   copy: QuoteFormCopy;
+  dateTimeCopy: DateTimeCopy;
 }) {
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
 
@@ -46,6 +49,19 @@ export function QuoteForm({
   const [stops, setStops] = useState<{ id: string; value: string; wait: number }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // The stop just added takes focus once; reopening the panel later must not pull focus to the last one again
+  const [focusId, setFocusId] = useState<string | undefined>();
+  const addStopField = () => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setFocusId(id);
+    setStops((prev) => (prev.length >= MAX_STOPS ? prev : [...prev, { id, value: "", wait: 0 }]));
+  };
+  // The first press both opens the panel and gives the visitor a stop to type into; pressing again closes it
+  const toggleStops = () => {
+    if (isOpen) return setIsOpen(false);
+    if (stops.length === 0) addStopField();
+    setIsOpen(true);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -127,7 +143,8 @@ export function QuoteForm({
             </label>
             <button
               type="button"
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={toggleStops}
+              aria-expanded={isOpen}
               className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-50 hover:bg-ink-100 border border-ink-200 px-2.5 py-1 rounded-sm shadow-2xs"
             >
               <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : t.addStop}</span>
@@ -166,6 +183,8 @@ export function QuoteForm({
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
+                      autoFocus={stop.id === focusId}
+                      onFocus={() => stop.id === focusId && setFocusId(undefined)}
                       placeholder={fill(t.stopPlaceholder, { number: String(index + 2) })}
                       maxLength={200}
                       defaultValue={stop.value}
@@ -208,7 +227,7 @@ export function QuoteForm({
               {stops.length < MAX_STOPS && (
                 <button
                   type="button"
-                  onClick={() => setStops(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), value: "", wait: 0 }])}
+                  onClick={addStopField}
                   className="mt-1 w-full py-1.5 bg-ink-950 text-white text-[11px] font-semibold tracking-[0.15em] uppercase hover:bg-ink-800 transition-colors text-center"
                 >
                   {t.addStopover}
@@ -226,8 +245,8 @@ export function QuoteForm({
             </label>
           </div>
           <div className="px-3 pb-2.5">
-            <input id="q-pickupAt" name="pickupAt" type="datetime-local" required defaultValue={v.pickupAt}
-              aria-invalid={!!err.pickupAt} aria-describedby={describedBy("pickupAt")} className={control} />
+            <DateTimeField id="q-pickupAt" name="pickupAt" locale={locale} copy={dateTimeCopy} defaultValue={v.pickupAt}
+              invalid={!!err.pickupAt} describedBy={describedBy("pickupAt")} className={control} />
           </div>
           {fieldError("pickupAt")}
         </div>

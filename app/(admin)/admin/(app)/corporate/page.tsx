@@ -4,7 +4,8 @@ import { corporateTotals, listCorporateContacts } from "@/lib/admin/corporate";
 import { formatRelative, formatTimestamp } from "@/lib/admin/format";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { BriefcaseIcon } from "../../_components/icons";
-import { Avatar, btn, Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../_components/ui";
+import { Avatar, Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../_components/ui";
+import { ExportButtons } from "./export-buttons";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
@@ -53,15 +54,11 @@ async function Contacts() {
         <p className="m-0 text-sm text-zinc-600">
           {t.totals.replace("{total}", String(totals.total)).replace("{optedIn}", String(totals.optedIn))}
         </p>
-        <div className="flex gap-2">
-          {/* Plain links: these are file downloads from a Route Handler, not pages, so <Link> would try to navigate */}
-          <a href="/admin/corporate/export" download className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
-            {t.exportAll}
-          </a>
-          <a href="/admin/corporate/export?consent=1" download className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
-            {t.exportOptedIn}
-          </a>
-        </div>
+        <ExportButtons
+          all={{ href: "/admin/corporate/export", label: t.exportAll }}
+          optedIn={{ href: "/admin/corporate/export?consent=1", label: t.exportOptedIn }}
+          notice={t.exportStarted}
+        />
       </div>
 
       {rows.length === 0 ? (
