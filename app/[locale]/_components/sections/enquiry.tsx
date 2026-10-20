@@ -17,11 +17,11 @@ async function VehicleQuoteLoader() {
   const vehiclesForForm = dbVehicles.length > 0 
     ? dbVehicles.map(({ id, name, status }) => ({ key: id, name, status }))
     : [
-        { key: "mercedes-benz-vle-300", name: "Mercedes-Benz VLE 300", status: "available" },
+        { key: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", status: "available" },
         { key: "audi", name: "Audi", status: "available" },
-        { key: "cadillac-escalade", name: "Cadillac Escalade", status: "available" },
-        { key: "range-rover", name: "Range Rover", status: "available" },
-        { key: "hongqi-ehs9", name: "Hongqi E-HS9", status: "available" },
+        { key: "cadillac_escalade", name: "Cadillac Escalade", status: "available" },
+        { key: "range_rover", name: "Range Rover", status: "available" },
+        { key: "hongqi_e_hs9", name: "Hongqi E-HS9", status: "available" },
       ];
 
   return (
@@ -30,6 +30,7 @@ async function VehicleQuoteLoader() {
       serviceLabels={d.services} 
       vehicles={vehiclesForForm} 
       copy={d.quoteForm} 
+      dateTimeCopy={d.dateTimePicker}
     />
   );
 }
@@ -43,13 +44,9 @@ export async function Enquiry() {
         <h2 className="m-0 font-serif text-[30px] font-normal leading-[1.1] md:text-[34px]">
           {d.enquiry.heading}
         </h2>
-<<<<<<< HEAD
-        <QuoteForm locale={locale} serviceLabels={d.services} vehicles={FLEET.map(({ key, name }) => ({ key, name }))} copy={d.quoteForm} dateTimeCopy={d.dateTimePicker} />
-=======
         <Suspense fallback={<div className="h-40 bg-white/50 animate-pulse rounded-lg" />}>
           <VehicleQuoteLoader />
         </Suspense>
->>>>>>> team/main
       </div>
     </section>
   );

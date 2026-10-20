@@ -372,7 +372,13 @@
     "faq12Q": "Are Your Chauffeurs Professionally Vetted And Insured?",
     "faq12A": "Every chauffeur is experienced, vetted and impeccably presented, and holds the licences and insurance required for paid passenger transport in the Netherlands.",
     "faq13Q": "Can I Expect Complete Discretion And Confidentiality?",
-    "faq13A": "Absolutely. Discretion and confidentiality are central to everything we do."
+    "faq13A": "Absolutely. Discretion and confidentiality are central to everything we do.",
+    "welcome": "Good day. I am the Ecram Execs Concierge. How may I assist with your journey today?",
+    "whatsappCta": "Continue on WhatsApp",
+    "whatsappHandoff": "Transfer to WhatsApp",
+    "chipAirport": "Airport Transfers",
+    "chipFleet": "Executive Fleet",
+    "chipCorporate": "Corporate Accounts"
   },
   "finalCta": {
     "eyebrow": "TAILORED TO YOUR JOURNEY",
@@ -580,7 +586,8 @@
       "requests": "Requests",
       "drivers": "Drivers",
       "applications": "Applications",
-      "corporate": "Corporate"
+      "corporate": "Corporate",
+      "vehicles": "Vehicles"
     },
     "login": {
       "heading": "Welcome back",
@@ -855,6 +862,24 @@
       "submit": "Create booking",
       "creating": "Creating…",
       "cta": "New booking"
+    },
+    "vehicles": {
+      "title": "Vehicle Fleet Management",
+      "description": "Manage vehicles and real-time operational availability.",
+      "totalFleet": "Total Fleet",
+      "registered": "Vehicles registered",
+      "available": "Available",
+      "availableNote": "Ready for dispatch",
+      "unavailable": "Unavailable",
+      "unavailableNote": "Out of service or maintenance",
+      "registeredHeader": "Registered Vehicles",
+      "noVehicles": "No vehicles registered",
+      "noVehiclesNote": "Add a new vehicle to track its availability.",
+      "removeVehicle": "Remove vehicle",
+      "toggleStatus": "Toggle vehicle availability",
+      "addNew": "Add New Vehicle",
+      "namePlaceholder": "e.g. Mercedes-Benz S-Class",
+      "addCta": "Add Vehicle"
     }
   },
   "bespokeSection": {

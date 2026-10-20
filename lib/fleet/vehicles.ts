@@ -233,4 +233,24 @@ export const FLEET: FleetVehicle[] = [
 export const VEHICLE_CHOICES = [...VEHICLE_KEYS, "advise"] as const;
 export type VehicleChoice = (typeof VEHICLE_CHOICES)[number];
 
-export const vehicleByKey = (key: string | null | undefined) => FLEET.find((v) => v.key === key);
+
+const ID_ALIASES: Record<string, VehicleKey> = {
+  "mercedes-benz-vle-300": "mercedes_vle_300",
+  "cadillac-escalade": "cadillac_escalade",
+  "range-rover": "range_rover",
+  "hongqi-ehs9": "hongqi_e_hs9",
+  "hongqi-e-hs9": "hongqi_e_hs9",
+};
+
+export function normalizeVehicleKey(key: string | null | undefined): VehicleKey | undefined {
+  if (!key) return undefined;
+  if ((VEHICLE_KEYS as readonly string[]).includes(key)) {
+    return key as VehicleKey;
+  }
+  return ID_ALIASES[key];
+}
+
+export const vehicleByKey = (key: string | null | undefined) => {
+  const normalized = normalizeVehicleKey(key) ?? key;
+  return FLEET.find((v) => v.key === normalized);
+};

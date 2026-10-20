@@ -372,7 +372,13 @@
     "faq12Q": "Zijn uw chauffeurs professioneel gescreend en verzekerd?",
     "faq12A": "Elke chauffeur is ervaren, gescreend en onberispelijk gekleed en beschikt over de vergunningen en verzekering die in Nederland vereist zijn voor betaald personenvervoer.",
     "faq13Q": "Kan ik rekenen op volledige discretie en vertrouwelijkheid?",
-    "faq13A": "Absoluut. Discretie en vertrouwelijkheid staan centraal in alles wat wij doen."
+    "faq13A": "Absoluut. Discretie en vertrouwelijkheid staan centraal in alles wat wij doen.",
+    "welcome": "Goedendag. Ik ben de Ecram Execs Concierge. Hoe kan ik u vandaag helpen met uw reis?",
+    "whatsappCta": "Doorgaan via WhatsApp",
+    "whatsappHandoff": "Overdragen naar WhatsApp",
+    "chipAirport": "Luchthaventransfers",
+    "chipFleet": "Executive Vloot",
+    "chipCorporate": "Zakelijke Accounts"
   },
   "finalCta": {
     "eyebrow": "AFGESTEMD OP UW RIT",
@@ -580,7 +586,8 @@
       "requests": "Aanvragen",
       "drivers": "Chauffeurs",
       "applications": "Aanmeldingen",
-      "corporate": "Zakelijk"
+      "corporate": "Zakelijk",
+      "vehicles": "Voertuigen"
     },
     "login": {
       "heading": "Welkom terug",
@@ -855,6 +862,24 @@
       "submit": "Boeking aanmaken",
       "creating": "Aanmaken…",
       "cta": "Nieuwe boeking"
+    },
+    "vehicles": {
+      "title": "Wagenparkbeheer",
+      "description": "Beheer voertuigen en realtime operationele beschikbaarheid.",
+      "totalFleet": "Totale vloot",
+      "registered": "Geregistreerde voertuigen",
+      "available": "Beschikbaar",
+      "availableNote": "Klaar voor inzet",
+      "unavailable": "Niet beschikbaar",
+      "unavailableNote": "Buiten dienst of onderhoud",
+      "registeredHeader": "Geregistreerde voertuigen",
+      "noVehicles": "Geen voertuigen geregistreerd",
+      "noVehiclesNote": "Voeg een nieuw voertuig toe om beschikbaarheid bij te houden.",
+      "removeVehicle": "Voertuig verwijderen",
+      "toggleStatus": "Beschikbaarheid wijzigen",
+      "addNew": "Nieuw voertuig toevoegen",
+      "namePlaceholder": "bijv. Mercedes-Benz S-Klasse",
+      "addCta": "Voertuig toevoegen"
     }
   },
   "bespokeSection": {
