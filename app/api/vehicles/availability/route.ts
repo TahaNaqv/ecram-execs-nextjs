@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { vehicles, quoteRequests } from "@/lib/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-<<<<<<< HEAD
-=======
 import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
->>>>>>> qa-fixes-and-date-picker
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -23,11 +20,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid pickupAt parameter" }, { status: 400 });
     }
 
-<<<<<<< HEAD
-    // Find confirmed bookings around this specific date/time (within 2-hour window)
-=======
     // Find confirmed bookings for this timeframe (within 2-hour buffer)
->>>>>>> qa-fixes-and-date-picker
     const windowStart = new Date(pickupDate.getTime() - 2 * 3600 * 1000).toISOString();
     const windowEnd = new Date(pickupDate.getTime() + 2 * 3600 * 1000).toISOString();
 
@@ -41,15 +34,6 @@ export async function GET(request: Request) {
         )
       );
 
-<<<<<<< HEAD
-    const bookedIds = new Set(conflictingBookings.map((b) => b.vehicleId).filter(Boolean));
-
-    // Exclude booked or admin-disabled vehicles
-    const filtered = allVehicles.filter(
-      (v) => v.status === "available" && !bookedIds.has(v.id)
-    );
-
-=======
     const bookedIds = new Set(
       conflictingBookings
         .map((b) => (b.vehicleId ? normalizeVehicleKey(b.vehicleId) : null))
@@ -62,7 +46,6 @@ export async function GET(request: Request) {
       return v.status === "available" && !bookedIds.has(normId);
     });
 
->>>>>>> qa-fixes-and-date-picker
     return NextResponse.json({ vehicles: filtered });
   } catch (error) {
     console.error("Error checking vehicle availability:", error);

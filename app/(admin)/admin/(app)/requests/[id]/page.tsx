@@ -52,7 +52,7 @@ export default function RequestPage({ params }: PageProps<"/admin/requests/[id]"
     </PageBody>
   );
 }
-
+export const instant = false;
 const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed"];
 
 async function Pipeline({ status }: { status: RequestStatus }) {

@@ -591,11 +591,7 @@
       "drivers": "Chauffeurs",
       "applications": "Aanmeldingen",
       "corporate": "Zakelijk",
-<<<<<<< HEAD
-      "vehicles": "Voertuigbeschikbaarheid"
-=======
       "vehicles": "Voertuigen"
->>>>>>> qa-fixes-and-date-picker
     },
     "login": {
       "heading": "Welkom terug",

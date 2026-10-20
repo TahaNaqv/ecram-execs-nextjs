@@ -40,6 +40,7 @@ async function Heading({ part = "title" }: { part?: "title" | "description" | "a
 const fill = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => (key in values ? String(values[key]) : token));
 
+export const instant = false;
 export default function DriversPage() {
   return (
     <PageBody>

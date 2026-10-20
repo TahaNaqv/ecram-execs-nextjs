@@ -4,33 +4,16 @@ import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
-<<<<<<< HEAD
-import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon } from "../../_components/icons";
+import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon, TrashIcon } from "../../_components/icons";
+
+type Vehicle = typeof vehicles.$inferSelect;
 
 // Allow blocking dynamic rendering under cacheComponents
 export const instant = false;
 
-// Trash/Bin Icon Component
-function TrashIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 6h18" />
-      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-      <line x1="10" y1="11" x2="10" y2="17" />
-      <line x1="14" y1="11" x2="14" y2="17" />
-    </svg>
-  );
+export async function generateMetadata(): Promise<Metadata> {
+  const { admin } = await adminDictionary();
+  return { title: admin.vehicles.title };
 }
 
 // Skeleton Loader that mimics the metric cards
@@ -80,25 +63,12 @@ function VehicleGridSkeleton() {
       </div>
     </div>
   );
-=======
-import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon, TrashIcon } from "../../_components/icons";
-
-type Vehicle = typeof vehicles.$inferSelect;
-
-export async function generateMetadata(): Promise<Metadata> {
-  const { admin } = await adminDictionary();
-  return { title: admin.vehicles.title };
->>>>>>> qa-fixes-and-date-picker
 }
 
 async function VehicleMetrics() {
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
-<<<<<<< HEAD
-  let allVehicles: any[] = [];
-=======
   let allVehicles: Vehicle[] = [];
->>>>>>> qa-fixes-and-date-picker
   try {
     allVehicles = await db.select().from(vehicles);
   } catch (error) {
@@ -159,11 +129,7 @@ async function VehicleMetrics() {
 async function VehicleGrid() {
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
-<<<<<<< HEAD
-  let allVehicles: any[] = [];
-=======
   let allVehicles: Vehicle[] = [];
->>>>>>> qa-fixes-and-date-picker
   try {
     allVehicles = await db.select().from(vehicles);
 
@@ -268,11 +234,7 @@ async function VehicleGrid() {
   );
 }
 
-<<<<<<< HEAD
-export default async function AdminVehiclesPage() {
-=======
 async function VehiclesContent() {
->>>>>>> qa-fixes-and-date-picker
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
 
@@ -283,14 +245,9 @@ async function VehiclesContent() {
         <p className="text-sm text-zinc-500 mt-1">{t.description}</p>
       </div>
 
-<<<<<<< HEAD
-      {/* Metrics Section with Skeleton Placeholder matching box layout */}
       <Suspense fallback={<MetricsSkeleton />}>
         <VehicleMetrics />
       </Suspense>
-=======
-      <VehicleMetrics />
->>>>>>> qa-fixes-and-date-picker
 
       {/* Add New Vehicle Box (Static & Immediate) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/85">
@@ -317,14 +274,9 @@ async function VehiclesContent() {
         </form>
       </div>
 
-<<<<<<< HEAD
-      {/* Vehicle Grid Section with Skeleton Cards Placeholder matching layout */}
       <Suspense fallback={<VehicleGridSkeleton />}>
         <VehicleGrid />
       </Suspense>
-=======
-      <VehicleGrid />
->>>>>>> qa-fixes-and-date-picker
     </div>
   );
 }

@@ -34,6 +34,7 @@ async function BackLabel() {
   return admin.common.backToApplications;
 }
 
+export const instant = false;
 export default function ApplicationPage({ params }: PageProps<"/admin/drivers/applications/[id]">) {
   return (
     <PageBody>
