@@ -20,6 +20,9 @@ import {
 import { StatusBadge } from "../_components/status-badge";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
 
+// Allow blocking dynamic rendering under cacheComponents for this route
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
   return { title: admin.requests.title };

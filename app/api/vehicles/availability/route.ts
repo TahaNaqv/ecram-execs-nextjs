@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { vehicles, quoteRequests } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,15 +15,21 @@ export async function GET(request: Request) {
     }
 
     const pickupDate = new Date(pickupAtStr);
+    if (isNaN(pickupDate.getTime())) {
+      return NextResponse.json({ error: "Invalid pickupAt parameter" }, { status: 400 });
+    }
 
-    // Find confirmed bookings for this specific date/time
+    // Find confirmed bookings around this specific date/time (within 2-hour window)
+    const windowStart = new Date(pickupDate.getTime() - 2 * 3600 * 1000).toISOString();
+    const windowEnd = new Date(pickupDate.getTime() + 2 * 3600 * 1000).toISOString();
+
     const conflictingBookings = await db
       .select({ vehicleId: quoteRequests.vehicle })
       .from(quoteRequests)
       .where(
         and(
           eq(quoteRequests.status, "confirmed"),
-          eq(quoteRequests.pickupAt, pickupDate.toISOString())
+          sql`${quoteRequests.pickupAt} >= ${windowStart} AND ${quoteRequests.pickupAt} <= ${windowEnd}`
         )
       );
 

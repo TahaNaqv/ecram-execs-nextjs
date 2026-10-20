@@ -569,7 +569,8 @@
       "requests": "Aanvragen",
       "drivers": "Chauffeurs",
       "applications": "Aanmeldingen",
-      "corporate": "Zakelijk"
+      "corporate": "Zakelijk",
+      "vehicles": "Voertuigbeschikbaarheid"
     },
     "login": {
       "heading": "Welkom terug",
@@ -773,6 +774,24 @@
       "noConsent": "Geen toestemming voor e-mail",
       "hasAccount": "Heeft account",
       "noAccount": "Nog geen account"
+    },
+    "vehicles": {
+      "title": "Wagenpark & Beschikbaarheid",
+      "description": "Beheer luxe voertuigen beschikbaar voor klantboekingen en offerteaanvragen.",
+      "totalFleet": "Totaal wagenpark",
+      "registered": "Voertuigen geregistreerd in het systeem",
+      "available": "Beschikbaar",
+      "availableNote": "Beschikbaar voor offerteselectie door klanten",
+      "unavailable": "Niet beschikbaar / Onderhoud",
+      "unavailableNote": "Verborgen op boekingsformulieren",
+      "registeredHeader": "Geregistreerde voertuigen",
+      "noVehicles": "Geen voertuigen in het wagenpark",
+      "noVehiclesNote": "Voeg uw eerste voertuig toe via het bovenstaande formulier om het weer te geven bij offerteaanvragen.",
+      "removeVehicle": "Voertuig verwijderen",
+      "toggleStatus": "Status wijzigen",
+      "addNew": "Nieuw voertuig toevoegen",
+      "namePlaceholder": "Voer voertuignaam in (bijv. Mercedes-Benz VLE 300)",
+      "addCta": "Voertuig toevoegen aan wagenpark"
     },
     "partnerCard": {
       "title": "Zakelijke partner",

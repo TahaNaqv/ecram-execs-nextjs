@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { db, schema } from "@/lib/db";
+import { eq } from "drizzle-orm";
 import { getBooking, latestPhone } from "@/lib/corporate/bookings";
 import { requirePartner } from "@/lib/corporate/portal";
 import { FLEET } from "@/lib/fleet/vehicles";
@@ -15,7 +17,15 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
   const { repeat } = await searchParams;
   const { locale, contact } = await requirePartner("/corporate-partner/account/new-booking");
   const d = await getDict();
-  const [phone, earlier] = await Promise.all([latestPhone(), typeof repeat === "string" ? getBooking(repeat) : null]);
+  const [phone, earlier, dbVehicles] = await Promise.all([
+    latestPhone(),
+    typeof repeat === "string" ? getBooking(repeat) : null,
+    db
+      .select({ key: schema.vehicles.id, name: schema.vehicles.name })
+      .from(schema.vehicles)
+      .where(eq(schema.vehicles.status, "available"))
+      .catch(() => []),
+  ]);
 
   // Only the partner's own bookings can be repeated (getBooking finds nothing else); the date is never copied
   const source = earlier && earlier.service !== "bespoke" ? earlier : null;
@@ -46,7 +56,11 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
         locale={locale}
         booker={{ name: contact.name, email: contact.email }}
         defaults={defaults}
-        vehicles={FLEET.map(({ key, name }) => ({ key, name }))}
+        vehicles={
+          dbVehicles && dbVehicles.length > 0
+            ? dbVehicles
+            : FLEET.map(({ key, name }) => ({ key, name }))
+        }
         serviceLabels={d.services}
         loginHref={localizedPath("/corporate-partner/login", locale)}
         copy={{

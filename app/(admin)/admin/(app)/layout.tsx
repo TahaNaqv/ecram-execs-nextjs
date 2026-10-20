@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdmin, type Admin } from "@/lib/auth/session";
 import { applicationCounts } from "@/lib/admin/applications";
 import { statusCounts } from "@/lib/admin/queries";
 import { logout } from "../actions";
@@ -11,22 +11,22 @@ import { LogOutIcon } from "../_components/icons";
 import { Avatar } from "../_components/ui";
 
 /** Shell shared by every signed-in admin page: sidebar navigation plus the page content. */
-/** Shell shared by every signed-in admin page: sidebar navigation plus the page content. */
-export default function AdminAppLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
+  // Authenticate at the root layout level to handle redirects securely before streaming chunks
+  const admin = await requireAdmin();
+
   return (
     <div className="min-h-dvh">
-      {/* The sidebar reads the URL and the admin's language, so it streams in after the shell
-          (same size, no layout shift). Resolving the dictionary here rather than in the layout
-          body keeps the static shell instant under Cache Components. */}
+      {/* The sidebar reads the URL and the admin's language, so it streams in after the shell */}
       <Suspense fallback={<ChromeFallback />}>
-        <Chrome />
+        <Chrome admin={admin} />
       </Suspense>
       <div className="flex min-h-dvh flex-col lg:pl-64">{children}</div>
     </div>
   );
 }
 
-async function Chrome() {
+async function Chrome({ admin }: { admin: Admin }) {
   const { admin: t } = await adminDictionary();
   return (
     <AdminChrome
@@ -43,11 +43,7 @@ async function Chrome() {
           </Suspense>
         ),
       }}
-      account={
-        <Suspense fallback={<AccountFallback />}>
-          <Account />
-        </Suspense>
-      }
+      account={<Account admin={admin} />}
     />
   );
 }
@@ -84,9 +80,8 @@ async function NewApplicationsBadge() {
   );
 }
 
-async function Account() {
+async function Account({ admin }: { admin: Admin }) {
   const { admin: t } = await adminDictionary();
-  const admin = await requireAdmin();
   return (
     <div className="flex items-center gap-3 rounded-lg px-2 py-2">
       <Avatar name={admin.name} size="sm" />

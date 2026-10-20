@@ -20,7 +20,7 @@ async function Description() {
   const { admin } = await adminDictionary();
   return admin.corporate.description;
 }
-
+export const instant = false;
 export default function CorporatePage() {
   return (
     <PageBody>

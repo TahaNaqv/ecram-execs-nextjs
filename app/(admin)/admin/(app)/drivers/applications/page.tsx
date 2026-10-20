@@ -32,6 +32,7 @@ async function Heading() {
   return admin.applications.title;
 }
 
+export const instant = false;
 export default function ApplicationsPage({ searchParams }: PageProps<"/admin/drivers/applications">) {
   return (
     <PageBody>

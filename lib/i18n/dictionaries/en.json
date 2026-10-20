@@ -569,7 +569,8 @@
       "requests": "Requests",
       "drivers": "Drivers",
       "applications": "Applications",
-      "corporate": "Corporate"
+      "corporate": "Corporate",
+      "vehicles": "Vehicle Availability"
     },
     "login": {
       "heading": "Welcome back",
@@ -773,6 +774,24 @@
       "noConsent": "No email consent",
       "hasAccount": "Has account",
       "noAccount": "No account yet"
+    },
+    "vehicles": {
+      "title": "Fleet & Vehicle Control",
+      "description": "Manage luxury vehicles available for client bookings and quote forms.",
+      "totalFleet": "Total Fleet",
+      "registered": "Vehicles registered in system",
+      "available": "Available",
+      "availableNote": "Ready for client quote selection",
+      "unavailable": "Unavailable",
+      "unavailableNote": "Hidden from booking forms",
+      "registeredHeader": "Registered Vehicles",
+      "noVehicles": "No vehicles in fleet",
+      "noVehiclesNote": "Add your first vehicle using the form above to display it on client quote requests.",
+      "removeVehicle": "Remove Vehicle",
+      "toggleStatus": "Toggle Status",
+      "addNew": "Add New Vehicle",
+      "namePlaceholder": "Enter vehicle name (e.g. Mercedes-Benz VLE 300)",
+      "addCta": "Add Vehicle to Fleet"
     },
     "partnerCard": {
       "title": "Corporate partner",
