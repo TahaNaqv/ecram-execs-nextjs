@@ -23,7 +23,6 @@ export type QuoteFormCopy = Record<
   string
 > & { labelAddStop?: string; labelRemoveStop?: string };
 
-
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
 
@@ -36,7 +35,7 @@ export function QuoteForm({
 }: {
   locale: Locale;
   serviceLabels: Record<Service, string>;
-  vehicles: { key: string; name: string }[];
+  vehicles: { key: string; name: string; status: string }[];
   copy: QuoteFormCopy;
   dateTimeCopy: DateTimeCopy;
 }) {
@@ -45,7 +44,6 @@ export function QuoteForm({
   const [vehicle, setVehicle] = useState("");
   const [vehicleTouched, setVehicleTouched] = useState(false);
 
-  // Additional stops state (capped at MAX_STOPS) with unique IDs for correct deletion handling
   const [stops, setStops] = useState<{ id: string; value: string; wait: number }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -108,7 +106,6 @@ export function QuoteForm({
   const v = state.status === "error" ? state.values : {};
   const err = state.status === "error" ? state.fieldErrors : {};
   const describedBy = (f: QuoteField) => (err[f] ? `q-${f}-error` : undefined);
-  // The message sits under its input; aria-describedby (above) points at this id
   const fieldError = (f: QuoteField, message = err[f]) =>
     message ? (
       <p id={`q-${f}-error`} className="m-0 px-3 pb-2.5 text-[11px] tracking-[0] text-error normal-case">
@@ -135,7 +132,7 @@ export function QuoteForm({
           {fieldError("collection")}
         </div>
 
-        {/* Destination with Clean Trigger Button & Dropdown */}
+        {/* Destination */}
         <div className="relative flex flex-col bg-white" ref={dropdownRef}>
           <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
             <label htmlFor="q-destination" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
@@ -158,7 +155,6 @@ export function QuoteForm({
           </div>
           {fieldError("destination")}
 
-          {/* Hidden inputs using unique IDs to pass exact values on submit */}
           {stops.map((stop) => (
             <span key={stop.id} hidden>
               <input type="hidden" name="destinations" value={stop.value} />
@@ -166,7 +162,6 @@ export function QuoteForm({
             </span>
           ))}
 
-          {/* Elegant Dropdown Popover (capped at MAX_STOPS) */}
           {isOpen && (
             <div className="absolute left-0 right-0 top-[calc(100%+2px)] z-50 bg-white border border-ink-225 shadow-xl p-3 flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-[11px] tracking-wider uppercase text-ink-500 font-semibold border-b border-ink-100 pb-1.5">
@@ -203,7 +198,6 @@ export function QuoteForm({
                       ×
                     </button>
                   </div>
-                  {/* How long the chauffeur waits at this stop (0 = not at all) */}
                   <label className="flex items-center gap-2 text-[10px] tracking-[0.14em] text-ink-500 uppercase">
                     <span className="shrink-0">{t.labelStopWait}</span>
                     <select
@@ -364,7 +358,7 @@ export function QuoteForm({
           {fieldError("notes")}
         </div>
 
-        {/* Vehicle */}
+        {/* Vehicle Selection Dropdown (Only Available Vehicles Shown) */}
         <div className="flex flex-col bg-white col-span-full">
           <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none">
             <label htmlFor="q-vehicle" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase">
@@ -379,11 +373,13 @@ export function QuoteForm({
               }}
               aria-invalid={!!err.vehicle} aria-describedby={describedBy("vehicle")} className={control}>
               <option value="">{t.selectPlaceholder}</option>
-              {vehicles.map(({ key, name }) => (
-                <option key={key} value={key}>
-                  {name}
-                </option>
-              ))}
+              {vehicles
+                .filter(({ status }) => status === "available")
+                .map(({ key, name }) => (
+                  <option key={key} value={key}>
+                    {name}
+                  </option>
+                ))}
               <option value="advise">{t.vehicleAdvise}</option>
             </select>
           </div>
