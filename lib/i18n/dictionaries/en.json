@@ -495,7 +495,11 @@
     "addStopover": "+ Add Stopover",
     "labelStopWait": "Waiting time",
     "waitNone": "No waiting",
-    "waitMinutes": "{minutes} min"
+    "waitMinutes": "{minutes} min",
+    "selectedVehicle": "Selected Vehicle",
+    "passengersLabel": "Passengers",
+    "electricLabel": "100% Electric",
+    "changeVehicle": "Clear selection"
   },
   "dateTimePicker": {
     "placeholder": "dd-mm-yyyy hh:mm",

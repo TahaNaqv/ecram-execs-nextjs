@@ -191,7 +191,7 @@ export function DateTimeField({
   return (
     <div
       ref={root}
-      className="relative"
+      className="relative flex items-center justify-between w-full min-w-0 gap-1.5"
       onKeyDown={(e) => {
         if (e.key !== "Escape" || !open) return;
         e.stopPropagation();
@@ -209,8 +209,7 @@ export function DateTimeField({
         placeholder={copy.placeholder}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className={className}
-        style={{ paddingRight: "2.5rem" }}
+        className={`${(className || "").replace(/\bp-0\b/, "")} flex-1 min-w-0 text-[14px] md:text-[13.5px] outline-none bg-transparent`}
         onChange={(e) => {
           const raw = e.target.value;
           setText(raw);
@@ -226,7 +225,7 @@ export function DateTimeField({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? closePicker(false) : openPicker())}
-        className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+        className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 transition-colors"
       >
         <CalendarIcon />
       </button>

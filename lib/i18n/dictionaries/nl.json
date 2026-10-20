@@ -495,7 +495,11 @@
     "addStopover": "+ Tussenstop toevoegen",
     "labelStopWait": "Wachttijd",
     "waitNone": "Geen wachttijd",
-    "waitMinutes": "{minutes} min"
+    "waitMinutes": "{minutes} min",
+    "selectedVehicle": "Geselecteerd Voertuig",
+    "passengersLabel": "Passagiers",
+    "electricLabel": "100% Elektrisch",
+    "changeVehicle": "Selectie wissen"
   },
   "dateTimePicker": {
     "placeholder": "dd-mm-jjjj uu:mm",

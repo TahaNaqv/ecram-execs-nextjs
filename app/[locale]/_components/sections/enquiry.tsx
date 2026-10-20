@@ -3,9 +3,12 @@ import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { db } from "@/lib/db";
 import { vehicles as vehiclesTable } from "@/lib/db/schema";
 import { QuoteForm } from "../quote-form";
+import type { Locale } from "@/lib/i18n/config";
+import type { DateTimeCopy } from "@/components/date-time-field";
 
-async function VehicleQuoteLoader() {
-  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
+async function VehicleQuoteLoader({ localeOverride }: { localeOverride?: Locale }) {
+  const [currentLoc, d] = await Promise.all([currentLocale(), getDict()]);
+  const locale = localeOverride ?? currentLoc;
 
   let dbVehicles: { id: string; name: string; status: string }[] = [];
   try {
@@ -35,7 +38,13 @@ async function VehicleQuoteLoader() {
   );
 }
 
-export async function Enquiry() {
+export async function Enquiry({
+  locale,
+}: {
+  locale?: Locale;
+  dateTimeCopy?: DateTimeCopy;
+  searchParams?: Promise<{ vehicle?: string }>;
+} = {}) {
   const d = await getDict();
 
   return (
@@ -45,7 +54,7 @@ export async function Enquiry() {
           {d.enquiry.heading}
         </h2>
         <Suspense fallback={<div className="h-40 bg-white/50 animate-pulse rounded-lg" />}>
-          <VehicleQuoteLoader />
+          <VehicleQuoteLoader localeOverride={locale} />
         </Suspense>
       </div>
     </section>

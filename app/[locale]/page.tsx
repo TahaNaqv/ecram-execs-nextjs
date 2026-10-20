@@ -55,15 +55,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function HomePage() {
+export default async function HomePage(props: {
+  searchParams?: Promise<{ vehicle?: string }>;
+}) {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const jsonLd = buildJsonLd(locale, d.meta.description);
 
   return (
-    <div className="motion-full bg-ink-950 text-ink-150 font-sans text-[16px] font-normal leading-[1.6] w-full"
-     
-     
-    >
+    <div className="motion-full bg-ink-950 text-ink-150 font-sans text-[16px] font-normal leading-[1.6] w-full">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {/* A refresh starts at the top. Browsers otherwise reopen the page where it was (and jump to a stale #anchor);
           this runs before first paint and only for reloads, so back/forward navigation keeps its position. */}
@@ -79,7 +78,7 @@ export default async function HomePage() {
       <SiteHeader />
       <main id="main">
         <Hero />
-        <Enquiry />
+        <Enquiry locale={locale} dateTimeCopy={d.dateTimePicker} searchParams={props.searchParams} />
         <WhoWeServe />
         <Fleet />
         <Concierge />

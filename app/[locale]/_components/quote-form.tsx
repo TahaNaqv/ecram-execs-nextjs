@@ -4,11 +4,12 @@ import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
 import { useActionState, useEffect, useState, useRef } from "react";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
-import { VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { VEHICLE_CHOICES, type VehicleChoice, vehicleByKey } from "@/lib/fleet/vehicles";
 import { SELECT_VEHICLE_EVENT } from "./book-link";
 import type { Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
+import Image from "next/image";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import type { QuoteField } from "@/lib/quotes/validation";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
@@ -19,7 +20,8 @@ export type QuoteFormCopy = Record<
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
   | "labelEmail" | "phEmail" | "labelPhoneCountry" | "labelPhone" | "phPhone"
   | "labelVehicle" | "vehicleAdvise" | "removeStop" | "labelStopWait" | "waitNone" | "waitMinutes" | "stopsCount" | "addStop" | "stopoversTitle" | "noStops" | "stopPlaceholder" | "addStopover" | "labelNotes" | "phNotes"
-  | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink",
+  | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink"
+  | "selectedVehicle" | "passengersLabel" | "electricLabel" | "changeVehicle",
   string
 > & { labelAddStop?: string; labelRemoveStop?: string };
 
@@ -50,10 +52,10 @@ export function QuoteForm({
   // The stop just added takes focus once; reopening the panel later must not pull focus to the last one again
   const [focusId, setFocusId] = useState<string | undefined>();
   const addStopField = () => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setFocusId(id);
-    setStops((prev) => (prev.length >= MAX_STOPS ? prev : [...prev, { id, value: "", wait: 0 }]));
-  };
+  const id = typeof window !== "undefined" && window.crypto ? window.crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
+  setFocusId(id);
+  setStops((prev) => (prev.length >= MAX_STOPS ? prev : [...prev, { id, value: "", wait: 0 }]));
+};
   // The first press both opens the panel and gives the visitor a stop to type into; pressing again closes it
   const toggleStops = () => {
     if (isOpen) return setIsOpen(false);
@@ -113,8 +115,46 @@ export function QuoteForm({
       </p>
     ) : null;
 
+  const selectedFleetVehicle = vehicleByKey(vehicle);
+
   return (
     <form key={state.status === "error" ? state.attempt : 0} action={action} noValidate>
+      <div className={selectedFleetVehicle ? "flex flex-col lg:flex-row gap-8 items-start" : ""}>
+        {selectedFleetVehicle && (
+          <div className="w-full lg:w-[320px] shrink-0 border border-ink-225 bg-white p-5 shadow-xs lg:sticky lg:top-24">
+            <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-ink-600 block mb-2">
+              {t.selectedVehicle}
+            </span>
+            {selectedFleetVehicle.images?.[0] && (
+              <div className="w-full aspect-[16/9] relative mb-3 overflow-hidden bg-ink-100 border border-ink-200">
+                <Image
+                  src={selectedFleetVehicle.images[0]}
+                  alt={selectedFleetVehicle.name}
+                  fill
+                  sizes="320px"
+                  className="object-cover"
+                />
+              </div>
+            )}
+            <h3 className="m-0 font-serif text-[20px] font-normal leading-snug text-ink-950">
+              {selectedFleetVehicle.name}
+            </h3>
+            <p className="mt-1 mb-3 text-[12px] text-ink-500 font-light">
+              {selectedFleetVehicle.specs?.passengers} {t.passengersLabel} • {t.electricLabel}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setVehicle("");
+                setVehicleTouched(true);
+              }}
+              className="text-[11px] font-medium tracking-wider uppercase text-ink-600 hover:text-ink-950 underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              {t.changeVehicle}
+            </button>
+          </div>
+        )}
+        <div className="flex-1 w-full min-w-0">
       <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2 xl:grid-cols-5">
         
         {/* Collection */}
@@ -416,6 +456,8 @@ export function QuoteForm({
           </>
         )}
       </p>
+        </div>
+      </div>
     </form>
   );
 }
