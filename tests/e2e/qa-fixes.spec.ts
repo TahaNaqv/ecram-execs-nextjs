@@ -124,7 +124,9 @@ test("the date and time picker has a Done button, can be typed into, and works f
   // Days that have gone are not offered: with nothing chosen, the calendar opens on this month and yesterday is greyed out
   await field.fill("");
   await page.getByRole("button", { name: d.open }).click();
-  await expect(dialog.locator("button[data-day]:disabled")).toHaveCount(new Date().getDate() - 1);
+  // ("today" is the date in the Netherlands, where pick-ups are booked, whatever zone this machine is in)
+  const dutchToday = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Amsterdam", day: "numeric" }).format(new Date()));
+  await expect(dialog.locator("button[data-day]:disabled")).toHaveCount(dutchToday - 1);
   // Escape closes it too
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();

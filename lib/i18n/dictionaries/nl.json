@@ -557,7 +557,7 @@
     "s4p3": "Resend en Anthropic zijn gevestigd in de Verenigde Staten. Waar persoonsgegevens buiten de Europese Economische Ruimte worden doorgegeven, baseren wij ons op de modelcontractbepalingen van de Europese Commissie in onze overeenkomsten met hen.",
     "s4p2": "Wij verkopen uw gegevens niet en delen ze niet met derden voor marketingdoeleinden.",
     "s5Title": "Hoe lang wij gegevens bewaren",
-    "s5p1": "Aanvragen voor een prijsopgave en aanvragen op maat bewaren wij tot 24 maanden na ons laatste contact met u, zodat wij vervolgvragen en herhaalboekingen kunnen behandelen. Aanmeldingen van chauffeurs die niet tot een samenwerking leiden, inclusief de daarbij geüploade documenten, bewaren wij tot 12 maanden. Gegevens die deel uitmaken van onze financiële administratie bewaren wij zeven jaar, zoals de Nederlandse belastingwetgeving voorschrijft. U kunt ons op elk moment vragen uw aanvraag te verwijderen.",
+    "s5p1": "Aanvragen voor een prijsopgave en aanvragen op maat bewaren wij tot 24 maanden na ons laatste contact met u, zodat wij vervolgvragen en herhaalboekingen kunnen behandelen. Aanmeldingen van chauffeurs die niet tot een samenwerking leiden, inclusief de daarbij geüploade documenten, bewaren wij tot 12 maanden. Gegevens die deel uitmaken van onze financiële administratie, zoals afgeronde boekingen en facturen, bewaren wij zeven jaar, zoals de Nederlandse belastingwetgeving voorschrijft; na 24 maanden verwijderen wij daaruit de notities, berichten en technische gegevens (zoals IP-hashes), zodat alleen overblijft wat de factuur nodig heeft. Wij verwijderen gegevens automatisch zodra de bewaartermijn is verstreken; verwijderde gegevens kunnen tot 14 dagen in onze back-ups blijven staan. U kunt ons op elk moment vragen uw aanvraag te verwijderen.",
     "s6Title": "Uw rechten",
     "s6p1": "U heeft het recht op inzage, correctie of verwijdering van uw persoonsgegevens, op beperking van of bezwaar tegen de verwerking, en op ontvangst van uw gegevens in een overdraagbare vorm. Neem contact met ons op via ",
     "s6p2": " en wij reageren binnen een maand. U heeft ook het recht een klacht in te dienen bij de Nederlandse privacytoezichthouder (",
@@ -569,7 +569,7 @@
     "s8p1": "Maakt u een account aan in ons gedeelte voor zakelijke partners, dan verzamelen wij uw zakelijke e-mailadres, naam en functie en het wachtwoord dat u kiest. Wij gebruiken uw e-mailadres om een eenmalige verificatiecode te sturen waarmee u bewijst dat het adres van u is (het nemen van stappen op uw verzoek, artikel 6, lid 1, onder b, AVG). Uw wachtwoord wordt alleen opgeslagen als gezouten hash die niet terug te lezen is, en een account wordt na herhaaldelijk foutieve wachtwoorden tijdelijk geblokkeerd. Wij bewaren ook uw taal, het moment van uw laatste aanmelding, een eenzijdige hash van uw IP-adres en de user-agent die uw browser over zichzelf meestuurt, om dit gedeelte te beveiligen (ons gerechtvaardigd belang, artikel 6, lid 1, onder f, AVG). Verificatiecodes verlopen na tien minuten en worden alleen opgeslagen in een vorm die niet terug te lezen is. Op een apparaat blijft u maximaal zeven dagen ingelogd, tenzij u eerder uitlogt.",
     "s8p2": "In dit gedeelte kunt u boekingen aanvragen, offertes beantwoorden, ons berichten sturen en een wijziging of annulering vragen. Wij bewaren de ritgegevens die u invoert (ophaallocatie, bestemming, tussenstops, datum en tijd, aantal passagiers, voertuig en opmerkingen), uw naam, e-mailadres en telefoonnummer als boeker, uw bedrijfsnaam en KvK-nummer als u die heeft opgegeven, de offerte en de status van de boeking, en de berichten en antwoorden daarbij. Stuurt u de bedrijfsintroductie in, dan bewaren wij ook het registratienummer van uw bedrijf, wie namens het bedrijf tekent, een aanspreekpunt, hoe u het liefst wordt benaderd en welke ritten u verwacht te boeken. Wij gebruiken dit om uw ritten te regelen en u te antwoorden (het nemen van stappen op uw verzoek en de uitvoering van onze overeenkomst, artikel 6, lid 1, onder b, AVG). Ons team kan facturen aan een boeking toevoegen zodat u ze kunt downloaden; alleen u en ons personeel kunnen ze openen.",
     "s8p3": "Vinkt u het vakje aan wanneer u uw account aanmaakt, dan gebruiken wij uw gegevens ook om u per e-mail op de hoogte te houden van onze diensten en nieuws, op basis van uw toestemming (artikel 6, lid 1, onder a, AVG). U kunt die toestemming altijd intrekken door contact met ons op te nemen, waarna wij ermee stoppen.",
-    "s8p4": "Wij bewaren uw account, de bijbehorende boekingen, berichten en facturen zolang u met ons samenwerkt. U kunt ons op elk moment vragen uw account te sluiten en uw gegevens te verwijderen; dat doen wij dan, behalve voor wat wij wettelijk moeten bewaren, zoals facturen en financiële administratie (zeven jaar)."
+    "s8p4": "Wij bewaren uw account zolang u het gebruikt. Heeft u 24 maanden niet ingelogd en is er in die tijd aan geen van uw boekingen gewerkt, dan verwijderen wij het automatisch, samen met de boekingen die geen deel uitmaken van onze financiële administratie. Begint u met het aanmaken van een account zonder het af te ronden, dan verwijderen wij de gegevens na 30 dagen. U kunt ons ook op elk moment vragen uw account te sluiten en uw gegevens te verwijderen; dat doen wij dan, behalve voor wat wij wettelijk moeten bewaren: boekingen die deel uitmaken van onze financiële administratie, zoals gefactureerde boekingen, blijven zeven jaar bestaan zonder uw persoonsgegevens (alleen het bedrijf, de rit, het bedrag en de facturen blijven)."
   },
   "admin": {
     "common": {
@@ -802,6 +802,7 @@
       "attachedSignup": "Automatisch gekoppeld toen {partner} een account aanmaakte",
       "detached": "Losgekoppeld van partner {partner}",
       "invoiceAdded": "Factuur toegevoegd: {file}",
+      "partnerErased": "Partneraccount verwijderd; deze boeking blijft bewaard voor de financiële administratie, zonder persoonsgegevens",
       "createdByTeam": "Aangemaakt door het team"
     },
     "corporate": {
@@ -818,7 +819,16 @@
       "optedIn": "Toestemming",
       "noConsent": "Geen toestemming voor e-mail",
       "hasAccount": "Heeft account",
-      "noAccount": "Nog geen account"
+      "noAccount": "Nog geen account",
+      "delete": "Verwijderen",
+      "deleteTitle": "Dit account verwijderen?",
+      "deleteIntro": "Hiermee verwijdert u het account voor zakelijke partners van {name} definitief: het account, de inlogsessies en de toestemming voor e-mail. Deze persoon wordt overal uitgelogd. Dit kan niet ongedaan worden gemaakt, en kopieën in back-ups verlopen na 14 dagen.",
+      "deleteGone": "Boekingen die met het account worden verwijderd: {count}. Ze worden samen met hun berichten en geschiedenis verwijderd.",
+      "deleteKept": "Afgeronde of gefactureerde boekingen die voor de financiële administratie bewaard blijven: {count}. Ze blijven bestaan zonder koppeling met het account, zonder berichten, notities en gegevens van de contactpersoon; het bedrijf, de route, het bedrag en de facturen blijven.",
+      "deleteConfirm": "Definitief verwijderen",
+      "deleteCancel": "Annuleren",
+      "deleteWorking": "Bezig met verwijderen…",
+      "deleteBlocked": "Deze partner heeft nog {count} openstaande boeking(en) waarvan de rit nog niet heeft plaatsgevonden. Annuleer of rond ze eerst af; het account kan pas daarna worden verwijderd."
     },
     "vehicles": {
       "title": "Wagenparkbeheer",

@@ -97,7 +97,8 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
    - Mention that they can connect directly with our team on WhatsApp.
    - End your response with the token: [HANDOFF_WHATSAPP]`;
 
-    const model = "claude-haiku-4-5-20251001";
+    // Claude Haiku 5.5: fast and inexpensive for short answers. CONCIERGE_MODEL switches model without a code change.
+    const model = process.env.CONCIERGE_MODEL || "claude-haiku-5-5";
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -109,6 +110,8 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
       body: JSON.stringify({
         model,
         max_tokens: 350,
+        // Haiku 5.5 thinks by default, and thinking counts against max_tokens: a short chat answer is better without it
+        thinking: { type: "disabled" },
         system: systemPrompt,
         messages: [...conversationHistory, { role: "user", content: message }],
       }),
@@ -129,7 +132,14 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
     }
 
     const data = await response.json();
-    const rawReply: string = data.content?.[0]?.text || "";
+    // The reply is the text blocks (a thinking block may come first); a refusal or an empty answer goes to the team instead
+    const rawReply: string = Array.isArray(data.content)
+      ? data.content.filter((block: { type?: string }) => block.type === "text").map((block: { text?: string }) => block.text ?? "").join("")
+      : "";
+    if (data.stop_reason === "refusal" || !rawReply.trim()) {
+      const match = bestMatch(message, faqs);
+      return NextResponse.json(match?.answer ? { reply: match.answer, handoff: false } : { reply: section.fallbackScope, handoff: true });
+    }
 
     const shouldHandoff =
       rawReply.includes("[HANDOFF_WHATSAPP]") ||
@@ -139,7 +149,7 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
     const cleanReply = rawReply.replace(/\[HANDOFF_WHATSAPP\]/g, "").trim();
 
     return NextResponse.json({
-      reply: cleanReply || "Welcome to Ecram Execs. How may we assist with your journey today?",
+      reply: cleanReply || section.welcome,
       handoff: shouldHandoff,
     });
   } catch (err) {

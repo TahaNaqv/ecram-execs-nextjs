@@ -245,6 +245,23 @@ cd /srv/ecram-execs && sudo -u ecram node --env-file=.env scripts/sweep-document
 echo '45 3 * * * cd /srv/ecram-execs && node --env-file=.env scripts/sweep-documents.mts --apply >> /home/ecram/sweep.log 2>&1' | sudo crontab -u ecram -
 ```
 
+### Retention: removing personal data that is past its period
+
+The privacy policy promises how long data is kept (requests 24 months after the last contact, completed or invoiced
+bookings 7 years, driver applications that did not become a partnership 12 months, Corporate Partner accounts nobody has
+used for 24 months, sign-ups never finished 30 days). `scripts/retention.mts` enforces it; the periods are the `RETENTION`
+constants in `lib/retention.ts`, and changing one means changing the policy text too. It does nothing without `--apply`,
+removes at most 200 rows per rule per run, and prints references and ids only (no names or emails). Always look at a dry
+run first:
+
+```bash
+cd /srv/ecram-execs && sudo -u ecram node --env-file=.env scripts/retention.mts
+# when the list is what you expect:
+(sudo crontab -u ecram -l 2>/dev/null; echo '15 4 * * 0 cd /srv/ecram-execs && node --env-file=.env scripts/retention.mts --apply >> /home/ecram/retention.log 2>&1') | sudo crontab -u ecram -
+```
+
+(Written to add to the `ecram` user's crontab, not replace it, so the sweep above keeps running.) A partner account can also be deleted by hand from the admin's Corporate page.
+
 Nginx logs requests without query strings (`/var/log/nginx/ecram.access.log`), so the signed tokens in document links
 never land in a log. Backups keep a deleted document for up to 14 days; that is the retention to state in your privacy policy.
 

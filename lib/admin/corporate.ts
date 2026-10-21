@@ -2,7 +2,8 @@ import "server-only";
 import { count, desc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { contactColumns } from "@/lib/corporate/columns";
-import { db, schema } from "@/lib/db";
+import { db, schema, sqlClient } from "@/lib/db";
+import { bookingCountsByContact } from "@/lib/retention";
 
 const { corporateContacts: c } = schema;
 
@@ -58,4 +59,10 @@ export async function corporateContactsCsv(optedInOnly: boolean) {
   );
   // BOM so Excel reads the file as UTF-8 (names with accents)
   return `﻿${[header.join(","), ...lines].join("\r\n")}\r\n`;
+}
+
+/** For each account: how many of its bookings would be deleted with it and how many are kept for the financial records. */
+export async function corporateBookingCounts() {
+  await requireAdmin();
+  return bookingCountsByContact(sqlClient);
 }

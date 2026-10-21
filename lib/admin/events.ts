@@ -38,6 +38,7 @@ export const REQUEST_EVENTS = [
   "attached",
   "detached",
   "invoice_added",
+  "partner_erased",
 ] as const;
 export type RequestEventKey = (typeof REQUEST_EVENTS)[number];
 
@@ -64,6 +65,8 @@ export type EventLabels = {
   detached: string;
   /** Interpolates {file} */
   invoiceAdded: string;
+  /** The partner's account was deleted; this booking stays for the financial records, stripped of personal details */
+  partnerErased: string;
   /** Shown for an absent amount */
   none: string;
   statuses: Record<RequestStatus, string>;
@@ -103,6 +106,7 @@ export function renderEvent(
   if (event === "attached") return fill(params?.by === "signup" ? labels.attachedSignup : labels.attached, { partner: params?.partner ?? "" });
   if (event === "detached") return fill(labels.detached, { partner: params?.partner ?? "" });
   if (event === "invoice_added") return fill(labels.invoiceAdded, { file: params?.fileName ?? "" });
+  if (event === "partner_erased") return labels.partnerErased;
 
   if (event === "changes") {
     const parts = (params?.changes ?? []).map((change) => {

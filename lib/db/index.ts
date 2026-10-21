@@ -21,4 +21,6 @@ const client =
 if (process.env.NODE_ENV !== "production") globalForDb.pgClient = client;
 
 export const db = drizzle(client, { schema });
+/** The postgres.js client under `db`, for code that takes one (lib/retention.ts). */
+export const sqlClient = client;
 export { schema };

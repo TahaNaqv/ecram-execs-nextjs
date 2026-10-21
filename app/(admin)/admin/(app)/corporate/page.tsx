@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { corporateTotals, listCorporateContacts } from "@/lib/admin/corporate";
+import { corporateBookingCounts, corporateTotals, listCorporateContacts } from "@/lib/admin/corporate";
 import { formatRelative, formatTimestamp } from "@/lib/admin/format";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { BriefcaseIcon } from "../../_components/icons";
 import { Avatar, Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../_components/ui";
+import { DeleteContactButton } from "./delete-contact-button";
 import { ExportButtons } from "./export-buttons";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -45,8 +46,9 @@ export default function CorporatePage() {
 }
 
 async function Contacts() {
-  const [rows, totals, dict] = await Promise.all([listCorporateContacts(), corporateTotals(), adminDictionary()]);
+  const [rows, totals, counts, dict] = await Promise.all([listCorporateContacts(), corporateTotals(), corporateBookingCounts(), adminDictionary()]);
   const t = dict.admin.corporate;
+  const deleteCopy = { delete: t.delete, deleteTitle: t.deleteTitle, deleteIntro: t.deleteIntro, deleteGone: t.deleteGone, deleteKept: t.deleteKept, deleteBlocked: t.deleteBlocked, deleteConfirm: t.deleteConfirm, deleteCancel: t.deleteCancel, deleteWorking: t.deleteWorking };
 
   return (
     <Card className="mt-6 overflow-hidden">
@@ -99,6 +101,7 @@ async function Contacts() {
                   <span className="text-xs text-zinc-500 sm:w-20 sm:text-right" title={formatTimestamp(r.createdAt)}>
                     {formatRelative(r.createdAt)}
                   </span>
+                  <DeleteContactButton id={r.id} name={r.name} gone={counts.get(r.id)?.deleted ?? 0} kept={counts.get(r.id)?.kept ?? 0} upcoming={counts.get(r.id)?.upcoming ?? 0} copy={deleteCopy} />
                 </div>
               </div>
             </li>
