@@ -14,7 +14,7 @@ type Copy = Record<
   string
 >;
 
-type Values = Record<string, string>;
+type Values = Record<string, any>;
 
 function Select({ values, name, label, options, empty, className = "" }: { values: Values; name: string; label: string; options: Option[]; empty?: string; className?: string }) {
   return (
@@ -51,8 +51,12 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
   const [state, action, pending] = useActionState<NewBookingState, FormData>(createBookingForPartner, {});
   const v = state.values ?? {};
   
-  // Dynamic destinations/stops capped at a maximum of 5
-  const [destinations, setDestinations] = useState<string[]>([""]);
+  // Initialize destinations from server state values if present, otherwise default to one empty field
+  const initialDestinations = Array.isArray(v.destinations) && v.destinations.length > 0 
+    ? v.destinations 
+    : v.destination ? [v.destination] : [""];
+
+  const [destinations, setDestinations] = useState<string[]>(initialDestinations);
 
   const addDestination = () => {
     if (destinations.length < 5) {

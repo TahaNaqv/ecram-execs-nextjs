@@ -46,7 +46,20 @@ const schemaFor = z.object({
 /** A booking entered by the team (it came by phone or email), optionally for a partner so it shows in their portal. */
 export async function createBookingForPartner(_prev: NewBookingState, formData: FormData): Promise<NewBookingState> {
   const admin = await requireAdmin();
+
+  // Extract all destination input values from the dynamic form fields
+  const allDestinations = formData.getAll("destinations").map((v) => String(v).trim()).filter(Boolean);
+
   const values = Object.fromEntries(FIELDS.map((k) => [k, String(formData.get(k) ?? "")]));
+
+  // Map the destinations array to main destination and stops
+  if (allDestinations.length > 0) {
+    values.destination = allDestinations[0];
+    if (allDestinations.length > 1 && !values.stops) {
+      values.stops = allDestinations.slice(1).join("\n");
+    }
+  }
+
   const fail = (error: string) => ({ error, values });
 
   const typed = values.phone.trim();
@@ -78,6 +91,7 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
     })
     .filter((s) => s.place)
     .slice(0, MAX_STOPS);
+
   let created: typeof schema.quoteRequests.$inferSelect | undefined;
   for (let i = 0; i < 3 && !created; i++) {
     try {
