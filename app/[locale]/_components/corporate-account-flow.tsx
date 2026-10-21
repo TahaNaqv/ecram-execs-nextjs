@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, type RefObject } from "react";
 import { completeCode, verifyCode } from "@/lib/corporate/account-actions";
 import { requestCode, requestReset, resendCode } from "@/lib/corporate/actions";
 import type { CorporateState } from "@/lib/corporate/state";
@@ -13,6 +13,10 @@ import { control, Field } from "./form-field";
 
 type Step = "request" | "code" | "password";
 type Mode = "signup" | "reset";
+
+type HeadingRef = {
+  headingRef: RefObject<HTMLHeadingElement | null>;
+};
 
 export type AccountFlowCopy = Record<
   | "stepRequest" | "stepCode" | "stepPassword" | "resetStepRequest" | "resetStepCode" | "resetStepPassword" | "progressLabel"
@@ -34,11 +38,6 @@ type Props = {
   loginHref: string;
 };
 
-/**
- * Sign-up and password reset share one flow of three screens: say which address, enter the emailed code, then choose the
- * password. Signing up with an address that already has an account therefore looks exactly like signing up with a new
- * one, and only the owner of the address (who has the code) can set its password.
- */
 export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHref, loginHref }: Props) {
   const [step, setStep] = useState<Step>(initial.step);
   const [email, setEmail] = useState(initial.email ?? "");
@@ -46,7 +45,6 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
   const heading = useRef<HTMLHeadingElement>(null);
   const first = useRef(true);
 
-  // Move focus to the new step so a keyboard or screen-reader user lands on it
   useEffect(() => {
     if (first.current) {
       first.current = false;
@@ -80,7 +78,7 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
           banner={banner}
           privacyHref={privacyHref}
           headingRef={heading}
-          onSent={(sentTo) => {
+          onSent={(sentTo: string) => {
             setEmail(sentTo);
             setBanner(undefined);
             setStep("code");
@@ -95,7 +93,7 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
           minutes={minutes}
           headingRef={heading}
           onVerified={() => setStep("password")}
-          onRestart={(message) => {
+          onRestart={(message?: string) => {
             setBanner(message);
             setStep("request");
           }}
@@ -107,7 +105,7 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
           copy={t}
           email={email}
           headingRef={heading}
-          onRestart={(message) => {
+          onRestart={(message?: string) => {
             setBanner(message);
             setStep("request");
           }}
@@ -185,17 +183,17 @@ function RequestForm({
       <input type="hidden" name="locale" value={locale} />
       <Honeypot />
       <div className="flex flex-col items-center gap-3">
-  <button
-    type="submit"
-    disabled={pending}
-    className={`w-full max-w-[630px] flex items-center justify-center ${submitClass}`}
-  >
-    {pending
-      ? t.sending
-      : mode === "signup"
-        ? t.sendCode
-        : t.sendResetCode}
-  </button>
+        <button
+          type="submit"
+          disabled={pending}
+          className={`w-full max-w-[630px] flex items-center justify-center ${submitClass}`}
+        >
+          {pending
+            ? t.sending
+            : mode === "signup"
+              ? t.sendCode
+              : t.sendResetCode}
+        </button>
         <Status error={state.status === "error"}>
           {state.status === "error" ? (
             state.message
@@ -287,7 +285,6 @@ function PasswordForm({
   onRestart,
 }: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; email: string; onRestart: (message?: string) => void }) {
   const [attempt, setAttempt] = useState(0);
-  // Success redirects to the account page, so the only answers seen here are refusals
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
     const next = await completeCode(prev, formData);
     if (next.status === "locked") onRestart(next.message);
@@ -305,7 +302,6 @@ function PasswordForm({
         {heading}
       </h2>
       <p className="m-0 text-[15px] text-ink-700">{interpolate(intro, { email })}</p>
-      {/* Each refusal gets a new form, which empties the password boxes: a password is never sent back to the page */}
       <form key={attempt} action={action} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
           <Field idPrefix="c" label={t.labelNewPassword} name="password" error={err.password}>

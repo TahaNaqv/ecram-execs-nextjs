@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { siteConfig, socialLinks } from "@/lib/site-config";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
@@ -53,7 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function HomePage() {
+async function HomeContent() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const jsonLd = buildJsonLd(locale, d.meta.description);
 
@@ -87,5 +88,13 @@ export default async function HomePage() {
       <NavAutoClose />
       <SectionNav copy={{ prev: d.common.sectionPrev, next: d.common.sectionNext }} />
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
+      <HomeContent />
+    </Suspense>
   );
 }

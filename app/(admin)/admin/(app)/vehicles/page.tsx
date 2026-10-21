@@ -12,7 +12,7 @@ type Vehicle = typeof vehicles.$inferSelect;
 
 export const instant = false;
 
-export async function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
   return { title: admin.vehicles.title };
 }
