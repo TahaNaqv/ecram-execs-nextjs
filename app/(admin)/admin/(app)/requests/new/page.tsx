@@ -27,7 +27,7 @@ async function Back() {
 }
 export const instant = false;
 async function Form() {
-  const admin = await requireAdmin();
+  const sessionAdmin = await requireAdmin();
   const [d, partners, dbVehicles] = await Promise.all([
     adminDictionary(),
     db
@@ -49,6 +49,10 @@ async function Form() {
           label: `${v.name}${v.status === "unavailable" ? " (Unavailable)" : ""}`,
         }))
       : FLEET.map((v) => ({ value: v.key, label: v.name }));
+  
+  // Determine if current dictionary locale is Dutch based on common keys or session
+  const isDutch = sessionAdmin.locale === "nl" || "tussenstop" in (d.admin.newBooking as any);
+
   return (
     <Card className="mt-6 p-5 sm:p-6">
       <NewBookingForm
@@ -56,8 +60,11 @@ async function Form() {
         services={(["airport_transfer", "business_travel", "hourly", "private_occasion"] as const).map((s) => ({ value: s, label: d.services[s] }))}
         statuses={REQUEST_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
         vehicles={vehicleOptions}
-        copy={t}
-        locale={admin.locale}
+        copy={{
+          ...t,
+          addStop: isDutch ? "Tussenstop toevoegen" : "Add stop",
+        }}
+        locale={sessionAdmin.locale}
         dateTimeCopy={d.dateTimePicker}
       />
     </Card>

@@ -870,6 +870,7 @@
       "stops": "Stops onderweg (één per regel; voeg “ | 30” toe voor 30 minuten wachttijd)",
       "pickup": "Ophaaldatum en -tijd (NL)",
       "passengers": "Passagiers",
+      "addStop": "Add stop",
       "vehicle": "Voertuig",
       "vehicleNone": "Niet opgegeven",
       "name": "Naam contactpersoon",
