@@ -66,19 +66,25 @@ async function Contacts() {
       ) : (
         <ul className="divide-y divide-zinc-100">
           {rows.map((r) => (
-            <li key={r.id} className="flex gap-3 px-4 py-4 sm:items-center sm:px-5">
+            <li key={r.id} className="flex items-center gap-3 px-4 py-4 sm:px-5">
               <Avatar name={r.name} />
-              <div className="grid min-w-0 flex-1 gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-6">
+              <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[220px_minmax(0,1fr)_auto] sm:items-center sm:gap-6">
+                
+                {/* Column 1: Name & Position (Fixed width so it never collapses) */}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-zinc-950">{r.name}</p>
                   <p className="truncate text-xs text-zinc-500">{r.position}</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-zinc-800">{r.companyName ?? r.emailDomain}</p>
-                  <a href={`mailto:${r.email}`} className="truncate text-xs text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950">
+
+                {/* Column 2: Company & Email */}
+                <div className="min-w-0 flex flex-col justify-center">
+                  <p className="truncate text-sm font-medium text-zinc-800">{r.companyName ?? r.emailDomain}</p>
+                  <a href={`mailto:${r.email}`} className="block truncate text-xs text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950">
                     {r.email}
                   </a>
                 </div>
+
+                {/* Column 3: Status Badges & Date */}
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.verifiedAt ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-500"}`}>
                     {r.verifiedAt ? t.verified : t.notVerified}

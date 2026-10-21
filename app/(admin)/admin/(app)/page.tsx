@@ -188,9 +188,9 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 href={href({ status })}
                 aria-label={t.common.clear}
                 title={t.common.clear}
-                className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-zinc-950 hover:bg-zinc-100 hover:text-zinc-950"
               >
-                <XIcon size={14} />
+                <XIcon size={14} className="text-zinc-950" />
               </Link>
             )}
           </div>
