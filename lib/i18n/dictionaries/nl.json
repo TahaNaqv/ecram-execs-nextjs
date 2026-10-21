@@ -75,7 +75,13 @@
     "bookingSubjectReply": "Een reactie van Ecram Execs over {reference}",
     "bookingIntroReply": "Ons team heeft gereageerd op uw boeking {reference}:",
     "bookingSubjectInvoice": "Er is een factuur voor {reference} beschikbaar",
-    "bookingIntroInvoice": "Er staat een factuur voor uw boeking {reference} klaar om te downloaden op uw boekingspagina."
+    "bookingIntroInvoice": "Er staat een factuur voor uw boeking {reference} klaar om te downloaden op uw boekingspagina.",
+    "bookingSubjectContacted": "Ons team is aan de slag met uw boeking {reference}",
+    "bookingIntroContacted": "Een medewerker van ons team heeft uw boeking {reference} opgepakt en neemt spoedig contact met u op. De voortgang volgt u op uw boekingspagina.",
+    "bookingRecordedSubject": "Uw boeking bij Ecram Execs {reference}",
+    "bookingRecordedIntro": "Ons team heeft onderstaande boeking voor u vastgelegd ({reference}).",
+    "fieldStops": "Tussenstops",
+    "fieldPassengers": "Passagiers"
   },
   "criteria": {
     "or": "of",
@@ -361,7 +367,7 @@
     "faq7Q": "Hoe werkt wachttijd en zijn er extra kosten?",
     "faq7A": "Laat ons weten als u wilt dat uw chauffeur wacht; wij nemen dit op in uw persoonlijke prijsopgave.",
     "faq8Q": "Welke voertuigen biedt u aan?",
-    "faq8A": "Onze vloot bestaat uitsluitend uit volledig elektrische voertuigen in de topuitvoering van toonaangevende luxemerken, elk afgewerkt in obsidiaanzwart met een zwart executive interieur. Bekijk het onderdeel De vloot voor het volledige aanbod.",
+    "faq8A": "Onze vloot bestaat uitsluitend uit volledig elektrische voertuigen in de topuitvoering van toonaangevende luxemerken, elk afgewerkt in obsidiaanzwart met een zwart executive interieur. Kies een voertuig in het formulier Plan uw rit om de foto's en details te zien.",
     "faq9Q": "Welk voertuig past het best bij mijn passagiers en bagage?",
     "faq9A": "Laat ons weten met hoeveel passagiers u reist en hoeveel bagage u meeneemt, en wij adviseren het meest geschikte voertuig.",
     "faq10Q": "Is uw vloot volledig elektrisch?",
@@ -372,6 +378,14 @@
     "faq12A": "Elke chauffeur is ervaren, gescreend en onberispelijk gekleed en beschikt over de vergunningen en verzekering die in Nederland vereist zijn voor betaald personenvervoer.",
     "faq13Q": "Kan ik rekenen op volledige discretie en vertrouwelijkheid?",
     "faq13A": "Absoluut. Discretie en vertrouwelijkheid staan centraal in alles wat wij doen.",
+    "faq14Q": "Hoe maak ik een boeking?",
+    "faq14A": "Vul het formulier Plan uw rit op deze pagina in met uw route, datum en tijd, en kies een voertuig als u een voorkeur heeft. Ons team komt bij u terug met uw persoonlijke prijsopgave, meestal binnen het uur. Zakelijke partners kunnen ook boeken vanuit hun eigen account.",
+    "faq15Q": "Wat kost een rit?",
+    "faq15A": "Elke rit krijgt een persoonlijke prijsopgave, op basis van uw route, tijdstip en voertuig. Stuur uw aanvraag via het formulier Plan uw rit en ons team komt bij u terug met een offerte op maat.",
+    "faq16Q": "Hoe kan ik contact met jullie opnemen?",
+    "faq16A": "Ons reserveringsteam is 24/7 bereikbaar. Stuur uw aanvraag via het formulier Plan uw rit, of zet dit gesprek voort met het team via WhatsApp.",
+    "fallbackScope": "Ik kan vragen beantwoorden over boeken en annuleren, luchthaventransfers en vluchttracking, ons volledig elektrische wagenpark, zakelijke accounts, wachttijd en onze chauffeurs. Voor al het andere, of voor een persoonlijke prijsopgave, is ons reserveringsteam 24/7 bereikbaar via WhatsApp.",
+    "fallbackBusy": "Ons reserveringsbureau is dag en nacht bereikbaar. U kunt rechtstreeks contact opnemen met ons team via WhatsApp.",
     "welcome": "Goedendag. Ik ben de Ecram Execs Concierge. Hoe kan ik u vandaag helpen met uw reis?",
     "whatsappCta": "Doorgaan via WhatsApp",
     "whatsappHandoff": "Overdragen naar WhatsApp",
@@ -633,7 +647,9 @@
       "colReceived": "Ontvangen",
       "unread": "Ongelezen",
       "all": "Alles",
-      "partnerMessage": "Bericht van partner"
+      "partnerMessage": "Bericht van partner",
+      "urgent": "Spoed",
+      "urgentNote": "Ophalen binnen 24 uur"
     },
     "requestDetail": {
       "journey": "Rit",
@@ -888,7 +904,10 @@
       "addStop": "Stop toevoegen",
       "removeStop": "Stop verwijderen",
       "stopN": "Tussenstop {number}",
-      "unavailable": "Niet beschikbaar"
+      "unavailable": "Niet beschikbaar",
+      "language": "Taal van de boeking (voor e-mails)",
+      "notifyClient": "Bevestiging naar de contactpersoon mailen",
+      "notifyClientHint": "Vink uit als het adres slechts een tijdelijk adres is."
     }
   },
   "bespokeSection": {
@@ -1034,6 +1053,7 @@
     "optionSignupCta": "Aanmelden",
     "signedInAs": "U bent ingelogd als {email}.",
     "goToAccount": "Naar uw account",
+    "signedInSignupNote": "Als u hieronder een nieuw account aanmaakt, vervangt dat het account waarmee u nu bent ingelogd.",
     "loginMetaTitle": "Inloggen — Zakelijke partner — Ecram Execs",
     "loginHeading": "Inloggen",
     "loginIntro": "Voer het e-mailadres en wachtwoord van uw account voor zakelijke partners in.",

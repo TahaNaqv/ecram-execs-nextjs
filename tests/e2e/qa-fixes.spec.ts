@@ -109,7 +109,7 @@ test("the date and time picker has a Done button, can be typed into, and works f
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: d.nextMonth }).click();
   await dialog.locator("[data-day$='-15']").click();
-  await expect(hidden).toHaveValue(/^\d{4}-\d{2}-15T09:00$/);
+  await expect(hidden).toHaveValue(/^\d{4}-\d{2}-15T\d{2}:\d{2}$/); // the time it is now, until another is chosen (see the QA round 2 spec)
   await dialog.getByLabel(d.hour).selectOption("14");
   await dialog.getByLabel(d.minute).selectOption("30");
   await expect(hidden).toHaveValue(/^\d{4}-\d{2}-15T14:30$/);

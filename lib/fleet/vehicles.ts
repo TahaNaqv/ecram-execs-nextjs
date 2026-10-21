@@ -8,7 +8,7 @@
  * renders without the specification Q&A rather than with a guess.
  */
 
-export const VEHICLE_KEYS = ["mercedes_vle_300", "audi", "cadillac_escalade", "range_rover", "hongqi_e_hs9"] as const;
+export const VEHICLE_KEYS = ["mercedes_vle_300", "mercedes_eqs", "audi", "cadillac_escalade", "range_rover", "hongqi_e_hs9"] as const;
 export type VehicleKey = (typeof VEHICLE_KEYS)[number];
 
 export type Amenity = "executive_seating" | "in_car_screens" | "entertainment" | "climate_control" | "refreshments";
@@ -97,8 +97,18 @@ export const FLEET: FleetVehicle[] = [
     },
   },
   {
+    // Added at the client's request (QA report, 21 Oct 2026). No photographs or confirmed figures exist yet, so it shows
+    // by name only: the booking form's side panel has no gallery for it, and its Q&A omits the specification answers.
+    key: "mercedes_eqs",
+    name: "Mercedes-Benz EQS",
+    images: [],
+    drivetrain: "bev",
+  },
+  {
+    // The key stays "audi" (stored on every booking made so far); the model is the e-tron GT, as the client lists it on
+    // the Corporate Partner form.
     key: "audi",
-    name: "Audi",
+    name: "Audi e-tron GT",
     images: [
       "/assets/fleet-audi-v2.jpg",
       "/assets/fleet-audi-gallery-2.jpg",
@@ -110,21 +120,22 @@ export const FLEET: FleetVehicle[] = [
     ],
     drivetrain: "bev",
     specs: {
-      passengers: 5,
-      rangeKm: 612,
+      passengers: 4,
+      rangeKm: 609,
       rangeStandard: "WLTP",
       luggage: {
-        en: "502 litres (1,330 litres with the rear seats folded).",
-        nl: "502 liter (1.330 liter met de achterbank neergeklapt).",
+        en: "405 litres in the boot, plus about 80 litres in the front trunk.",
+        nl: "405 liter in de kofferbak, plus ongeveer 80 liter in de voorste kofferbak.",
       },
       amenities: COMMON_AMENITIES,
       verified: {
         status: "draft",
-        source: "Driving Electric specification listing, Audi A6 e-tron",
-        url: "https://www.drivingelectric.com/audi/a6-e-tron/prices-specs/106870/210kw-83kwh-sport-5dr-auto",
-        checkedOn: "2026-10-14",
+        source: "Published e-tron GT figures (carsguide.com.au, 2025 e-tron GT S)",
+        url: "https://www.carsguide.com.au/audi/e-tron-gt/2025",
+        checkedOn: "2026-10-21",
         by: "Claude (research)",
-        caveat: "The client only says 'Audi'. These figures assume the A6 e-tron (83 kWh); other batteries give up to ~700 km. Confirm the model and variant.",
+        caveat:
+          "Replaces the earlier draft, which described the A6 e-tron (the client lists this car as the e-tron GT, and a QA report asked for the model name). Range is for the S grade (up to 609 km WLTP); the RS grades are about 592-599 km and have a 350 L boot. Sources disagree on seats (4 in Audi's UK listing, 5 in Australian ones); 4 is used for a chauffeured trip. The photographs are AI-generated and show a saloon that is not clearly an e-tron GT: replace them. Confirm the grade the fleet car is, then mark verified.",
       },
     },
   },
@@ -234,8 +245,14 @@ export const VEHICLE_CHOICES = [...VEHICLE_KEYS, "advise"] as const;
 export type VehicleChoice = (typeof VEHICLE_CHOICES)[number];
 
 
+// The ids a vehicle added by name in the admin's Vehicles page gets (its name as a slug) also resolve to the fleet vehicle
 const ID_ALIASES: Record<string, VehicleKey> = {
   "mercedes-benz-vle-300": "mercedes_vle_300",
+  "mercedes-benz-eqs": "mercedes_eqs",
+  mercedes_benz_eqs: "mercedes_eqs",
+  "audi-e-tron-gt": "audi",
+  audi_e_tron_gt: "audi",
+  audi_etron_gt: "audi",
   "cadillac-escalade": "cadillac_escalade",
   "range-rover": "range_rover",
   "hongqi-ehs9": "hongqi_e_hs9",

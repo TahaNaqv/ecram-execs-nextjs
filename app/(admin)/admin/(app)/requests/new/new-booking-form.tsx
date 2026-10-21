@@ -4,6 +4,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { useState, useActionState } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
+import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { AlertIcon, PlusIcon, XIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
 import { createBookingForPartner, type NewBookingState } from "./actions";
@@ -11,7 +12,7 @@ import { createBookingForPartner, type NewBookingState } from "./actions";
 type Option = { value: string; label: string };
 type Copy = Record<
   | "partner" | "noPartner" | "service" | "collection" | "destination" | "stops" | "pickup" | "passengers" | "vehicle" | "vehicleNone" | "name" | "email"
-  | "phone" | "phoneCountry" | "contactHint" | "status" | "quote" | "notes" | "internalNotes" | "submit" | "creating" | "addStop" | "removeStop" | "stopN" | "unavailable",
+  | "phone" | "phoneCountry" | "contactHint" | "language" | "notifyClient" | "notifyClientHint" | "status" | "quote" | "notes" | "internalNotes" | "submit" | "creating" | "addStop" | "removeStop" | "stopN" | "unavailable",
   string
 >;
 
@@ -51,6 +52,7 @@ function Text({ values, name, label, type = "text", hint, className = "" }: { va
 export function NewBookingForm({ partners, services, statuses, vehicles, copy, locale, dateTimeCopy }: { partners: Option[]; services: Option[]; statuses: Option[]; vehicles: Option[]; copy: Copy; locale: string; dateTimeCopy: DateTimeCopy }) {
   const [state, action, pending] = useActionState<NewBookingState, FormData>(createBookingForPartner, {});
   const v = state.values ?? {};
+  const [phoneCountry, setPhoneCountry] = useState(v.phoneCountry || "31");
   
   // Initialize destinations from server state values if present, otherwise default to one empty field
   const initialDestinations = Array.isArray(v.destinations) && v.destinations.length > 0 
@@ -144,7 +146,13 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
             id="nb-phoneCountry"
             name="phoneCountry"
             aria-label={copy.phoneCountry}
-            defaultValue={v.phoneCountry || "31"}
+            value={phoneCountry}
+            onChange={(e) => {
+              setPhoneCountry(e.target.value);
+              // A country with shorter numbers than the last one: cut what was typed down to the new limit
+              const typed = document.getElementById("nb-phone");
+              if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
+            }}
             style={{ width: "120px", minWidth: "120px" }}
             className={`${field} h-10 cursor-pointer`}
           >
@@ -158,10 +166,11 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
             id="nb-phone"
             name="phone"
             type="tel"
-            maxLength={15}
+            inputMode="numeric"
+            maxLength={PASTE_MAX}
             onInput={(e) => {
               const target = e.target as HTMLInputElement;
-              target.value = target.value.replace(/\D/g, "").slice(0, 15);
+              target.value = cleanPhoneInput(target.value, phoneCountry);
             }}
             defaultValue={v.phone ?? ""}
             autoComplete="off"
@@ -173,6 +182,15 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
 
       {/* Status field in column 2 on the same row */}
       <Select values={v} name="status" label={copy.status} options={statuses} />
+
+      <Select values={{ locale: v.locale ?? locale }} name="locale" label={copy.language} options={[{ value: "nl", label: "Nederlands" }, { value: "en", label: "English" }]} />
+      <label className="flex items-start gap-2.5 self-end pb-2 text-sm text-zinc-900">
+        <input type="checkbox" name="notifyClient" defaultChecked={state.values ? v.notifyClient === "on" : true} className="mt-0.5 size-4 accent-zinc-950" />
+        <span>
+          {copy.notifyClient}
+          <span className="block text-xs text-zinc-500">{copy.notifyClientHint}</span>
+        </span>
+      </label>
 
       <Text values={v} name="quotedAmount" label={copy.quote} className="md:col-span-2" />
       <div className="flex flex-col gap-1.5 md:col-span-2">

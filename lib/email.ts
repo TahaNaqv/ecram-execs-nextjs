@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import type { DriverApplication, QuoteRequest } from "@/lib/db/schema";
 import { colourLabel, makeLabel } from "@/lib/partners/criteria";
@@ -7,7 +8,7 @@ import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
-import { amsterdamNow } from "@/lib/quotes/validation";
+import { isUrgent } from "@/lib/quotes/urgency";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 
@@ -25,8 +26,10 @@ export async function notifyNewQuote(q: QuoteRequest) {
   // Internal alert — deliberately always English (D7); only the service key needs a label.
   const { services, bespokeSection: bespokeLabels } = await getDictionary("en");
   const bespoke = q.service === "bespoke";
+  const urgent = isUrgent(q);
   const rows: [string, string | number | null][] = [
     ["Reference", q.reference],
+    ["Pick-up within 24 hours", urgent ? "Yes — please act today" : null],
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
     ["Destination", q.destination],
@@ -58,7 +61,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     from: EMAIL_FROM,
     to: NOTIFY_EMAIL_TO.split(",").map((s) => s.trim()),
     reply_to: q.email,
-    subject: `New ${bespoke ? "bespoke inquiry" : "quote request"} ${q.reference} — ${serviceLabel(q.service, services)}${q.pickupAt ? `, ${q.pickupAt.slice(0, 10)}` : ""}`,
+    subject: `${urgent ? "[URGENT] " : ""}New ${bespoke ? "bespoke inquiry" : "quote request"} ${q.reference} — ${serviceLabel(q.service, services)}${q.pickupAt ? `, ${q.pickupAt.slice(0, 10)}` : ""}`,
     html,
   });
 }
@@ -257,8 +260,8 @@ const PARTNER_ACTIVITY_LABEL: Record<PartnerActivity, string> = {
 
 /**
  * Tells the team what a partner did on one of their bookings. Internal, so always English like the other team
- * alerts; whatever the partner wrote is escaped by the table renderer. A change or cancellation of a trip that is
- * less than a day away is flagged in the subject, because someone has to act on it today.
+ * alerts; whatever the partner wrote is escaped by the table renderer. Anything about a trip that is less than a day
+ * away (a message, a change, a cancellation, an answer to a quote) is flagged URGENT in the subject.
  */
 export async function notifyTeamPartnerActivity({
   request: q,
@@ -278,8 +281,8 @@ export async function notifyTeamPartnerActivity({
     return;
   }
   const site = process.env.SITE_URL ?? "";
-  // Within the next day, or started in the last few hours: a cancellation of a trip already underway is the most urgent
-  const soon = (kind === "change" || kind === "cancel") && !!q.pickupAt && q.pickupAt >= amsterdamNow(-6 * 60) && q.pickupAt <= amsterdamNow(24 * 60);
+  // Within the next day, or started in the last few hours: whatever the partner did, someone has to act on it today
+  const soon = isUrgent(q);
   const label = PARTNER_ACTIVITY_LABEL[kind];
   const rows: [string, string | number | null][] = [
     ["Reference", q.reference],
@@ -295,12 +298,12 @@ export async function notifyTeamPartnerActivity({
     from: EMAIL_FROM,
     to: NOTIFY_EMAIL_TO.split(",").map((e) => e.trim()),
     reply_to: partner.email,
-    subject: `[Partner] ${label} ${q.reference} — ${partner.name}${soon ? " (pick-up within 24h)" : ""}`,
+    subject: `${soon ? "[URGENT] " : ""}[Partner] ${label} ${q.reference} — ${partner.name}`,
     html: teamAlert(`${esc(label)} on <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`),
   });
 }
 
-export type PartnerEmailKind = "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
+export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
 
 const euro = (amount: string | null, locale: QuoteRequest["locale"]) =>
   amount === null ? "" : new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { style: "currency", currency: "EUR" }).format(Number(amount));
@@ -325,6 +328,7 @@ export async function emailPartnerBooking({
   if (!provider() || !EMAIL_FROM) return false;
   const { email: t } = await getDictionary(to.locale);
   const copy: Record<PartnerEmailKind, [string, string]> = {
+    contacted: [t.bookingSubjectContacted, t.bookingIntroContacted],
     quoted: [t.bookingSubjectQuoted, t.bookingIntroQuoted],
     confirmed: [t.bookingSubjectConfirmed, t.bookingIntroConfirmed],
     completed: [t.bookingSubjectCompleted, t.bookingIntroCompleted],
@@ -345,6 +349,53 @@ export async function emailPartnerBooking({
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   return send("portal", q.reference, `partner email (${kind})`, { from: EMAIL_FROM, to: [to.email], subject: interpolate(subject, values), html });
+}
+
+/**
+ * Tells the person a booking is for that the team has recorded it: a booking keyed in from a phone call or an email, so
+ * nothing the client submitted has confirmed it yet. In the language stored on the booking, with the details, and a link
+ * to it when it sits in a partner's account. Best-effort: the booking exists already, so a failed send is logged, not shown.
+ */
+export async function emailBookingRecorded(q: QuoteRequest) {
+  const { EMAIL_FROM, SITE_URL } = process.env;
+  if (!provider() || !EMAIL_FROM) return false;
+  const { phone, email } = siteConfig.contact;
+  const { email: t, services, quoteForm } = await getDictionary(q.locale);
+  const row = (label: string, value: string) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
+  const stops = stopsWithWaits(q.destinations, q.destinationWaits)
+    .map((s) => (s.wait > 0 ? `${s.place} (${s.wait} min)` : s.place))
+    .join(" → ");
+  const vehicle = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
+  const details = [
+    row(t.fieldReference, q.reference),
+    row(t.fieldService, serviceLabel(q.service, services)),
+    q.collection ? row(t.fieldCollection, q.collection) : "",
+    q.destination ? row(t.fieldDestination, q.destination) : "",
+    stops ? row(t.fieldStops, stops) : "",
+    q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
+    q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
+    vehicle ? row(t.fieldVehicle, vehicle) : "",
+  ];
+  const link = q.corporateContactId ? `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", q.locale)}?ref=${encodeURIComponent(q.reference)}` : null;
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
+      <p>${esc(interpolate(t.bookingRecordedIntro, { reference: q.reference }))}</p>
+      <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
+        ${details.join("")}
+      </table>
+      ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
+      <p>${esc(phone ? interpolate(t.quoteReplyPhone, { phone }) : t.quoteReply)}</p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("booking", q.reference, "booking recorded", {
+    from: EMAIL_FROM,
+    to: [q.email],
+    ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
+    subject: interpolate(t.bookingRecordedSubject, { reference: q.reference }),
+    html,
+  });
 }
 
 function teamAlert(heading: string, rows: [string, string | number | null][], adminUrl: string) {
@@ -389,11 +440,59 @@ async function sendSmtp(tag: string, reference: string, kind: string, payload: P
     });
     const { reply_to, ...rest } = payload;
     await smtp.sendMail({ ...rest, replyTo: reply_to });
+    console.info(`[${tag}] ${reference} ${kind} sent via SMTP`);
     return true;
   } catch (err) {
     console.error(`[${tag}] ${reference} ${kind} via SMTP failed:`, err);
     return false;
   }
+}
+
+/** What a retry waits for before the second and third attempt, in ms (plus a little jitter). Short: this runs after the response is sent, and a restart ends it. */
+const RETRY_DELAYS = [1_000, 3_000];
+const ATTEMPTS = RETRY_DELAYS.length + 1;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One message to Resend, retried when the failure is the kind that passes: the network or a timeout, "too many requests"
+ * (429, Resend allows two a second) and a 5xx. A refusal that repeating cannot change (an unverified domain, a bad
+ * address) is not retried. All attempts carry the same idempotency key, so when an attempt timed out after Resend had
+ * already accepted the message, the retry gets that answer back instead of sending a second email.
+ */
+async function sendResend(tag: string, reference: string, kind: string, payload: Payload): Promise<"sent" | "refused" | "unknown"> {
+  const idempotencyKey = randomUUID();
+  // "unknown": the last attempt timed out, so Resend may well have accepted the message
+  let outcome: "refused" | "unknown" = "refused";
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    let wait = 0;
+    outcome = "refused";
+    try {
+      const res = await fetch(process.env.RESEND_API_URL ?? "https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(7_000),
+      });
+      if (res.ok) {
+        const sent = (await res.json().catch(() => null)) as { id?: string } | null;
+        console.info(`[${tag}] ${reference} ${kind} sent via Resend${sent?.id ? ` (${sent.id})` : ""}${attempt > 1 ? ` on attempt ${attempt}` : ""}`);
+        return "sent";
+      }
+      const errorText = await res.text();
+      console.error(`[${tag}] ${reference} ${kind} failed (attempt ${attempt}/${ATTEMPTS}): ${res.status} ${errorText}`);
+      if (errorText.includes("domain is not verified")) {
+        console.warn(`[email] To send real emails from '${payload.from}', verify the domain at https://resend.com/domains by adding the required DNS records.`);
+      }
+      // 409: the first attempt is still being processed on their side; give it a moment and ask again
+      if (res.status !== 429 && res.status !== 409 && res.status < 500) return "refused";
+      wait = Number(res.headers.get("retry-after")) * 1_000 || 0;
+    } catch (err) {
+      console.error(`[${tag}] ${reference} ${kind} failed (attempt ${attempt}/${ATTEMPTS})`, err);
+      if (err instanceof Error && err.name === "TimeoutError") outcome = "unknown";
+    }
+    if (attempt < ATTEMPTS) await sleep(Math.min(Math.max(wait, RETRY_DELAYS[attempt - 1]), 8_000) + Math.random() * 300);
+  }
+  return outcome;
 }
 
 /** Resolves true only when the provider accepted the message, so a caller that must not leave someone waiting can tell. */
@@ -406,35 +505,18 @@ async function send(tag: string, reference: string, kind: string, payload: Paylo
   }
 
   if (activeProvider === "resend") {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(10_000),
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`[${tag}] ${reference} ${kind} failed: ${res.status} ${errorText}`);
-        if (errorText.includes("domain is not verified")) {
-          console.warn(`[email] To send real emails from '${payload.from}', verify the domain at https://resend.com/domains by adding the required DNS records.`);
-        }
-        if (hasSmtp) {
-          console.info(`[${tag}] Falling back to SMTP dispatch...`);
-          return sendSmtp(tag, reference, kind, payload);
-        }
-        return false;
-      }
-      return true;
-    } catch (err) {
-      console.error(`[${tag}] ${reference} ${kind} failed`, err);
-      if (hasSmtp) {
-        console.info(`[${tag}] Falling back to SMTP dispatch...`);
-        return sendSmtp(tag, reference, kind, payload);
-      }
+    const sent = await sendResend(tag, reference, kind, payload);
+    if (sent === "sent") return true;
+    // After a timeout the message may already be on its way: a second copy through SMTP would be worse than the doubt
+    if (sent === "unknown") {
+      console.warn(`[${tag}] ${reference} ${kind}: no answer from Resend, so not repeating it through SMTP`);
       return false;
     }
+    if (hasSmtp) {
+      console.info(`[${tag}] Falling back to SMTP dispatch...`);
+      return sendSmtp(tag, reference, kind, payload);
+    }
+    return false;
   }
 
   return false;

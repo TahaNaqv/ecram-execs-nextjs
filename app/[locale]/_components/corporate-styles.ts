@@ -1,6 +1,8 @@
 /** Class names the Corporate Partner screens share. Plain strings, so server and client components can both import them. */
 export const submitClass =
   "min-h-[56px] w-full max-w-[420px] cursor-pointer border-none bg-ink-950 px-10 font-sans text-[12px] font-semibold tracking-[0.24em] text-white uppercase hover:bg-ink-800 disabled:pointer-events-none disabled:cursor-progress disabled:opacity-70";
+/** The same button without the width cap, for one that sits under a row of fields and should be exactly as wide as they are. */
+export const submitFullClass = submitClass.replace(" max-w-[420px]", "");
 export const ghostClass =
   "cursor-pointer border-none bg-transparent p-0 font-sans text-[12px] tracking-[0.18em] text-ink-700 uppercase underline underline-offset-4 hover:text-ink-950 disabled:cursor-progress disabled:opacity-60";
 /** A link that looks like the forms' main button. `box-border`: a link is content-box here (a button is not), so the padding would otherwise push it past its card. */

@@ -11,6 +11,9 @@ const MAX_MESSAGE = 500;
 const MAX_HISTORY = 6;
 const LIMIT = { max: 20, windowMs: 10 * 60_000 };
 
+/** A bare hello gets the concierge's greeting rather than a list of what it cannot do. */
+const GREETING = /^\s*(hi|hello|hey|hallo|hoi|good (morning|afternoon|evening|day)|goedemorgen|goedemiddag|goedenavond|goedendag)\b[\s!.,?]*$/i;
+
 type Turn = { role: "user" | "assistant"; content: string };
 
 /**
@@ -37,23 +40,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Message is required (at most 500 characters)" }, { status: 400 });
     }
 
+    // The words come from our own dictionary, in the visitor's language, never from the request
+    const locale = isLocale(body?.locale) ? body.locale : DEFAULT_LOCALE;
+    const section = (await getDictionary(locale)).conciergeSection;
+
     const { ipHash } = await visitor();
     if (!withinLimit(`concierge:${ipHash}`, LIMIT.max, LIMIT.windowMs)) {
-      return NextResponse.json(
-        { reply: "Our reservations desk is available around the clock. You can connect directly with our team on WhatsApp.", handoff: true },
-        { status: 429 },
-      );
+      return NextResponse.json({ reply: section.fallbackBusy, handoff: true }, { status: 429 });
     }
 
-    // The questions and answers come from our own dictionary, never from the request
-    const locale = isLocale(body?.locale) ? body.locale : DEFAULT_LOCALE;
-    const faqs = faqsFrom((await getDictionary(locale)).conciergeSection);
+    const faqs = faqsFrom(section);
     const conversationHistory = cleanHistory(body?.conversationHistory, message);
 
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
 
-    // Fallback if Claude API key is not configured yet
+    // Without an API key the concierge answers from the questions and answers above, and says plainly what it can and cannot help with
     if (!apiKey) {
+      if (GREETING.test(message)) return NextResponse.json({ reply: section.welcome, handoff: false });
       const match = bestMatch(message, faqs);
       if (match?.answer) {
         return NextResponse.json({
@@ -62,17 +65,13 @@ export async function POST(req: Request) {
         });
       }
 
-      return NextResponse.json({
-        reply:
-          "For bespoke journey details, custom quotations, or personal assistance, our reservations team is available 24/7. You can connect directly with our dispatch team on WhatsApp.",
-        handoff: true,
-      });
+      return NextResponse.json({ reply: section.fallbackScope, handoff: true });
     }
 
     const faqKnowledgeBase = faqs.map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
 
     const systemPrompt = `You are the AI Concierge for Ecram Execs, an ultra-luxury electric executive chauffeur service in the Netherlands.
-Our Fleet: 100% electric luxury obsidian black vehicles (Mercedes-Benz VLE 300, Audi, Cadillac Escalade, Range Rover, Hongqi E-HS9).
+Our Fleet: 100% electric luxury obsidian black vehicles (Mercedes-Benz VLE 300, Mercedes-Benz EQS, Audi e-tron GT, Cadillac Escalade IQ, Range Rover EV, Hongqi E-HS9).
 Our Services:
 - Airport transfers (Schiphol AMS, Rotterdam The Hague RTM, Eindhoven EIN, and private aviation / FBOs like Jet Aviation). Includes real-time flight tracking, arrivals meet & greet, luggage handling.
 - Business & Corporate travel (hourly, multi-stop, corporate accounts with centralized billing).
@@ -126,11 +125,7 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
         return NextResponse.json({ reply: match.answer, handoff: false });
       }
 
-      return NextResponse.json({
-        reply:
-          "I would be pleased to connect you directly with our reservations team. You can continue our conversation with our team directly on WhatsApp.",
-        handoff: true,
-      });
+      return NextResponse.json({ reply: section.fallbackScope, handoff: true });
     }
 
     const data = await response.json();
@@ -149,9 +144,9 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
     });
   } catch (err) {
     console.error("Concierge API error:", err);
+    // The dictionary may be what failed, so this one reply is written out here, in both languages
     return NextResponse.json({
-      reply:
-        "Our reservations desk is available around the clock to assist you. You can connect directly with our team on WhatsApp.",
+      reply: "Our reservations desk is available around the clock. You can connect directly with our team on WhatsApp. / Ons reserveringsbureau is dag en nacht bereikbaar via WhatsApp.",
       handoff: true,
     });
   }

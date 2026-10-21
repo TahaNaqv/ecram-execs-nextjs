@@ -1,5 +1,5 @@
-/** The concierge's questions and answers live in the dictionary as faq1Q/faq1A … faq13Q/faq13A. */
-export const FAQ_COUNT = 13;
+/** The concierge's questions and answers live in the dictionary as faq1Q/faq1A … faq16Q/faq16A. */
+export const FAQ_COUNT = 16;
 
 export type Faq = readonly [question: string, answer: string];
 

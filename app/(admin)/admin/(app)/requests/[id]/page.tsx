@@ -23,7 +23,7 @@ import {
   PhoneIcon,
   UsersIcon,
 } from "../../../_components/icons";
-import { StatusBadge } from "../../../_components/status-badge";
+import { StatusBadge, UrgentBadge } from "../../../_components/status-badge";
 import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
@@ -151,6 +151,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{r.name}</h1>
               <StatusBadge status={r.status} size="md" />
+              <UrgentBadge request={r} size="md" />
             </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
               <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">{r.reference}</span>

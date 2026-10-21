@@ -10,19 +10,21 @@ import { CorporateShell, PanelSkeleton, SignedInNotice, corporateMetadata } from
 /** Where the visitor is in the flow comes from the database, never from the cookie alone; a reload resumes at the code step. */
 async function Flow() {
   const [locale, d, contact] = await Promise.all([currentLocale(), getDict(), getCorporateContact()]);
-  // Already signed in: there is nothing to sign up for
-  if (contact) return <SignedInNotice />;
   const pending = await getPendingChallenge("signup");
   return (
-    <AccountFlow
-      mode="signup"
-      locale={locale}
-      initial={pending ? { step: pending.verified ? "password" : "code", email: pending.email } : { step: "request" }}
-      copy={d.corporatePartner}
-      minutes={CODE_MINUTES}
-      privacyHref={localizedPath("/privacy", locale)}
-      loginHref={localizedPath("/corporate-partner/login", locale)}
-    />
+    <>
+      {/* Someone who is signed in can still create another account (it takes the session over), so the form stays */}
+      {contact && <SignedInNotice explain />}
+      <AccountFlow
+        mode="signup"
+        locale={locale}
+        initial={pending ? { step: pending.verified ? "password" : "code", email: pending.email } : { step: "request" }}
+        copy={d.corporatePartner}
+        minutes={CODE_MINUTES}
+        privacyHref={localizedPath("/privacy", locale)}
+        loginHref={localizedPath("/corporate-partner/login", locale)}
+      />
+    </>
   );
 }
 

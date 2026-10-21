@@ -13,6 +13,7 @@ import Link from "next/link";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import type { QuoteField } from "@/lib/quotes/validation";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
+import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { control } from "./form-field";
 import { VehicleGallery } from "./vehicle-gallery";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -52,6 +53,9 @@ function questionsFor(vehicle: FleetVehicle, t: FleetDictionary, locale: "en" | 
   return items.slice(0, 5);
 }
 
+type Stop = { id: string; value: string; wait: number };
+const withoutEmptyStops = (list: Stop[]) => (list.some((s) => s.value.trim() === "") ? list.filter((s) => s.value.trim() !== "") : list);
+
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
 
@@ -82,6 +86,7 @@ export function QuoteForm({
     return () => controller.abort();
   }, []);
 
+  const [phoneCountry, setPhoneCountry] = useState("31");
   const [vehicle, setVehicle] = useState("");
   const [vehicleTouched, setVehicleTouched] = useState(false);
   const [qaOpen, setQaOpen] = useState(false);
@@ -92,7 +97,7 @@ export function QuoteForm({
     () => false,
   );
 
-  const [stops, setStops] = useState<{ id: string; value: string; wait: number }[]>([]);
+  const [stops, setStops] = useState<Stop[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [focusId, setFocusId] = useState<string | undefined>();
@@ -103,21 +108,30 @@ export function QuoteForm({
     setStops((prev) => (prev.length >= MAX_STOPS ? prev : [...prev, { id, value: "", wait: 0 }]));
   };
 
+  // Only a stop with a place typed in is a stop: an empty field is neither counted nor submitted, and is dropped when the list closes
+  const filledStops = stops.filter((s) => s.value.trim() !== "");
+  const closeStops = () => {
+    setStops(withoutEmptyStops);
+    setIsOpen(false);
+  };
+
   const toggleStops = () => {
-    if (isOpen) return setIsOpen(false);
+    if (isOpen) return closeStops();
     if (stops.length === 0) addStopField();
     setIsOpen(true);
   };
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setStops(withoutEmptyStops);
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     const isChoice = (value: string | null): value is VehicleChoice => !!value && (VEHICLE_CHOICES as readonly string[]).includes(value);
@@ -168,14 +182,15 @@ export function QuoteForm({
   return (
     <form key={state.status === "error" ? state.attempt : 0} action={action} noValidate className="relative pb-4 notranslate" translate="no">
       <input type="hidden" name="vehicle" value={vehicle} />
-      <div className={selectedFleetVehicle ? "flex flex-col lg:flex-row gap-6 items-start" : ""}>
+      <div className={selectedFleetVehicle ? "flex flex-col lg:flex-row gap-6 lg:items-stretch" : ""}>
         {selectedFleetVehicle && (
-          <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 border border-ink-225 bg-white p-5 shadow-xs lg:sticky lg:top-24 flex flex-col notranslate" translate="no">
+          <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 border border-ink-225 bg-white p-5 shadow-xs flex flex-col notranslate" translate="no">
             <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-ink-600 block mb-3">
               {t.selectedVehicle}
             </span>
             {images.length > 0 ? (
-              <div className="w-full aspect-[16/10] relative mb-4">
+              // Beside the form the photo takes the height the form leaves it (the panel is as tall as the form), within limits
+              <div className="w-full aspect-[16/10] relative mb-4 lg:aspect-auto lg:min-h-[200px] lg:max-h-[460px] lg:flex-1">
                 <VehicleGallery
                   name={selectedFleetVehicle.name}
                   images={images}
@@ -266,7 +281,7 @@ export function QuoteForm({
               document.body
             )}
 
-            <div className="mt-4 pt-2">
+            <div className="mt-auto pt-6">
               <button
                 type="button"
                 onClick={() => {
@@ -311,9 +326,9 @@ export function QuoteForm({
                   className="inline-flex items-center justify-center gap-0.5 text-[9px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-100 hover:bg-ink-200 px-1.5 py-0.5 rounded-xs cursor-pointer self-start sm:self-auto shrink-0"
                 >
                   {selectedFleetVehicle ? (
-                    <span>{stops.length > 0 ? `+${stops.length}` : t.addStopShort}</span>
+                    <span>{filledStops.length > 0 ? `+${filledStops.length}` : t.addStopShort}</span>
                   ) : (
-                    <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : t.addStop}</span>
+                    <span>{filledStops.length > 0 ? fill(t.stopsCount, { count: String(filledStops.length), max: String(MAX_STOPS) }) : t.addStop}</span>
                   )}
                 </button>
               </div>
@@ -325,7 +340,7 @@ export function QuoteForm({
               </div>
               {fieldError("destination")}
 
-              {stops.map((stop) => (
+              {filledStops.map((stop) => (
                 <span key={stop.id} hidden>
                   <input type="hidden" name="destinations" value={stop.value} />
                   <input type="hidden" name="destinationWaits" value={stop.wait} />
@@ -333,10 +348,19 @@ export function QuoteForm({
               ))}
 
               {isOpen && (
-                <div className="absolute left-0 top-full mt-2 z-50 w-[320px] bg-white border border-ink-225 shadow-2xl p-4 flex flex-col gap-3 rounded-sm notranslate" translate="no">
+                <div
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.stopPropagation();
+                      closeStops();
+                    }
+                  }}
+                  className="absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2.5rem))] bg-white border border-ink-225 shadow-2xl p-4 flex flex-col gap-3 rounded-sm notranslate"
+                  translate="no"
+                >
                   <div className="flex items-center justify-between text-[11px] tracking-wider uppercase text-ink-600 font-semibold border-b border-ink-100 pb-2">
                     <span>{fill(t.stopoversTitle, { max: String(MAX_STOPS) })}</span>
-                    <button type="button" onClick={() => setIsOpen(false)} className="text-ink-400 hover:text-ink-950 cursor-pointer p-1">✕</button>
+                    <button type="button" onClick={closeStops} className="text-ink-400 hover:text-ink-950 cursor-pointer p-1">✕</button>
                   </div>
 
                   {stops.length === 0 && (
@@ -490,7 +514,13 @@ export function QuoteForm({
               </div>
               <div className="px-3 pb-2">
                 <div className="flex items-center gap-3">
-                  <select id="q-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} defaultValue={v.phoneCountry || "31"}
+                  <select id="q-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} value={phoneCountry}
+                    onChange={(e) => {
+                      setPhoneCountry(e.target.value);
+                      // A country with shorter numbers than the last one: cut what was typed down to the new limit
+                      const typed = document.getElementById("q-phone");
+                      if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
+                    }}
                     className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-ink-225 bg-transparent p-0 pr-2 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]">
                     {COUNTRY_CODES.map(([code, iso]) => (
                       <option key={code} value={code}>
@@ -498,7 +528,11 @@ export function QuoteForm({
                       </option>
                     ))}
                   </select>
-                  <input id="q-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={20}
+                  <input id="q-phone" name="phone" type="tel" inputMode="numeric" placeholder={t.phPhone} required maxLength={PASTE_MAX}
+                    onInput={(e) => {
+                      const typed = e.currentTarget;
+                      typed.value = cleanPhoneInput(typed.value, phoneCountry);
+                    }}
                     autoComplete="tel-national" defaultValue={v.phone} aria-invalid={!!err.phone}
                     aria-describedby={describedBy("phone")} className={control} />
                 </div>

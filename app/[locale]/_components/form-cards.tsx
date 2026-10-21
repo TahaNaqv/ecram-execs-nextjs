@@ -2,6 +2,7 @@
 
 import { useId, useState, type ComponentProps, type ReactNode } from "react";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
+import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { interpolate } from "@/lib/i18n/interpolate";
 
 /**
@@ -235,23 +236,6 @@ export function PhoneField({
 }) {
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry || "31");
 
-  // The longest a number can be typed in each country, counting the 0 many people still put in front (the UK's
-  // 07911 123456 and Pakistan's 0300 1234567 are 11 digits). A limit below that silently cuts the last digit off.
-  const getMaxDigitsForCountry = (code: string) => {
-    switch (code) {
-      case "1": // US/Canada NANP
-      case "31": // Netherlands: 0 6 1234 5678
-        return 10;
-      case "44": // UK
-      case "92": // Pakistan
-        return 11;
-      default:
-        return 15;
-    }
-  };
-
-  const maxDigits = getMaxDigitsForCountry(selectedCountry);
-
   return (
     <CardField idPrefix={idPrefix} name="phone" label={label} error={error}>
       <div
@@ -262,7 +246,12 @@ export function PhoneField({
           name="phoneCountry"
           aria-label={countryLabel}
           value={selectedCountry}
-          onChange={(e) => setSelectedCountry(e.target.value)}
+          onChange={(e) => {
+            setSelectedCountry(e.target.value);
+            // A country with shorter numbers than the last one: cut what was typed down to the new limit
+            const typed = document.getElementById(`${idPrefix}-phone`);
+            if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
+          }}
           className="w-[104px] shrink-0 cursor-pointer rounded-l-md border-0 border-r border-solid border-ink-225 bg-transparent py-2.5 pr-1 pl-3 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]"
         >
           {COUNTRY_CODES.map(([code, iso]) => (
@@ -276,10 +265,10 @@ export function PhoneField({
           name="phone"
           type="tel"
           required
-          maxLength={maxDigits}
+          maxLength={PASTE_MAX}
           onInput={(e) => {
             const target = e.target as HTMLInputElement;
-            target.value = target.value.replace(/\D/g, "").slice(0, maxDigits);
+            target.value = cleanPhoneInput(target.value, selectedCountry);
           }}
           autoComplete="tel-national"
           placeholder={placeholder}

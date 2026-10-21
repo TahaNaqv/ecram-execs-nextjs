@@ -2,6 +2,7 @@ import { z } from "zod";
 import { LOCALES } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Dictionary } from "@/lib/i18n/types";
+import { phoneLengthOk } from "@/lib/phone";
 
 /** Long enough that a passphrase of a few words fits, short enough that hashing one can't be used to burn the CPU. */
 export const PASSWORD_MIN = 12;
@@ -16,10 +17,10 @@ export const DURATIONS = ["2_4", "2_8", "2_12", "2_24"] as const;
 /**
  * The vehicles offered on the Corporate Partner form, exactly as the client listed them. Brand names are shown as-is
  * in every language. `fleetKey` links one to the website's fleet (lib/fleet/vehicles.ts) so the request carries the
- * same vehicle key as a quote does; the Mercedes-Benz EQS has no entry there yet, so it is recorded by name only.
+ * same vehicle key as a quote does.
  */
 export const CORPORATE_VEHICLES = [
-  { key: "mercedes_eqs", name: "Mercedes-Benz EQS", fleetKey: null },
+  { key: "mercedes_eqs", name: "Mercedes-Benz EQS", fleetKey: "mercedes_eqs" },
   { key: "audi_etron_gt", name: "Audi e-tron GT", fleetKey: "audi" },
   { key: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", fleetKey: "mercedes_vle_300" },
   { key: "cadillac_escalade_iq", name: "Cadillac Escalade IQ", fleetKey: "cadillac_escalade" },
@@ -117,6 +118,9 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     duration: z.enum(DURATIONS, { error: c.chooseOption }),
     notes: z.string().trim().max(2000, f.notesTooLong).optional(),
     locale: z.enum(LOCALES).catch("en"),
+  }).superRefine(({ phoneCountry, phone }, ctx) => {
+    // Too many or too few digits for the country (the forms stop typing at the limit; this is for anything that gets past them)
+    if (!phoneLengthOk(phoneCountry, phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: f.phoneNumberInvalid });
   }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 
 export type RequestField = keyof z.input<ReturnType<typeof requestSchema>>;

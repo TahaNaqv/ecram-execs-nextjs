@@ -35,6 +35,24 @@ const addMonths = (y: number, m: number, by: number) => {
   return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1 };
 };
 
+/**
+ * The date and time in the Netherlands right now. Pick-ups are Dutch wall-clock times (the server compares them with the
+ * Amsterdam clock), so "now" and "today" are read there, not from the visitor's own zone.
+ */
+const nowInNetherlands = (): { day: Day; time: Time } => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { day: { y: get("year"), m: get("month"), d: get("day") }, time: { h: get("hour"), min: get("minute") } };
+};
+
 const display = (day: Day, time: Time) => `${pad(day.d)}-${pad(day.m)}-${pad(day.y, 4)} ${pad(time.h)}:${pad(time.min)}`;
 const iso = (day: Day, time: Time) => `${dayKey(day)}T${pad(time.h)}:${pad(time.min)}`;
 
@@ -86,7 +104,10 @@ export function DateTimeField({
 }) {
   const initial = useMemo(() => parseDateTime(defaultValue ?? ""), [defaultValue]);
   const [day, setDay] = useState<Day | null>(initial?.day ?? null);
-  const [time, setTime] = useState<Time>(initial?.time ?? { h: 9, min: 0 });
+  // Until a time is chosen the hour and minute lists show the current time, read when the picker opens (the page is
+  // prerendered, so "now" is not known while rendering; this placeholder is never shown or submitted without a day)
+  const [time, setTime] = useState<Time>(initial?.time ?? { h: 0, min: 0 });
+  const timeChosen = useRef(!!initial);
   const [text, setText] = useState(initial ? display(initial.day, initial.time) : "");
   const [open, setOpen] = useState(false);
   // Today is read when the calendar opens, not while rendering (the page is prerendered, and "now" is not known then)
@@ -111,9 +132,11 @@ export function DateTimeField({
   };
 
   const openPicker = () => {
-    const n = new Date();
-    const now = { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() };
+    const { day: now, time: clock } = nowInNetherlands();
     setToday(now);
+    // No time chosen yet and no day either: the lists show the time it is now. With a day chosen the time already shown in
+    // the box stays, or the value submitted would drift away from what the visitor can see.
+    if (!timeChosen.current && !day) setTime(clock);
     // The chosen day, or today when none is chosen (or the chosen one is already past): the calendar opens on it
     const start = day && !before(day, now) ? day : now;
     setView({ y: start.y, m: start.m });
@@ -215,7 +238,10 @@ export function DateTimeField({
           setText(raw);
           const parsed = parseDateTime(raw);
           setDay(parsed?.day ?? null);
-          if (parsed) setTime(parsed.time);
+          if (parsed) {
+            setTime(parsed.time);
+            timeChosen.current = true;
+          }
         }}
         onBlur={() => day && setText(display(day, time))}
       />
@@ -296,7 +322,7 @@ export function DateTimeField({
           <div className="mt-3 flex items-center gap-2 border-t border-solid border-zinc-100 pt-3">
             <label className="flex flex-col gap-1 text-[11px] font-medium text-zinc-500">
               {copy.hour}
-              <select value={time.h} onChange={(e) => commit(day, { ...time, h: Number(e.target.value) })} className={select}>
+              <select value={time.h} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, h: Number(e.target.value) }); }} className={select}>
                 {Array.from({ length: 24 }, (_, h) => (
                   <option key={h} value={h}>
                     {pad(h)}
@@ -309,7 +335,7 @@ export function DateTimeField({
             </span>
             <label className="flex flex-col gap-1 text-[11px] font-medium text-zinc-500">
               {copy.minute}
-              <select value={time.min} onChange={(e) => commit(day, { ...time, min: Number(e.target.value) })} className={select}>
+              <select value={time.min} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, min: Number(e.target.value) }); }} className={select}>
                 {minutes.map((m) => (
                   <option key={m} value={m}>
                     {pad(m)}
@@ -320,7 +346,9 @@ export function DateTimeField({
             <button
               type="button"
               onClick={() => {
-                commit(null, { h: 9, min: 0 });
+                // Back to showing the current time, as when it was first opened
+                timeChosen.current = false;
+                commit(null, nowInNetherlands().time);
                 setActive(today);
               }}
               className="mt-5 ml-auto cursor-pointer border-0 bg-transparent px-2 py-1 text-[13px] font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-950"

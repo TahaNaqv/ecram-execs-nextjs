@@ -17,7 +17,7 @@ import {
   SearchIcon,
   XIcon,
 } from "../_components/icons";
-import { StatusBadge } from "../_components/status-badge";
+import { StatusBadge, UrgentBadge } from "../_components/status-badge";
 import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
 
@@ -233,7 +233,10 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           <p className="truncate text-xs text-zinc-500">{r.email}</p>
                           {partnerBadge(r.id)}
                         </div>
-                        <StatusBadge status={r.status} />
+                        <span className="flex flex-col items-end gap-1">
+                          <StatusBadge status={r.status} />
+                          <UrgentBadge request={r} />
+                        </span>
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm text-zinc-700">
                         {r.collection === null ? (
@@ -357,7 +360,10 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         {r.quotedAmount === null ? <span className="text-zinc-300">—</span> : formatEuro(r.quotedAmount)}
                       </td>
                       <td className="px-3 py-3.5">
-                        <StatusBadge status={r.status} />
+                        <span className="flex flex-col items-start gap-1">
+                          <StatusBadge status={r.status} />
+                          <UrgentBadge request={r} />
+                        </span>
                       </td>
                       <td className="whitespace-nowrap py-3.5 pl-3 pr-5 text-right">
                         <p className="text-zinc-700" title={formatTimestamp(r.createdAt)}>

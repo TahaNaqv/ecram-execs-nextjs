@@ -6,15 +6,19 @@ import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { emailPartnerBooking } from "@/lib/email";
+import { emailBookingRecorded, emailPartnerBooking } from "@/lib/email";
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
+import { LOCALES } from "@/lib/i18n/config";
+import { phoneLengthOk } from "@/lib/phone";
 import { isUniqueViolation, makeReference } from "@/lib/request-meta";
 import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
 export type NewBookingState = { error?: string; values?: Record<string, string> };
 
-const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes"] as const;
+const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes", "locale", "notifyClient"] as const;
+
+const PHONE_MESSAGE = "Enter the contact's phone number, e.g. 6 1234 5678.";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const schemaFor = z.object({
@@ -31,8 +35,10 @@ const schemaFor = z.object({
   email: z.string().trim().toLowerCase().max(200),
   phoneCountry: z.string().trim().transform((v) => v.replace(/^\+/, "")),
   // The country code is chosen beside the number; a number typed with its own "+44 …" is taken as it is
-  phone: z.string().trim().regex(/^\+\d{1,4} ?[0-9 ()\-.]{5,20}$/, "Enter the contact's phone number, e.g. 6 1234 5678."),
+  phone: z.string().trim().regex(/^\+\d{1,4} ?[0-9 ()\-.]{5,20}$/, PHONE_MESSAGE),
   status: z.enum(REQUEST_STATUSES),
+  // The language of the booking's emails; a partner's own language wins
+  locale: z.enum(LOCALES).catch("en"),
   quotedAmount: z
     .string()
     .trim()
@@ -63,6 +69,8 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   const fail = (error: string) => ({ error, values });
 
   const typed = values.phone.trim();
+  // A number typed without its own "+" is checked against the chosen country's lengths, like the website's forms
+  if (!typed.startsWith("+") && !phoneLengthOk(values.phoneCountry, typed)) return fail(PHONE_MESSAGE);
   const phone = typed.startsWith("+") ? typed : `+${values.phoneCountry.replace(/^\+/, "")} ${typed}`;
   const parsed = schemaFor.safeParse({ ...values, phone });
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid input.");
@@ -117,7 +125,7 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
             entity: partner?.companyName ?? null,
             entityKvk: partner?.kvkNumber ?? null,
             corporateContactId: partner?.id ?? null,
-            locale: partner?.locale ?? "en",
+            locale: partner?.locale ?? input.locale,
             source: "admin",
             reference: makeReference("EE"),
           })
@@ -135,8 +143,11 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   }
   const request = created!;
 
-  // A partner is told about a booking that is already quoted or confirmed; nothing is sent for a plain new one
+  // The person the booking is for is told it exists. A partner whose booking is already quoted or confirmed gets that
+  // email, which says more; every other booking gets the plain "we have recorded this" one, unless the team unticked it
+  // (a phone booking may carry no real email address).
   const kind = request.status === "confirmed" ? "confirmed" : request.status === "quoted" && request.quotedAmount ? "quoted" : null;
   if (partner && kind) after(() => emailPartnerBooking({ request, to: partner, kind }));
+  else if (values.notifyClient === "on") after(() => emailBookingRecorded(request));
   redirect(`/admin/requests/${request.id}`);
 }

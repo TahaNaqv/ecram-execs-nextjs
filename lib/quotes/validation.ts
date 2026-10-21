@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SERVICES } from "@/lib/quotes/constants";
 import { VEHICLE_CHOICES, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
+import { phoneLengthOk } from "@/lib/phone";
 
 const AMS = "Europe/Amsterdam";
 
@@ -74,6 +75,9 @@ export const quoteSchema = (t: QuoteMessages) =>
     notes: z.string().trim().max(2000, t.notesTooLong).optional(),
     // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
     locale: z.enum(LOCALES).catch("en"),
+  }).superRefine(({ phoneCountry, phone }, ctx) => {
+    // Too many or too few digits for the country (the forms stop typing at the limit; this is for anything that gets past them)
+    if (!phoneLengthOk(phoneCountry, phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: t.phoneNumberInvalid });
   }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 
 export type QuoteInput = z.infer<ReturnType<typeof quoteSchema>>;

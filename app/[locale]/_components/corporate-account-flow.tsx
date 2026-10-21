@@ -8,7 +8,7 @@ import type { CorporateState } from "@/lib/corporate/state";
 import { PASSWORD_MIN } from "@/lib/corporate/validation";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { Honeypot, PasswordInput, Status, ghostClass, submitClass } from "./corporate-ui";
+import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
 import { control, Field } from "./form-field";
 
 type Step = "request" | "code" | "password";
@@ -186,7 +186,7 @@ function RequestForm({
         <button
           type="submit"
           disabled={pending}
-          className={`w-full max-w-[630px] flex items-center justify-center ${submitClass}`}
+          className={`flex items-center justify-center ${submitFullClass}`}
         >
           {pending
             ? t.sending
@@ -253,7 +253,7 @@ function CodeForm({
           </Field>
         </div>
         <input type="hidden" name="locale" value={locale} />
-        <button type="submit" disabled={pending} className={`w-full flex items-center justify-center ${submitClass}`}>
+        <button type="submit" disabled={pending} className={`flex items-center justify-center ${submitFullClass}`}>
           {pending ? t.verifying : t.verifyCta}
         </button>
         <Status error={state.status === "error" && !err.code}>{state.status === "error" && !err.code ? state.message : undefined}</Status>
@@ -315,7 +315,7 @@ function PasswordForm({
         </div>
         <p className="m-0 text-[13px] text-ink-600">{interpolate(t.passwordHint, { min: PASSWORD_MIN })}</p>
         <input type="hidden" name="locale" value={locale} />
-        <button type="submit" disabled={pending} className={`w-full flex items-center justify-center ${submitClass}`}>
+        <button type="submit" disabled={pending} className={`flex items-center justify-center ${submitFullClass}`}>
           {pending ? (mode === "signup" ? t.creating : t.resetting) : mode === "signup" ? t.createAccountCta : t.resetCta}
         </button>
         <Status error={state.status === "error" && !err.password && !err.confirmPassword}>

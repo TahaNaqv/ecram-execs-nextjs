@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { login } from "@/lib/corporate/account-actions";
 import type { CorporateState } from "@/lib/corporate/state";
 import type { Locale } from "@/lib/i18n/config";
-import { Honeypot, PasswordInput, Status, ghostClass, submitClass } from "./corporate-ui";
+import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
 import { control, Field } from "./form-field";
 
 export type LoginCopy = Record<
@@ -32,7 +32,7 @@ export function LoginForm({
   const email = state.status === "error" ? state.values.email : "";
 
   return (
-    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-4">
       {/* A new key after each answer clears the password box */}
       <form key={state.status === "error" ? state.message + email : "fresh"} action={action} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
@@ -47,10 +47,10 @@ export function LoginForm({
         <input type="hidden" name="locale" value={locale} />
         {next && <input type="hidden" name="next" value={next} />}
         <Honeypot />
-        <button type="submit" disabled={pending} className={submitClass}>
+        <button type="submit" disabled={pending} className={submitFullClass}>
           {pending ? t.loggingIn : t.loginCta}
         </button>
-        <Status error={state.status === "error"}>{state.status === "error" ? state.message : undefined}</Status>
+        <Status compact error={state.status === "error"}>{state.status === "error" ? state.message : undefined}</Status>
       </form>
       <div className="flex flex-col gap-2 text-[14px] text-ink-700">
         <Link href={forgotHref} className={`${ghostClass} self-start no-underline`}>

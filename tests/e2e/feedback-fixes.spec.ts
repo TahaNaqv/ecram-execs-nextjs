@@ -90,12 +90,14 @@ test("every vehicle shows its own questions, not the same one repeated", async (
   const select = page.locator("#q-vehicle");
   await select.scrollIntoViewIfNeeded();
   const keys = await select.locator("option").evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value).filter((v) => v && v !== "advise"));
-  expect(keys).toHaveLength(5);
+  expect(keys).toHaveLength(FLEET.length);
   for (const key of keys) {
     await select.selectOption(key);
     await page.getByRole("button", { name: en.quoteForm.toggleQuestions }).click();
     const count = await page.locator("details").count();
-    expect(count, key).toBeGreaterThan(1);
+    // A vehicle with confirmed figures answers about passengers, range, features and luggage; one without (the EQS has no
+    // photographs or figures yet) still answers how long it can be booked for
+    expect(count, key).toBeGreaterThan(FLEET.find((v) => v.key === key)?.specs ? 1 : 0);
     await page.getByRole("button", { name: "✕" }).click();
     await expect(page.locator("details")).toHaveCount(0);
   }

@@ -5,6 +5,7 @@ import { locale as localeParam } from "next/root-params";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
 import { WhatsAppFloat } from "@/components/whatsapp-float";
+import { SameHashScroll } from "./_components/same-hash-scroll";
 import "./site.css";
 
 // Required by cacheComponents: every root param needs at least one value or the build fails.
@@ -51,6 +52,7 @@ export default async function SiteLayout({
     <html lang={value} className={fontVariables}>
       <body>
         {children}
+        <SameHashScroll />
         <WhatsAppFloat />
       </body>
     </html>

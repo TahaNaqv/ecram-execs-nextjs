@@ -75,7 +75,13 @@
     "bookingSubjectReply": "A reply from Ecram Execs about {reference}",
     "bookingIntroReply": "Our team replied to your booking {reference}:",
     "bookingSubjectInvoice": "An invoice for {reference} is available",
-    "bookingIntroInvoice": "An invoice for your booking {reference} is available to download on your booking page."
+    "bookingIntroInvoice": "An invoice for your booking {reference} is available to download on your booking page.",
+    "bookingSubjectContacted": "Our team is on your booking {reference}",
+    "bookingIntroContacted": "A member of our team has picked up your booking {reference} and will be in touch with you shortly. You can follow its progress on your booking page.",
+    "bookingRecordedSubject": "Your Ecram Execs booking {reference}",
+    "bookingRecordedIntro": "Our team has recorded the booking below for you ({reference}).",
+    "fieldStops": "Stops",
+    "fieldPassengers": "Passengers"
   },
   "criteria": {
     "or": "or",
@@ -361,7 +367,7 @@
     "faq7Q": "How Does Waiting Time Work, And Are There Additional Charges?",
     "faq7A": "Tell us if you would like your chauffeur to wait and we will include it in your personal quotation.",
     "faq8Q": "Which Vehicles Do You Offer?",
-    "faq8A": "Our fleet consists strictly of top-of-the-range, fully electric vehicles from leading luxury manufacturers, each finished in obsidian black with a black executive interior. See The Fleet section for the full line-up.",
+    "faq8A": "Our fleet consists strictly of top-of-the-range, fully electric vehicles from leading luxury manufacturers, each finished in obsidian black with a black executive interior. Choose a vehicle in the Plan Your Journey form to see its photographs and details.",
     "faq9Q": "Which Vehicle Best Suits My Passengers And Luggage?",
     "faq9A": "Tell us how many passengers you will be travelling with and how much luggage you have, and we will recommend the most suitable vehicle.",
     "faq10Q": "Is Your Fleet Fully Electric?",
@@ -372,6 +378,14 @@
     "faq12A": "Every chauffeur is experienced, vetted and impeccably presented, and holds the licences and insurance required for paid passenger transport in the Netherlands.",
     "faq13Q": "Can I Expect Complete Discretion And Confidentiality?",
     "faq13A": "Absolutely. Discretion and confidentiality are central to everything we do.",
+    "faq14Q": "How Do I Make A Booking?",
+    "faq14A": "Fill in the Plan Your Journey form on this page with your route, date and time, and choose a vehicle if you have a preference. Our team will come back with your personal quotation, usually within the hour. Corporate partners can also book from their own account.",
+    "faq15Q": "How Much Does A Journey Cost?",
+    "faq15A": "Every journey is quoted personally, based on your route, timing and vehicle. Send your request with the Plan Your Journey form and our team will return with a tailored quotation.",
+    "faq16Q": "How Can I Contact Your Team?",
+    "faq16A": "Our reservations team is available 24/7. Send your request with the Plan Your Journey form, or continue this conversation with the team on WhatsApp.",
+    "fallbackScope": "I can answer questions about booking and cancellations, airport transfers and flight tracking, our fully electric fleet, corporate accounts, waiting time and our chauffeurs. For anything else, or for a personal quotation, our reservations team is available 24/7 on WhatsApp.",
+    "fallbackBusy": "Our reservations desk is available around the clock. You can connect directly with our team on WhatsApp.",
     "welcome": "Good day. I am the Ecram Execs Concierge. How may I assist with your journey today?",
     "whatsappCta": "Continue on WhatsApp",
     "whatsappHandoff": "Transfer to WhatsApp",
@@ -633,7 +647,9 @@
       "colReceived": "Received",
       "unread": "Unread",
       "all": "All",
-      "partnerMessage": "Partner message"
+      "partnerMessage": "Partner message",
+      "urgent": "Urgent",
+      "urgentNote": "Pick-up within 24 hours"
     },
     "requestDetail": {
       "journey": "Journey",
@@ -888,7 +904,10 @@
       "addStop": "Add stop",
       "removeStop": "Remove stop",
       "stopN": "Stop {number}",
-      "unavailable": "Unavailable"
+      "unavailable": "Unavailable",
+      "language": "Booking language (for emails)",
+      "notifyClient": "Email the contact a confirmation",
+      "notifyClientHint": "Untick when the address is only a placeholder."
     }
   },
   "bespokeSection": {
@@ -1034,6 +1053,7 @@
     "optionSignupCta": "Sign Up",
     "signedInAs": "You are signed in as {email}.",
     "goToAccount": "Go To Your Account",
+    "signedInSignupNote": "Creating a new account below replaces the one you are signed in to.",
     "loginMetaTitle": "Log In — Corporate Partner — Ecram Execs",
     "loginHeading": "Log In",
     "loginIntro": "Enter the email address and password of your corporate partner account.",

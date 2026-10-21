@@ -82,9 +82,10 @@ const updateSchema = z.object({
 
 export type UpdateState = { ok?: boolean; error?: string };
 
-/** Which email, if any, a partner gets for a change the team made to their booking. */
+/** Which email, if any, a partner gets for a change the team made to their booking. A first contact, a quote, a confirmation, completion and cancellation each get one. */
 function partnerEmailKind(from: RequestStatus, to: RequestStatus, fromAmount: string | null, toAmount: string | null): PartnerEmailKind | null {
   if (from !== to) {
+    if (to === "contacted") return from === "new" ? "contacted" : null; // "we have picked it up": only on the first step, not when a booking moves back
     if (to === "quoted") return toAmount !== null ? "quoted" : null; // a quote with no amount is nothing to answer
     return to === "confirmed" || to === "completed" || to === "cancelled" ? to : null;
   }
@@ -126,7 +127,7 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   });
   if (!saved) return changedMeanwhile;
 
-  // A partner is told when their booking is quoted, confirmed, completed or cancelled: whatever the team changed
+  // A partner is told when their booking is picked up, quoted, confirmed, completed or cancelled: whatever the team changed
   const told = partnerEmailKind(before.status, status, before.quotedAmount, saved.quotedAmount);
   // An introduction is a request too, but it is not a booking the partner can open: no booking emails for it
   if (told && saved.corporateContactId && saved.source !== "website-corporate") {
