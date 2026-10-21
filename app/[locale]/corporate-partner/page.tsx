@@ -16,7 +16,7 @@ async function Options() {
 
   if (contact) {
     return (
-      <div className="flex max-w-[520px] flex-col items-start gap-4">
+      <div className="mx-auto flex max-w-[520px] flex-col items-center text-center gap-4">
         <p className="m-0 text-[16px] text-ink-700">{interpolate(t.signedInAs, { email: contact.email })}</p>
         <Link href={localizedPath("/corporate-partner/account", locale)} className={linkButton}>
           {t.goToAccount}

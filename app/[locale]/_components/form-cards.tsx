@@ -157,8 +157,6 @@ export function CardSelect({ className = "", children, ...props }: ComponentProp
 
 /** A value that comes from the partner's account: shown, never typed, and read again from the database on the server. */
 export function LockedInput({ id, type = "text", value, hint }: { id: string; type?: "text" | "email"; value: string; hint: string }) {
-  // Its own classes rather than cardControl plus overrides: same-property utilities are ordered by the stylesheet, not by
-  // the class list, so the editable field's hover and focus looks would win over the locked ones.
   return (
     <div className="relative" title={hint}>
       <input id={id} type={type} value={value} readOnly aria-readonly="true" aria-describedby={`${id}-hint`}
@@ -190,7 +188,6 @@ export function ChoiceGroup({
   legend: string;
   options: { value: string; label: string; wide?: boolean }[];
   defaultValue?: string;
-  /** `short` labels (a word or two) fit three to a row in a half-width card; `long` ones (a vehicle's name) need more room. */
   size?: "short" | "long";
   error?: string;
   required?: boolean;
@@ -198,7 +195,6 @@ export function ChoiceGroup({
   return (
     <fieldset aria-describedby={error ? `${idPrefix}-${name}-error` : undefined} className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
       <legend className="mb-2 p-0 text-[13px] font-semibold text-ink-950">{legend}</legend>
-      {/* As many columns as the card has room for, whatever the screen: a label that does not fit wraps rather than running under its neighbour */}
       <div className={`grid gap-2.5 ${size === "short" ? "grid-cols-[repeat(auto-fit,minmax(7.75rem,1fr))]" : "grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"}`}>
         {options.map((o) => (
           <label
@@ -219,7 +215,7 @@ export function ChoiceGroup({
   );
 }
 
-/** Country code and number in one field. The error id is `{idPrefix}-phone-error`, as with the other fields. */
+/** Country code and number in one field with dynamic length limits based on the selected country code. */
 export function PhoneField({
   idPrefix,
   label,
@@ -237,6 +233,22 @@ export function PhoneField({
   defaultNumber?: string;
   error?: string;
 }) {
+  const [selectedCountry, setSelectedCountry] = useState(defaultCountry || "31");
+
+  const getMaxDigitsForCountry = (code: string) => {
+    switch (code) {
+      case "1": // US/Canada NANP
+      case "44": // UK
+      case "31": // Netherlands
+      case "92": // Pakistan
+        return 10;
+      default:
+        return 15;
+    }
+  };
+
+  const maxDigits = getMaxDigitsForCountry(selectedCountry);
+
   return (
     <CardField idPrefix={idPrefix} name="phone" label={label} error={error}>
       <div
@@ -246,7 +258,8 @@ export function PhoneField({
           id={`${idPrefix}-phoneCountry`}
           name="phoneCountry"
           aria-label={countryLabel}
-          defaultValue={defaultCountry || "31"}
+          value={selectedCountry}
+          onChange={(e) => setSelectedCountry(e.target.value)}
           className="w-[104px] shrink-0 cursor-pointer rounded-l-md border-0 border-r border-solid border-ink-225 bg-transparent py-2.5 pr-1 pl-3 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]"
         >
           {COUNTRY_CODES.map(([code, iso]) => (
@@ -260,7 +273,11 @@ export function PhoneField({
           name="phone"
           type="tel"
           required
-          maxLength={20}
+          maxLength={maxDigits}
+          onInput={(e) => {
+            const target = e.target as HTMLInputElement;
+            target.value = target.value.replace(/\D/g, "").slice(0, maxDigits);
+          }}
           autoComplete="tel-national"
           placeholder={placeholder}
           defaultValue={defaultNumber}
@@ -273,7 +290,7 @@ export function PhoneField({
   );
 }
 
-/** A text area that counts what has been typed against its limit. `counter` is a template such as "{count} / {max}". */
+/** A text area that counts what has been typed against its limit. */
 export function CountedTextarea({
   id,
   name,
