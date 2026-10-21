@@ -253,20 +253,20 @@ export function QuoteForm({
 
             {/* Destination & Stopover Popover Container */}
             <div className="relative flex flex-col bg-white z-30" ref={dropdownRef}>
-              <div className="flex items-center justify-between px-3 pt-2.5 pb-1 select-none gap-2">
-                <label htmlFor="q-destination" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase whitespace-nowrap">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 pt-2.5 pb-1 select-none gap-1">
+                <label htmlFor="q-destination" className="text-[10px] font-medium tracking-[0.18em] text-ink-600 uppercase truncate">
                   {t.labelDestination}
                 </label>
                 <button
                   type="button"
                   onClick={toggleStops}
                   aria-expanded={isOpen}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-100 hover:bg-ink-200 px-2 py-0.5 rounded-sm cursor-pointer shrink-0"
+                  className="inline-flex items-center justify-center gap-0.5 text-[9px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-100 hover:bg-ink-200 px-1.5 py-0.5 rounded-xs cursor-pointer self-start sm:self-auto shrink-0"
                 >
                   {selectedFleetVehicle ? (
                     <span>{stops.length > 0 ? `+${stops.length}` : "+ Stop"}</span>
                   ) : (
-                    <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : t.addStop}</span>
+                    <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : "+ Add Stop"}</span>
                   )}
                 </button>
               </div>
