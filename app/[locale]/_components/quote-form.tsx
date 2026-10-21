@@ -244,29 +244,20 @@ export function QuoteForm({
                     <div className="border-b border-ink-200 pb-3">
                       <span className="font-serif text-[18px] text-ink-950">{selectedFleetVehicle.name} — FAQ</span>
                     </div>
-                    <div className="max-h-[50vh] overflow-y-auto flex flex-col pr-1">
+                    <div className="max-h-[55vh] overflow-y-auto flex flex-col pr-1">
                       {questionsFor(selectedFleetVehicle, fleetDict, locale).map(([question, answer]) => (
-                        <details key={question} className="group border-b border-b-ink-200 py-2">
-                          <summary className="py-2 gap-2 items-center flex cursor-pointer justify-between list-none text-ink-950 text-[13px] font-medium [&::-webkit-details-marker]:hidden">
+                        <details key={question} className="group border-b border-b-ink-200 py-3">
+                          <summary className="py-1 gap-2 items-center flex cursor-pointer justify-between list-none font-sans text-ink-950 text-[13px] font-normal [&::-webkit-details-marker]:hidden">
                             <span className="pr-2">{question}</span>
                             <svg className="shrink-0 transition-transform duration-300 group-open:rotate-45" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                               <path d="M12 5v14M5 12h14"></path>
                             </svg>
                           </summary>
-                          <p className="m-0 pb-2 text-ink-600 text-[12px] font-light leading-relaxed">
+                          <p className="m-0 pt-1 pb-2 font-sans text-ink-600 text-[12px] font-light leading-relaxed">
                             {answer}
                           </p>
                         </details>
                       ))}
-                    </div>
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setQaOpen(false)}
-                        className="bg-ink-950 text-white uppercase text-[10px] tracking-[0.2em] px-6 py-2.5 rounded-xs hover:bg-ink-800 transition-colors cursor-pointer"
-                      >
-                        Close FAQ
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -520,11 +511,11 @@ export function QuoteForm({
                   {t.labelNotes}
                 </label>
               </div>
-              <div className="px-3 pb-2.5">
-                <textarea id="q-notes" name="notes" rows={4} placeholder={t.phNotes} maxLength={2000}
+              <div className="px-3 pb-2">
+                <textarea id="q-notes" name="notes" rows={2} placeholder={t.phNotes} maxLength={2000}
                   autoComplete="off" defaultValue={v.notes} aria-invalid={!!err.notes}
                   aria-describedby={describedBy("notes")}
-                  className={`${control} min-h-[104px] resize-y`} />
+                  className={`${control} min-h-[44px] resize-y`} />
               </div>
               {fieldError("notes")}
             </div>
@@ -535,7 +526,7 @@ export function QuoteForm({
                   {t.labelVehicle}
                 </label>
               </div>
-              <div className="px-3 pb-2.5">
+              <div className="px-3 pb-2">
                 <select id="q-vehicle" name="vehicle" value={vehicleTouched ? vehicle : vehicle || v.vehicle || ""}
                   onChange={(e) => {
                     setVehicleTouched(true);
@@ -564,28 +555,28 @@ export function QuoteForm({
 
           </div>
 
-          <div className="mt-6 flex justify-center">
+          <div className="mt-[42px] flex flex-col items-center">
             <button
               type="submit"
               disabled={pending}
-              className="min-h-[64px] w-full max-w-[420px] cursor-pointer border-none bg-ink-950 px-10 font-sans text-[12px] font-semibold tracking-[0.24em] text-white uppercase hover:bg-ink-800 disabled:pointer-events-none disabled:cursor-progress disabled:opacity-70"
+              className="min-h-[46px] w-full max-w-[360px] cursor-pointer border-none bg-ink-950 px-6 font-sans text-[11px] font-semibold tracking-[0.24em] text-white uppercase hover:bg-ink-800 disabled:pointer-events-none disabled:cursor-progress disabled:opacity-70 shadow-sm"
             >
               {pending ? t.sending : t.submit}
             </button>
-          </div>
 
-          <p aria-live="polite" className={`mt-3 mb-0 text-[13px] ${state.status === "error" ? "text-error" : "text-ink-475"}`}>
-            {state.status === "error" ? (
-              state.message
-            ) : (
-              <>
-                {t.privacyNote}{" "}
-                <Link href={localizedPath("/privacy", locale)} className="text-inherit">
-                  {t.privacyLink}
-                </Link>
-              </>
-            )}
-          </p>
+            <p aria-live="polite" className={`mt-2 mb-0 text-[11px] text-center ${state.status === "error" ? "text-error" : "text-ink-475"}`}>
+              {state.status === "error" ? (
+                state.message
+              ) : (
+                <>
+                  {t.privacyNote}{" "}
+                  <Link href={localizedPath("/privacy", locale)} className="text-inherit underline-offset-2 hover:underline">
+                    {t.privacyLink}
+                  </Link>
+                </>
+              )}
+            </p>
+          </div>
         </div>
       </div>
     </form>

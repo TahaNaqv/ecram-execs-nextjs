@@ -1,166 +1,141 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { interpolate } from "@/lib/i18n/interpolate";
+import { createPortal } from "react-dom";
 
-export type GalleryCopy = {
-  label: string;
-  prev: string;
-  next: string;
-  enlarge: string;
-  close: string;
-  /** "Photo {current} of {total}" */
-  counter: string;
-  lightbox: string;
-};
-
-const arrowButton =
-  "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/70 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950 md:h-11 md:w-11";
-
-const Chevron = ({ direction }: { direction: "left" | "right" }) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <path d={direction === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"} />
-  </svg>
-);
-
-export function VehicleGallery({ name, images, alt, copy }: { name: string; images: string[]; alt: string; copy: GalleryCopy }) {
+export function VehicleGallery({
+  name,
+  images,
+  alt,
+  copy,
+}: {
+  name: string;
+  images: string[];
+  alt: string;
+  copy: {
+    label: string;
+    prev: string;
+    next: string;
+    enlarge: string;
+    close: string;
+    counter: string;
+    lightbox: string;
+  };
+}) {
   const [index, setIndex] = useState(0);
-  const track = useRef<HTMLDivElement>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
-  const many = images.length > 1;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  // Which photo the strip is actually showing, worked out from how far it has scrolled
-  const syncFromScroll = () => {
-    const el = track.current;
-    if (el && el.clientWidth) setIndex(Math.round(el.scrollLeft / el.clientWidth));
+  const prev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIndex((i) => (i === 0 ? images.length - 1 : i - 1));
   };
 
-  // While an arrow-triggered glide is under way, scroll events are ignored: a browser may report one at the OLD
-  // position as the glide begins (or throughout a slow glide), which used to snap the counter back to the photo
-  // that was just left and make it look as if the arrow did nothing. Afterwards the counter is re-read from the
-  // strip itself, so it never disagrees with the photo on screen.
-  const gliding = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(gliding.current), []);
-
-  const go = (to: number) => {
-    const next = (to + images.length) % images.length;
-    setIndex(next);
-    const el = track.current;
-    if (el) {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.clearTimeout(gliding.current);
-      gliding.current = window.setTimeout(() => {
-        gliding.current = undefined;
-        syncFromScroll();
-      }, reduce ? 50 : 900);
-      el.scrollTo({ left: next * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
-    }
+  const next = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIndex((i) => (i === images.length - 1 ? 0 : i + 1));
   };
-
-  const onScroll = () => {
-    if (gliding.current === undefined) syncFromScroll();
-  };
-
-  const onDialogKey = (e: KeyboardEvent<HTMLDialogElement>) => {
-    if (!many) return;
-    if (e.key === "ArrowLeft") go(index - 1);
-    if (e.key === "ArrowRight") go(index + 1);
-  };
-
-  const status = interpolate(copy.counter, { current: index + 1, total: images.length });
 
   return (
-    <div className="border border-ink-800 relative overflow-hidden bg-ink-900 w-full h-full" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
-      <div
-        ref={track}
-        onScroll={onScroll}
-        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    <>
+      <div 
+        onClick={() => setLightboxOpen(true)}
+        className="w-full aspect-[16/10] relative bg-ink-100 overflow-hidden group cursor-pointer rounded-xs border border-ink-200"
       >
-        {images.map((src, i) => (
-          <div key={src} className="relative h-full w-full shrink-0 snap-center" aria-hidden={i !== index}>
-            <Image
-              className="block h-full w-full object-cover object-center"
-              src={src}
-              alt={many ? `${alt} (${i + 1}/${images.length})` : alt}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            />
-          </div>
-        ))}
-      </div>
+        <Image
+          src={images[index]}
+          alt={`${alt} — ${index + 1}`}
+          fill
+          sizes="(max-width: 768px) 100vw, 350px"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          priority={index === 0}
+        />
 
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          dialog.current?.showModal();
-        }}
-        aria-label={copy.enlarge}
-        title={copy.enlarge}
-        className="absolute top-2 right-2 z-10 flex h-10 w-10 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/70 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-          <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
-        </svg>
-      </button>
-
-      {many && (
-        <>
-          <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-2`}>
-            <Chevron direction="left" />
-          </button>
-          <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-2`}>
-            <Chevron direction="right" />
-          </button>
-          <span className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-ink-950/70 px-3 py-1 text-[11px] tracking-[0.2em] text-ink-150 backdrop-blur-sm" aria-hidden="true">
-            {index + 1} / {images.length}
-          </span>
-        </>
-      )}
-      <span className="sr-only" aria-live="polite">
-        {status}
-      </span>
-
-      <dialog
-        ref={dialog}
-        onClose={() => setOpen(false)}
-        onKeyDown={onDialogKey}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) dialog.current?.close();
-        }}
-        aria-label={interpolate(copy.lightbox, { name })}
-        className="m-auto max-h-[92vh] w-[min(1400px,96vw)] border-none bg-transparent p-0 text-ink-50 backdrop:bg-ink-975/90"
-      >
-        {open && (
-          <div className="relative aspect-video w-full bg-ink-950">
-            <Image className="object-contain" src={images[index]} alt={alt} fill sizes="96vw" />
+        {/* Small Sleek Nav Arrows */}
+        {images.length > 1 && (
+          <>
             <button
               type="button"
-              autoFocus
-              onClick={() => dialog.current?.close()}
-              aria-label={copy.close}
-              title={copy.close}
-              className="absolute top-3 right-3 z-10 flex h-11 w-11 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/70 text-ink-50 transition-colors hover:bg-ink-50 hover:text-ink-950"
+              onClick={prev}
+              aria-label={copy.prev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all opacity-80 group-hover:opacity-100 cursor-pointer shadow-md"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
-            {many && (
+            <button
+              type="button"
+              onClick={next}
+              aria-label={copy.next}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all opacity-80 group-hover:opacity-100 cursor-pointer shadow-md"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </>
+        )}
+
+        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 tracking-widest rounded-xs">
+          {index + 1} / {images.length}
+        </div>
+
+        <div className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-black/60 text-white rounded-xs opacity-0 group-hover:opacity-100 transition-opacity">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        </div>
+      </div>
+
+      {lightboxOpen && createPortal(
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label={copy.lightbox}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div className="relative w-full max-w-5xl aspect-[16/10] max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={images[index]}
+              alt={`${alt} — ${index + 1}`}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              priority
+            />
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              aria-label={copy.close}
+              className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors cursor-pointer text-lg z-10"
+            >
+              ✕
+            </button>
+
+            {images.length > 1 && (
               <>
-                <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-3`}>
-                  <Chevron direction="left" />
+                <button
+                  type="button"
+                  onClick={prev}
+                  aria-label={copy.prev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all cursor-pointer shadow-lg"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
-                <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-3`}>
-                  <Chevron direction="right" />
+                <button
+                  type="button"
+                  onClick={next}
+                  aria-label={copy.next}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all cursor-pointer shadow-lg"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
               </>
             )}
+
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 tracking-widest rounded-full">
+              {index + 1} / {images.length} — {name}
+            </div>
           </div>
-        )}
-      </dialog>
-    </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
