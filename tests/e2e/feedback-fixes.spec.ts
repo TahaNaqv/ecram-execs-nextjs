@@ -217,23 +217,10 @@ test("running text writes Ecram Execs with a capital E only", async ({ page }) =
   }
 });
 
-test("each audience card reveals its picture on hover and no dashes interrupt the heading", async ({ page }) => {
+test("no dashes interrupt the Who We Serve heading (the audience cards themselves are covered by audience.spec.ts)", async ({ page }) => {
   await page.goto("/en");
   await expect(page.locator("#corporate h2")).toHaveText("Trusted by those for whom every minute, and every impression, counts.");
-  const cards = page.locator("#corporate ul > li");
-  await expect(cards).toHaveCount(6);
-  const photo = (i: number) => cards.nth(i).locator("img");
-  for (let i = 0; i < 6; i++) await expect(photo(i)).toHaveCount(1);
-  const opacity = (i: number) => cards.nth(i).locator("div[aria-hidden=true]").evaluate((el) => getComputedStyle(el).opacity);
-
-  await cards.first().scrollIntoViewIfNeeded();
-  expect(await opacity(0)).toBe("0");
-  await cards.first().hover();
-  await expect.poll(() => opacity(0)).toBe("1");
-  expect(await opacity(1)).toBe("0"); // only the card under the pointer
-  await cards.nth(3).hover();
-  await expect.poll(() => opacity(3)).toBe("1");
-  await expect.poll(() => opacity(0)).toBe("0");
+  await expect(page.locator("#corporate article")).toHaveCount(6);
 });
 
 test("the Corporate Partner heading is centred on the page", async ({ page }) => {

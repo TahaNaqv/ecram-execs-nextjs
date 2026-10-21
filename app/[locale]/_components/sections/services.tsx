@@ -1,6 +1,6 @@
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import { ServicesAccordion, type ServiceItem } from "../services-accordion";
+import { PictureAccordion, type PictureItem } from "../picture-accordion";
 
 export async function Services() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
@@ -8,7 +8,7 @@ export async function Services() {
   // Each service is a picture card that unfolds into its details. They book through the form; Corporate Accounts leads to the
   // Corporate Partner page instead. The pictures are stills from the client's showreel (public/assets/service-*.jpg).
   const quote = { label: d.common.requestQuote, href: "#enquire" };
-  const items: ServiceItem[] = [
+  const items: PictureItem[] = [
     { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/service-airport.jpg", focus: "38% 50%", cta: quote },
     { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-business.jpg", focus: "70% 45%", cta: quote },
     { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate.jpg", focus: "50% 50%", cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
@@ -27,7 +27,7 @@ export async function Services() {
             </h2>
           </div>
         </div>
-        <ServicesAccordion items={items} />
+        <PictureAccordion items={items} variant="services" />
       </div>
     </section>
   );

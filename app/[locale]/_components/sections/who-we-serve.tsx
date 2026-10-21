@@ -1,26 +1,26 @@
-import Image from "next/image";
 import Link from "next/link";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
+import { PictureAccordion, type PictureItem } from "../picture-accordion";
 
 export async function WhoWeServe() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const w = d.whoWeServe;
-  // The picture that fades in behind each audience when the pointer rests on it. The `serve-*` files are
-  // resized copies of the client's photographs; the other three are destination photos (Rotterdam, Utrecht,
-  // Amsterdam). Decorative only: the heading and text beside them already say who it is for.
-  const segments = [
-    [w.segmentExecutives, w.segmentExecutivesText, "/assets/serve-executives-v1.jpg", "50% 50%"],
-    [w.segmentCorporate, w.segmentCorporateText, "/assets/c01091ac467f57c8ccacd1d28b8caa6f.jpg", "60% 62%"],
-    [w.segmentPrivate, w.segmentPrivateText, "/assets/serve-private-v1.jpg", "50% 50%"],
-    [w.segmentHotels, w.segmentHotelsText, "/assets/d38555c6a11a07329e901cbb09fa90bb.jpg", "50% 60%"],
-    [w.segmentInternational, w.segmentInternationalText, "/assets/52de87fce1028743a6cc606de596dd57.jpg", "50% 55%"],
-    [w.segmentEvents, w.segmentEventsText, "/assets/serve-events-v1.jpg", "50% 50%"],
-  ] as const;
+  // One picture per audience, designed for this page (resized to 1400px); `focus` keeps the people in view when the card crops it.
+  // Decorative: the title and text already say who it is for.
+  const items: PictureItem[] = [
+    { key: "executives", title: w.segmentExecutives, text: w.segmentExecutivesText, image: "/assets/serve-executives-v2.jpg", focus: "56% 50%" },
+    { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/serve-corporate-v2.jpg", focus: "60% 50%" },
+    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v2.jpg", focus: "52% 50%" },
+    { key: "hotels", title: w.segmentHotels, text: w.segmentHotelsText, image: "/assets/serve-hotels-v2.jpg", focus: "50% 50%" },
+    { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%" },
+    { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-v2.jpg", focus: "58% 50%" },
+  ];
   return (
     <section className="border-b border-b-ink-850" id="corporate">
       <div className="py-20 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-30 md:px-6 md:gap-20 2xl:max-w-[1440px]">
-        <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0">
+        {/* Beside the cards (from the width where the two columns sit side by side) the heading stays in view while the cards are read */}
+        <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0 min-[1068px]:sticky min-[1068px]:top-32 min-[1068px]:self-start">
           <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             {d.whoWeServe.eyebrow}
           </span>
@@ -34,31 +34,9 @@ export async function WhoWeServe() {
             </svg>
           </Link>
         </div>
-        <ul className="flex-[999_1_560px] gap-x-12 grid grid-cols-[1fr] min-w-0 gap-y-0 p-0 m-0 list-none md:grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
-          {segments.map(([title, text, image, focus]) => (
-            // The picture exists only where a pointer can hover: on touch screens it would never be seen, and
-            // `display: none` keeps the browser from downloading it. It reaches 16px past the text on each side
-            // so the words keep a margin inside it.
-            <li key={title} className="group relative isolate py-6 px-0 gap-2 border-t border-t-ink-800 flex flex-col">
-              <div
-                className="pointer-events-none absolute inset-y-0 -inset-x-4 -z-10 hidden overflow-hidden opacity-0 [@media(hover:hover)]:block transition-opacity duration-500 group-hover:opacity-100"
-                aria-hidden="true"
-              >
-                <Image
-                  className="object-cover scale-110 transition-transform duration-[900ms] ease-out group-hover:scale-100 motion-reduce:scale-100 motion-reduce:transition-none"
-                  style={{ objectPosition: focus }}
-                  src={image}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1280px) 320px, (min-width: 768px) 30vw, 100vw"
-                />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.76)_0%,rgba(10,10,11,0.88)_100%)]"></div>
-              </div>
-              <h3 className="m-0 text-ink-50 font-serif text-[22px] font-normal md:text-[26px]">{title}</h3>
-              <p className="m-0 text-ink-400 text-[14px] font-light transition-colors duration-500 group-hover:text-ink-150">{text}</p>
-            </li>
-          ))}
-        </ul>
+        <div className="flex-[999_1_560px] min-w-0">
+          <PictureAccordion items={items} variant="audience" />
+        </div>
       </div>
       <div className="px-5 pt-0 pb-20 my-0 mx-auto gap-8 grid grid-cols-[1fr] max-w-[1280px] md:px-6 md:pt-0 md:pb-30 md:grid-cols-[repeat(2,minmax(0px,1fr))] lg:grid-cols-[repeat(4,minmax(0px,1fr))] 2xl:max-w-[1440px]">
         <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
