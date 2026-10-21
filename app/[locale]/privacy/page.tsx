@@ -13,7 +13,7 @@ import { CookieTable } from "../_components/cookie-table";
 // NOTE: Describes how this website actually handles data (see lib/quotes, lib/email).
 // Have it reviewed before launch, and update it whenever a new processor or feature is added.
 /** ISO date; rendered in the reader's language. */
-const LAST_UPDATED = "2026-10-21";
+const LAST_UPDATED = "2026-10-22";
 
 function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
@@ -116,6 +116,9 @@ export default async function PrivacyPage() {
 
         <Section title={t.s8Title}>
           <p className="m-0">{t.s8p1}</p>
+          <p className="m-0">{t.s8p2}</p>
+          <p className="m-0">{t.s8p3}</p>
+          <p className="m-0">{t.s8p4}</p>
         </Section>
 
         <Link href={localizedPath("/", locale)} className="text-[12px] tracking-[0.24em] uppercase">

@@ -260,6 +260,8 @@ test("the privacy policy names the processors the site actually uses, in both la
     await expect(main).toContainText(copy.s4Anthropic);
     await expect(main).toContainText(copy.s4p3);
     await expect(main).toContainText(copy.s2p4);
+    // The Corporate Partner section describes the account, the bookings and how long they are kept
+    for (const part of [copy.s8p1, copy.s8p2, copy.s8p3, copy.s8p4]) await expect(main).toContainText(part);
     await expect(main).not.toContainText(/Vercel|Supabase/);
   }
 });
