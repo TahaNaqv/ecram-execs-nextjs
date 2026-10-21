@@ -26,7 +26,7 @@ for (const locale of LOCALES) {
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await expect(page.locator("h1")).toContainText(d.hero.headingBefore);
     // Anchor ids stay English in both languages on purpose (D5) — the switcher carries them over.
-    for (const id of ["enquire", "services", "experience", "fleet", "netherlands", "corporate"]) {
+    for (const id of ["enquire", "services", "experience", "netherlands", "corporate"]) {
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
     // Sections the client asked to have removed stay gone
@@ -145,7 +145,7 @@ test("mobile menu opens with the keyboard and closes after choosing a link", asy
   await page.locator("#nav-toggle").focus();
   await page.keyboard.press("Space");
   await expect(nav).toBeVisible();
-  await nav.getByRole("link", { name: en.nav.fleet }).click();
+  await nav.getByRole("link", { name: en.nav.services }).click();
   await expect(nav).toBeHidden();
 });
 

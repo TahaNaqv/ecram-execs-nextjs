@@ -214,7 +214,6 @@
     "openMenu": "Open menu",
     "services": "Services",
     "experience": "The Experience",
-    "fleet": "Fleet",
     "destinations": "Destinations",
     "corporate": "Corporate"
   },
@@ -318,7 +317,7 @@
     "segmentHotels": "Hotels & concierge",
     "segmentInternational": "International visitors",
     "segmentEvents": "Organisations & events",
-    "segmentExecutivesText": "Discrete, punctual transfers for senior leaders between the office, the airport and every appointment in between.",
+    "segmentExecutivesText": "Discreet, punctual transfers for senior leaders between the office, the airport and every appointment in between.",
     "segmentCorporateText": "A single point of contact, consolidated invoicing and dependable service for your team's journeys.",
     "segmentPrivateText": "Weddings, celebrations and evenings out, arranged around you with the same composure as a board meeting.",
     "segmentHotelsText": "A trusted partner for hotels and concierge desks welcoming international guests to the Netherlands.",
@@ -397,7 +396,6 @@
     "linkCorporate": "Corporate accounts",
     "linkPrivate": "Private occasions",
     "linkExperience": "The experience",
-    "linkElectricFleet": "Electric fleet",
     "linkDestinations": "Destinations",
     "linkContact": "Contact",
     "linkDriveWithUs": "Drive with us",
@@ -489,6 +487,7 @@
     "removeStop": "Remove stop",
     "stopsCount": "Stops ({count}/{max})",
     "addStop": "+ Add Stop",
+    "addStopShort": "+ Stop",
     "stopoversTitle": "Additional Stopovers (Max {max})",
     "noStops": "No extra stopovers added yet.",
     "stopPlaceholder": "Stop {number} (Optional)",
@@ -499,7 +498,9 @@
     "selectedVehicle": "Selected Vehicle",
     "passengersLabel": "Passengers",
     "electricLabel": "100% Electric",
-    "changeVehicle": "Clear selection"
+    "changeVehicle": "Clear selection",
+    "faqTitle": "{name} — FAQ",
+    "toggleQuestions": "Show or hide the questions about this vehicle"
   },
   "dateTimePicker": {
     "placeholder": "dd-mm-yyyy hh:mm",
@@ -798,22 +799,22 @@
       "noAccount": "No account yet"
     },
     "vehicles": {
-      "title": "Fleet & Vehicle Control",
-      "description": "Manage luxury vehicles available for client bookings and quote forms.",
+      "title": "Vehicle Fleet Management",
+      "description": "Manage vehicles and real-time operational availability.",
       "totalFleet": "Total Fleet",
-      "registered": "Vehicles registered in system",
+      "registered": "Vehicles registered",
       "available": "Available",
-      "availableNote": "Ready for client quote selection",
+      "availableNote": "Ready for dispatch",
       "unavailable": "Unavailable",
-      "unavailableNote": "Hidden from booking forms",
+      "unavailableNote": "Out of service or maintenance",
       "registeredHeader": "Registered Vehicles",
-      "noVehicles": "No vehicles in fleet",
-      "noVehiclesNote": "Add your first vehicle using the form above to display it on client quote requests.",
-      "removeVehicle": "Remove Vehicle",
-      "toggleStatus": "Toggle Status",
+      "noVehicles": "No vehicles registered",
+      "noVehiclesNote": "Add a new vehicle to track its availability.",
+      "removeVehicle": "Remove vehicle",
+      "toggleStatus": "Toggle vehicle availability",
       "addNew": "Add New Vehicle",
-      "namePlaceholder": "Enter vehicle name (e.g. Mercedes-Benz VLE 300)",
-      "addCta": "Add Vehicle to Fleet"
+      "namePlaceholder": "e.g. Mercedes-Benz S-Class",
+      "addCta": "Add Vehicle"
     },
     "partnerCard": {
       "title": "Corporate partner",
@@ -883,25 +884,11 @@
       "internalNotes": "Internal notes",
       "submit": "Create booking",
       "creating": "Creating…",
-      "cta": "New booking"
-    },
-    "vehicles": {
-      "title": "Vehicle Fleet Management",
-      "description": "Manage vehicles and real-time operational availability.",
-      "totalFleet": "Total Fleet",
-      "registered": "Vehicles registered",
-      "available": "Available",
-      "availableNote": "Ready for dispatch",
-      "unavailable": "Unavailable",
-      "unavailableNote": "Out of service or maintenance",
-      "registeredHeader": "Registered Vehicles",
-      "noVehicles": "No vehicles registered",
-      "noVehiclesNote": "Add a new vehicle to track its availability.",
-      "removeVehicle": "Remove vehicle",
-      "toggleStatus": "Toggle vehicle availability",
-      "addNew": "Add New Vehicle",
-      "namePlaceholder": "e.g. Mercedes-Benz S-Class",
-      "addCta": "Add Vehicle"
+      "cta": "New booking",
+      "addStop": "Add stop",
+      "removeStop": "Remove stop",
+      "stopN": "Stop {number}",
+      "unavailable": "Unavailable"
     }
   },
   "bespokeSection": {

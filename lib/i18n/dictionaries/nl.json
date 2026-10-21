@@ -214,7 +214,6 @@
     "openMenu": "Menu openen",
     "services": "Diensten",
     "experience": "De ervaring",
-    "fleet": "Vloot",
     "destinations": "Bestemmingen",
     "corporate": "Zakelijk"
   },
@@ -318,7 +317,7 @@
     "segmentHotels": "Hotels & concierge",
     "segmentInternational": "Internationale gasten",
     "segmentEvents": "Organisaties & evenementen",
-    "segmentExecutivesText": "Discreet, punctuele ritten voor leidinggevenden, tussen kantoor, luchthaven en elke afspraak daartussen.",
+    "segmentExecutivesText": "Discrete, punctuele ritten voor leidinggevenden, tussen kantoor, luchthaven en elke afspraak daartussen.",
     "segmentCorporateText": "Eén vast aanspreekpunt, gebundelde facturatie en betrouwbare service voor de ritten van uw team.",
     "segmentPrivateText": "Bruiloften, feesten en avonden uit, geregeld rond u, met dezelfde kalmte als een bestuursvergadering.",
     "segmentHotelsText": "Een vertrouwde partner voor hotels en conciergebalies die internationale gasten in Nederland ontvangen.",
@@ -397,7 +396,6 @@
     "linkCorporate": "Zakelijke accounts",
     "linkPrivate": "Privégelegenheden",
     "linkExperience": "De ervaring",
-    "linkElectricFleet": "Elektrische vloot",
     "linkDestinations": "Bestemmingen",
     "linkContact": "Contact",
     "linkDriveWithUs": "Rijd met ons",
@@ -489,6 +487,7 @@
     "removeStop": "Stop verwijderen",
     "stopsCount": "Tussenstops ({count}/{max})",
     "addStop": "+ Tussenstop toevoegen",
+    "addStopShort": "+ Stop",
     "stopoversTitle": "Extra tussenstops (max. {max})",
     "noStops": "Nog geen extra tussenstops toegevoegd.",
     "stopPlaceholder": "Tussenstop {number} (optioneel)",
@@ -499,7 +498,9 @@
     "selectedVehicle": "Geselecteerd Voertuig",
     "passengersLabel": "Passagiers",
     "electricLabel": "100% Elektrisch",
-    "changeVehicle": "Selectie wissen"
+    "changeVehicle": "Selectie wissen",
+    "faqTitle": "{name} — Veelgestelde vragen",
+    "toggleQuestions": "Vragen over dit voertuig tonen of verbergen"
   },
   "dateTimePicker": {
     "placeholder": "dd-mm-jjjj uu:mm",
@@ -798,22 +799,22 @@
       "noAccount": "Nog geen account"
     },
     "vehicles": {
-      "title": "Wagenpark & Beschikbaarheid",
-      "description": "Beheer luxe voertuigen beschikbaar voor klantboekingen en offerteaanvragen.",
-      "totalFleet": "Totaal wagenpark",
-      "registered": "Voertuigen geregistreerd in het systeem",
+      "title": "Wagenparkbeheer",
+      "description": "Beheer voertuigen en realtime operationele beschikbaarheid.",
+      "totalFleet": "Totale vloot",
+      "registered": "Geregistreerde voertuigen",
       "available": "Beschikbaar",
-      "availableNote": "Beschikbaar voor offerteselectie door klanten",
-      "unavailable": "Niet beschikbaar / Onderhoud",
-      "unavailableNote": "Verborgen op boekingsformulieren",
+      "availableNote": "Klaar voor inzet",
+      "unavailable": "Niet beschikbaar",
+      "unavailableNote": "Buiten dienst of onderhoud",
       "registeredHeader": "Geregistreerde voertuigen",
-      "noVehicles": "Geen voertuigen in het wagenpark",
-      "noVehiclesNote": "Voeg uw eerste voertuig toe via het bovenstaande formulier om het weer te geven bij offerteaanvragen.",
+      "noVehicles": "Geen voertuigen geregistreerd",
+      "noVehiclesNote": "Voeg een nieuw voertuig toe om beschikbaarheid bij te houden.",
       "removeVehicle": "Voertuig verwijderen",
-      "toggleStatus": "Status wijzigen",
+      "toggleStatus": "Beschikbaarheid wijzigen",
       "addNew": "Nieuw voertuig toevoegen",
-      "namePlaceholder": "Voer voertuignaam in (bijv. Mercedes-Benz VLE 300)",
-      "addCta": "Voertuig toevoegen aan wagenpark"
+      "namePlaceholder": "bijv. Mercedes-Benz S-Klasse",
+      "addCta": "Voertuig toevoegen"
     },
     "partnerCard": {
       "title": "Zakelijke partner",
@@ -870,7 +871,6 @@
       "stops": "Stops onderweg (één per regel; voeg “ | 30” toe voor 30 minuten wachttijd)",
       "pickup": "Ophaaldatum en -tijd (NL)",
       "passengers": "Passagiers",
-      "addStop": "Add stop",
       "vehicle": "Voertuig",
       "vehicleNone": "Niet opgegeven",
       "name": "Naam contactpersoon",
@@ -884,25 +884,11 @@
       "internalNotes": "Interne notities",
       "submit": "Boeking aanmaken",
       "creating": "Aanmaken…",
-      "cta": "Nieuwe boeking"
-    },
-    "vehicles": {
-      "title": "Wagenparkbeheer",
-      "description": "Beheer voertuigen en realtime operationele beschikbaarheid.",
-      "totalFleet": "Totale vloot",
-      "registered": "Geregistreerde voertuigen",
-      "available": "Beschikbaar",
-      "availableNote": "Klaar voor inzet",
-      "unavailable": "Niet beschikbaar",
-      "unavailableNote": "Buiten dienst of onderhoud",
-      "registeredHeader": "Geregistreerde voertuigen",
-      "noVehicles": "Geen voertuigen geregistreerd",
-      "noVehiclesNote": "Voeg een nieuw voertuig toe om beschikbaarheid bij te houden.",
-      "removeVehicle": "Voertuig verwijderen",
-      "toggleStatus": "Beschikbaarheid wijzigen",
-      "addNew": "Nieuw voertuig toevoegen",
-      "namePlaceholder": "bijv. Mercedes-Benz S-Klasse",
-      "addCta": "Voertuig toevoegen"
+      "cta": "Nieuwe boeking",
+      "addStop": "Stop toevoegen",
+      "removeStop": "Stop verwijderen",
+      "stopN": "Tussenstop {number}",
+      "unavailable": "Niet beschikbaar"
     }
   },
   "bespokeSection": {

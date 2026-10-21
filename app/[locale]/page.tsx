@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { siteConfig, socialLinks } from "@/lib/site-config";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
@@ -24,6 +23,7 @@ import {
 const siteUrl = process.env.SITE_URL ?? "https://ecramexecs.vercel.app";
 const profileUrls = socialLinks.map(([, url]) => url).filter((url) => url.startsWith("http"));
 
+// Structured data so search engines understand the business (fields are only included once filled in)
 const buildJsonLd = (locale: Locale, description: string) => ({
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
@@ -54,13 +54,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-async function HomeContent() {
+export default async function HomePage() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const jsonLd = buildJsonLd(locale, d.meta.description);
 
   return (
     <div className="motion-full bg-ink-950 text-ink-150 font-sans text-[16px] font-normal leading-[1.6] w-full">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      {/* A refresh starts at the top. Browsers otherwise reopen the page where it was (and jump to a stale #anchor);
+          this runs before first paint and only for reloads, so back/forward navigation keeps its position. */}
       <script
         dangerouslySetInnerHTML={{
           __html:
@@ -75,7 +77,6 @@ async function HomeContent() {
         <Hero />
         <Enquiry />
         <WhoWeServe />
-        {/* Fleet section fully removed */}
         <Concierge />
         <Statement />
         <Services />
@@ -88,13 +89,5 @@ async function HomeContent() {
       <NavAutoClose />
       <SectionNav copy={{ prev: d.common.sectionPrev, next: d.common.sectionNext }} />
     </div>
-  );
-}
-
-export default function HomePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
-      <HomeContent />
-    </Suspense>
   );
 }

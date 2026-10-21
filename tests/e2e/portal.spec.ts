@@ -456,8 +456,13 @@ test("the team can enter a phone booking for a partner, and it appears in their 
   await page.goto("/admin/requests/new");
   await page.selectOption("#nb-contactId", contactId);
   await page.fill("#nb-collection", "Eindhoven Airport");
-  await page.fill("#nb-destination", "Amsterdam Zuid");
-  await page.fill("#nb-stops", "Utrecht Centraal | 45\nBreda");
+  // The first box is the destination; each "Add stop" adds a stop, and "| minutes" after a stop's name is its waiting time
+  const boxes = page.locator("input[name=destinations]");
+  await boxes.first().fill("Amsterdam Zuid");
+  await page.getByRole("button", { name: a.newBooking.addStop }).click();
+  await boxes.nth(1).fill("Utrecht Centraal | 45");
+  await page.getByRole("button", { name: a.newBooking.addStop }).click();
+  await boxes.nth(2).fill("Breda");
   await page.fill("#nb-pickupAt", "2031-04-02T09:15");
   await page.selectOption("#nb-phoneCountry", "31");
   await page.fill("#nb-phone", "6 1234 5678");

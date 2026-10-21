@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { fontVariables } from "@/lib/fonts";
+import { locale as localeParam } from "next/root-params";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
 import { WhatsAppFloat } from "@/components/whatsapp-float";
@@ -39,23 +40,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = { themeColor: "#0a0a0b", viewportFit: "cover" };
 
 export default async function SiteLayout({ 
-  children,
-  params,
+  children 
 }: { 
   children: React.ReactNode; 
-  params: Promise<{ locale: string }> | { locale: string };
 }) {
-  const resolvedParams = await Promise.resolve(params);
-  const value = resolvedParams?.locale;
-  
+  const value: string | undefined = await localeParam();
   if (!isLocale(value)) notFound();
 
   return (
-    <html lang={value} className={fontVariables} translate="no" data-notranslate>
-      <head>
-        <meta name="google" content="notranslate" />
-      </head>
-      <body className="notranslate" translate="no">
+    <html lang={value} className={fontVariables}>
+      <body>
         {children}
         <WhatsAppFloat />
       </body>

@@ -235,13 +235,16 @@ export function PhoneField({
 }) {
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry || "31");
 
+  // The longest a number can be typed in each country, counting the 0 many people still put in front (the UK's
+  // 07911 123456 and Pakistan's 0300 1234567 are 11 digits). A limit below that silently cuts the last digit off.
   const getMaxDigitsForCountry = (code: string) => {
     switch (code) {
       case "1": // US/Canada NANP
-      case "44": // UK
-      case "31": // Netherlands
-      case "92": // Pakistan
+      case "31": // Netherlands: 0 6 1234 5678
         return 10;
+      case "44": // UK
+      case "92": // Pakistan
+        return 11;
       default:
         return 15;
     }

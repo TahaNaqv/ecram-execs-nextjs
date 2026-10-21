@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { FLEET } from "@/lib/fleet/vehicles";
+import { FLEET, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 import { asc, isNotNull } from "drizzle-orm";
@@ -39,15 +39,13 @@ async function Form() {
     db.select().from(schema.vehicles).catch(() => []),
   ]);
   const t = d.admin.newBooking;
-  const vehicleOptions =
-    dbVehicles && dbVehicles.length > 0
-      ? dbVehicles.map((v) => ({
-          value: v.id,
-          label: `${v.name}${v.status === "unavailable" ? " (Unavailable)" : ""}`,
-        }))
-      : FLEET.map((v) => ({ value: v.key, label: v.name }));
-  
-  const isDutch = sessionAdmin.locale === "nl" || "tussenstop" in (d.admin.newBooking as Record<string, unknown>);
+  // The vehicles in the table (so the team sees which are switched off), limited to the ones a booking can be saved with:
+  // a vehicle added by name in the fleet page has an id the booking rules do not know.
+  const known = (dbVehicles ?? []).flatMap((v) => {
+    const key = normalizeVehicleKey(v.id);
+    return key ? [{ value: key, label: v.status === "available" ? v.name : `${v.name} (${t.unavailable})` }] : [];
+  });
+  const vehicleOptions = known.length > 0 ? known : FLEET.map((v) => ({ value: v.key, label: v.name }));
 
   return (
     <Card className="mt-6 p-5 sm:p-6">
@@ -56,10 +54,7 @@ async function Form() {
         services={(["airport_transfer", "business_travel", "hourly", "private_occasion"] as const).map((s) => ({ value: s, label: d.services[s] }))}
         statuses={REQUEST_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
         vehicles={vehicleOptions}
-        copy={{
-          ...t,
-          addStop: isDutch ? "Tussenstop toevoegen" : "Add stop",
-        }}
+        copy={t}
         locale={sessionAdmin.locale}
         dateTimeCopy={d.dateTimePicker}
       />

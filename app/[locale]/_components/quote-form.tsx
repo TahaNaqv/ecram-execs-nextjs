@@ -2,7 +2,7 @@
 
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
-import { useActionState, useEffect, useState, useRef } from "react";
+import { useActionState, useEffect, useState, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { COUNTRY_CODES, SERVICES, type Service } from "@/lib/quotes/constants";
 import { VEHICLE_CHOICES, type VehicleChoice, normalizeVehicleKey, vehicleByKey, MAX_GALLERY_IMAGES, type Amenity, type FleetVehicle } from "@/lib/fleet/vehicles";
@@ -21,7 +21,7 @@ export type QuoteFormCopy = Record<
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination" | "labelDateTime"
   | "labelService" | "labelPassengers" | "selectPlaceholder" | "eightOrMore" | "labelName" | "phName"
   | "labelEmail" | "phEmail" | "labelPhoneCountry" | "labelPhone" | "phPhone"
-  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "labelStopWait" | "waitNone" | "waitMinutes" | "stopsCount" | "addStop" | "stopoversTitle" | "noStops" | "stopPlaceholder" | "addStopover" | "labelNotes" | "phNotes"
+  | "labelVehicle" | "vehicleAdvise" | "removeStop" | "labelStopWait" | "waitNone" | "waitMinutes" | "stopsCount" | "addStop" | "addStopShort" | "faqTitle" | "toggleQuestions" | "stopoversTitle" | "noStops" | "stopPlaceholder" | "addStopover" | "labelNotes" | "phNotes"
   | "submit" | "sending" | "successLabel" | "successHeading" | "successNote" | "privacyNote" | "privacyLink"
   | "selectedVehicle" | "passengersLabel" | "electricLabel" | "changeVehicle",
   string
@@ -85,11 +85,12 @@ export function QuoteForm({
   const [vehicle, setVehicle] = useState("");
   const [vehicleTouched, setVehicleTouched] = useState(false);
   const [qaOpen, setQaOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // True once this is running in the browser (the side panel is drawn into <body>, which the server render does not have)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const [stops, setStops] = useState<{ id: string; value: string; wait: number }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -199,7 +200,7 @@ export function QuoteForm({
               <button
                 type="button"
                 onClick={() => setQaOpen(!qaOpen)}
-                aria-label="Toggle Vehicle Questions"
+                aria-label={t.toggleQuestions}
                 className="w-7 h-7 shrink-0 flex items-center justify-center border border-ink-300 text-ink-950 bg-ink-50 hover:bg-ink-100 transition-colors cursor-pointer rounded-sm"
               >
                 <svg className={`shrink-0 transition-transform duration-300 ${qaOpen ? "rotate-45" : ""}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -242,7 +243,7 @@ export function QuoteForm({
 
                   <div className="flex-1 flex flex-col gap-3 min-w-0">
                     <div className="border-b border-ink-200 pb-3">
-                      <span className="font-serif text-[18px] text-ink-950">{selectedFleetVehicle.name} — FAQ</span>
+                      <span className="font-serif text-[18px] text-ink-950">{fill(t.faqTitle, { name: selectedFleetVehicle.name })}</span>
                     </div>
                     <div className="max-h-[55vh] overflow-y-auto flex flex-col pr-1">
                       {questionsFor(selectedFleetVehicle, fleetDict, locale).map(([question, answer]) => (
@@ -310,9 +311,9 @@ export function QuoteForm({
                   className="inline-flex items-center justify-center gap-0.5 text-[9px] font-semibold tracking-wider uppercase text-ink-950 hover:text-ink-600 transition-all bg-ink-100 hover:bg-ink-200 px-1.5 py-0.5 rounded-xs cursor-pointer self-start sm:self-auto shrink-0"
                 >
                   {selectedFleetVehicle ? (
-                    <span>{stops.length > 0 ? `+${stops.length}` : "+ Stop"}</span>
+                    <span>{stops.length > 0 ? `+${stops.length}` : t.addStopShort}</span>
                   ) : (
-                    <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : "+ Add Stop"}</span>
+                    <span>{stops.length > 0 ? fill(t.stopsCount, { count: String(stops.length), max: String(MAX_STOPS) }) : t.addStop}</span>
                   )}
                 </button>
               </div>

@@ -55,9 +55,6 @@ export async function SiteFooter() {
               <Link className="navlink" href={`${home}#experience`}>
                 {d.footer.linkExperience}
               </Link>
-              <Link className="navlink" href={`${home}#fleet`}>
-                {d.footer.linkElectricFleet}
-              </Link>
               <Link className="navlink" href={`${home}#netherlands`}>
                 {d.footer.linkDestinations}
               </Link>

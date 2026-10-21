@@ -1,5 +1,6 @@
 "use client";
 
+import { interpolate } from "@/lib/i18n/interpolate";
 import { useState, useActionState } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
@@ -10,11 +11,11 @@ import { createBookingForPartner, type NewBookingState } from "./actions";
 type Option = { value: string; label: string };
 type Copy = Record<
   | "partner" | "noPartner" | "service" | "collection" | "destination" | "stops" | "pickup" | "passengers" | "vehicle" | "vehicleNone" | "name" | "email"
-  | "phone" | "phoneCountry" | "contactHint" | "status" | "quote" | "notes" | "internalNotes" | "submit" | "creating" | "addStop",
+  | "phone" | "phoneCountry" | "contactHint" | "status" | "quote" | "notes" | "internalNotes" | "submit" | "creating" | "addStop" | "removeStop" | "stopN" | "unavailable",
   string
 >;
 
-type Values = Record<string, any>;
+type Values = Record<string, string | string[] | undefined>;
 
 function Select({ values, name, label, options, empty, className = "" }: { values: Values; name: string; label: string; options: Option[]; empty?: string; className?: string }) {
   return (
@@ -97,7 +98,7 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
               className="inline-flex items-center gap-1 text-xs font-medium text-zinc-900 hover:text-zinc-950"
             >
               <PlusIcon size={13} />
-              <span>{copy.addStop ?? "Add stop"}</span>
+              <span>{copy.addStop}</span>
             </button>
           )}
         </div>
@@ -109,7 +110,7 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
               type="text"
               value={dest}
               onChange={(e) => updateDestination(index, e.target.value)}
-              placeholder={index === 0 ? copy.destination : `Stop ${index}`}
+              placeholder={index === 0 ? copy.destination : interpolate(copy.stopN, { number: index })}
               autoComplete="off"
               className={`${field} h-10 flex-1`}
             />
@@ -117,7 +118,7 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
               <button
                 type="button"
                 onClick={() => removeDestination(index)}
-                aria-label="Remove stop"
+                aria-label={copy.removeStop}
                 className="grid size-10 shrink-0 place-items-center rounded-lg border border-zinc-200 text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
               >
                 <XIcon size={14} />
@@ -125,6 +126,7 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
             )}
           </div>
         ))}
+        {destinations.length > 1 && <p className="m-0 text-xs text-zinc-500">{copy.stops}</p>}
       </div>
 
       <Text values={v} name="passengers" label={copy.passengers} type="number" />

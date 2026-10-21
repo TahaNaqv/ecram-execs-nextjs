@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
+import { FLEET } from "../../lib/fleet/vehicles";
 
 // Regression tests for the client's bug reports (Web issue / Mobile Responsive tabs). None needs the database.
 
@@ -82,30 +83,38 @@ test("the concierge endpoint takes short messages only, builds its own knowledge
   await api.dispose();
 });
 
+// The Fleet section was removed at the client's request: a vehicle is now chosen in the booking form, which shows its photos
+// beside the form and its questions in a pop-up.
 test("every vehicle shows its own questions, not the same one repeated", async ({ page }) => {
   await page.goto("/en");
-  const counts = await page.evaluate(() => [...document.querySelectorAll("#fleet > div > ul > li")].map((li) => li.querySelectorAll("details").length));
-  expect(counts).toHaveLength(5);
-  for (const n of counts) expect(n).toBeGreaterThan(1);
+  const select = page.locator("#q-vehicle");
+  await select.scrollIntoViewIfNeeded();
+  const keys = await select.locator("option").evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value).filter((v) => v && v !== "advise"));
+  expect(keys).toHaveLength(5);
+  for (const key of keys) {
+    await select.selectOption(key);
+    await page.getByRole("button", { name: en.quoteForm.toggleQuestions }).click();
+    const count = await page.locator("details").count();
+    expect(count, key).toBeGreaterThan(1);
+    await page.getByRole("button", { name: "✕" }).click();
+    await expect(page.locator("details")).toHaveCount(0);
+  }
 });
 
-test("every fleet photo exists and is served", async ({ page, request }) => {
-  await page.goto("/en");
-  // next/image gives each slide an optimiser URL; a photo that is missing on disk makes that URL fail
-  const sources = await page.locator("#fleet img").evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).getAttribute("src")!));
-  expect(sources.length).toBeGreaterThan(20);
+test("every fleet photo exists and is served", async ({ request }) => {
   const broken: string[] = [];
-  for (const src of new Set(sources)) {
+  for (const src of new Set(FLEET.flatMap((v) => v.images))) {
     const response = await request.get(src);
-    if (!response.ok()) broken.push(`${response.status()} ${decodeURIComponent(new URL(src, "http://x").searchParams.get("url") ?? src)}`);
+    if (!response.ok()) broken.push(`${response.status()} ${src}`);
   }
+  expect(FLEET.flatMap((v) => v.images).length).toBeGreaterThan(20);
   expect(broken).toEqual([]);
 });
 
 test("header and hero buttons glide to their section instead of jumping", async ({ page }) => {
   await page.goto("/en");
   const positions: number[] = [];
-  await page.getByRole("link", { name: en.nav.fleet }).first().click();
+  await page.getByRole("link", { name: en.nav.services }).first().click();
   for (let i = 0; i < 12; i++) {
     positions.push(await page.evaluate(() => Math.round(scrollY)));
     await page.waitForTimeout(60);
@@ -115,30 +124,32 @@ test("header and hero buttons glide to their section instead of jumping", async 
   // At least one stop on the way: a jump goes from the top straight to the end and never shows an in-between position
   // (a headless browser can stall mid-glide, so this checks for any, not a count)
   expect(positions.filter((y) => y > 0 && y < end).length).toBeGreaterThanOrEqual(1);
-  const fleetTop = await page.evaluate(() => Math.round(document.querySelector("#fleet")!.getBoundingClientRect().top));
-  expect(Math.abs(fleetTop - 88)).toBeLessThan(6);
+  const sectionTop = await page.evaluate(() => Math.round(document.querySelector("#services")!.getBoundingClientRect().top));
+  expect(Math.abs(sectionTop - 88)).toBeLessThan(6);
 });
 
 test("with reduced motion requested, the same buttons jump straight there", async ({ browser }) => {
   const context = await browser.newContext({ reducedMotion: "reduce" });
   const page = await context.newPage();
   await page.goto("/en");
-  await page.getByRole("link", { name: en.nav.fleet }).first().click();
+  await page.getByRole("link", { name: en.nav.services }).first().click();
   await page.waitForTimeout(150);
-  const fleetTop = await page.evaluate(() => Math.round(document.querySelector("#fleet")!.getBoundingClientRect().top));
-  expect(Math.abs(fleetTop - 88)).toBeLessThan(6);
+  const sectionTop = await page.evaluate(() => Math.round(document.querySelector("#services")!.getBoundingClientRect().top));
+  expect(Math.abs(sectionTop - 88)).toBeLessThan(6);
   await context.close();
 });
 
 test("a vehicle gallery's counter follows the arrows, even if a scroll event reports the old position", async ({ page }) => {
   await page.goto("/en");
-  const card = page.locator("#fleet li").first();
-  await card.scrollIntoViewIfNeeded();
+  await page.locator("#q-vehicle").scrollIntoViewIfNeeded();
+  await page.locator("#q-vehicle").selectOption("mercedes_vle_300");
+  const gallery = page.locator("#enquire [aria-roledescription=carousel]");
+  await expect(gallery).toBeVisible();
   const counter = () =>
-    card.evaluate((li) => [...li.querySelector("[aria-roledescription=carousel]")!.querySelectorAll("span")].find((s) => /^\d+ \/ \d+$/.test(s.textContent!.trim()))?.textContent?.trim());
+    gallery.evaluate((g) => [...g.querySelectorAll("span")].find((s) => /^\d+ \/ \d+$/.test(s.textContent!.trim()))?.textContent?.trim());
   // Some browsers report a scroll event at the position being left as a glide begins; that used to reset the counter
-  await card.evaluate((li) => {
-    const track = li.querySelector("[aria-roledescription=carousel]")!.children[0] as HTMLElement;
+  await gallery.evaluate((g) => {
+    const track = g.children[0] as HTMLElement;
     const original = track.scrollTo.bind(track);
     track.scrollTo = ((options: ScrollToOptions) => {
       original(options);
@@ -146,41 +157,37 @@ test("a vehicle gallery's counter follows the arrows, even if a scroll event rep
     }) as typeof track.scrollTo;
   });
   expect(await counter()).toMatch(/^1 \/ \d+$/);
-  await card.getByRole("button", { name: /Next photo/ }).click();
+  await page.locator("#enquire").getByRole("button", { name: /Next photo/ }).click();
   await page.waitForTimeout(250);
   expect(await counter()).toMatch(/^2 \/ \d+$/);
   await page.waitForTimeout(1200);
   expect(await counter()).toMatch(/^2 \/ \d+$/);
-  await card.getByRole("button", { name: /Previous photo/ }).click();
+  await page.locator("#enquire").getByRole("button", { name: /Previous photo/ }).click();
   await page.waitForTimeout(1200);
   expect(await counter()).toMatch(/^1 \/ \d+$/);
 });
 
 test("the home page follows the client's section order and lacks the removed sections", async ({ page }) => {
   await page.goto("/en");
-  // Who we serve now sits straight after the booking form, ahead of the fleet
-  const order = await page.evaluate(() =>
-    [...document.querySelectorAll("main > section[id]")].map((s) => s.id),
-  );
+  // Who we serve now sits straight after the booking form
+  const order = await page.evaluate(() => [...document.querySelectorAll("main > section[id]")].map((s) => s.id));
   expect(order.slice(0, 3)).toEqual(["top", "enquire", "corporate"]);
-  expect(order.indexOf("corporate")).toBeLessThan(order.indexOf("fleet"));
-  for (const id of ["bespoke", "sustainability"]) expect(order).not.toContain(id);
+  // The Fleet, Bespoke and Sustainability sections are gone, and nothing links to them
+  for (const id of ["fleet", "bespoke", "sustainability"]) expect(order).not.toContain(id);
   await expect(page.locator("body")).not.toContainText("SUSTAINABILITY & ESG");
-  // No photograph is left at the end of the fleet; the picture of the rear seats is gone
-  await expect(page.locator('#fleet img[src*="fleet-interior"]')).toHaveCount(0);
-  // The cars carry no "100% electric" label, in either language
+  await expect(page.locator('a[href$="#fleet"]')).toHaveCount(0);
+  // No vehicle carries a "100% electric" label, in either language
   for (const path of ["/en", "/nl"]) {
     await page.goto(path);
-    await expect(page.locator("#fleet li h3")).toHaveCount(5);
-    await expect(page.locator("#fleet")).not.toContainText(/100% ELEKTRISCH|100% ELECTRIC/i);
+    await expect(page.locator("body")).not.toContainText(/100% ELEKTRISCH|100% ELECTRIC/i);
   }
 });
 
-test("the header lists Corporate, Fleet, The Experience, Destinations, Services in that order", async ({ page }) => {
+test("the header lists Corporate, The Experience, Destinations, Services in that order", async ({ page }) => {
   for (const [path, d] of [["/en", en], ["/nl", nl]] as const) {
     await page.goto(path);
     const links = page.getByRole("navigation", { name: d.nav.primaryLabel }).getByRole("link");
-    await expect(links).toHaveText([d.nav.corporate, d.nav.fleet, d.nav.experience, d.nav.destinations, d.nav.services]);
+    await expect(links).toHaveText([d.nav.corporate, d.nav.experience, d.nav.destinations, d.nav.services]);
     // Every link leads to a section that is on the page
     for (const href of await links.evaluateAll((els) => els.map((e) => e.getAttribute("href")))) {
       await expect(page.locator(href!)).toBeAttached();

@@ -28,7 +28,7 @@ test("the Corporate Partner screens keep their own colours on hover instead of t
   await page.waitForTimeout(700);
   expect(await applyPrivacy.evaluate((el) => getComputedStyle(el).color)).not.toBe("rgb(255, 255, 255)");
   await page.goto("/en");
-  const nav = page.getByRole("navigation", { name: en.nav.primaryLabel }).getByRole("link", { name: en.nav.fleet });
+  const nav = page.getByRole("navigation", { name: en.nav.primaryLabel }).getByRole("link", { name: en.nav.services });
   await nav.hover();
   await page.waitForTimeout(700);
   expect(await nav.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(255, 255, 255)");
@@ -48,19 +48,19 @@ test("each Services card is one link: the whole card works, and Corporate Accoun
   await page.goto("/en");
   const cards = page.locator("#services a.card");
   await expect(cards).toHaveCount(6);
-  // Clicking the empty lower part of the sixth card (not its heading) reaches the booking form
-  const sixth = cards.nth(5);
-  await sixth.scrollIntoViewIfNeeded();
-  const box = (await sixth.boundingBox())!;
-  await page.mouse.click(box.x + 20, box.y + box.height - 20); // lower left: the floating up/down arrows sit at the lower right
+  // Clicking the empty lower-left part of a card (not its heading) follows the link. Playwright scrolls the card into place
+  // and works out the point when it clicks, so a page that is still gliding to it does not matter.
+  const lowerLeft = async (card: ReturnType<typeof cards.nth>) => {
+    const height = (await card.boundingBox())!.height;
+    await card.click({ position: { x: 20, y: height - 20 } });
+  };
+  await lowerLeft(cards.nth(5));
   await expect(page).toHaveURL(/#enquire$/);
 
   await page.goto("/en");
-  const corporate = page.locator("#services a.card").nth(2);
+  const corporate = cards.nth(2);
   await expect(corporate).toHaveAttribute("href", "/en/corporate-partner");
-  await corporate.scrollIntoViewIfNeeded();
-  const c = (await corporate.boundingBox())!;
-  await page.mouse.click(c.x + 20, c.y + c.height - 20);
+  await lowerLeft(corporate);
   await expect(page).toHaveURL(/\/en\/corporate-partner$/);
 });
 
@@ -69,19 +69,30 @@ test("the footer's contact column holds contact details only", async ({ page }) 
   await expect(page.locator("footer")).not.toContainText("Serving the whole of the Netherlands");
 });
 
-test("the fleet lists complete names, and every car answers the luggage question", async ({ page }) => {
+test("the booking form lists the vehicles by their full names, and every car answers the luggage question", async ({ page }) => {
   await page.goto("/en");
-  const names = await page.locator("#fleet li h3").allTextContents();
+  const select = page.locator("#q-vehicle");
+  await select.scrollIntoViewIfNeeded();
+  const names = await select.locator("option").allTextContents();
   expect(names).toContain("Range Rover EV");
   expect(names).not.toContain("Range Rover");
-  const roverCard = page.locator("#fleet li").filter({ has: page.getByRole("heading", { name: "Range Rover EV" }) });
-  await expect(roverCard.locator("summary")).toHaveCount(5);
-  await roverCard.getByText(en.fleetSection.qaLuggageQ).click();
-  await expect(roverCard.getByText("About 818 litres with the rear seats in place.")).toBeVisible();
-  // Every vehicle that has specifications shows the luggage question, so no card is a question short of its neighbours
+
+  const luggage = async (key: string) => {
+    await select.selectOption(key);
+    await page.getByRole("button", { name: en.quoteForm.toggleQuestions }).click();
+    return page.locator("details").filter({ hasText: en.fleetSection.qaLuggageQ });
+  };
+  // The Range Rover shows five questions, the luggage one among them, answered with the figure the client gave
+  const rover = await luggage("range_rover");
+  await expect(page.locator("details")).toHaveCount(5);
+  await rover.locator("summary").click();
+  await expect(rover.getByText("About 818 litres with the rear seats in place.")).toBeVisible();
+  await page.getByRole("button", { name: "✕" }).click();
+  // Every vehicle that has specifications answers the luggage question, so no car is a question short of its neighbours
   for (const v of FLEET.filter((f) => f.specs?.luggage)) {
-    const card = page.locator("#fleet li").filter({ has: page.getByRole("heading", { name: v.name, exact: true }) });
-    await expect(card.getByText(en.fleetSection.qaLuggageQ)).toHaveCount(1);
+    const item = await luggage(v.key);
+    await expect(item, v.name).toHaveCount(1);
+    await page.getByRole("button", { name: "✕" }).click();
   }
 });
 
