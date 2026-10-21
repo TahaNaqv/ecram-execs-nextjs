@@ -250,3 +250,16 @@ test("W4: the concierge answers what it can in the visitor's language, and says 
   expect((await ask("Hoeveel kost een rit?", "nl")).reply).toBe(nl.conciergeSection.faq15A);
   await api.dispose();
 });
+
+test("the privacy policy names the processors the site actually uses, in both languages, and not the ones it left", async ({ page }) => {
+  for (const [path, copy] of [["/en/privacy", en.privacy], ["/nl/privacy", nl.privacy]] as const) {
+    await page.goto(path);
+    const main = page.locator("main");
+    await expect(main).toContainText(copy.s4Hosting);
+    await expect(main).toContainText(copy.s4Resend);
+    await expect(main).toContainText(copy.s4Anthropic);
+    await expect(main).toContainText(copy.s4p3);
+    await expect(main).toContainText(copy.s2p4);
+    await expect(main).not.toContainText(/Vercel|Supabase/);
+  }
+});
