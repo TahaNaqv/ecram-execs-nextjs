@@ -184,7 +184,7 @@ export function QuoteForm({
       <input type="hidden" name="vehicle" value={vehicle} />
       <div className={selectedFleetVehicle ? "flex flex-col lg:flex-row gap-6 lg:items-stretch" : ""}>
         {selectedFleetVehicle && (
-          <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 border border-ink-225 bg-white p-5 shadow-xs flex flex-col notranslate" translate="no">
+          <div className="box-border w-full lg:w-[320px] xl:w-[350px] shrink-0 border border-ink-225 bg-white p-5 shadow-xs flex flex-col notranslate" translate="no">
             <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-ink-600 block mb-3">
               {t.selectedVehicle}
             </span>

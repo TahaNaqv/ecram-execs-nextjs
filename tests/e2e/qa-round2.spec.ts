@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 import { FLEET } from "../../lib/fleet/vehicles";
@@ -17,6 +17,14 @@ function amsterdamNow() {
   return get("hour") * 60 + get("minute");
 }
 
+/** Picks a vehicle and waits for the panel beside the form; chosen again until it takes, in case the page was not interactive yet. */
+async function chooseVehicle(page: Page, key: string) {
+  await expect(async () => {
+    await page.locator("#q-vehicle").selectOption(key);
+    await expect(page.getByText(en.quoteForm.selectedVehicle)).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
+}
+
 test("W1: the vehicle list names every model, and the Mercedes-Benz EQS is on it", async ({ page }) => {
   await page.goto("/en");
   const names = await page.locator("#q-vehicle option").allTextContents();
@@ -28,7 +36,7 @@ test("W1: the vehicle list names every model, and the Mercedes-Benz EQS is on it
   expect(FLEET.map((v) => v.name)).toEqual(expect.arrayContaining(["Audi e-tron GT", "Mercedes-Benz EQS"]));
 
   // A vehicle without photographs still shows its name beside the form, without a broken gallery
-  await page.locator("#q-vehicle").selectOption("mercedes_eqs");
+  await chooseVehicle(page, "mercedes_eqs");
   await expect(page.getByRole("heading", { name: "Mercedes-Benz EQS" })).toBeVisible();
   await expect(page.getByRole("group", { name: /Mercedes-Benz EQS/ })).toHaveCount(0);
 });
@@ -36,7 +44,7 @@ test("W1: the vehicle list names every model, and the Mercedes-Benz EQS is on it
 test("W3: beside the form, the vehicle panel is as tall as the form and stays where it is while the page scrolls", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/en");
-  await page.locator("#q-vehicle").selectOption("audi");
+  await chooseVehicle(page, "audi");
   const form = page.locator("form").filter({ has: page.locator("#q-vehicle") });
   const panel = form.locator("> div > div").first();
   const fields = form.locator("> div > div").nth(1);
@@ -48,6 +56,18 @@ test("W3: beside the form, the vehicle panel is as tall as the form and stays wh
   // The photograph takes the room the panel has, rather than a fixed little strip
   const photo = panel.locator("[aria-roledescription=carousel]");
   expect((await photo.boundingBox())!.height).toBeGreaterThan(180);
+});
+
+test("W3: on a phone the vehicle panel is no wider than the form, so nothing is cut off at the edge", async ({ page }) => {
+  for (const width of [320, 390, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/en");
+    await chooseVehicle(page, "audi");
+    const form = page.locator("form").filter({ has: page.locator("#q-vehicle") });
+    const [formBox, panelBox] = await Promise.all([form.boundingBox(), form.locator("> div > div").first().boundingBox()]);
+    expect(panelBox!.x + panelBox!.width, `${width}px`).toBeLessThanOrEqual(formBox!.x + formBox!.width + 0.5);
+    expect(panelBox!.x + panelBox!.width, `${width}px`).toBeLessThanOrEqual(width);
+  }
 });
 
 test("W11: only a stop with a place typed in is counted, and empty ones are dropped when the list closes", async ({ page }) => {
