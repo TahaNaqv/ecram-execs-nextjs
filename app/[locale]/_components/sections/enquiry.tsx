@@ -34,6 +34,7 @@ async function VehicleQuoteLoader({ localeOverride }: { localeOverride?: Locale 
       vehicles={vehiclesForForm} 
       copy={d.quoteForm} 
       dateTimeCopy={d.dateTimePicker}
+      fleetDict={d.fleetSection}
     />
   );
 }
