@@ -44,26 +44,6 @@ test("the log-in and sign-up forms sit in the middle of their panel", async ({ p
   }
 });
 
-test("each Services card is one link: the whole card works, and Corporate Accounts leads to the Corporate Partner page", async ({ page }) => {
-  await page.goto("/en");
-  const cards = page.locator("#services a.card");
-  await expect(cards).toHaveCount(6);
-  // Clicking the empty lower-left part of a card (not its heading) follows the link. Playwright scrolls the card into place
-  // and works out the point when it clicks, so a page that is still gliding to it does not matter.
-  const lowerLeft = async (card: ReturnType<typeof cards.nth>) => {
-    const height = (await card.boundingBox())!.height;
-    await card.click({ position: { x: 20, y: height - 20 } });
-  };
-  await lowerLeft(cards.nth(5));
-  await expect(page).toHaveURL(/#enquire$/);
-
-  await page.goto("/en");
-  const corporate = cards.nth(2);
-  await expect(corporate).toHaveAttribute("href", "/en/corporate-partner");
-  await lowerLeft(corporate);
-  await expect(page).toHaveURL(/\/en\/corporate-partner$/);
-});
-
 test("the footer's contact column holds contact details only", async ({ page }) => {
   await page.goto("/en");
   await expect(page.locator("footer")).not.toContainText("Serving the whole of the Netherlands");

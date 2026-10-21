@@ -1,18 +1,20 @@
-import Link from "next/link";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
+import { ServicesAccordion, type ServiceItem } from "../services-accordion";
 
 export async function Services() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const s = d.servicesSection;
-  // Every card is one link. Most lead to the booking form; Corporate Accounts leads to the Corporate Partner page.
-  const cards = [
-    { numeral: "I", title: s.airportTitle, text: s.airportText, href: "#enquire" },
-    { numeral: "II", title: s.businessTitle, text: s.businessText, href: "#enquire" },
-    { numeral: "III", title: s.corporateTitle, text: s.corporateText, href: localizedPath("/corporate-partner", locale) },
-    { numeral: "IV", title: s.privateTitle, text: s.privateText, href: "#enquire" },
-    { numeral: "V", title: s.hotelsTitle, text: s.hotelsText, href: "#enquire" },
-    { numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, href: "#enquire" },
+  // Each service is a picture card that unfolds into its details. They book through the form; Corporate Accounts leads to the
+  // Corporate Partner page instead. The pictures are stills from the client's showreel (public/assets/service-*.jpg).
+  const quote = { label: d.common.requestQuote, href: "#enquire" };
+  const items: ServiceItem[] = [
+    { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/service-airport.jpg", focus: "38% 50%", cta: quote },
+    { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-business.jpg", focus: "70% 45%", cta: quote },
+    { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate.jpg", focus: "50% 50%", cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
+    { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private.jpg", focus: "62% 50%", cta: quote },
+    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels.jpg", focus: "50% 40%", cta: quote },
+    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke.jpg", focus: "30% 50%", cta: quote },
   ];
   return (
     <section className="border-b border-b-ink-850" id="services">
@@ -25,21 +27,7 @@ export async function Services() {
             </h2>
           </div>
         </div>
-        <div className="gap-px border border-ink-825 bg-ink-825 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c) => (
-            // The whole card is the link (not a stretched pseudo-element inside it): the heading slides sideways on hover,
-            // and a transformed ancestor would shrink a stretched link to the heading's own box.
-            <Link
-              key={c.numeral}
-              href={c.href}
-              className="card reveal py-8 px-6 gap-4 bg-ink-950 flex flex-col min-h-0 no-underline md:py-10 md:px-9 md:min-h-[280px]"
-            >
-              <span className="chrome font-display text-[22px]">{c.numeral}</span>
-              <h3 className="m-0 text-white font-serif text-[26px] font-normal md:text-[30px]">{c.title}</h3>
-              <p className="m-0 text-ink-400 text-[15px] font-light">{c.text}</p>
-            </Link>
-          ))}
-        </div>
+        <ServicesAccordion items={items} />
       </div>
     </section>
   );

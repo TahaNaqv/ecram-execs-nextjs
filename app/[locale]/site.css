@@ -304,14 +304,6 @@
     transition: color 0.45s;
   }
 
-  .card {
-    transition: background 0.6s;
-  }
-
-  .card h3 {
-    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.1, 1);
-  }
-
   .dest .ph {
     transition:
       border-color 0.5s,
@@ -426,6 +418,14 @@
       animation: ecRise linear both;
       animation-timeline: view();
       animation-range: entry 5% cover 28%;
+    }
+
+    /* For a box that changes height (the Services cards unfold): the range is in pixels, so growing does not move it back
+       into the middle of the animation and dim the card while it opens */
+    .reveal-card {
+      animation: ecRise linear both;
+      animation-timeline: view();
+      animation-range: entry 16px entry 200px;
     }
   }
 
@@ -612,14 +612,6 @@ a:not(:where(.light-surface *)):hover {
 .btn-line:hover::before {
   transform: scaleX(1);
   transform-origin: left;
-}
-
-.card:hover {
-  background: var(--color-ink-900);
-}
-
-.card:hover h3 {
-  transform: translateX(8px);
 }
 
 .dest:hover .ph {

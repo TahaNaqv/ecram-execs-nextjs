@@ -164,21 +164,6 @@ test("W13: a phone box takes digits only, stops at the country's limit, and cope
   expect(cleanPhoneInput("+44 7911 123456", "31")).toBe("+44 7911 123456");
 });
 
-test("W12: a Services card still takes the visitor to the booking form the second time", async ({ page }) => {
-  await page.goto("/en");
-  const card = page.locator("#services a.card").first();
-  for (const attempt of [1, 2, 3]) {
-    await page.evaluate(() => {
-      document.documentElement.style.scrollBehavior = "auto";
-      document.getElementById("services")!.scrollIntoView();
-    });
-    await card.scrollIntoViewIfNeeded();
-    await card.click({ position: { x: 100, y: 60 } });
-    await expect.poll(() => page.evaluate(() => Math.round(document.getElementById("enquire")!.getBoundingClientRect().top)), { message: `click ${attempt}`, timeout: 5000 }).toBeLessThan(200);
-    await expect.poll(() => page.evaluate(() => Math.round(document.getElementById("enquire")!.getBoundingClientRect().top)), { timeout: 5000 }).toBeGreaterThan(-50);
-  }
-});
-
 test("W6, W7: the login button is as wide as the fields, and the links sit close under it", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto("/en/corporate-partner/login");
