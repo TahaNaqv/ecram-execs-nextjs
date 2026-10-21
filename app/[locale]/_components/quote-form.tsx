@@ -193,7 +193,7 @@ export function QuoteForm({
               </button>
             </div>
 
-            {/* Side Flyout Panel / Drawer with high z-index to appear completely on top */}
+            {/* Side Flyout Panel / Drawer */}
             {qaOpen && (
               <div className="absolute left-[calc(100%+12px)] top-0 z-[100] w-[340px] bg-white border border-ink-225 shadow-2xl p-4 flex flex-col gap-3 rounded-sm">
                 <div className="flex items-center justify-between border-b border-ink-200 pb-2">

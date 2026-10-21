@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
-import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
+import { addVehicle, updateVehicleName, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon, TrashIcon } from "../../_components/icons";
 
 type Vehicle = typeof vehicles.$inferSelect;
 
-// Allow blocking dynamic rendering under cacheComponents
 export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,7 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.vehicles.title };
 }
 
-// Skeleton Loader that mimics the metric cards
 function MetricsSkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -36,7 +34,6 @@ function MetricsSkeleton() {
   );
 }
 
-// Skeleton Loader that mimics the vehicle cards grid
 function VehicleGridSkeleton() {
   return (
     <div className="space-y-4">
@@ -81,7 +78,6 @@ async function VehicleMetrics() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      {/* Total Card */}
       <div className="bg-black text-white p-6 rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
         <div className="flex justify-between items-start">
           <span className="text-sm font-medium text-zinc-400">{t.totalFleet}</span>
@@ -95,7 +91,6 @@ async function VehicleMetrics() {
         </div>
       </div>
 
-      {/* Available Card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 flex flex-col justify-between">
         <div className="flex justify-between items-start">
           <span className="text-sm font-medium text-zinc-500">{t.available}</span>
@@ -109,7 +104,6 @@ async function VehicleMetrics() {
         </div>
       </div>
 
-      {/* Unavailable Card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 flex flex-col justify-between">
         <div className="flex justify-between items-start">
           <span className="text-sm font-medium text-zinc-500">{t.unavailable}</span>
@@ -189,12 +183,11 @@ async function VehicleGrid() {
                       >
                         {isAvailable ? t.available : t.unavailable}
                       </span>
-                      {/* Delete Vehicle Bin Button */}
                       <form action={deleteVehicle}>
                         <input type="hidden" name="id" value={vehicle.id} />
                         <button
                           type="submit"
-                          className="grid size-7 place-items-center rounded-lg bg-zinc-50 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 border border-zinc-200/60 transition-colors shadow-2xs"
+                          className="grid size-7 place-items-center rounded-lg bg-zinc-50 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 border border-zinc-200/60 transition-colors shadow-2xs cursor-pointer"
                           title={t.removeVehicle}
                         >
                           <TrashIcon size={14} />
@@ -202,7 +195,24 @@ async function VehicleGrid() {
                       </form>
                     </div>
                   </div>
-                  <h4 className="text-lg font-semibold text-zinc-900 mt-3">{vehicle.name}</h4>
+
+                  {/* Editable Vehicle Name Form */}
+                  <form action={updateVehicleName} className="flex items-center gap-2 mt-3">
+                    <input type="hidden" name="id" value={vehicle.id} />
+                    <input
+                      type="text"
+                      name="name"
+                      defaultValue={vehicle.name}
+                      required
+                      className="w-full text-lg font-semibold text-zinc-900 bg-transparent border border-transparent hover:border-zinc-200 focus:border-black focus:bg-white rounded-lg px-2 py-1 transition-all focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="text-xs font-medium uppercase tracking-wider bg-zinc-100 hover:bg-black hover:text-white text-zinc-700 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+                    >
+                      Save
+                    </button>
+                  </form>
                 </div>
 
                 <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
@@ -249,7 +259,6 @@ async function VehiclesContent() {
         <VehicleMetrics />
       </Suspense>
 
-      {/* Add New Vehicle Box (Static & Immediate) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/85">
         <div className="flex items-center gap-2 mb-4">
           <span className="grid size-7 place-items-center rounded-lg bg-black text-white">
@@ -267,7 +276,7 @@ async function VehiclesContent() {
           />
           <button
             type="submit"
-            className="bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-xl px-6 py-3 hover:bg-zinc-800 transition-colors shadow-sm whitespace-nowrap"
+            className="bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-xl px-6 py-3 hover:bg-zinc-800 transition-colors shadow-sm whitespace-nowrap cursor-pointer"
           >
             {t.addCta}
           </button>
