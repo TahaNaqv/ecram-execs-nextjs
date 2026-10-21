@@ -8,7 +8,7 @@
  * renders without the specification Q&A rather than with a guess.
  */
 
-export const VEHICLE_KEYS = ["mercedes_vle_300", "mercedes_eqs", "audi", "cadillac_escalade", "range_rover", "hongqi_e_hs9"] as const;
+export const VEHICLE_KEYS = ["mercedes_vle_300", "audi", "cadillac_escalade", "range_rover", "hongqi_e_hs9"] as const;
 export type VehicleKey = (typeof VEHICLE_KEYS)[number];
 
 export type Amenity = "executive_seating" | "in_car_screens" | "entertainment" | "climate_control" | "refreshments";
@@ -95,14 +95,6 @@ export const FLEET: FleetVehicle[] = [
         caveat: "Sold as 6- and 7-seat versions: confirm which configuration the fleet vehicle is. Range is stated as 'above 700 km' WLTP.",
       },
     },
-  },
-  {
-    // Added at the client's request (QA report, 21 Oct 2026). No photographs or confirmed figures exist yet, so it shows
-    // by name only: the booking form's side panel has no gallery for it, and its Q&A omits the specification answers.
-    key: "mercedes_eqs",
-    name: "Mercedes-Benz EQS",
-    images: [],
-    drivetrain: "bev",
   },
   {
     // The key stays "audi" (stored on every booking made so far); the model is the e-tron GT, as the client lists it on
@@ -248,8 +240,6 @@ export type VehicleChoice = (typeof VEHICLE_CHOICES)[number];
 // The ids a vehicle added by name in the admin's Vehicles page gets (its name as a slug) also resolve to the fleet vehicle
 const ID_ALIASES: Record<string, VehicleKey> = {
   "mercedes-benz-vle-300": "mercedes_vle_300",
-  "mercedes-benz-eqs": "mercedes_eqs",
-  mercedes_benz_eqs: "mercedes_eqs",
   "audi-e-tron-gt": "audi",
   audi_e_tron_gt: "audi",
   audi_etron_gt: "audi",

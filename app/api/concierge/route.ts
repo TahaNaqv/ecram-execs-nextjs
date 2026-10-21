@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     const faqKnowledgeBase = faqs.map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
 
     const systemPrompt = `You are the AI Concierge for Ecram Execs, an ultra-luxury electric executive chauffeur service in the Netherlands.
-Our Fleet: 100% electric luxury obsidian black vehicles (Mercedes-Benz VLE 300, Mercedes-Benz EQS, Audi e-tron GT, Cadillac Escalade IQ, Range Rover EV, Hongqi E-HS9).
+Our Fleet: 100% electric luxury obsidian black vehicles (Mercedes-Benz VLE 300, Audi e-tron GT, Cadillac Escalade IQ, Range Rover EV, Hongqi E-HS9).
 Our Services:
 - Airport transfers (Schiphol AMS, Rotterdam The Hague RTM, Eindhoven EIN, and private aviation / FBOs like Jet Aviation). Includes real-time flight tracking, arrivals meet & greet, luggage handling.
 - Business & Corporate travel (hourly, multi-stop, corporate accounts with centralized billing).

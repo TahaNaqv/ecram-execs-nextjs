@@ -20,7 +20,6 @@ export const DURATIONS = ["2_4", "2_8", "2_12", "2_24"] as const;
  * same vehicle key as a quote does.
  */
 export const CORPORATE_VEHICLES = [
-  { key: "mercedes_eqs", name: "Mercedes-Benz EQS", fleetKey: "mercedes_eqs" },
   { key: "audi_etron_gt", name: "Audi e-tron GT", fleetKey: "audi" },
   { key: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", fleetKey: "mercedes_vle_300" },
   { key: "cadillac_escalade_iq", name: "Cadillac Escalade IQ", fleetKey: "cadillac_escalade" },

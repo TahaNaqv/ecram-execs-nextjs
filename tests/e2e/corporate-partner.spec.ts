@@ -148,7 +148,6 @@ test("a code and a password create an account; the partner can sign out, sign in
   // The client's vehicles and choices, in the client's order (the first option is the placeholder)
   const optionTexts = (id: string) => page.locator(`${id} option`).evaluateAll((os) => os.slice(1).map((o) => (o as HTMLOptionElement).text));
   expect(await optionTexts("#c-vehicle")).toEqual([
-    "Mercedes-Benz EQS",
     "Audi e-tron GT",
     "Mercedes-Benz VLE 300",
     "Cadillac Escalade IQ",

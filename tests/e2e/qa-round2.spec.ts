@@ -25,20 +25,17 @@ async function chooseVehicle(page: Page, key: string) {
   }).toPass({ timeout: 15_000 });
 }
 
-test("W1: the vehicle list names every model, and the Mercedes-Benz EQS is on it", async ({ page }) => {
+test("W1: the vehicle list names every model in full, and the Mercedes-Benz EQS is no longer offered", async ({ page }) => {
   await page.goto("/en");
   const names = await page.locator("#q-vehicle option").allTextContents();
   expect(names).toContain("Audi e-tron GT");
-  expect(names).toContain("Mercedes-Benz EQS");
   expect(names).toContain("Range Rover EV");
   expect(names).not.toContain("Audi");
   expect(names).not.toContain("Range Rover");
-  expect(FLEET.map((v) => v.name)).toEqual(expect.arrayContaining(["Audi e-tron GT", "Mercedes-Benz EQS"]));
-
-  // A vehicle without photographs still shows its name beside the form, without a broken gallery
-  await chooseVehicle(page, "mercedes_eqs");
-  await expect(page.getByRole("heading", { name: "Mercedes-Benz EQS" })).toBeVisible();
-  await expect(page.getByRole("group", { name: /Mercedes-Benz EQS/ })).toHaveCount(0);
+  // The EQS left the fleet (22 Oct 2026): not in the form, the fleet data or the Corporate Partner introduction
+  expect(names.join("|")).not.toMatch(/EQS/);
+  expect(FLEET.map((v) => v.name)).not.toContain("Mercedes-Benz EQS");
+  expect(FLEET.map((v) => v.name)).toEqual(expect.arrayContaining(["Audi e-tron GT", "Mercedes-Benz VLE 300"]));
 });
 
 test("W3: beside the form, the vehicle panel is as tall as the form and stays where it is while the page scrolls", async ({ page }) => {
