@@ -605,5 +605,9 @@ land with the public site to avoid a second migration against production data.
       Update 15 Oct 2026: the film is now the client's own cut, `brand-film-v2.mp4` (same footage,
       "ECRAM EXECS" on the plates). Sampled frames across its 114 s show no other burnt-in copy,
       so a Dutch cut is still not needed; re-check if the client sends a longer edit with titles.
+      Update 22 Oct 2026: replaced by the client's 51 s showreel, `brand-film-v3.mp4` (airport to hotel
+      in Amsterdam). Sampled across its length there is no burnt-in copy except the closing end card:
+      the logo and the English tagline "THE ART OF EXECUTIVE HOSPITALITY". The site translates that
+      tagline in the emails (`email.tagline`), so a Dutch end card would need a Dutch cut from the client.
 - [ ] Dutch register on `drive-with-us` — plan assumes **je**. Confirm with the client; a premium
       brand may prefer **u** even for driver recruitment.
