@@ -34,8 +34,6 @@ type Props = {
   loginHref: string;
 };
 
-type HeadingRef = { headingRef: React.RefObject<HTMLHeadingElement | null> };
-
 /**
  * Sign-up and password reset share one flow of three screens: say which address, enter the emailed code, then choose the
  * password. Signing up with an address that already has an account therefore looks exactly like signing up with a new
@@ -186,10 +184,18 @@ function RequestForm({
       )}
       <input type="hidden" name="locale" value={locale} />
       <Honeypot />
-      <div className="flex flex-col items-start gap-3">
-        <button type="submit" disabled={pending} className={submitClass}>
-          {pending ? t.sending : mode === "signup" ? t.sendCode : t.sendResetCode}
-        </button>
+      <div className="flex flex-col items-center gap-3">
+  <button
+    type="submit"
+    disabled={pending}
+    className={`w-full max-w-[630px] flex items-center justify-center ${submitClass}`}
+  >
+    {pending
+      ? t.sending
+      : mode === "signup"
+        ? t.sendCode
+        : t.sendResetCode}
+  </button>
         <Status error={state.status === "error"}>
           {state.status === "error" ? (
             state.message
@@ -249,12 +255,12 @@ function CodeForm({
           </Field>
         </div>
         <input type="hidden" name="locale" value={locale} />
-        <button type="submit" disabled={pending} className={submitClass}>
+        <button type="submit" disabled={pending} className={`w-full flex items-center justify-center ${submitClass}`}>
           {pending ? t.verifying : t.verifyCta}
         </button>
         <Status error={state.status === "error" && !err.code}>{state.status === "error" && !err.code ? state.message : undefined}</Status>
       </form>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className="flex w-full items-center justify-center gap-x-6 gap-y-2">
         <form action={resendAction}>
           <input type="hidden" name="locale" value={locale} />
           <button type="submit" disabled={resending} className={ghostClass}>
@@ -313,7 +319,7 @@ function PasswordForm({
         </div>
         <p className="m-0 text-[13px] text-ink-600">{interpolate(t.passwordHint, { min: PASSWORD_MIN })}</p>
         <input type="hidden" name="locale" value={locale} />
-        <button type="submit" disabled={pending} className={submitClass}>
+        <button type="submit" disabled={pending} className={`w-full flex items-center justify-center ${submitClass}`}>
           {pending ? (mode === "signup" ? t.creating : t.resetting) : mode === "signup" ? t.createAccountCta : t.resetCta}
         </button>
         <Status error={state.status === "error" && !err.password && !err.confirmPassword}>

@@ -4,7 +4,7 @@ export { Enquiry } from "./enquiry";
 export { Statement } from "./statement";
 export { Services } from "./services";
 export { Experience } from "./experience";
-export { Fleet } from "./fleet";
+
 export { RegionsMarquee } from "./regions-marquee";
 export { Destinations } from "./destinations";
 export { WhoWeServe } from "./who-we-serve";

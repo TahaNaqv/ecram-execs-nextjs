@@ -27,8 +27,8 @@ async function Back() {
 }
 
 async function Form() {
-  const admin = await requireAdmin();
-  const [d, partners] = await Promise.all([
+  const sessionAdmin = await requireAdmin();
+  const [d, partners, dbVehicles] = await Promise.all([
     adminDictionary(),
     db
       .select({ id: schema.corporateContacts.id, name: schema.corporateContacts.name, companyName: schema.corporateContacts.companyName, email: schema.corporateContacts.email })
@@ -36,17 +36,31 @@ async function Form() {
       .where(isNotNull(schema.corporateContacts.passwordSetAt))
       .orderBy(asc(schema.corporateContacts.name))
       .limit(500),
+    db.select().from(schema.vehicles).catch(() => []),
   ]);
   const t = d.admin.newBooking;
+  const vehicleOptions =
+    dbVehicles && dbVehicles.length > 0
+      ? dbVehicles.map((v) => ({
+          value: v.id,
+          label: `${v.name}${v.status === "unavailable" ? " (Unavailable)" : ""}`,
+        }))
+      : FLEET.map((v) => ({ value: v.key, label: v.name }));
+  
+  const isDutch = sessionAdmin.locale === "nl" || "tussenstop" in (d.admin.newBooking as Record<string, unknown>);
+
   return (
     <Card className="mt-6 p-5 sm:p-6">
       <NewBookingForm
         partners={partners.map((p) => ({ value: p.id, label: `${p.name}${p.companyName ? ` — ${p.companyName}` : ""} (${p.email})` }))}
         services={(["airport_transfer", "business_travel", "hourly", "private_occasion"] as const).map((s) => ({ value: s, label: d.services[s] }))}
         statuses={REQUEST_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
-        vehicles={FLEET.map((v) => ({ value: v.key, label: v.name }))}
-        copy={t}
-        locale={admin.locale}
+        vehicles={vehicleOptions}
+        copy={{
+          ...t,
+          addStop: isDutch ? "Tussenstop toevoegen" : "Add stop",
+        }}
+        locale={sessionAdmin.locale}
         dateTimeCopy={d.dateTimePicker}
       />
     </Card>

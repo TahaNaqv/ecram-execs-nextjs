@@ -4,15 +4,64 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
-import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
+import { addVehicle, updateVehicleName, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { CarIcon, CheckCircleIcon, AlertIcon, PlusIcon, TrashIcon } from "../../_components/icons";
 
 type Vehicle = typeof vehicles.$inferSelect;
 
-export async function generateMetadata(): Promise<Metadata> {
+export const instant = false;
+
+export async function generateMetadata(): Metadata {
   const { admin } = await adminDictionary();
   return { title: admin.vehicles.title };
+}
+
+function MetricsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 h-32 animate-pulse flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div className="h-4 w-20 bg-zinc-100 rounded" />
+            <div className="size-8 bg-zinc-100 rounded-lg" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-8 w-12 bg-zinc-100 rounded" />
+            <div className="h-3 w-28 bg-zinc-100 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VehicleGridSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="h-4 w-32 bg-zinc-100 rounded animate-pulse" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 flex flex-col justify-between space-y-6 animate-pulse h-48"
+          >
+            <div>
+              <div className="flex justify-between items-start">
+                <div className="h-5 w-24 bg-zinc-100 rounded" />
+                <div className="h-5 w-20 bg-zinc-100 rounded-full" />
+              </div>
+              <div className="h-6 w-40 bg-zinc-100 rounded mt-4" />
+            </div>
+            <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+              <div className="h-4 w-20 bg-zinc-100 rounded" />
+              <div className="h-6 w-11 bg-zinc-100 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 async function VehicleMetrics() {
@@ -31,7 +80,6 @@ async function VehicleMetrics() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      {/* Total Card */}
       <div className="bg-black text-white p-6 rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
         <div className="flex justify-between items-start">
           <span className="text-sm font-medium text-zinc-400">{t.totalFleet}</span>
@@ -45,7 +93,6 @@ async function VehicleMetrics() {
         </div>
       </div>
 
-      {/* Available Card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 flex flex-col justify-between">
         <div className="flex justify-between items-start">
           <span className="text-sm font-medium text-zinc-500">{t.available}</span>
@@ -59,7 +106,6 @@ async function VehicleMetrics() {
         </div>
       </div>
 
-      {/* Unavailable Card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/80 flex flex-col justify-between">
         <div className="flex justify-between items-start">
           <span className="text-sm font-medium text-zinc-500">{t.unavailable}</span>
@@ -84,7 +130,6 @@ async function VehicleGrid() {
     allVehicles = await db.select().from(vehicles);
 
     if (allVehicles.length === 0) {
-      // The fleet as the website shows it (names and keys from lib/fleet/vehicles.ts)
       const defaultFleet = FLEET.map(({ key, name }) => ({ id: key, name, status: "available" }));
 
       for (const vehicle of defaultFleet) {
@@ -134,12 +179,11 @@ async function VehicleGrid() {
                       >
                         {isAvailable ? t.available : t.unavailable}
                       </span>
-                      {/* Delete Vehicle Bin Button */}
                       <form action={deleteVehicle}>
                         <input type="hidden" name="id" value={vehicle.id} />
                         <button
                           type="submit"
-                          className="grid size-7 place-items-center rounded-lg bg-zinc-50 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 border border-zinc-200/60 transition-colors shadow-2xs"
+                          className="grid size-7 place-items-center rounded-lg bg-zinc-50 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 border border-zinc-200/60 transition-colors shadow-2xs cursor-pointer"
                           title={t.removeVehicle}
                         >
                           <TrashIcon size={14} />
@@ -147,7 +191,23 @@ async function VehicleGrid() {
                       </form>
                     </div>
                   </div>
-                  <h4 className="text-lg font-semibold text-zinc-900 mt-3">{vehicle.name}</h4>
+
+                  <form action={updateVehicleName} className="flex items-center gap-2 mt-3">
+                    <input type="hidden" name="id" value={vehicle.id} />
+                    <input
+                      type="text"
+                      name="name"
+                      defaultValue={vehicle.name}
+                      required
+                      className="w-full text-lg font-semibold text-zinc-900 bg-transparent border border-transparent hover:border-zinc-200 focus:border-black focus:bg-white rounded-lg px-2 py-1 transition-all focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="text-xs font-medium uppercase tracking-wider bg-zinc-100 hover:bg-black hover:text-white text-zinc-700 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+                    >
+                      Save
+                    </button>
+                  </form>
                 </div>
 
                 <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
@@ -180,8 +240,6 @@ async function VehicleGrid() {
 }
 
 async function VehiclesContent() {
-  // The proxy only sees that a session cookie exists; every admin page proves the session itself. This also stops the
-  // cards below (one of which seeds the table on first view) from rendering for anyone who is not signed in.
   await requireAdmin();
   const { admin } = await adminDictionary();
   const t = admin.vehicles;
@@ -193,9 +251,10 @@ async function VehiclesContent() {
         <p className="text-sm text-zinc-500 mt-1">{t.description}</p>
       </div>
 
-      <VehicleMetrics />
+      <Suspense fallback={<MetricsSkeleton />}>
+        <VehicleMetrics />
+      </Suspense>
 
-      {/* Add New Vehicle Box (Static & Immediate) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200/85">
         <div className="flex items-center gap-2 mb-4">
           <span className="grid size-7 place-items-center rounded-lg bg-black text-white">
@@ -213,14 +272,16 @@ async function VehiclesContent() {
           />
           <button
             type="submit"
-            className="bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-xl px-6 py-3 hover:bg-zinc-800 transition-colors shadow-sm whitespace-nowrap"
+            className="bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-xl px-6 py-3 hover:bg-zinc-800 transition-colors shadow-sm whitespace-nowrap cursor-pointer"
           >
             {t.addCta}
           </button>
         </form>
       </div>
 
-      <VehicleGrid />
+      <Suspense fallback={<VehicleGridSkeleton />}>
+        <VehicleGrid />
+      </Suspense>
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { vehicles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
-import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 
 export async function addVehicle(formData: FormData) {
   await requireAdmin();
@@ -18,17 +17,41 @@ export async function addVehicle(formData: FormData) {
   }
 
   const rawKey = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-  const key = normalizeVehicleKey(rawKey) ?? rawKey;
 
   try {
     await db.insert(vehicles).values({
-      id: key,
+      id: rawKey,
       name,
       status: "available",
     });
-    console.log(`🎉 Successfully added vehicle: ${name} (${key})`);
+    console.log(`🎉 Successfully added vehicle: ${name} (${rawKey})`);
   } catch (error) {
     console.error("❌ Error inserting vehicle into database:", error);
+  }
+
+  revalidatePath("/admin/vehicles");
+  revalidatePath("/[locale]", "layout");
+}
+
+export async function updateVehicleName(formData: FormData) {
+  await requireAdmin();
+
+  const id = formData.get("id") as string;
+  const name = (formData.get("name") as string)?.trim();
+
+  if (!id || !name) {
+    console.error("❌ Update vehicle name failed: Missing ID or name");
+    return;
+  }
+
+  try {
+    await db
+      .update(vehicles)
+      .set({ name, updatedAt: new Date() })
+      .where(eq(vehicles.id, id));
+    console.log(`✏️ Successfully updated vehicle ${id} name to: ${name}`);
+  } catch (error) {
+    console.error("❌ Error updating vehicle name:", error);
   }
 
   revalidatePath("/admin/vehicles");

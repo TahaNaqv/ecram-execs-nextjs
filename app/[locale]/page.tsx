@@ -11,7 +11,6 @@ import {
   Enquiry,
   Experience,
   FinalCta,
-  Fleet,
   Hero,
   RegionsMarquee,
   Services,
@@ -24,7 +23,6 @@ import {
 const siteUrl = process.env.SITE_URL ?? "https://ecramexecs.vercel.app";
 const profileUrls = socialLinks.map(([, url]) => url).filter((url) => url.startsWith("http"));
 
-// Structured data so search engines understand the business (fields are only included once filled in)
 const buildJsonLd = (locale: Locale, description: string) => ({
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
@@ -62,8 +60,6 @@ export default async function HomePage() {
   return (
     <div className="motion-full bg-ink-950 text-ink-150 font-sans text-[16px] font-normal leading-[1.6] w-full">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      {/* A refresh starts at the top. Browsers otherwise reopen the page where it was (and jump to a stale #anchor);
-          this runs before first paint and only for reloads, so back/forward navigation keeps its position. */}
       <script
         dangerouslySetInnerHTML={{
           __html:
@@ -78,7 +74,7 @@ export default async function HomePage() {
         <Hero />
         <Enquiry />
         <WhoWeServe />
-        <Fleet />
+        {/* Fleet section fully removed */}
         <Concierge />
         <Statement />
         <Services />

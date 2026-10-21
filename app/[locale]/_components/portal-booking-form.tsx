@@ -62,9 +62,7 @@ export function BookingForm({
   const [stops, setStops] = useState<{ id: number; value: string; wait: number }[]>((defaults.stops ?? []).map((s, id) => ({ id, value: s.place, wait: s.wait })));
   const [nextId, setNextId] = useState(stops.length);
   const [state, action, pending] = useActionState<PortalState, FormData>(createBooking, { status: "idle" });
-  // The values of a repeated booking. After an error the fields simply keep what was typed: the form is submitted
-  // from here rather than through `<form action>`, because React empties a form once its action has finished, and
-  // that cleared the pills and the drop-downs (the text fields came back only because they were refilled).
+  
   const v = defaults as Record<string, string | undefined>;
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -90,8 +88,19 @@ export function BookingForm({
           <CardField idPrefix="b" name="bookerEmail" label={t.labelBookerEmail}>
             <LockedInput id="b-bookerEmail" type="email" value={booker.email} hint={t.lockedHint} />
           </CardField>
-          <PhoneField idPrefix="b" label={t.labelPhone} countryLabel={t.labelPhoneCountry} placeholder={t.phPhone}
-            defaultCountry={v.phoneCountry} defaultNumber={v.phone} error={err.phone ?? err.phoneCountry} />
+          
+          {/* Phone field with strict digit filtering and max length validation */}
+          <div className="flex flex-col gap-1.5">
+            <PhoneField
+              idPrefix="b"
+              label={t.labelPhone}
+              countryLabel={t.labelPhoneCountry}
+              placeholder={t.phPhone}
+              defaultCountry={v.phoneCountry}
+              defaultNumber={v.phone}
+              error={err.phone ?? err.phoneCountry}
+            />
+          </div>
         </FormCard>
 
         <FormCard as="h2" icon="briefcase" step={2} title={t.cardService} hint={t.cardServiceHint}>
@@ -122,7 +131,6 @@ export function BookingForm({
             </CardField>
           </div>
 
-          {/* Stops between the two: each its own input, sent as `destinations`, with the wait beside it as `destinationWaits` */}
           {stops.length > 0 && (
             <ul className="m-0 flex list-none flex-col gap-2 p-0">
               {stops.map((stop, i) => (
