@@ -15,6 +15,8 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
  * is reported, so a genuinely untranslated string cannot slip through unnoticed.
  */
 const ALLOW_IDENTICAL = new Set([
+  "cookieConsent.marketingTitle",
+  "cookieConsent.colName",
   "admin.nav.brand",
   "admin.requestDetail.fieldStatus",
   "admin.applicationDetail.fieldStatus",

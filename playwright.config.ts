@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { CONSENTED_STATE } from "./tests/e2e/helpers";
 
 // End-to-end tests run against a production build (`next build && next start`).
 // Requires DATABASE_URL (a disposable database — tests create and delete their own data).
@@ -16,6 +17,8 @@ export default defineConfig({
   globalTeardown: "./tests/e2e/global-teardown.ts",
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // Every test starts with the cookie banner already answered; see CONSENTED_STATE
+    storageState: CONSENTED_STATE,
     trace: "retain-on-failure",
     // Locally, use the installed Google Chrome; CI installs Playwright's Chromium
     ...(process.env.CI ? {} : { channel: "chrome" }),

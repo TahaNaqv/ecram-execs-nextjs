@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { CONSENT_COOKIE, CONSENT_DAYS, serializeConsent } from "../../lib/consent";
 import { DEFAULT_LOCALE } from "../../lib/i18n/config";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
@@ -26,4 +27,26 @@ export const E2E_ADMIN = {
   email: "e2e-admin@ecramexecs.test",
   name: "E2E Admin",
   password: "e2e-password-not-for-production",
+};
+
+/**
+ * A browser that has already answered the cookie banner (declined everything optional). The banner is fixed to the bottom of
+ * the window and would sit over whatever a test clicks there, so every test starts from this, through `use.storageState`
+ * in playwright.config.ts, and a context made by hand with `browser.newContext` has to ask for it. The banner's own spec
+ * starts from an empty state instead.
+ */
+export const CONSENTED_STATE = {
+  cookies: [
+    {
+      name: CONSENT_COOKIE,
+      value: serializeConsent({ analytics: false, marketing: false }),
+      domain: "localhost",
+      path: "/",
+      expires: Math.floor(Date.now() / 1000) + CONSENT_DAYS * 24 * 60 * 60,
+      httpOnly: false,
+      secure: false,
+      sameSite: "Lax" as const,
+    },
+  ],
+  origins: [],
 };

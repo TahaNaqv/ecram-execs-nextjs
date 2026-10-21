@@ -16,7 +16,7 @@ import {
   submit,
   t,
 } from "./corporate-helpers";
-import { fillAdminLogin } from "./helpers";
+import { fillAdminLogin, CONSENTED_STATE } from "./helpers";
 
 test.skip(!SECRET, "Set CORPORATE_OTP_SECRET (the same value the server runs with) to run the Corporate Partner flow");
 
@@ -317,7 +317,7 @@ test("signing up with an address that already has an account sets a new password
   await seedContact(email, PASSWORD);
 
   // Another browser is signed in with the old password
-  const otherContext = await browser.newContext({ baseURL: ORIGIN });
+  const otherContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(otherContext);
   const other = await otherContext.newPage();
   await logIn(other, email, PASSWORD);

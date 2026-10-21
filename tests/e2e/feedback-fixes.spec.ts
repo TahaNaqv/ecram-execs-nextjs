@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 import { FLEET } from "../../lib/fleet/vehicles";
+import { CONSENTED_STATE } from "./helpers";
 
 // Regression tests for the client's bug reports (Web issue / Mobile Responsive tabs). None needs the database.
 
@@ -131,7 +132,7 @@ test("header and hero buttons glide to their section instead of jumping", async 
 });
 
 test("with reduced motion requested, the same buttons jump straight there", async ({ browser }) => {
-  const context = await browser.newContext({ reducedMotion: "reduce" });
+  const context = await browser.newContext({ reducedMotion: "reduce", storageState: CONSENTED_STATE });
   const page = await context.newPage();
   await page.goto("/en");
   await page.getByRole("link", { name: en.nav.services }).first().click();

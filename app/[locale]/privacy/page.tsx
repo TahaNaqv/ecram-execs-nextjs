@@ -7,15 +7,17 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { siteConfig } from "@/lib/site-config";
+import { CookieSettingsButton } from "../_components/cookie-settings-button";
+import { CookieTable } from "../_components/cookie-table";
 
 // NOTE: Describes how this website actually handles data (see lib/quotes, lib/email).
 // Have it reviewed before launch, and update it whenever a new processor or feature is added.
 /** ISO date; rendered in the reader's language. */
-const LAST_UPDATED = "2026-10-09";
+const LAST_UPDATED = "2026-10-21";
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section id={id} className="flex scroll-mt-28 flex-col gap-3">
       <h2 className="m-0 font-serif text-[28px] font-normal text-white">{title}</h2>
       <div className="flex flex-col gap-3 font-light text-ink-300">{children}</div>
     </section>
@@ -73,8 +75,11 @@ export default async function PrivacyPage() {
           <p className="m-0">{t.s2p3}</p>
         </Section>
 
-        <Section title={t.s3Title}>
+        <Section title={t.s3Title} id="cookies">
           <p className="m-0">{t.s3p1}</p>
+          <CookieTable copy={dict.cookieConsent} />
+          <CookieSettingsButton label={dict.cookieConsent.settingsLink} className="cursor-pointer self-start border-none bg-transparent p-0 font-sans text-[length:inherit] text-white underline underline-offset-4" />
+          <p className="m-0">{t.s3p2}</p>
         </Section>
 
         <Section title={t.s4Title}>

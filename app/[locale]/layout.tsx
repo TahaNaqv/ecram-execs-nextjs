@@ -5,6 +5,8 @@ import { locale as localeParam } from "next/root-params";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
 import { WhatsAppFloat } from "@/components/whatsapp-float";
+import { localizedPath } from "@/lib/i18n/pathnames";
+import { CookieConsent } from "./_components/cookie-consent";
 import { SameHashScroll } from "./_components/same-hash-scroll";
 import "./site.css";
 
@@ -47,10 +49,13 @@ export default async function SiteLayout({
 }) {
   const value: string | undefined = await localeParam();
   if (!isLocale(value)) notFound();
+  const consentCopy = (await getDictionary(value)).cookieConsent;
 
   return (
     <html lang={value} className={fontVariables}>
       <body>
+        {/* First in the page, so a keyboard visitor reaches the cookie choice before the rest */}
+        <CookieConsent copy={consentCopy} policyHref={`${localizedPath("/privacy", value)}#cookies`} />
         {children}
         <SameHashScroll />
         <WhatsAppFloat />

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { DEFAULT_LOCALE } from "../../lib/i18n/config";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
+import { CONSENTED_STATE } from "./helpers";
 
 // Assertions read the dictionaries rather than hardcoding English, so every check runs against
 // both languages and a copy change cannot silently break a test (or pass a broken page).
@@ -79,7 +80,7 @@ test("the bare domain sends a Dutch browser to /nl and an English one to /en, an
     ["de-DE", `/${DEFAULT_LOCALE}`], // an unsupported language falls back to the default language
   ] as const) {
     // `locale` sets Accept-Language properly; `extraHTTPHeaders` loses to Chromium's own header.
-    const context = await browser.newContext({ locale: browserLocale });
+    const context = await browser.newContext({ locale: browserLocale, storageState: CONSENTED_STATE });
     const page = await context.newPage();
     await page.goto("/");
     expect(new URL(page.url()).pathname).toBe(expected);
@@ -88,7 +89,7 @@ test("the bare domain sends a Dutch browser to /nl and an English one to /en, an
 });
 
 test("an explicit language choice outlives the browser's preference", async ({ browser }) => {
-  const context = await browser.newContext({ locale: "en-GB" });
+  const context = await browser.newContext({ locale: "en-GB", storageState: CONSENTED_STATE });
   const page = await context.newPage();
   await page.goto("/en");
   // The switcher is labelled in the language of the page it is on, so this is the English label.

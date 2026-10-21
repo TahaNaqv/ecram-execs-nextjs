@@ -5,6 +5,7 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 import { getDict } from "@/lib/i18n/get-dictionary";
 import Link from "next/link";
 import { siteConfig, socialLinks, telHref } from "@/lib/site-config";
+import { CookieSettingsButton } from "../cookie-settings-button";
 import { SocialIcon } from "../social-icons";
 
 async function CopyrightYear() {
@@ -93,7 +94,9 @@ export async function SiteFooter() {
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}
             <Link className="text-inherit" href={localizedPath("/privacy", locale)}>
               {d.footer.privacy}
-            </Link>
+            </Link>{" "}
+            ·{" "}
+            <CookieSettingsButton label={d.cookieConsent.settingsLink} className="cursor-pointer border-none bg-transparent p-0 font-[inherit] text-[length:inherit] text-inherit underline underline-offset-2" />
           </span>
           <nav className="gap-4 items-center flex flex-wrap" aria-label={d.footer.socialLabel}>
             {socialLinks.map(([label, url]) => (

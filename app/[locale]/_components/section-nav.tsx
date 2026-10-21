@@ -57,7 +57,7 @@ export function SectionNav({ copy }: { copy: Copy }) {
 
   return (
     <div
-      className={`section-nav fixed right-4 z-50 flex flex-col gap-px transition-[bottom] duration-300 md:right-8 ${atBottom ? "bottom-24 md:bottom-28" : "bottom-4 md:bottom-8"} ${visible ? "is-visible" : ""}`}
+      className={`section-nav cookie-lift fixed right-4 z-50 flex flex-col gap-px transition-[bottom] duration-300 md:right-8 ${atBottom ? "bottom-24 md:bottom-28" : "bottom-4 md:bottom-8"} ${visible ? "is-visible" : ""}`}
       aria-hidden={!visible}
     >
       <button type="button" className={button} onClick={() => go(-1)} disabled={atTop} aria-label={copy.prev} tabIndex={visible ? 0 : -1}>

@@ -16,7 +16,7 @@ import {
   submit,
   t,
 } from "./corporate-helpers";
-import { fillAdminLogin } from "./helpers";
+import { fillAdminLogin, CONSENTED_STATE } from "./helpers";
 
 /**
  * The partner portal: what a partner sees and does with their bookings, and what the team does on the other side.
@@ -95,7 +95,7 @@ test("a partner sees only their own bookings", async ({ page, context, browser }
   await expect(page.locator("#b-collection")).toHaveValue("");
 
   // The owner can open it
-  const ownerContext = await browser.newContext({ baseURL: ORIGIN });
+  const ownerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(ownerContext);
   const owner = await ownerContext.newPage();
   const db = sql();
@@ -348,7 +348,7 @@ test("the team links a request to a partner, they talk, and detaching takes it o
   await expect(page.getByText(a.events.attached.replace("{partner}", "Anouk Jansen"))).toBeVisible();
 
   // The partner now has it, and writes about it
-  const partnerContext = await browser.newContext({ baseURL: ORIGIN });
+  const partnerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(partnerContext);
   const partner = await partnerContext.newPage();
   await logIn(partner, email, PASSWORD);
@@ -474,7 +474,7 @@ test("the team can enter a phone booking for a partner, and it appears in their 
   await expect(page.getByText(a.requestDetail.stopWait.replace("{minutes}", "45"))).toBeVisible();
   await expect(page.getByText(/^Waiting \d+ min$/)).toHaveCount(1);
 
-  const partnerContext = await browser.newContext({ baseURL: ORIGIN });
+  const partnerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(partnerContext);
   const partner = await partnerContext.newPage();
   await logIn(partner, email, PASSWORD);
@@ -502,7 +502,7 @@ test("an invoice uploaded by the team is downloadable by its partner and nobody 
   await expect(page.getByRole("button", { name: a.invoices.delete, exact: true })).toBeVisible();
   await expect(page.getByText(a.events.invoiceAdded.replace("{file}", "Invoice October.pdf"))).toBeVisible();
 
-  const partnerContext = await browser.newContext({ baseURL: ORIGIN });
+  const partnerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(partnerContext);
   const partner = await partnerContext.newPage();
   await logIn(partner, email, PASSWORD);
@@ -517,7 +517,7 @@ test("an invoice uploaded by the team is downloadable by its partner and nobody 
   expect((await owned.body()).subarray(0, 4).toString()).toBe("%PDF");
 
   // Another partner and a visitor with no sign-in get nothing
-  const strangerContext = await browser.newContext({ baseURL: ORIGIN });
+  const strangerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(strangerContext);
   const stranger = await strangerContext.newPage();
   const strangerEmail = newEmail("invoice-stranger");
