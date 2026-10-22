@@ -23,9 +23,6 @@ export async function Destinations() {
             <p className="m-0 text-ink-400 font-light">
               {d.destinationsSection.intro}
             </p>
-            <p className="m-0 text-ink-400 font-light">
-              {d.destinationsSection.intro2}
-            </p>
           </div>
         </div>
         {/* Uniform 4-column grid where every card has the exact same dimensions */}
