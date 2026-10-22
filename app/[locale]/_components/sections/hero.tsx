@@ -27,8 +27,9 @@ export async function Hero() {
         <p className="rise d3 m-0 text-ink-150 text-[16px] font-normal max-w-[620px] [text-shadow:0_1px_12px_rgba(0,0,0,0.85)] md:[text-shadow:none] md:text-ink-300 md:text-[17px] md:font-light">
           {d.hero.intro}
         </p>
-        {/* The booking bar. `enquire` is the anchor every "Request a quote" link on the site points to */}
-        <div id="enquire" className="rise d4 mt-2 w-full max-w-[1180px] scroll-mt-28 text-left">
+        {/* The booking bar. `enquire` is the anchor every "Request a quote" link on the site points to. Raised above the
+            rest of the hero, so its suggestions and calendar open over the scroll cue and the strip below it */}
+        <div id="enquire" className="rise d4 relative z-30 mt-2 w-full max-w-[1180px] scroll-mt-28 text-left">
           <JourneyBar
             locale={locale}
             copy={d.booking}

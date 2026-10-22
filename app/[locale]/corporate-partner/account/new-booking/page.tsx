@@ -3,12 +3,14 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { getBooking, latestPhone } from "@/lib/corporate/bookings";
 import { requirePartner } from "@/lib/corporate/portal";
-import { FLEET } from "@/lib/fleet/vehicles";
+import { FLEET, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { stopsWithWaits } from "@/lib/quotes/stops";
+import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import { BookingForm, type BookingDefaults } from "../../../_components/portal-booking-form";
+import { PortalBooking } from "../../../_components/booking/portal-booking";
+import { emptyTrip, MAX_PASSENGERS, type Trip } from "../../../_components/booking/trip";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { PortalPage } from "../../../_components/portal-shell";
 
@@ -27,86 +29,54 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
       .catch(() => []),
   ]);
 
-  // Only the partner's own bookings can be repeated (getBooking finds nothing else); the date is never copied
+  // Only the partner's own bookings can be repeated (getBooking finds nothing else); the date is never copied, and
+  // neither is the flight (a new trip, a new flight)
   const source = earlier && earlier.service !== "bespoke" ? earlier : null;
-  const defaults: BookingDefaults = {
-    ...(source && {
-      collection: source.collection ?? "",
-      destination: source.destination ?? "",
+  const trip: Trip = emptyTrip();
+  if (source) {
+    const vehicle = normalizeVehicleKey(source.vehicle) ?? source.vehicle ?? "";
+    Object.assign(trip, {
+      mode: source.service === "hourly" && !source.destination ? "hourly" : "oneway",
+      from: { text: source.collection ?? "", id: null, kind: null },
+      to: { text: source.destination ?? "", id: null, kind: null },
       stops: stopsWithWaits(source.destinations, source.destinationWaits),
-      service: source.service,
-      passengers: source.passengers?.toString() ?? "",
-      vehicle: source.vehicle ?? "",
-      notes: source.notes ?? "",
-    }),
-    phoneCountry: phone?.country,
-    phone: phone?.number,
-  };
+      hours: (HOURLY_DURATIONS as readonly number[]).includes(source.durationHours ?? 0) ? source.durationHours! : trip.hours,
+      pax: Math.min(source.passengers ?? trip.pax, MAX_PASSENGERS),
+      bags: source.luggage ?? trip.bags,
+      vehicle: (VEHICLE_CHOICES as readonly string[]).includes(vehicle) ? (vehicle as VehicleChoice) : "",
+    } satisfies Partial<Trip>);
+  }
+  const passengerPhone = source?.passengerPhone?.match(/^\+(\d{1,4}) (.+)$/);
 
-  const q = d.quoteForm;
-  const c = d.corporatePartner;
   const p = d.portal;
   return (
     <div className="flex flex-col gap-6">
       <p className="m-0 max-w-[640px] text-[15px] text-ink-700">{p.newIntro}</p>
-      {source && <p className="m-0 border-l-4 border-ink-950 bg-white px-4 py-3 text-[14px] text-ink-950">{interpolate(p.repeatNote, { reference: source.reference })}</p>}
-      {/* A key per starting point: the form keeps its own state (the stops), which must not carry over from another visit */}
-      <BookingForm
+      {/* A key per starting point: the flow keeps its own state, which must not carry over from another visit */}
+      <PortalBooking
         key={source?.reference ?? "new"}
         locale={locale}
-        booker={{ name: contact.name, email: contact.email }}
-        defaults={defaults}
-        vehicles={
-          dbVehicles && dbVehicles.length > 0
-            ? dbVehicles
-            : FLEET.map(({ key, name }) => ({ key, name }))
-        }
-        serviceLabels={d.services}
+        copy={d.booking}
         dateTimeCopy={d.dateTimePicker}
+        messages={d.forms}
+        fleetDict={d.fleetSection}
+        vehicleAdvise={d.quoteForm.vehicleAdvise}
+        vehicles={dbVehicles && dbVehicles.length > 0 ? dbVehicles : FLEET.map(({ key, name }) => ({ key, name }))}
+        booker={{ name: contact.name, email: contact.email }}
+        defaultPhone={phone ?? undefined}
+        initialTrip={trip}
+        defaults={
+          source
+            ? {
+                notes: source.notes ?? undefined,
+                passengerName: source.passengerName ?? undefined,
+                passengerPhone: passengerPhone ? { country: passengerPhone[1], number: passengerPhone[2] } : undefined,
+              }
+            : undefined
+        }
+        notice={source ? interpolate(p.repeatNote, { reference: source.reference }) : undefined}
         loginHref={localizedPath("/corporate-partner/login", locale)}
-        copy={{
-          labelCollection: q.labelCollection,
-          phCollection: q.phCollection,
-          labelDestination: q.labelDestination,
-          phDestination: q.phDestination,
-          labelDateTime: q.labelDateTime,
-          labelService: q.labelService,
-          labelPassengers: q.labelPassengers,
-          selectPlaceholder: q.selectPlaceholder,
-          eightOrMore: q.eightOrMore,
-          labelVehicle: q.labelVehicle,
-          vehicleAdvise: q.vehicleAdvise,
-          labelNotes: q.labelNotes,
-          phNotes: q.phNotes,
-          labelPhoneCountry: q.labelPhoneCountry,
-          labelPhone: q.labelPhone,
-          phPhone: q.phPhone,
-          removeStop: q.removeStop,
-          labelStopWait: q.labelStopWait,
-          waitNone: q.waitNone,
-          waitMinutes: q.waitMinutes,
-          labelBookerName: c.labelBookerName,
-          labelBookerEmail: c.labelBookerEmail,
-          loginLink: c.loginLink,
-          addStopCta: p.addStopCta,
-          phStop: p.phStop,
-          stopLabel: p.stopLabel,
-          submitBooking: p.submitBooking,
-          submittingBooking: p.submittingBooking,
-          cardBooker: p.cardBooker,
-          cardBookerHint: p.cardBookerHint,
-          cardService: p.cardService,
-          cardServiceHint: p.cardServiceHint,
-          cardJourney: p.cardJourney,
-          cardJourneyHint: p.cardJourneyHint,
-          cardVehicle: p.cardVehicle,
-          cardVehicleHint: p.cardVehicleHint,
-          cardNotes: p.cardNotes,
-          cardNotesHint: p.cardNotesHint,
-          submitHint: p.submitHint,
-          lockedHint: c.lockedHint,
-          charCount: c.charCount,
-        }}
+        loginLabel={d.corporatePartner.loginLink}
       />
     </div>
   );

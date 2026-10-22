@@ -32,10 +32,12 @@ type Props = {
  */
 export function PublicBooking(props: Props) {
   const search = useSearchParams().toString();
-  return <Run key={search} search={search} {...props} />;
+  // "Plan another ride" starts again even when the URL stays the same (a visit to /book with no trip in it)
+  const [round, setRound] = useState(0);
+  return <Run key={`${search}#${round}`} search={search} onAgain={() => setRound((r) => r + 1)} {...props} />;
 }
 
-function Run({ search, locale, copy, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, bookPath, privacyHref }: Props & { search: string }) {
+function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, bookPath, privacyHref }: Props & { search: string; onAgain: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
   const trip = useMemo(() => tripFromParams(new URLSearchParams(search)), [search]);
@@ -53,7 +55,11 @@ function Run({ search, locale, copy, dateTimeCopy, messages, fleetDict, vehicleA
   }, []);
 
   if (state.status === "success") {
-    return <BookingDone copy={copy} name={state.name} reference={state.reference} onAgain={() => router.push(bookPath)} />;
+    return <BookingDone copy={copy} name={state.name} reference={state.reference} onAgain={() => {
+          router.push(bookPath);
+          onAgain();
+        }}
+      />;
   }
 
   return (

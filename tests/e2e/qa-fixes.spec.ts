@@ -3,6 +3,10 @@ import en from "../../lib/i18n/dictionaries/en.json";
 import { FLEET } from "../../lib/fleet/vehicles";
 import { newEmail, seedBooking, sql } from "./corporate-helpers";
 import { fillAdminLogin } from "./helpers";
+import { carChoice, carChoices } from "./booking-helpers";
+
+/** A complete trip, so /book opens on the car step. */
+const READY_TRIP = `/en/book?from=Kurhaus&to=Hotel+Des+Indes&at=${new Date().getFullYear() + 1}-03-14T08:30&pax=2&bags=2`;
 
 // Regression tests for the QA team's bug report (the "Ecram website bugs" document). The public-site ones need no database.
 
@@ -49,38 +53,37 @@ test("the footer's contact column holds contact details only", async ({ page }) 
   await expect(page.locator("footer")).not.toContainText("Serving the whole of the Netherlands");
 });
 
-test("the booking form lists the vehicles by their full names, and every car answers the luggage question", async ({ page }) => {
-  await page.goto("/en");
-  const select = page.locator("#q-vehicle");
-  await select.scrollIntoViewIfNeeded();
-  const names = await select.locator("option").allTextContents();
-  expect(names).toContain("Range Rover EV");
-  expect(names).not.toContain("Range Rover");
-
-  const luggage = async (key: string) => {
-    await select.selectOption(key);
-    await page.getByRole("button", { name: en.quoteForm.toggleQuestions }).click();
-    return page.locator("details").filter({ hasText: en.fleetSection.qaLuggageQ });
+test("the car step names the vehicles in full, and every car answers the luggage question", async ({ page }) => {
+  await page.goto(READY_TRIP);
+  await expect(carChoice(page, "Range Rover EV")).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  const luggage = async (name: string) => {
+    await page.getByRole("button", { name: en.booking.carDetails.replace("{car}", name) }).click();
+    await expect(dialog).toBeVisible();
+    return dialog.locator("details").filter({ hasText: en.fleetSection.qaLuggageQ });
   };
   // The Range Rover shows five questions, the luggage one among them, answered with the figure the client gave
-  const rover = await luggage("range_rover");
-  await expect(page.locator("details")).toHaveCount(5);
+  const rover = await luggage("Range Rover EV");
+  await expect(dialog.locator("details")).toHaveCount(5);
   await rover.locator("summary").click();
   await expect(rover.getByText("About 818 litres with the rear seats in place.")).toBeVisible();
-  await page.getByRole("button", { name: "✕" }).click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
   // Every vehicle that has specifications answers the luggage question, so no car is a question short of its neighbours
   for (const v of FLEET.filter((f) => f.specs?.luggage)) {
-    const item = await luggage(v.key);
+    const item = await luggage(v.name);
     await expect(item, v.name).toHaveCount(1);
-    await page.getByRole("button", { name: "✕" }).click();
+    await dialog.getByRole("button", { name: en.fleetSection.galleryClose }).click();
+    await expect(dialog).toBeHidden();
   }
 });
 
 test("the date and time picker has a Done button, can be typed into, and works from the keyboard", async ({ page }) => {
   const d = en.dateTimePicker;
   await page.goto("/en");
-  const field = page.locator("#q-pickupAt");
-  const hidden = page.locator("input[name=pickupAt]");
+  // The booking bar in the hero: what it sends on to /book is its `at` field
+  const field = page.locator("#enquire").getByLabel(en.booking.when, { exact: true });
+  const hidden = page.locator("#enquire input[name=at]");
   await field.scrollIntoViewIfNeeded();
   const dialog = page.getByRole("dialog", { name: d.dialog });
 
@@ -117,7 +120,7 @@ test("the date and time picker has a Done button, can be typed into, and works f
   await field.blur();
   await expect(field).toHaveValue("14-03-2031 08:30");
   await field.fill("31-02-2031 08:30"); // there is no 31 February
-  await expect(hidden).toHaveValue("");
+  await expect(hidden).toHaveCount(0); // nothing to send
 
   // Keyboard: the calendar opens on a day you can move with the arrow keys and choose with Enter
   await field.fill("");
@@ -223,24 +226,25 @@ test("the fleet page of the admin proves the session itself, and the unused avai
   expect((await request.get("/api/vehicles/availability")).status()).toBe(404);
 });
 
-test("a vehicle the team switches off disappears from the booking form, and the page itself does not wait for the table", async ({ page, request }) => {
+test("a vehicle the team switches off is not offered, and the homepage itself does not wait for the table", async ({ page, request }) => {
   const db = sql();
   try {
     await db`insert into vehicles (id, name, status) values ('audi', 'Audi', 'unavailable') on conflict (id) do update set status = 'unavailable'`;
     // Only keys are shared, nothing about bookings
     expect(await (await request.get("/api/vehicles/unavailable")).json()).toEqual({ unavailable: ["audi"] });
-    await page.goto("/en");
-    await expect(page.locator("#q-vehicle option")).toHaveCount(FLEET.length + 1); // "Select", the four left, "Advise me"
-    await expect(page.locator("#q-vehicle option[value=audi]")).toHaveCount(0);
+    await page.goto(READY_TRIP);
+    await expect(carChoice(page, "Mercedes-Benz VLE 300")).toBeVisible();
+    await expect(carChoice(page, "Audi e-tron GT")).toHaveCount(0);
+    await expect(carChoices(page)).toHaveCount(FLEET.length); // the four left, and "No preference"
   } finally {
     await db`delete from vehicles where id = 'audi'`;
     await db.end();
   }
 });
 
-test("the booking form is on the page from the first paint, with the whole fleet, so nothing below it moves", async ({ page }) => {
+test("the booking bar is on the page from the first paint, once", async ({ page }) => {
   await page.goto("/en", { waitUntil: "commit" });
-  await expect(page.locator("#q-collection")).toBeVisible();
-  await expect(page.locator("#q-vehicle option")).toHaveCount(FLEET.length + 2); // "Select", every vehicle, "Advise me"
-  await expect(page.locator("#q-collection")).toHaveCount(1); // one form, never a placeholder form that is swapped for another
+  const from = page.locator("#enquire").getByLabel(en.booking.from, { exact: true });
+  await expect(from).toBeVisible();
+  await expect(page.getByLabel(en.booking.from, { exact: true })).toHaveCount(1); // one bar, never a placeholder that is swapped for another
 });

@@ -59,7 +59,8 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
   const stops = [
     { text: booking.collection, wait: 0 },
     ...stopsWithWaits(booking.destinations, booking.destinationWaits).map((s) => ({ text: s.place, wait: s.wait })),
-    { text: booking.destination, wait: 0 },
+    // An hourly booking may end "as directed" instead of at a destination
+    { text: booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null), wait: 0 },
   ].filter((s) => s.text);
   const loginHref = localizedPath("/corporate-partner/login", locale);
 
@@ -96,6 +97,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
           <Fact label={d.quoteForm.labelDateTime}>
             {booking.pickupAt ? formatPickup(booking.pickupAt, locale) : p.dateToBeAgreed}
           </Fact>
+          {booking.returnAt && <Fact label={d.booking.summaryReturn}>{formatPickup(booking.returnAt, locale)}</Fact>}
           {bespoke ? (
             booking.itinerary && (
               <div className="md:col-span-2">
@@ -119,6 +121,14 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
             </div>
           )}
           {booking.passengers !== null && <Fact label={d.quoteForm.labelPassengers}>{booking.passengers}</Fact>}
+          {booking.luggage !== null && <Fact label={d.booking.suitcases}>{booking.luggage}</Fact>}
+          {booking.flightNumber && <Fact label={d.booking.flight}>{booking.flightNumber}</Fact>}
+          {booking.passengerName && (
+            <Fact label={d.booking.passengerName}>
+              {booking.passengerName}
+              {booking.passengerPhone && <span className="text-ink-600"> · {booking.passengerPhone}</span>}
+            </Fact>
+          )}
           {booking.vehicle && (
             <Fact label={d.quoteForm.labelVehicle}>{vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Fact>
           )}

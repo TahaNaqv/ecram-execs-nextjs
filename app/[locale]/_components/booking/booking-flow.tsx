@@ -22,6 +22,7 @@ export type BookingResult = {
   fieldErrors: Partial<Record<string, string>>;
 };
 export type OfferedVehicle = { key: string; name: string };
+export type DetailDefaults = { notes?: string; passengerName?: string; passengerPhone?: { country: string; number: string } };
 
 // Fields the server checks, by the step that asks for them: an error sends the visitor back there
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "returnAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
@@ -70,6 +71,7 @@ export function BookingFlow({
   submit,
   booker,
   defaultPhone,
+  defaults,
   privacyHref,
   notice,
   lockedNotice,
@@ -90,6 +92,8 @@ export function BookingFlow({
   /** Portal: the signed-in partner, shown instead of name and email fields */
   booker?: { name: string; email: string };
   defaultPhone?: { country: string; number: string };
+  /** Portal "repeat this booking": the details step starts from the earlier booking's notes and passenger */
+  defaults?: DetailDefaults;
   privacyHref?: string;
   /** Shown above the flow, e.g. "Filled in from EE-XXXXXX" in the portal */
   notice?: string;
@@ -100,14 +104,13 @@ export function BookingFlow({
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const mounted = useRef(false);
+  // The step whose heading last had the focus. Not the first render, and not when Next shows the page again after Back
+  // (it re-runs effects on pages it kept): only a real change of step moves the focus and the scroll
+  const focused = useRef<BookingStep>(initialStep);
 
-  // A new step starts at its heading, for screen readers and for the eye (not on the first render)
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+    if (focused.current === step) return;
+    focused.current = step;
     heading.current?.focus({ preventScroll: true });
     heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [step]);
@@ -221,6 +224,7 @@ export function BookingFlow({
           submit={submit}
           booker={booker}
           defaultPhone={defaultPhone}
+          defaults={defaults}
           privacyHref={privacyHref}
           lockedNotice={lockedNotice}
           onBack={() => go("car")}
@@ -262,8 +266,7 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
       <li key={c.vehicle.key} className="relative">
         <button
           type="button"
-          role="radio"
-          aria-checked={selected}
+          aria-pressed={selected}
           disabled={!c.fits}
           onClick={() => choose(c.vehicle.key)}
           className={`flex w-full cursor-pointer flex-col rounded-2xl bg-white p-2 text-left text-ink-950 transition-shadow disabled:cursor-default disabled:bg-transparent ${
@@ -315,13 +318,12 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
           {error}
         </p>
       )}
-      <ul role="radiogroup" aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {fitting.map(card)}
         <li>
           <button
             type="button"
-            role="radio"
-            aria-checked={trip.vehicle === "advise"}
+            aria-pressed={trip.vehicle === "advise"}
             onClick={() => choose("advise")}
             className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl p-[22px] text-left text-ink-950 ${
               trip.vehicle === "advise" ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent hover:border-ink-950"
@@ -366,7 +368,7 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
   );
 }
 
-function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, submit, booker, defaultPhone, privacyHref, lockedNotice, onBack }: {
+function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, submit, booker, defaultPhone, defaults, privacyHref, lockedNotice, onBack }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
   trip: Trip;
@@ -378,20 +380,21 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   submit: (data: FormData) => void;
   booker?: { name: string; email: string };
   defaultPhone?: { country: string; number: string };
+  defaults?: DetailDefaults;
   privacyHref?: string;
   lockedNotice?: ReactNode;
   onBack: () => void;
 }) {
   const uid = useId();
-  const [who, setWho] = useState<"me" | "other">("me");
+  const [who, setWho] = useState<"me" | "other">(defaults?.passengerName ? "other" : "me");
   const [purpose, setPurpose] = useState<"business" | "private">("business");
   const [phoneCountry, setPhoneCountry] = useState(defaultPhone?.country ?? "31");
-  const [passengerCountry, setPassengerCountry] = useState("31");
+  const [passengerCountry, setPassengerCountry] = useState(defaults?.passengerPhone?.country ?? "31");
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors: Record<string, string | undefined> = { ...result.fieldErrors, ...localErrors };
   const portal = variant === "portal";
   // Business or private matters only for a trip that is neither hourly nor to or from an airport
-  const askPurpose = !portal && trip.mode === "oneway" && !involvesAirport(trip);
+  const askPurpose = trip.mode === "oneway" && !involvesAirport(trip);
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -460,7 +463,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           autoComplete={prefix ? "off" : "tel-national"}
           maxLength={PASTE_MAX}
           defaultValue={defaultValue}
-          placeholder="6 1234 5678"
+          placeholder={t.phonePlaceholder}
           onInput={(e) => {
             e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, country);
           }}
@@ -503,14 +506,14 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             ) : (
               <>
                 {field("name", t.yourName, <input {...aria("name")} name="name" type="text" autoComplete="name" maxLength={120} className={input} />, true)}
-                {field("email", t.email, <input {...aria("email")} name="email" type="email" autoComplete="email" maxLength={200} placeholder="you@company.com" className={input} />)}
+                {field("email", t.email, <input {...aria("email")} name="email" type="email" autoComplete="email" maxLength={200} placeholder={t.emailPlaceholder} className={input} />)}
               </>
             )}
             {phone("", phoneCountry, setPhoneCountry, t.mobile, defaultPhone?.number)}
             {who === "other" && (
               <>
-                {field("passengerName", t.passengerName, <input {...aria("passengerName")} name="passengerName" type="text" autoComplete="off" maxLength={120} placeholder={t.passengerNamePlaceholder} className={input} />)}
-                {phone("passenger", passengerCountry, setPassengerCountry, t.passengerPhone)}
+                {field("passengerName", t.passengerName, <input {...aria("passengerName")} name="passengerName" type="text" autoComplete="off" maxLength={120} defaultValue={defaults?.passengerName} placeholder={t.passengerNamePlaceholder} className={input} />)}
+                {phone("passenger", passengerCountry, setPassengerCountry, t.passengerPhone, defaults?.passengerPhone?.number)}
               </>
             )}
           </div>
@@ -536,7 +539,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             </div>
           )}
 
-          {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
+          {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} defaultValue={defaults?.notes} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
 
           {!portal && (
             // Honeypot: real visitors never see or fill this field
@@ -628,7 +631,10 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
 /** The thank-you after a website request (the portal goes to the booking's own page instead). */
 export function BookingDone({ copy: t, name, reference, onAgain }: { copy: BookingCopy; name: string; reference: string; onAgain: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const shown = useRef(false);
   useEffect(() => {
+    if (shown.current) return; // shown again after Back: leave the scroll where the browser puts it
+    shown.current = true;
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ block: "center" });
   }, []);

@@ -16,6 +16,7 @@ import {
   submit,
   t,
 } from "./corporate-helpers";
+import { carChoice, chooseCar, fillDetails, fillJourney, nextYear } from "./booking-helpers";
 import { fillAdminLogin, CONSENTED_STATE } from "./helpers";
 
 /**
@@ -92,7 +93,7 @@ test("a partner sees only their own bookings", async ({ page, context, browser }
 
   // Nor can it be repeated: the form opens empty
   await page.goto(`/en/corporate-partner/account/new-booking?repeat=${stranger.reference}`);
-  await expect(page.locator("#b-collection")).toHaveValue("");
+  await expect(page.locator("main").getByLabel(en.booking.from, { exact: true })).toHaveValue("");
 
   // The owner can open it
   const ownerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
@@ -257,26 +258,22 @@ test("a partner can write to the team, ask for a change and ask for a cancellati
 
 test("a new booking from the portal carries the partner's details, and can be repeated", async ({ page, context }) => {
   const { contactId } = await signedInPartner(page, context, "newbooking");
-  const year = new Date().getFullYear() + 1;
+  const b = en.booking;
 
   await page.goto("/en/corporate-partner/account/new-booking");
-  await expect(page.locator("#b-bookerName")).toHaveValue("Anouk Jansen");
-  await page.fill("#b-collection", "Schiphol Airport, Arrivals 2");
-  await page.fill("#b-destination", "Hotel Des Indes, The Hague");
-  await page.getByRole("button", { name: new RegExp(p.addStopCta) }).click();
-  await page.getByPlaceholder(p.phStop).fill("Rotterdam Centraal");
-  await page.getByLabel(en.quoteForm.labelStopWait).selectOption("30");
-  await page.fill("#b-pickupAt", `${year}-03-14T08:30`);
-  await page.selectOption("#b-passengers", "3");
-  await page.fill("#b-phone", "6 1234 5678");
-  // The form is numbered cards; the service and the vehicle are choice pills, and the notes count their characters
-  await expect(page.getByRole("heading", { level: 2 })).toHaveText([p.cardBooker, p.cardService, p.cardJourney, p.cardVehicle, p.cardNotes].map((title, i) => `${i + 1}. ${title}`));
-  await expect(page.locator("#b-service-airport_transfer")).toBeChecked(); // the first service is preselected
-  await page.locator("#b-service-business_travel").check();
-  await page.locator("#b-vehicle-mercedes_vle_300").check();
-  await page.fill("#b-notes", "Flight KL1234");
-  await expect(page.getByText("13 / 2000")).toBeVisible();
-  await submit(page, p.submitBooking);
+  // The same flow as the website, inside the portal: the journey first
+  await fillJourney(page, {
+    from: "Schiphol Airport, Arrivals 2",
+    to: "Hotel Des Indes, The Hague",
+    at: nextYear("14-03", "08:30"),
+    stops: [{ place: "Rotterdam Centraal", wait: 30 }],
+    flight: "kl1234",
+    pax: 3,
+  });
+  await chooseCar(page, "Mercedes-Benz VLE 300");
+  // The booker is the signed-in partner, shown rather than asked; a PA books for the person travelling
+  await expect(page.getByText("Anouk Jansen")).toBeVisible();
+  await fillDetails(page, { phone: "6 1234 5678", passenger: { name: "Pieter de Boer", phone: "6 8765 4321" }, notes: "Meet at the KLM desk" });
 
   await expect(page).toHaveURL(/\/account\/booking\?ref=EE-[A-Z0-9]{6}&created=1$/);
   await expect(page.getByText(p.createdNotice)).toBeVisible();
@@ -288,46 +285,49 @@ test("a new booking from the portal carries the partner's details, and can be re
   // The wait is shown at the stop it belongs to, and nowhere else
   await expect(page.locator("ol li").filter({ hasText: "2. Rotterdam Centraal" })).toContainText(p.stopWait.replace("{minutes}", "30"));
   await expect(page.locator("ol li").filter({ hasText: "1. Schiphol Airport, Arrivals 2" })).not.toContainText(p.stopWait.replace(": {minutes} min", ""));
+  // The new details are on the booking's page too
+  await expect(page.getByText("KL1234")).toBeVisible();
+  await expect(page.getByText("Pieter de Boer")).toBeVisible();
 
   const row = await bookingRow(reference);
   expect(row?.source).toBe("portal");
   expect(row?.corporate_contact_id).toBe(contactId);
   const db = sql();
-  const [stored] = await db`select destinations, destination_waits, service, vehicle, passengers, notes from quote_requests where reference = ${reference}`;
+  const [stored] = await db`select destinations, destination_waits, service, vehicle, passengers, notes, flight_number, passenger_name, name from quote_requests where reference = ${reference}`;
   await db.end();
   expect(stored.destinations).toEqual(["Rotterdam Centraal"]);
   expect(stored.destination_waits).toEqual([30]);
-  expect([stored.service, stored.vehicle, stored.passengers, stored.notes]).toEqual(["business_travel", "mercedes_vle_300", 3, "Flight KL1234"]);
+  expect(stored).toMatchObject({ service: "airport_transfer", vehicle: "mercedes_vle_300", passengers: 3, notes: "Meet at the KLM desk", flight_number: "KL1234", passenger_name: "Pieter de Boer", name: "Anouk Jansen" });
 
-  // Repeating starts from the same trip, with no date
+  // Repeating starts from the same trip, with no date (and no flight: a new trip, a new flight)
   await page.getByRole("link", { name: p.repeatCta }).click();
   await expect(page.getByText(p.repeatNote.replace("{reference}", reference))).toBeVisible();
-  await expect(page.locator("#b-collection")).toHaveValue("Schiphol Airport, Arrivals 2");
-  await expect(page.getByPlaceholder(p.phStop)).toHaveValue("Rotterdam Centraal");
-  await expect(page.getByLabel(en.quoteForm.labelStopWait)).toHaveValue("30");
-  await expect(page.locator("#b-pickupAt")).toHaveValue("");
-  // …and the pills start from the earlier trip too
-  await expect(page.locator("#b-service-business_travel")).toBeChecked();
-  await expect(page.locator("#b-vehicle-mercedes_vle_300")).toBeChecked();
+  const journey = page.locator("main");
+  await expect(journey.getByLabel(b.from, { exact: true })).toHaveValue("Schiphol Airport, Arrivals 2");
+  await expect(journey.getByLabel("Stop 1", { exact: true })).toHaveValue("Rotterdam Centraal");
+  await expect(journey.getByLabel(b.stopWaitLabel.replace("{number}", "1"))).toHaveValue("30");
+  await expect(journey.getByLabel(b.when, { exact: true })).toHaveValue("");
+  await expect(journey.getByLabel(b.flight, { exact: true })).toHaveValue("");
+  // …and the car and the passenger start from the earlier booking too
+  await journey.getByLabel(b.when, { exact: true }).fill(nextYear("21-03", "08:30"));
+  await journey.getByRole("button", { name: b.continue }).click();
+  await expect(carChoice(page, "Mercedes-Benz VLE 300")).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: /^Continue with/ }).click();
+  await expect(page.getByRole("button", { name: b.whoOther })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel(b.passengerName, { exact: true })).toHaveValue("Pieter de Boer");
 });
 
-test("the booking form says what is wrong, and a past date is refused", async ({ page, context }) => {
+test("the booking flow says what is wrong, and a past date is refused", async ({ page, context }) => {
   await signedInPartner(page, context, "validate");
   await page.goto("/en/corporate-partner/account/new-booking");
-  // What was picked with a pill survives the server's answer (the form is rebuilt when it answers with errors)
-  await page.locator("#b-service-hourly").check();
-  await page.locator("#b-vehicle-audi").check();
-  await submit(page, p.submitBooking);
-  await expect(page.locator("#b-collection-error")).toBeVisible();
-  await expect(page.locator("#b-pickupAt-error")).toBeVisible();
-  await expect(page.locator("#b-service-hourly")).toBeChecked();
-  await expect(page.locator("#b-vehicle-audi")).toBeChecked();
-  await page.fill("#b-collection", "Schiphol");
-  await page.fill("#b-destination", "Hotel");
-  await page.fill("#b-pickupAt", "2020-01-01T10:00");
-  await page.fill("#b-phone", "6 1234 5678");
-  await submit(page, p.submitBooking);
-  await expect(page.locator("#b-pickupAt-error")).toHaveText(en.forms.pickupPast);
+  const journey = page.locator("main");
+  await journey.getByRole("button", { name: en.booking.continue }).click();
+  const alert = journey.getByRole("alert");
+  await expect(alert).toContainText(en.forms.collectionRequired);
+  await expect(alert).toContainText(en.forms.pickupInvalid);
+  await fillJourney(page, { from: "Schiphol", to: "Hotel", at: "01-01-2020 10:00" });
+  await expect(alert).toContainText(en.forms.pickupPast);
+  await expect(page.getByRole("heading", { name: en.booking.carTitle })).toHaveCount(0);
 });
 
 // ── The team's side ──────────────────────────────────────────────────────────────────────────────────────────
@@ -548,7 +548,7 @@ test("the introduction form keeps its pills after an error, and no pill spills o
   await expect(page.locator("#c-tripTime-morning")).toBeChecked();
 
   // Nothing may run past the edge of its own box: the longer Dutch labels at a tablet's narrow cards are the risk
-  for (const path of ["/nl/zakelijke-partner/account/kennismaking", "/nl/zakelijke-partner/account/nieuwe-boeking"]) {
+  for (const path of ["/nl/zakelijke-partner/account/kennismaking"]) {
     for (const width of [390, 440, 768, 1024]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(path);
@@ -566,5 +566,12 @@ test("the introduction form keeps its pills after an error, and no pill spills o
       });
       expect(spills, `${path} at ${width}px`).toEqual([]);
     }
+  }
+  // The new-booking page is the booking flow now: its bar fits the screen at the same widths, in Dutch
+  for (const width of [390, 440, 768, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/nl/zakelijke-partner/account/nieuwe-boeking");
+    await expect(page.locator("main").getByLabel(nl.booking.from, { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), `new booking at ${width}px`).toBeLessThanOrEqual(width);
   }
 });

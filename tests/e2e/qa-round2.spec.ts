@@ -5,6 +5,7 @@ import { FLEET } from "../../lib/fleet/vehicles";
 import { bestMatch } from "../../lib/concierge/match";
 import { faqsFrom } from "../../lib/concierge/faqs";
 import { cleanPhoneInput, phoneLengthOk } from "../../lib/phone";
+import { carChoices } from "./booking-helpers";
 import { PASSWORD, newEmail, ownAddress, seedContact, logIn, t } from "./corporate-helpers";
 
 // Regression tests for the second QA bug report (the "Escram exces Bugs" document: email bugs E1-E3, website bugs W1-W14).
@@ -17,85 +18,64 @@ function amsterdamNow() {
   return get("hour") * 60 + get("minute");
 }
 
-/** Picks a vehicle and waits for the panel beside the form; chosen again until it takes, in case the page was not interactive yet. */
-async function chooseVehicle(page: Page, key: string) {
-  await expect(async () => {
-    await page.locator("#q-vehicle").selectOption(key);
-    await expect(page.getByText(en.quoteForm.selectedVehicle)).toBeVisible({ timeout: 1500 });
-  }).toPass({ timeout: 15_000 });
+/** A complete trip, so /book opens on the car step. */
+const READY_TRIP = `/en/book?from=Kurhaus&to=Hotel+Des+Indes&at=${new Date().getFullYear() + 1}-03-14T08:30&pax=2&bags=2`;
+
+/** /book's last step, with the car left to the team. */
+async function goToDetails(page: Page) {
+  await page.goto(READY_TRIP);
+  await page.getByRole("button", { name: en.booking.skipCar }).click();
+  await expect(page.getByRole("heading", { name: en.booking.detailsTitle })).toBeVisible();
 }
 
-test("W1: the vehicle list names every model in full, and the Mercedes-Benz EQS is no longer offered", async ({ page }) => {
-  await page.goto("/en");
-  const names = await page.locator("#q-vehicle option").allTextContents();
-  expect(names).toContain("Audi e-tron GT");
-  expect(names).toContain("Range Rover EV");
-  expect(names).not.toContain("Audi");
-  expect(names).not.toContain("Range Rover");
-  // The EQS left the fleet (22 Oct 2026): not in the form, the fleet data or the Corporate Partner introduction
+test("W1: the car step names every model in full, and the Mercedes-Benz EQS is no longer offered", async ({ page }) => {
+  await page.goto(READY_TRIP);
+  await expect(carChoices(page).first()).toBeVisible();
+  const names = await carChoices(page).allTextContents();
+  expect(names.join("|")).toContain("Audi e-tron GT");
+  expect(names.join("|")).toContain("Range Rover EV");
+  // The EQS left the fleet (22 Oct 2026): not offered, not in the fleet data or the Corporate Partner introduction
   expect(names.join("|")).not.toMatch(/EQS/);
   expect(FLEET.map((v) => v.name)).not.toContain("Mercedes-Benz EQS");
   expect(FLEET.map((v) => v.name)).toEqual(expect.arrayContaining(["Audi e-tron GT", "Mercedes-Benz VLE 300"]));
 });
 
-test("W3: beside the form, the vehicle panel is as tall as the form and stays where it is while the page scrolls", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/en");
-  await chooseVehicle(page, "audi");
-  const form = page.locator("form").filter({ has: page.locator("#q-vehicle") });
-  const panel = form.locator("> div > div").first();
-  const fields = form.locator("> div > div").nth(1);
-  await expect(panel.getByText(en.quoteForm.selectedVehicle)).toBeVisible();
-  const [panelBox, fieldsBox] = await Promise.all([panel.boundingBox(), fields.boundingBox()]);
-  expect(Math.abs(panelBox!.height - fieldsBox!.height)).toBeLessThan(3);
-  expect(Math.abs(panelBox!.y - fieldsBox!.y)).toBeLessThan(3);
-  expect(await panel.evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
-  // The photograph takes the room the panel has, rather than a fixed little strip
-  const photo = panel.locator("[aria-roledescription=carousel]");
-  expect((await photo.boundingBox())!.height).toBeGreaterThan(180);
-});
-
-test("W3: on a phone the vehicle panel is no wider than the form, so nothing is cut off at the edge", async ({ page }) => {
-  for (const width of [320, 390, 768]) {
+test("W3: every booking step fits the screen, so nothing is cut off at the edge", async ({ page }) => {
+  for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
+    const fits = async (where: string) =>
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${where} at ${width}px`).toBeLessThanOrEqual(width);
     await page.goto("/en");
-    await chooseVehicle(page, "audi");
-    const form = page.locator("form").filter({ has: page.locator("#q-vehicle") });
-    const [formBox, panelBox] = await Promise.all([form.boundingBox(), form.locator("> div > div").first().boundingBox()]);
-    expect(panelBox!.x + panelBox!.width, `${width}px`).toBeLessThanOrEqual(formBox!.x + formBox!.width + 0.5);
-    expect(panelBox!.x + panelBox!.width, `${width}px`).toBeLessThanOrEqual(width);
+    await expect(page.locator("#enquire").getByLabel(en.booking.from, { exact: true })).toBeVisible();
+    await fits("the hero");
+    await page.goto(READY_TRIP);
+    await expect(carChoices(page).first()).toBeVisible();
+    await fits("the car step");
+    await page.getByRole("button", { name: en.booking.skipCar }).click();
+    await expect(page.getByRole("complementary", { name: en.booking.summaryLabel })).toBeVisible();
+    await fits("the details step");
   }
 });
 
-test("W11: only a stop with a place typed in is counted, and empty ones are dropped when the list closes", async ({ page }) => {
+test("W11: only a stop with a place typed in is sent on", async ({ page }) => {
   await page.goto("/en");
-  const toggle = page.getByRole("button", { name: en.quoteForm.addStop, exact: true });
-  await toggle.click();
-  // An empty field was added, but it is not a stop yet
-  const box = page.getByPlaceholder("Stop 2", { exact: false });
-  await expect(box).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Stops \(/ })).toHaveCount(0);
-  await page.getByRole("button", { name: en.quoteForm.addStopover }).click();
-  await expect(page.getByPlaceholder("Stop 3", { exact: false })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Stops \(/ })).toHaveCount(0);
-
-  await box.fill("Utrecht Centraal");
-  await expect(page.getByRole("button", { name: /Stops \(1\/5\)/ })).toBeVisible();
-
-  // Closing the list drops the empty one: one stop is submitted, and one remains when it is opened again
-  await page.keyboard.press("Escape");
-  await expect(page.getByPlaceholder("Stop 3", { exact: false })).toHaveCount(0);
-  await expect(page.locator("input[name=destinations]")).toHaveCount(1);
-  await expect(page.locator("input[name=destinations]")).toHaveValue("Utrecht Centraal");
-  await page.getByRole("button", { name: /Stops \(1\/5\)/ }).click();
-  await expect(page.locator("input[placeholder^='Stop ']")).toHaveCount(1);
+  const bar = page.locator("#enquire");
+  await bar.getByRole("button", { name: en.booking.addStop }).click();
+  // An empty field was added and has the cursor, but it is not a stop yet
+  await expect(bar.getByLabel("Stop 1", { exact: true })).toBeFocused();
+  await bar.getByRole("button", { name: en.booking.addStop }).click();
+  await bar.getByLabel("Stop 2", { exact: true }).fill("Utrecht Centraal");
+  await expect(bar.locator("input[name=stop]")).toHaveCount(1);
+  await expect(bar.locator("input[name=stop]")).toHaveValue("Utrecht Centraal");
+  // Removing a stop takes it out of what is sent
+  await bar.getByRole("button", { name: en.booking.removeStop.replace("{number}", "2") }).click();
+  await expect(bar.locator("input[name=stop]")).toHaveCount(0);
 });
 
 test("W10: the time lists open on the time it is now in the Netherlands, in every form that has the picker", async ({ page }) => {
   const d = en.dateTimePicker;
   await page.goto("/en");
-  await page.locator("#q-pickupAt").scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: d.open }).click();
+  await page.locator("#enquire").getByRole("button", { name: d.open }).click();
   const dialog = page.getByRole("dialog", { name: d.dialog });
   const shown = async () => Number(await dialog.getByLabel(d.hour).inputValue()) * 60 + Number(await dialog.getByLabel(d.minute).inputValue());
   const near = (minutes: number) => Math.min(Math.abs(minutes - amsterdamNow()), 1440 - Math.abs(minutes - amsterdamNow()));
@@ -114,25 +94,25 @@ test("W10: reopening the picker after choosing a day never changes the time the 
   const start = Date.now();
   await page.clock.setFixedTime(start); // the page's clock, which the test then moves on by hand
   await page.goto("/en");
-  const hidden = page.locator("input[name=pickupAt]");
-  const field = page.locator("#q-pickupAt");
-  await field.scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: d.open }).click();
+  // What the hero's bar sends on to /book
+  const hidden = page.locator("#enquire input[name=at]");
+  const field = page.locator("#enquire").getByLabel(en.booking.when, { exact: true });
+  await page.locator("#enquire").getByRole("button", { name: d.open }).click();
   const dialog = page.getByRole("dialog", { name: d.dialog });
   await dialog.locator("button[data-day]:not(:disabled)").last().click();
   await dialog.getByRole("button", { name: d.done }).click();
   const shownTime = (await field.inputValue()).slice(-5);
   await page.clock.setFixedTime(start + 5 * 60_000); // five minutes later
-  await page.getByRole("button", { name: d.open }).click();
+  await page.locator("#enquire").getByRole("button", { name: d.open }).click();
   await dialog.getByRole("button", { name: d.done }).click();
   await expect(hidden).toHaveValue(new RegExp(`T${shownTime}$`));
   await expect(field).toHaveValue(new RegExp(`${shownTime}$`));
 });
 
 test("W13: a phone box takes digits only, stops at the country's limit, and copes with a pasted +31", async ({ page }) => {
-  await page.goto("/en");
-  const phone = page.locator("#q-phone");
-  await phone.scrollIntoViewIfNeeded();
+  await goToDetails(page);
+  const phone = page.getByLabel(en.booking.mobile, { exact: true });
+  const country = page.getByLabel(en.booking.phoneCountry).first();
   await phone.fill("06 12-34 56 78 99 00 abc");
   await expect(phone).toHaveValue("0612345678"); // ten digits for the Netherlands, nothing else
   // A number pasted with its country code keeps all of its digits
@@ -147,10 +127,10 @@ test("W13: a phone box takes digits only, stops at the country's limit, and cope
   await phone.fill("+44 7911 123456");
   await expect(phone).toHaveValue("+44 7911 123456");
   // Another country, another limit; changing country trims what no longer fits
-  await page.selectOption("#q-phoneCountry", "49");
+  await country.selectOption("49");
   await phone.fill("1234567890123456789");
   await expect(phone).toHaveValue("123456789012345");
-  await page.selectOption("#q-phoneCountry", "44");
+  await country.selectOption("44");
   await expect(phone).toHaveValue("12345678901");
 
   // The same rules on the server's side

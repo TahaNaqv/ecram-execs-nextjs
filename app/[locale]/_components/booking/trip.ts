@@ -45,6 +45,8 @@ export const emptyTrip = (): Trip => ({
 });
 
 const WALL_CLOCK = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+// What the server accepts as a flight (lib/quotes/validation.ts): an airline flight or an aircraft's registration
+const FLIGHT = /^[A-Z0-9][A-Z0-9 -]{1,11}$/;
 const clampInt = (raw: string | null, min: number, max: number, fallback: number) => {
   const n = Number(raw);
   return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
@@ -144,10 +146,13 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
 export type TripField = "collection" | "destination" | "pickupAt" | "returnAt" | "durationHours" | "flightNumber";
 export function tripProblems(trip: Trip, nowWallClock: string): TripField[] {
   const problems: TripField[] = [];
+  // The server takes bookings up to two years ahead (lib/quotes/validation.ts); same limit here, so nothing typed later is lost to it
+  const latest = new Date(Date.parse(`${nowWallClock}:00Z`) + 730 * 86_400_000).toISOString().slice(0, 16);
   if (!trip.from.text.trim()) problems.push("collection");
   if (trip.mode === "oneway" && !trip.to.text.trim()) problems.push("destination");
-  if (!WALL_CLOCK.test(trip.at) || trip.at < nowWallClock) problems.push("pickupAt");
-  if (trip.ret && (!WALL_CLOCK.test(trip.ret) || trip.ret <= trip.at)) problems.push("returnAt");
+  if (!WALL_CLOCK.test(trip.at) || trip.at < nowWallClock || trip.at > latest) problems.push("pickupAt");
+  if (trip.ret && (!WALL_CLOCK.test(trip.ret) || trip.ret <= trip.at || trip.ret > latest)) problems.push("returnAt");
+  if (pickupAtAirport(trip) && trip.flight.trim() && !FLIGHT.test(trip.flight.trim().toUpperCase().replace(/\s+/g, " "))) problems.push("flightNumber");
   return problems;
 }
 

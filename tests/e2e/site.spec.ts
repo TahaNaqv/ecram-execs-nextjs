@@ -68,7 +68,7 @@ for (const locale of LOCALES) {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
       expect(overflow).toBe(0);
-      await expect(page.getByRole("button", { name: DICTS[locale].quoteForm.submit })).toBeVisible();
+      await expect(page.locator("#enquire").getByRole("button", { name: DICTS[locale].booking.continue })).toBeVisible();
     });
   }
 }

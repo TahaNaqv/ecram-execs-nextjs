@@ -44,6 +44,7 @@ export function AddressField({
   invalid,
   describedBy,
   tone,
+  alignEnd = false,
   className = "",
 }: {
   id: string;
@@ -57,6 +58,8 @@ export function AddressField({
   invalid?: boolean;
   describedBy?: string;
   tone: "dark" | "light";
+  /** In the right-hand column of the two-column (tablet) bar the list opens leftwards, so it stays on the screen */
+  alignEnd?: boolean;
   className?: string;
 }) {
   const listId = useId();
@@ -88,8 +91,8 @@ export function AddressField({
     timer.current = window.setTimeout(async () => {
       const ctrl = new AbortController();
       controller.current = ctrl;
-      session.current ??= crypto.randomUUID();
       try {
+        session.current ??= crypto.randomUUID();
         const qs = new URLSearchParams({ q: query.trim(), session: session.current, lang: locale });
         const res = await fetch(`/api/places?${qs}`, { signal: ctrl.signal });
         const body = (await res.json()) as { items?: PlaceHit[]; google?: boolean };
@@ -108,6 +111,9 @@ export function AddressField({
   };
 
   const pick = (hit: PlaceHit) => {
+    // A search still on its way must not reopen the list (or start a new session) after the pick
+    window.clearTimeout(timer.current);
+    controller.current?.abort();
     onChange({ text: placeText(hit), id: hit.id, kind: hit.kind });
     setOpen(false);
     setItems([]);
@@ -177,7 +183,7 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-full left-[-12px] z-40 m-0 mt-4 w-[min(440px,calc(100vw-32px))] list-none rounded-2xl border border-solid p-2 shadow-2xl ${
+          className={`absolute top-full z-40 ${alignEnd ? "left-[-12px] md:max-lg:right-[-12px] md:max-lg:left-auto" : "left-[-12px]"} m-0 mt-4 w-[min(440px,calc(100vw-32px))] list-none rounded-2xl border border-solid p-2 shadow-2xl ${
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
           }`}
         >

@@ -68,10 +68,10 @@ export function JourneyBar({
     ({
       collection: messages.collectionRequired,
       destination: messages.destinationRequired,
-      pickupAt: trip.at ? messages.pickupPast : messages.pickupInvalid,
+      pickupAt: !trip.at ? messages.pickupInvalid : trip.at < netherlandsNow() ? messages.pickupPast : messages.pickupTooFar,
       returnAt: messages.returnBeforePickup,
       durationHours: "",
-      flightNumber: "",
+      flightNumber: messages.flightInvalid,
     })[field];
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -162,6 +162,7 @@ export function JourneyBar({
                   locale={locale}
                   copy={t}
                   tone={tone}
+                  alignEnd
                   invalid={invalid("destination")}
                   describedBy={describedBy("destination")}
                 />
@@ -202,6 +203,7 @@ export function JourneyBar({
               invalid={invalid("pickupAt")}
               describedBy={describedBy("pickupAt")}
               tone={tone}
+              size="md"
               className={`border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`}
             />
           </>,
@@ -238,14 +240,14 @@ export function JourneyBar({
               placeholder={t.flightPlaceholder}
               value={trip.flight}
               onChange={(e) => update({ flight: e.target.value.toUpperCase() })}
-              className={`w-[130px] border-0 bg-transparent p-0 text-[15px] font-medium tracking-normal normal-case outline-none ${dark ? "text-white placeholder:text-ink-400" : "text-ink-950 placeholder:text-ink-475"}`}
+              className={`w-[130px] min-w-0 border-0 bg-transparent p-0 text-[16px] font-medium tracking-normal normal-case outline-none ${dark ? "text-white placeholder:text-ink-400" : "text-ink-950 placeholder:text-ink-475"}`}
             />
           </label>
         )}
 
         {trip.mode === "oneway" &&
           trip.stops.map((stop, i) => (
-            <span key={i} className={`flex h-11 items-center gap-2 rounded-full border border-solid pr-1 pl-4 ${fieldBox}`}>
+            <span key={i} className={`flex h-11 max-w-full items-center gap-2 rounded-full border border-solid pr-1 pl-4 ${fieldBox}`}>
               <label htmlFor={`${uid}-stop-${i}`} className="text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase opacity-80">
                 {interpolate(t.stopLabel, { number: i + 1 })}
               </label>
@@ -257,7 +259,7 @@ export function JourneyBar({
                 placeholder={t.addressPlaceholder}
                 value={stop.place}
                 onChange={(e) => update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, place: e.target.value } : s)) })}
-                className={`w-[170px] min-w-0 border-0 bg-transparent p-0 text-[15px] font-medium outline-none ${dark ? "text-white placeholder:text-ink-400" : "text-ink-950 placeholder:text-ink-475"}`}
+                className={`w-[170px] min-w-0 flex-1 border-0 bg-transparent p-0 text-[16px] font-medium outline-none ${dark ? "text-white placeholder:text-ink-400" : "text-ink-950 placeholder:text-ink-475"}`}
               />
               <select
                 aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
@@ -297,11 +299,11 @@ export function JourneyBar({
         )}
 
         {returning ? (
-          <span className={`flex h-11 items-center gap-2 rounded-full border border-solid pr-1 pl-4 ${fieldBox} ${invalid("returnAt") ? "ring-[1.5px] ring-[#f97066]" : ""}`}>
+          <span className={`flex h-11 max-w-full items-center gap-2 rounded-full border border-solid pr-1 pl-4 ${fieldBox} ${invalid("returnAt") ? "ring-[1.5px] ring-[#f97066]" : ""}`}>
             <label htmlFor={ids.ret} className="text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase opacity-80">
               {t.returnLabel}
             </label>
-            <span className="w-[190px]">
+            <span className="w-[190px] min-w-0 flex-1">
               <DateTimeField
                 id={ids.ret}
                 locale={locale}
@@ -311,6 +313,7 @@ export function JourneyBar({
                 invalid={invalid("returnAt")}
                 describedBy={describedBy("returnAt")}
                 tone={tone}
+                size="md"
                 className={`border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:text-ink-400" : "text-ink-950 placeholder:text-ink-475"}`}
               />
             </span>

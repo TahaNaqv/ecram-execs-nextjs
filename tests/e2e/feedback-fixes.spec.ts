@@ -4,6 +4,9 @@ import nl from "../../lib/i18n/dictionaries/nl.json";
 import { FLEET } from "../../lib/fleet/vehicles";
 import { CONSENTED_STATE } from "./helpers";
 
+/** A complete trip, so /book opens on the car step. */
+const READY_TRIP = `/en/book?from=Kurhaus&to=Hotel+Des+Indes&at=${new Date().getFullYear() + 1}-03-14T08:30&pax=2&bags=2`;
+
 // Regression tests for the client's bug reports (Web issue / Mobile Responsive tabs). None needs the database.
 
 test("the header stays fixed while scrolling", async ({ page }) => {
@@ -34,16 +37,18 @@ test("switching language does not jump back to the last anchor", async ({ page }
 });
 
 test("the phone field offers many country codes, Netherlands first and selected", async ({ page }) => {
-  await page.goto("/en");
-  await expect(page.locator("#q-phoneCountry")).toHaveValue("31");
-  expect(await page.locator("#q-phoneCountry option").count()).toBeGreaterThan(30);
-  await page.selectOption("#q-phoneCountry", "44");
-  await expect(page.locator("#q-phoneCountry")).toHaveValue("44");
+  await page.goto(READY_TRIP);
+  await page.getByRole("button", { name: en.booking.skipCar }).click();
+  const country = page.getByLabel(en.booking.phoneCountry).first();
+  await expect(country).toHaveValue("31");
+  expect(await country.locator("option").count()).toBeGreaterThan(30);
+  await country.selectOption("44");
+  await expect(country).toHaveValue("44");
 });
 
 // The concierge is a chat with a message bar and a few starter topics. Without an AI key configured (as in these tests) it
 // answers from the questions on the page and hands anything else to the team on WhatsApp.
-test("the concierge answers a typed question, hands an unknown one to WhatsApp, and leaves the quote form alone", async ({ page }) => {
+test("the concierge answers a typed question, hands an unknown one to WhatsApp, and leaves the booking bar alone", async ({ page }) => {
   await page.goto("/en");
   const box = page.locator("input[name=message]");
   await box.fill("How far in advance should I book?");
@@ -52,7 +57,7 @@ test("the concierge answers a typed question, hands an unknown one to WhatsApp, 
   await box.fill("qwerty zzzz");
   await box.press("Enter");
   await expect(page.getByRole("link", { name: en.conciergeSection.whatsappCta })).toBeVisible({ timeout: 8000 });
-  await expect(page.locator("#q-notes")).toHaveValue("");
+  await expect(page.locator("#enquire").getByLabel(en.booking.from, { exact: true })).toHaveValue("");
 });
 
 test("a starter topic is sent into the chat as the visitor's own message and answered, and the topics then leave", async ({ page }) => {
@@ -85,23 +90,19 @@ test("the concierge endpoint takes short messages only, builds its own knowledge
   await api.dispose();
 });
 
-// The Fleet section was removed at the client's request: a vehicle is now chosen in the booking form, which shows its photos
-// beside the form and its questions in a pop-up.
+// The Fleet section was removed at the client's request: a vehicle is now chosen in the booking flow's car step, which
+// shows each car's photos and questions in a pop-up.
 test("every vehicle shows its own questions, not the same one repeated", async ({ page }) => {
-  await page.goto("/en");
-  const select = page.locator("#q-vehicle");
-  await select.scrollIntoViewIfNeeded();
-  const keys = await select.locator("option").evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value).filter((v) => v && v !== "advise"));
-  expect(keys).toHaveLength(FLEET.length);
-  for (const key of keys) {
-    await select.selectOption(key);
-    await page.getByRole("button", { name: en.quoteForm.toggleQuestions }).click();
-    const count = await page.locator("details").count();
+  await page.goto(READY_TRIP);
+  const dialog = page.getByRole("dialog");
+  for (const v of FLEET) {
+    await page.getByRole("button", { name: en.booking.carDetails.replace("{car}", v.name) }).click();
+    await expect(dialog).toBeVisible();
     // A vehicle with confirmed figures answers about passengers, range, features and luggage; one without still answers
     // how long it can be booked for
-    expect(count, key).toBeGreaterThan(FLEET.find((v) => v.key === key)?.specs ? 1 : 0);
-    await page.getByRole("button", { name: "✕" }).click();
-    await expect(page.locator("details")).toHaveCount(0);
+    expect(await dialog.locator("details").count(), v.key).toBeGreaterThan(v.specs ? 1 : 0);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
   }
 });
 
@@ -144,10 +145,10 @@ test("with reduced motion requested, the same buttons jump straight there", asyn
 });
 
 test("a vehicle gallery's counter follows the arrows, even if a scroll event reports the old position", async ({ page }) => {
-  await page.goto("/en");
-  await page.locator("#q-vehicle").scrollIntoViewIfNeeded();
-  await page.locator("#q-vehicle").selectOption("mercedes_vle_300");
-  const gallery = page.locator("#enquire [aria-roledescription=carousel]");
+  await page.goto(READY_TRIP);
+  await page.getByRole("button", { name: en.booking.carDetails.replace("{car}", "Mercedes-Benz VLE 300") }).click();
+  const dialog = page.getByRole("dialog");
+  const gallery = dialog.locator("[aria-roledescription=carousel]");
   await expect(gallery).toBeVisible();
   const counter = () =>
     gallery.evaluate((g) => [...g.querySelectorAll("span")].find((s) => /^\d+ \/ \d+$/.test(s.textContent!.trim()))?.textContent?.trim());
@@ -161,21 +162,22 @@ test("a vehicle gallery's counter follows the arrows, even if a scroll event rep
     }) as typeof track.scrollTo;
   });
   expect(await counter()).toMatch(/^1 \/ \d+$/);
-  await page.locator("#enquire").getByRole("button", { name: /Next photo/ }).click();
+  await dialog.getByRole("button", { name: /Next photo/ }).click();
   await page.waitForTimeout(250);
   expect(await counter()).toMatch(/^2 \/ \d+$/);
   await page.waitForTimeout(1200);
   expect(await counter()).toMatch(/^2 \/ \d+$/);
-  await page.locator("#enquire").getByRole("button", { name: /Previous photo/ }).click();
+  await dialog.getByRole("button", { name: /Previous photo/ }).click();
   await page.waitForTimeout(1200);
   expect(await counter()).toMatch(/^1 \/ \d+$/);
 });
 
 test("the home page follows the client's section order and lacks the removed sections", async ({ page }) => {
   await page.goto("/en");
-  // Who we serve now sits straight after the booking form
+  // The booking bar is in the hero (#enquire, which every "Request a quote" link points to), and Who we serve follows it
   const order = await page.evaluate(() => [...document.querySelectorAll("main > section[id]")].map((s) => s.id));
-  expect(order.slice(0, 3)).toEqual(["top", "enquire", "corporate"]);
+  expect(order.slice(0, 2)).toEqual(["top", "corporate"]);
+  await expect(page.locator("#top #enquire")).toBeAttached();
   // The Fleet, Bespoke and Sustainability sections are gone, and nothing links to them
   for (const id of ["fleet", "bespoke", "sustainability"]) expect(order).not.toContain(id);
   await expect(page.locator("body")).not.toContainText("SUSTAINABILITY & ESG");

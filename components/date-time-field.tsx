@@ -91,6 +91,7 @@ export function DateTimeField({
   describedBy,
   className,
   tone = "light",
+  size = "sm",
   onValueChange,
 }: {
   id: string;
@@ -106,6 +107,8 @@ export function DateTimeField({
   className?: string;
   /** "dark" when the field sits on a dark background (the booking bar in the hero) */
   tone?: "light" | "dark";
+  /** "md" matches 16px fields beside it (the booking bar); either way phones get 16px, so iOS does not zoom in on focus */
+  size?: "sm" | "md";
   /** Told the `YYYY-MM-DDTHH:mm` value (or "" for none) whenever it changes, for forms that keep it in state. */
   onValueChange?: (value: string) => void;
 }) {
@@ -251,7 +254,7 @@ export function DateTimeField({
         placeholder={copy.placeholder}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className={`${(className || "").replace(/\bp-0\b/, "")} flex-1 min-w-0 text-[14px] md:text-[13.5px] outline-none bg-transparent`}
+        className={`${(className || "").replace(/\bp-0\b/, "")} flex-1 min-w-0 text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} outline-none bg-transparent`}
         onChange={(e) => {
           const raw = e.target.value;
           setText(raw);

@@ -1401,6 +1401,8 @@
     "yourName": "Your full name",
     "email": "Email",
     "mobile": "Mobile",
+    "emailPlaceholder": "you@company.com",
+    "phonePlaceholder": "6 1234 5678",
     "phoneCountry": "Country code",
     "purposeLabel": "Kind of trip",
     "purposeBusiness": "Business",

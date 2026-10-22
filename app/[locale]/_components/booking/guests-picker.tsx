@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { BookingCopy } from "./copy";
 import { MAX_BAGS, MAX_PASSENGERS } from "./trip";
@@ -47,6 +47,8 @@ export function GuestsPicker({ id, pax, bags, onChange, copy: t, tone, labelledB
   const trigger = useRef<HTMLButtonElement>(null);
   const first = useRef<HTMLDivElement>(null);
   const dialogId = useId();
+  // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
+  useLayoutEffect(() => () => setOpen(false), []);
 
   useEffect(() => {
     if (!open) return;
@@ -88,12 +90,11 @@ export function GuestsPicker({ id, pax, bags, onChange, copy: t, tone, labelledB
       </button>
       {open && (
         <>
-          <div aria-hidden="true" className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={close} />
           <div
             id={dialogId}
             role="dialog"
             aria-label={t.guestsDialog}
-            className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-[-18px] md:bottom-auto md:mt-4 md:w-[340px] md:rounded-2xl md:pb-5"
+            className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-solid border-ink-150 bg-white px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-[-18px] md:bottom-auto md:mt-4 md:w-[340px] md:rounded-2xl md:pb-5"
           >
             <div ref={first} className="flex items-center justify-between gap-4 border-b border-solid border-ink-150 py-3">
               <span className="flex flex-col">

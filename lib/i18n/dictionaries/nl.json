@@ -1404,6 +1404,8 @@
     "yourName": "Uw volledige naam",
     "email": "E-mail",
     "mobile": "Mobiel",
+    "emailPlaceholder": "u@bedrijf.nl",
+    "phonePlaceholder": "6 1234 5678",
     "phoneCountry": "Landcode",
     "purposeLabel": "Soort rit",
     "purposeBusiness": "Zakelijk",

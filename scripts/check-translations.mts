@@ -18,6 +18,7 @@ const ALLOW_IDENTICAL = new Set([
   // Google's own attribution wording, required as they word it
   "booking.poweredByGoogle",
   "booking.summaryRoute",
+  "booking.phonePlaceholder",
   "cookieConsent.marketingTitle",
   "cookieConsent.colName",
   "admin.nav.brand",
