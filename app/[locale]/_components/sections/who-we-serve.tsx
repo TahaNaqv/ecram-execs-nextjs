@@ -11,7 +11,7 @@ export async function WhoWeServe() {
   const items: PictureItem[] = [
     { key: "executives", title: w.segmentExecutives, text: w.segmentExecutivesText, image: "/assets/serve-executives-v3.jpg", focus: "58% 50%" },
     { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/corporate_client.jpg", focus: "60% 50%" },
-    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private.jpg", focus: "52% 50%" },
+    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v3.jpg", focus: "54% 50%" },
     { key: "hotels", title: w.segmentHotels, text: w.segmentHotelsText, image: "/assets/serve-hotels-v3.jpg", focus: "42% 50%" },
     { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%" },
     { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-v3.jpg", focus: "30% 50%" },
