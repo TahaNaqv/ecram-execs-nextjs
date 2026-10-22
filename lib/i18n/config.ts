@@ -1,5 +1,5 @@
-// Supported locales. `en` first: it is the fallback when nothing else matches.
-export const LOCALES = ["en", "nl"] as const;
+// Supported locales. `nl` first: it is the main default language and fallback.
+export const LOCALES = ["nl", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "nl";

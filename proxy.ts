@@ -5,30 +5,12 @@ import { localizedPath, physicalSegment, PATHNAMES, routeFromPhysical, routeFrom
 const LOCALE_COOKIE = "NEXT_LOCALE";
 const ADMIN_SESSION_COOKIE = "ee_admin_session";
 
-/** Cookie first (an explicit choice), then the browser's preference, then the default. */
+/** Cookie first (an explicit choice), then straight to the default (Dutch). */
 function detectLocale(request: NextRequest): Locale {
   const fromCookie = request.cookies.get(LOCALE_COOKIE)?.value;
   if (isLocale(fromCookie)) return fromCookie;
 
-  const header = request.headers.get("accept-language");
-  if (header) {
-    const ranked = header
-      .split(",")
-      .map((part) => {
-        const [tag = "", ...params] = part.trim().split(";");
-        const q = params.find((p) => p.trim().startsWith("q="));
-        return { tag: tag.trim().toLowerCase(), q: q ? Number(q.split("=")[1]) || 0 : 1 };
-      })
-      .filter((entry) => entry.tag !== "")
-      .sort((a, b) => b.q - a.q);
-
-    for (const { tag } of ranked) {
-      // "nl-NL" and "nl" both resolve to "nl"; "*" resolves to nothing.
-      const base = tag.split("-")[0];
-      if (isLocale(base)) return base;
-    }
-  }
-
+  // Bypass browser language sniffing to enforce Dutch as the primary default landing language
   return DEFAULT_LOCALE;
 }
 
@@ -95,7 +77,7 @@ export function proxy(request: NextRequest) {
   if (bySlug) {
     const physical = physicalSegment(bySlug);
     if (physical === tail) {
-      // Slug and folder coincide (e.g. /en/privacy) — serve directly.
+      // Slug and folder coincide (e.g. /nl/privacy) — serve directly.
       return rememberLocale(NextResponse.next(), request, locale);
     }
     const url = new URL(`/${locale}/${physical}`, request.url);
@@ -103,7 +85,7 @@ export function proxy(request: NextRequest) {
     return rememberLocale(NextResponse.rewrite(url), request, locale);
   }
 
-  // ── A folder name used where this locale expects its own slug (/nl/privacy). Redirect to the
+  // ── A folder name used where this locale expects its own slug. Redirect to the
   //    single canonical URL so the two spellings never both get indexed.
   const byFolder = routeFromPhysical(tail);
   if (byFolder && PATHNAMES[byFolder][locale] !== tail) {

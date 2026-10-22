@@ -52,7 +52,10 @@ export default async function SiteLayout({
   const consentCopy = (await getDictionary(value)).cookieConsent;
 
   return (
-    <html lang={value} className={fontVariables}>
+    <html lang={value} translate="no" className={`notranslate ${fontVariables}`}>
+      <head>
+        <meta name="google" content="notranslate" />
+      </head>
       <body>
         {/* First in the page, so a keyboard visitor reaches the cookie choice before the rest */}
         <CookieConsent copy={consentCopy} policyHref={`${localizedPath("/privacy", value)}#cookies`} />

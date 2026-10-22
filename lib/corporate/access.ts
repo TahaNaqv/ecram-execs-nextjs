@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { cache } from "react";
 import { db, schema } from "@/lib/db";
 import { contactColumns, type CorporateContactPublic } from "./columns";
@@ -16,6 +17,7 @@ import { ACCESS_COOKIE, CHALLENGE_COOKIE, MAX_ATTEMPTS, VERIFIED_COOKIE, hashTok
  * includes the password hash.
  */
 export const getCorporateContact = cache(async (): Promise<CorporateContactPublic | null> => {
+  await connection();
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!token) return null;
   const [row] = await db
@@ -38,6 +40,7 @@ export const getCorporateContact = cache(async (): Promise<CorporateContactPubli
  * has been proved, the password step) rather than the start. A code sent for one purpose is not offered on the page for the other.
  */
 export const getPendingChallenge = cache(async (purpose: "signup" | "reset") => {
+  await connection();
   const jar = await cookies();
   const id = jar.get(CHALLENGE_COOKIE)?.value;
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
@@ -63,8 +66,9 @@ export const getPendingChallenge = cache(async (purpose: "signup" | "reset") => 
 });
 
 /** What a partner has already sent us, newest first (the references are the ones the team sees). */
-export const listIntroductions = cache(async (contactId: string) =>
-  db
+export const listIntroductions = cache(async (contactId: string) => {
+  await connection();
+  return db
     .select({
       reference: schema.quoteRequests.reference,
       company: schema.quoteRequests.entity,
@@ -74,5 +78,5 @@ export const listIntroductions = cache(async (contactId: string) =>
     // Only the introductions: the partner's bookings have their own pages (lib/corporate/bookings.ts)
     .where(and(eq(schema.quoteRequests.corporateContactId, contactId), eq(schema.quoteRequests.source, "website-corporate")))
     .orderBy(desc(schema.quoteRequests.createdAt))
-    .limit(20),
-);
+    .limit(20);
+});

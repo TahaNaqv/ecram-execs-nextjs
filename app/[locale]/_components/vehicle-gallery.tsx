@@ -16,10 +16,10 @@ export type GalleryCopy = {
 };
 
 const arrowButton =
-  "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/70 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950 md:h-11 md:w-11";
+  "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center border-0 bg-transparent text-white shadow-[0_2px_10px_rgba(0,0,0,0.9)] transition-transform duration-300 hover:scale-110 focus:outline-none focus:ring-0";
 
 const Chevron = ({ direction }: { direction: "left" | "right" }) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
     <path d={direction === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"} />
   </svg>
 );
@@ -37,10 +37,6 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
     if (el && el.clientWidth) setIndex(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  // While an arrow-triggered glide is under way, scroll events are ignored: a browser may report one at the OLD
-  // position as the glide begins (or throughout a slow glide), which used to snap the counter back to the photo
-  // that was just left and make it look as if the arrow did nothing. Afterwards the counter is re-read from the
-  // strip itself, so it never disagrees with the photo on screen.
   const gliding = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(gliding.current), []);
 
@@ -72,7 +68,7 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
   const status = interpolate(copy.counter, { current: index + 1, total: images.length });
 
   return (
-    <div className="border border-ink-800 relative overflow-hidden bg-ink-900 w-full h-full" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
+    <div className="border border-ink-800 relative overflow-hidden bg-ink-900 w-full h-full rounded-xs shadow-sm" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
       <div
         ref={track}
         onScroll={onScroll}
@@ -99,22 +95,22 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
         }}
         aria-label={copy.enlarge}
         title={copy.enlarge}
-        className="absolute top-2 right-2 z-10 flex h-10 w-10 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/70 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950"
+        className="absolute top-3 right-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-ink-950/60 text-white backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-ink-950 hover:scale-105 shadow-md"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
         </svg>
       </button>
 
       {many && (
         <>
-          <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-2`}>
+          <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-3`}>
             <Chevron direction="left" />
           </button>
-          <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-2`}>
+          <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-3`}>
             <Chevron direction="right" />
           </button>
-          <span className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-ink-950/70 px-3 py-1 text-[11px] tracking-[0.2em] text-ink-150 backdrop-blur-sm" aria-hidden="true">
+          <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-ink-950/70 px-3 py-1 text-[10px] tracking-[0.2em] text-white backdrop-blur-md shadow-sm" aria-hidden="true">
             {index + 1} / {images.length}
           </span>
         </>
@@ -142,18 +138,18 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
               onClick={() => dialog.current?.close()}
               aria-label={copy.close}
               title={copy.close}
-              className="absolute top-3 right-3 z-10 flex h-11 w-11 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/70 text-ink-50 transition-colors hover:bg-ink-50 hover:text-ink-950"
+              className="absolute top-4 right-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-ink-950/60 text-white backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-ink-950 hover:scale-105 shadow-md"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>
             {many && (
               <>
-                <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-3`}>
+                <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-4`}>
                   <Chevron direction="left" />
                 </button>
-                <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-3`}>
+                <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-4`}>
                   <Chevron direction="right" />
                 </button>
               </>

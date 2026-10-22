@@ -6,7 +6,7 @@ export async function Concierge() {
   const t = d.conciergeSection;
   return (
     <section className="border-b border-b-ink-850">
-      <div className="py-20 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-30 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
+      <div className="py-12 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-16 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0">
           <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             {d.conciergeSection.eyebrow}

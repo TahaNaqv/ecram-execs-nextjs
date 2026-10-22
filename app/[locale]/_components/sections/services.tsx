@@ -9,16 +9,16 @@ export async function Services() {
   // Corporate Partner page instead. The pictures are stills from the client's showreel (public/assets/service-*.jpg).
   const quote = { label: d.common.requestQuote, href: "#enquire" };
   const items: PictureItem[] = [
-    { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/service-airport.jpg", focus: "38% 50%", cta: quote },
-    { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-business.jpg", focus: "70% 45%", cta: quote },
-    { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate.jpg", focus: "50% 50%", cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
-    { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private.jpg", focus: "62% 50%", cta: quote },
-    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels.jpg", focus: "50% 40%", cta: quote },
-    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke.jpg", focus: "30% 50%", cta: quote },
+    { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/Chauffeur-img1.png", focus: "38% 50%", cta: quote },
+    { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/Chauffeur-img2.png", focus: "70% 45%", cta: quote },
+    { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/Chauffeur-img3.png", focus: "50% 50%", cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
+    { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/Chauffeur-img4.png", focus: "62% 50%", cta: quote },
+    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/Chauffeur-img5.png", focus: "50% 40%", cta: quote },
+    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/Chauffeur-img6.png", focus: "30% 50%", cta: quote },
   ];
   return (
     <section className="border-b border-b-ink-850" id="services">
-      <div className="py-20 px-5 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:py-30 md:px-6 md:gap-14 2xl:max-w-[1440px]">
+      <div className="py-12 px-5 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:py-16 md:px-6 md:gap-14 2xl:max-w-[1440px]">
         <div className="gap-6 items-end flex flex-wrap justify-between">
           <div className="gap-4 flex flex-col max-w-[640px]">
             <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">{s.eyebrow}</span>

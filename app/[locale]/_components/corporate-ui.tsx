@@ -61,9 +61,8 @@ export function PasswordInput({
     <div className="flex items-center gap-3">
       <input id={id} name={name} type={shown ? "text" : "password"} required maxLength={PASSWORD_MAX} autoComplete={autoComplete}
         autoCapitalize="none" spellCheck={false} aria-invalid={invalid} aria-describedby={describedBy} className={control} />
-      <button type="button" onClick={() => setShown((v) => !v)} aria-controls={id} className={`${ghostClass} inline-flex shrink-0 items-center gap-1.5 no-underline`}>
+      <button type="button" onClick={() => setShown((v) => !v)} aria-controls={id} aria-label={shown ? copy.hide : copy.show} className={`${ghostClass} inline-flex shrink-0 items-center no-underline`}>
         <EyeIcon off={shown} />
-        <span className="underline underline-offset-4">{shown ? copy.hide : copy.show}</span>
       </button>
     </div>
   );

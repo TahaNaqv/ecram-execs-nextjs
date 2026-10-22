@@ -72,10 +72,10 @@ const verifiedMac = (challengeId: string, expiresAtMs: number) =>
 
 export const signVerified = (challengeId: string, expiresAtMs: number) => `${expiresAtMs}.${verifiedMac(challengeId, expiresAtMs)}`;
 
-export function verifiedValid(challengeId: string, token: string | undefined) {
+export function verifiedValid(challengeId: string, token: string | undefined, now: number = (globalThis.Date.now)()) {
   const [expires, mac] = (token ?? "").split(".");
   const expiresAtMs = Number(expires);
-  if (!mac || !Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return false;
+  if (!mac || !Number.isFinite(expiresAtMs) || expiresAtMs <= now) return false;
   const expected = Buffer.from(verifiedMac(challengeId, expiresAtMs), "hex");
   const given = Buffer.from(mac, "hex");
   return expected.length === given.length && timingSafeEqual(expected, given);

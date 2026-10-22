@@ -154,13 +154,24 @@ export function QuoteForm({
 
   if (state.status === "success") {
     return (
-      <div role="status" tabIndex={-1} className="flex flex-col gap-3 border border-ink-225 bg-white px-8 py-10 outline-none notranslate" translate="no">
+      <div role="status" tabIndex={-1} className="flex flex-col gap-4 border border-ink-225 bg-white px-8 py-10 outline-none notranslate" translate="no">
         <ScrollIntoViewOnMount />
-        <span className="text-[10px] tracking-[0.22em] text-ink-600 uppercase">
-          {t.successLabel} · {state.reference}
-        </span>
-        <p className="m-0 font-serif text-[30px] leading-[1.15] text-ink-950">{fill(t.successHeading, { name: state.name })}</p>
-        <p className="m-0 text-[14px] text-ink-600">{t.successNote}</p>
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] tracking-[0.22em] text-ink-600 uppercase">
+            {t.successLabel} · {state.reference}
+          </span>
+          <p className="m-0 font-serif text-[30px] leading-[1.15] text-ink-950">{fill(t.successHeading, { name: state.name })}</p>
+          <p className="m-0 text-[14px] text-ink-600">{t.successNote}</p>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="min-h-[40px] px-6 cursor-pointer border border-ink-300 bg-white font-sans text-[11px] font-semibold tracking-[0.2em] text-ink-950 uppercase hover:bg-ink-100 transition-colors shadow-xs"
+          >
+            Plan Your Next Journey
+          </button>
+        </div>
       </div>
     );
   }
@@ -189,7 +200,6 @@ export function QuoteForm({
               {t.selectedVehicle}
             </span>
             {images.length > 0 ? (
-              // Beside the form the photo takes the height the form leaves it (the panel is as tall as the form), within limits
               <div className="w-full aspect-[16/10] relative mb-4 lg:aspect-auto lg:min-h-[200px] lg:max-h-[460px] lg:flex-1">
                 <VehicleGallery
                   name={selectedFleetVehicle.name}
@@ -517,7 +527,6 @@ export function QuoteForm({
                   <select id="q-phoneCountry" name="phoneCountry" aria-label={t.labelPhoneCountry} value={phoneCountry}
                     onChange={(e) => {
                       setPhoneCountry(e.target.value);
-                      // A country with shorter numbers than the last one: cut what was typed down to the new limit
                       const typed = document.getElementById("q-phone");
                       if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
                     }}

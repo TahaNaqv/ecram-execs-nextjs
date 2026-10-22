@@ -213,6 +213,14 @@
     "sectionNext": "Volgende sectie",
     "callPhone": "Bel {phone}"
   },
+  "cookieConsent": {
+  "bannerTitle": "Cookievoorkeuren",
+  "settingsLink": "Cookie-instellingen",
+  "acceptAll": "Alles accepteren",
+  "rejectAll": "Alles weigeren",
+  "manage": "Voorkeuren beheren",
+  "save": "Voorkeuren opslaan"
+},
   "nav": {
     "tagline": "DE KUNST VAN EXECUTIVE GASTVRIJHEID",
     "primaryLabel": "Hoofdnavigatie",
@@ -866,6 +874,7 @@
       "namePlaceholder": "bijv. Mercedes-Benz S-Klasse",
       "addCta": "Voertuig toevoegen"
     },
+    
     "partnerCard": {
       "title": "Zakelijke partner",
       "note": "Een boeking die aan een partner is gekoppeld, verschijnt in het portaal van die partner.",

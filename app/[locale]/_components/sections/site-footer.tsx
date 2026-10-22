@@ -48,6 +48,10 @@ export async function SiteFooter() {
               <Link className="navlink" href={`${home}#enquire`}>
                 {d.footer.linkBespoke}
               </Link>
+              {siteConfig.contact.address && <span>{`${siteConfig.contact.address}, Netherlands`}</span>}
+              <Link className="navlink self-start" href={`${home}#enquire`}>
+                {d.common.requestQuote}
+              </Link>
             </nav>
             <nav className="gap-[10px] flex flex-col text-[14px]" aria-label={d.footer.companyLabel}>
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
@@ -59,12 +63,11 @@ export async function SiteFooter() {
               <Link className="navlink" href={`${home}#netherlands`}>
                 {d.footer.linkDestinations}
               </Link>
-              <Link className="navlink" href={`${home}#enquire`}>
-                {d.footer.linkContact}
-              </Link>
+              
               <Link className="navlink" href={localizedPath("/drive-with-us", locale)}>
                 {d.footer.linkDriveWithUs}
               </Link>
+              
             </nav>
             <div className="gap-[10px] col-[1/-1] text-ink-250 flex flex-col text-[14px] md:col-auto">
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
@@ -80,10 +83,7 @@ export async function SiteFooter() {
                   {siteConfig.contact.email}
                 </a>
               )}
-              {siteConfig.contact.address && <span>{`${siteConfig.contact.address}, Netherlands`}</span>}
-              <Link className="navlink self-start" href={`${home}#enquire`}>
-                {d.common.requestQuote}
-              </Link>
+              
             </div>
           </div>
         </div>

@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { login } from "@/lib/corporate/account-actions";
 import type { CorporateState } from "@/lib/corporate/state";
 import type { Locale } from "@/lib/i18n/config";
-import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
-import { control, Field } from "./form-field";
+import { Honeypot, Status, ghostClass, submitFullClass } from "@/app/[locale]/_components/corporate-ui";
+import { control, Field } from "@/app/[locale]/_components/form-field";
+import { EyeIcon, EyeOffIcon } from "@/app/(admin)/admin/_components/icons";
 
 export type LoginCopy = Record<
   "labelEmail" | "phEmail" | "labelPassword" | "loginCta" | "loggingIn" | "forgotLink" | "noAccount" | "signupLink" | "showPassword" | "hidePassword",
   string
->;
+> & { phPassword?: string };
 
 export function LoginForm({
   locale,
@@ -24,24 +25,61 @@ export function LoginForm({
   copy: LoginCopy;
   forgotHref: string;
   signupHref: string;
-  /** The portal page the visitor was sent from; the server checks it again before using it. */
   next?: string;
 }) {
   const [state, action, pending] = useActionState<CorporateState, FormData>(login, { status: "idle" });
-  // Only the address comes back after a failed attempt, never the password
   const email = state.status === "error" ? state.values.email : "";
+  const [reveal, setReveal] = useState(false);
+
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setEnabled(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="mx-auto flex w-full max-w-[460px] flex-col gap-4">
-      {/* A new key after each answer clears the password box */}
-      <form key={state.status === "error" ? state.message + email : "fresh"} action={action} noValidate className="flex flex-col gap-4">
+      <input type="text" name="prevent_autofill" id="prevent_autofill" defaultValue="" style={{ display: 'none' }} tabIndex={-1} />
+      <input type="password" name="password_prevent_autofill" id="password_prevent_autofill" defaultValue="" style={{ display: 'none' }} tabIndex={-1} />
+
+      <form key={state.status === "error" ? state.message + email : "fresh"} action={action} noValidate autoComplete="off" className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
           <Field idPrefix="c" label={t.labelEmail} name="email">
-            <input id="c-email" name="email" type="email" required maxLength={200} autoComplete="username" placeholder={t.phEmail}
-              defaultValue={email} className={control} />
+            <input 
+              id="c-email" 
+              name="email" 
+              type={enabled ? "email" : "text"} 
+              required 
+              maxLength={200} 
+              autoComplete="new-email" 
+              placeholder={t.phEmail}
+              defaultValue={email} 
+              className={control} 
+            />
           </Field>
           <Field idPrefix="c" label={t.labelPassword} name="password">
-            <PasswordInput id="c-password" name="password" autoComplete="current-password" copy={{ show: t.showPassword, hide: t.hidePassword }} />
+            <div className="relative w-full">
+              <input
+                id="c-password"
+                name="password"
+                type={reveal ? "text" : (enabled ? "password" : "text")}
+                required
+                autoComplete="new-password"
+                placeholder={t.phPassword ?? "••••••••"}
+                className={`${control} pr-11`}
+              />
+             <button
+  type="button"
+  onClick={() => setReveal((v) => !v)}
+  aria-pressed={reveal}
+  aria-controls="c-password"
+  title={reveal ? t.hidePassword : t.showPassword}
+  className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none p-0 text-ink-500 hover:text-ink-900 cursor-pointer flex items-center justify-center"
+>
+  {reveal ? <EyeOffIcon /> : <EyeIcon />}
+  <span className="sr-only">{reveal ? t.hidePassword : t.showPassword}</span>
+</button>
+            </div>
           </Field>
         </div>
         <input type="hidden" name="locale" value={locale} />
@@ -65,4 +103,9 @@ export function LoginForm({
       </div>
     </div>
   );
+}
+
+export default function LoginPage({ params }: { params: { locale: Locale } }) {
+  // If this file doubles as your page wrapper, ensure searchParams or default props match your setup
+  return null;
 }

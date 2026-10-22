@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
@@ -41,6 +41,17 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
   const { email, name, position, marketingConsent, locale } = parsed.data;
 
   try {
+    // Check if a corporate contact with this email already has a completed account registration
+    const [existingContact] = await db
+      .select({ id: schema.corporateContacts.id })
+      .from(schema.corporateContacts)
+      .where(and(eq(schema.corporateContacts.email, email), isNotNull(schema.corporateContacts.passwordHash)))
+      .limit(1);
+
+    if (existingContact) {
+      return fail("This email is already registered.", { email: "This email is already registered." });
+    }
+
     const { ipHash, userAgent } = await visitor();
     const isDev = process.env.NODE_ENV !== "production";
     // Before anything is written: contact rows can't be created without limit by repeating this form

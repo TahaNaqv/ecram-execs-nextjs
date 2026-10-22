@@ -14,6 +14,7 @@ async function Form({ searchParams }: Pick<PageProps<"/[locale]/corporate-partne
       forgotHref={localizedPath("/corporate-partner/forgot-password", locale)}
       signupHref={localizedPath("/corporate-partner/signup", locale)}
       next={typeof next === "string" ? next : undefined}
+      
     />
   );
 }

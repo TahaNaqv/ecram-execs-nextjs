@@ -10,15 +10,15 @@ export async function WhoWeServe() {
   // Decorative: the title and text already say who it is for.
   const items: PictureItem[] = [
     { key: "executives", title: w.segmentExecutives, text: w.segmentExecutivesText, image: "/assets/serve-executives-v2.jpg", focus: "56% 50%" },
-    { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/serve-corporate-v2.jpg", focus: "60% 50%" },
-    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v2.jpg", focus: "52% 50%" },
+    { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/corporate_client.jpg", focus: "60% 50%" },
+    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private.jpg", focus: "52% 50%" },
     { key: "hotels", title: w.segmentHotels, text: w.segmentHotelsText, image: "/assets/serve-hotels-v2.jpg", focus: "50% 50%" },
     { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%" },
     { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-v2.jpg", focus: "58% 50%" },
   ];
   return (
     <section className="border-b border-b-ink-850" id="corporate">
-      <div className="py-20 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-30 md:px-6 md:gap-20 2xl:max-w-[1440px]">
+      <div className="py-12 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-16 md:px-6 md:gap-20 2xl:max-w-[1440px]">
         {/* Beside the cards (from the width where the two columns sit side by side) the heading stays in view while the cards are read */}
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0 min-[1068px]:sticky min-[1068px]:top-32 min-[1068px]:self-start">
           <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">

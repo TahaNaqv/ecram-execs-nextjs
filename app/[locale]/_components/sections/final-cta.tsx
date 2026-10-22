@@ -6,7 +6,7 @@ export async function FinalCta() {
   const d = await getDict();
   return (
     <section className="relative" translate="no">
-      <div className="py-20 px-5 my-0 mx-auto gap-7 items-center flex flex-col max-w-[1080px] text-center md:py-40 md:px-6">
+      <div className="py-12 px-5 my-0 mx-auto gap-7 items-center flex flex-col max-w-[1080px] text-center md:py-20 md:px-6">
         <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
           {d.finalCta.eyebrow}
         </span>
