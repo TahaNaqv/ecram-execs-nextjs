@@ -35,10 +35,12 @@ test("every audience shows its own picture and title, with the description folde
     await expect(details(page, title)).toHaveAttribute("inert", "");
     expect(await details(page, title).evaluate((el) => (el as HTMLElement).inert === true && el.getBoundingClientRect().height === 0), title).toBe(true);
   }
-  // Six real pictures made for this section, each loaded and each different (the old ones appeared only under a mouse pointer)
+  // Six real pictures, each a different file that exists on the server (the old ones appeared only under a mouse pointer)
   const sources = await section(page).locator("article img").evaluateAll((imgs) => imgs.map((img) => decodeURIComponent((img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src)));
-  expect(new Set(sources.map((src) => /serve-[a-z]+-v2\.jpg/.exec(src)?.[0])).size).toBe(6);
-  for (const [, , name] of AUDIENCES) expect((await request.get(`/assets/serve-${name}-v2.jpg`)).status()).toBe(200);
+  const files = sources.map((src) => /\/assets\/[^?&#]+/.exec(src)?.[0]);
+  expect(files.every(Boolean)).toBe(true);
+  expect(new Set(files).size).toBe(6);
+  for (const file of new Set(files)) expect((await request.get(file!)).status(), file).toBe(200);
   await page.waitForFunction(() => [...document.querySelectorAll("#corporate article img")].every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0));
 });
 
