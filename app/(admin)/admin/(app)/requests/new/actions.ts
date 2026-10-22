@@ -10,7 +10,8 @@ import { emailBookingRecorded, emailPartnerBooking } from "@/lib/email";
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
-import { isUniqueViolation, makeReference } from "@/lib/request-meta";
+import type { QuoteRequest } from "@/lib/db/schema";
+import { createQuoteRequest } from "@/lib/quotes/create";
 import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
@@ -100,48 +101,40 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
     .filter((s) => s.place)
     .slice(0, MAX_STOPS);
 
-  let created: typeof schema.quoteRequests.$inferSelect | undefined;
-  for (let i = 0; i < 3 && !created; i++) {
-    try {
-      [created] = await db.transaction(async (tx) => {
-        const rows = await tx
-          .insert(schema.quoteRequests)
-          .values({
-            service: input.service,
-            collection: input.collection,
-            destination: input.destination,
-            destinations: stops.length > 0 ? stops.map((s) => s.place) : null,
-            destinationWaits: stops.length > 0 ? stops.map((s) => s.wait) : null,
-            pickupAt: input.pickupAt,
-            passengers: input.passengers,
-            vehicle: input.vehicle,
-            name,
-            email,
-            phone: input.phone,
-            notes: input.notes,
-            internalNotes: input.internalNotes,
-            status: input.status,
-            quotedAmount: input.quotedAmount,
-            entity: partner?.companyName ?? null,
-            entityKvk: partner?.kvkNumber ?? null,
-            corporateContactId: partner?.id ?? null,
-            locale: partner?.locale ?? input.locale,
-            source: "admin",
-            reference: makeReference("EE"),
-          })
-          .returning();
-        await tx.insert(schema.requestEvents).values({ requestId: rows[0].id, adminId: admin.id, event: "received", params: { by: "team" } });
-        if (partner) await tx.insert(schema.requestEvents).values({ requestId: rows[0].id, adminId: admin.id, event: "attached", params: { partner: partner.name, by: "team" } });
-        return rows;
-      });
-    } catch (err) {
-      if (!isUniqueViolation(err) || i === 2) {
-        console.error("[admin] booking create failed", err);
-        return fail("Could not create the booking. Please try again.");
-      }
-    }
+  let request: QuoteRequest;
+  try {
+    request = await createQuoteRequest(
+      {
+        service: input.service,
+        collection: input.collection,
+        destination: input.destination,
+        destinations: stops.length > 0 ? stops.map((s) => s.place) : null,
+        destinationWaits: stops.length > 0 ? stops.map((s) => s.wait) : null,
+        pickupAt: input.pickupAt,
+        passengers: input.passengers,
+        vehicle: input.vehicle,
+        name,
+        email,
+        phone: input.phone,
+        notes: input.notes,
+        internalNotes: input.internalNotes,
+        status: input.status,
+        quotedAmount: input.quotedAmount,
+        entity: partner?.companyName ?? null,
+        entityKvk: partner?.kvkNumber ?? null,
+        corporateContactId: partner?.id ?? null,
+        locale: partner?.locale ?? input.locale,
+        source: "admin",
+      },
+      [
+        { adminId: admin.id, event: "received", params: { by: "team" } },
+        ...(partner ? [{ adminId: admin.id, event: "attached", params: { partner: partner.name, by: "team" as const } }] : []),
+      ],
+    );
+  } catch (err) {
+    console.error("[admin] booking create failed", err);
+    return fail("Could not create the booking. Please try again.");
   }
-  const request = created!;
 
   // The person the booking is for is told it exists. A partner whose booking is already quoted or confirmed gets that
   // email, which says more; every other booking gets the plain "we have recorded this" one, unless the team unticked it

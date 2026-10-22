@@ -11,8 +11,9 @@ import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartner
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
+import { visitor } from "@/lib/request-meta";
 import { SERVICES } from "@/lib/quotes/constants";
+import { createQuoteRequest } from "@/lib/quotes/create";
 import { readStops } from "@/lib/quotes/stops";
 import { quoteSchema, type QuoteField } from "@/lib/quotes/validation";
 import { getCorporateContact } from "./access";
@@ -30,7 +31,11 @@ const formLocale = (formData: FormData): Locale => {
 const BOOKING_LIMIT = { max: 10, minutes: 60 };
 const MESSAGE_LIMIT = { max: 20, minutes: 60 };
 
-const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "phoneCountry", "phone", "vehicle", "notes", "locale"] as const;
+const FIELDS = [
+  "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
+  "pickupPlaceId", "destinationPlaceId", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry", "passengerPhone",
+  "vehicle", "notes", "locale",
+] as const;
 
 /** A new booking request from inside the portal: the partner's own details, the usual trip fields. */
 export async function createBooking(_prev: PortalState, formData: FormData): Promise<PortalState> {
@@ -71,29 +76,18 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
       .where(and(eq(q.corporateContactId, contact.id), eq(q.source, "portal"), gt(q.createdAt, minutesAgo(BOOKING_LIMIT.minutes))));
     if (recent >= BOOKING_LIMIT.max) return fail(f.quoteRateLimited);
 
-    for (let i = 0; i < 3 && !created; i++) {
-      try {
-        [created] = await db
-          .insert(q)
-          .values({
-            ...parsed.data,
-            destinations: stops.length > 0 ? stops : null,
-            destinationWaits: stops.length > 0 ? destinationWaits : null,
-            entity: contact.companyName,
-            entityKvk: contact.kvkNumber,
-            corporateContactId: contact.id,
-            source: "portal",
-            reference: makeReference("EE"),
-            ipHash,
-            userAgent,
-          })
-          .returning();
-      } catch (err) {
-        if (!isUniqueViolation(err) || i === 2) throw err;
-      }
-    }
-    const request = created!;
-    await db.insert(schema.requestEvents).values({ requestId: request.id, event: "received" });
+    const request = await createQuoteRequest({
+      ...parsed.data,
+      destinations: stops.length > 0 ? stops : null,
+      destinationWaits: stops.length > 0 ? destinationWaits : null,
+      entity: contact.companyName,
+      entityKvk: contact.kvkNumber,
+      corporateContactId: contact.id,
+      source: "portal",
+      ipHash,
+      userAgent,
+    });
+    created = request;
     after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));
   } catch (err) {
     console.error("[portal] booking failed", err);

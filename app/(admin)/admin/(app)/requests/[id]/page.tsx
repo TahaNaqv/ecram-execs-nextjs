@@ -138,8 +138,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
       [
         { text: r.collection, wait: 0 },
         ...stopsWithWaits(r.destinations, r.destinationWaits).map((s) => ({ text: s.place, wait: s.wait })),
-        { text: r.destination, wait: 0 },
+        // An hourly booking may have no destination: its duration ends the journey instead
+        { text: r.destination ?? (r.durationHours ? interpolate(rd.durationValue, { hours: r.durationHours }) : null), wait: 0 },
       ].filter((s) => s.text);
+  const returnLeg = r.returnAt ? pickupParts(r.returnAt) : null;
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -242,7 +244,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                           </span>
                           <div className="min-w-0">
                             <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                              {isFirst ? d.admin.requestDetail.collection : isLast ? d.admin.requestDetail.destination : `Stopover ${i}`}
+                              {isFirst ? d.admin.requestDetail.collection : isLast ? (r.destination ? rd.destination : rd.asDirected) : `Stopover ${i}`}
                             </p>
                             <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{stop.text}</p>
                             {stop.wait > 0 && <p className="mt-0.5 text-xs text-zinc-500">{interpolate(d.admin.requestDetail.stopWait, { minutes: stop.wait })}</p>}
@@ -265,6 +267,27 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                     <Meta icon={<BriefcaseIcon />} label={rd.vehicle}>
                       {r.vehicle ? (vehicleByKey(r.vehicle)?.name ?? (r.vehicle === "advise" ? d.quoteForm.vehicleAdvise : r.vehicle)) : "—"}
                     </Meta>
+                    {r.luggage !== null && (
+                      <Meta icon={<BriefcaseIcon />} label={rd.luggage}>
+                        {r.luggage}
+                      </Meta>
+                    )}
+                    {r.flightNumber && (
+                      <Meta icon={<ClockIcon />} label={rd.flight}>
+                        {r.flightNumber}
+                      </Meta>
+                    )}
+                    {returnLeg && (
+                      <Meta icon={<CalendarIcon />} label={rd.returnJourney}>
+                        {returnLeg.date} · {returnLeg.time}
+                      </Meta>
+                    )}
+                    {r.passengerName && (
+                      <Meta icon={<UsersIcon />} label={rd.travelling}>
+                        {r.passengerName}
+                        {r.passengerPhone && <span className="block font-normal text-zinc-500">{r.passengerPhone}</span>}
+                      </Meta>
+                    )}
                   </dl>
                 </>
               )}

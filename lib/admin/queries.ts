@@ -58,8 +58,11 @@ export async function requestStats() {
     .select({
       openValue: sql<string>`coalesce(sum(${q.quotedAmount}) filter (where ${q.status} = 'quoted'), 0)`,
       confirmedValue: sql<string>`coalesce(sum(${q.quotedAmount}) filter (where ${q.status} = 'confirmed'), 0)`,
-      upcoming: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and ${q.pickupAt} >= (now() at time zone 'Europe/Amsterdam'))`.mapWith(Number),
-      next7: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and ${q.pickupAt} >= (now() at time zone 'Europe/Amsterdam') and ${q.pickupAt} < (now() at time zone 'Europe/Amsterdam') + interval '7 days')`.mapWith(Number),
+      // A booking with a return journey is still upcoming until its return (greatest() skips a null return_at)
+      upcoming: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and greatest(${q.pickupAt}, ${q.returnAt}) >= (now() at time zone 'Europe/Amsterdam'))`.mapWith(Number),
+      next7: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and (
+        (${q.pickupAt} >= (now() at time zone 'Europe/Amsterdam') and ${q.pickupAt} < (now() at time zone 'Europe/Amsterdam') + interval '7 days')
+        or (${q.returnAt} >= (now() at time zone 'Europe/Amsterdam') and ${q.returnAt} < (now() at time zone 'Europe/Amsterdam') + interval '7 days')))`.mapWith(Number),
       last24h: sql<number>`count(*) filter (where ${q.createdAt} > now() - interval '24 hours')`.mapWith(Number),
     })
     .from(q);

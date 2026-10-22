@@ -33,6 +33,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
     ["Destination", q.destination],
+    ["Duration", q.durationHours && `${q.durationHours} hours, as directed`],
     [
       "Additional stops",
       q.destinations && q.destinations.length > 0
@@ -42,8 +43,11 @@ export async function notifyNewQuote(q: QuoteRequest) {
         : null,
     ],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+    ["Return journey (NL)", q.returnAt && q.returnAt.slice(0, 16).replace("T", " ")],
+    ["Flight", q.flightNumber],
     ["Corporate entity / account", q.entity],
     [bespoke ? "Delegation size" : "Passengers", q.passengers],
+    ["Suitcases", q.luggage],
     ["Vehicle class", q.vehicleClass && (bespokeLabels.vehicleClasses as Record<string, string>)[q.vehicleClass]],
     ["Vehicle", q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? "Advise me" : q.vehicle))],
     ["Itinerary & instructions", q.itinerary],
@@ -51,6 +55,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Name", q.name],
     ["Email", q.email],
     ["Phone", q.phone],
+    ["Travelling (booked by the contact above)", q.passengerName && [q.passengerName, q.passengerPhone].filter(Boolean).join(" · ")],
     ["Notes", q.notes],
     ["Source", q.corporateContactId ? "Verified Corporate Partner" : null],
     ["KvK / company number", q.entityKvk],
@@ -84,8 +89,9 @@ export async function confirmToClient(q: QuoteRequest) {
         row(t.fieldReference, q.reference),
         row(t.fieldService, serviceLabel(q.service, services)),
         row(t.fieldCollection, q.collection ?? ""),
-        row(t.fieldDestination, q.destination ?? ""),
+        ...destinationRows(q, t, row),
         row(t.fieldDateTime, (q.pickupAt ?? "").slice(0, 16).replace("T", " ")),
+        ...extraRows(q, t, row),
       ];
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
@@ -370,9 +376,10 @@ export async function emailBookingRecorded(q: QuoteRequest) {
     row(t.fieldReference, q.reference),
     row(t.fieldService, serviceLabel(q.service, services)),
     q.collection ? row(t.fieldCollection, q.collection) : "",
-    q.destination ? row(t.fieldDestination, q.destination) : "",
+    ...destinationRows(q, t, row),
     stops ? row(t.fieldStops, stops) : "",
     q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
+    ...extraRows(q, t, row),
     q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
     vehicle ? row(t.fieldVehicle, vehicle) : "",
   ];
@@ -396,6 +403,24 @@ export async function emailBookingRecorded(q: QuoteRequest) {
     subject: interpolate(t.bookingRecordedSubject, { reference: q.reference }),
     html,
   });
+}
+
+type EmailCopy = Awaited<ReturnType<typeof getDictionary>>["email"];
+type Row = (label: string, value: string) => string;
+
+/** Where the journey ends: the destination, or for an hourly booking without one, how long the chauffeur is booked. */
+function destinationRows(q: QuoteRequest, t: EmailCopy, row: Row) {
+  if (q.destination) return [row(t.fieldDestination, q.destination)];
+  return q.durationHours ? [row(t.fieldDuration, interpolate(t.durationValue, { hours: q.durationHours }))] : [];
+}
+
+/** The booking flow's optional details, each only when given. */
+function extraRows(q: QuoteRequest, t: EmailCopy, row: Row) {
+  return [
+    q.returnAt ? row(t.fieldReturn, q.returnAt.slice(0, 16).replace("T", " ")) : "",
+    q.flightNumber ? row(t.fieldFlight, q.flightNumber) : "",
+    q.passengerName ? row(t.fieldPassenger, q.passengerName) : "",
+  ];
 }
 
 function teamAlert(heading: string, rows: [string, string | number | null][], adminUrl: string) {

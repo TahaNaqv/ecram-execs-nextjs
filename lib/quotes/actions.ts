@@ -5,8 +5,9 @@ import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
-import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
+import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
+import { createQuoteRequest } from "./create";
 import { readStops } from "./stops";
 import { quoteSchema, type QuoteField } from "./validation";
 
@@ -21,7 +22,11 @@ export type QuoteFormState =
     }
   | { status: "success"; reference: string; name: string };
 
-const FIELDS = ["collection", "destination", "pickupAt", "service", "passengers", "name", "email", "phoneCountry", "phone", "vehicle", "notes", "locale"] as const;
+const FIELDS = [
+  "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
+  "pickupPlaceId", "destinationPlaceId", "name", "email", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry",
+  "passengerPhone", "vehicle", "notes", "locale",
+] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
 export async function submitQuote(prev: QuoteFormState, formData: FormData): Promise<QuoteFormState> {
@@ -67,30 +72,19 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return fail(t.quoteRateLimited);
   }
 
-  let saved: QuoteRequest | undefined;
-  for (let i = 0; i < 3 && !saved; i++) {
-    try {
-      [saved] = await db
-        .insert(schema.quoteRequests)
-        .values({
-          ...parsed.data,
-          destinations: destinations.length > 0 ? destinations : null,
-          destinationWaits: destinations.length > 0 ? destinationWaits : null,
-          reference: makeReference("EE"),
-          ipHash,
-          userAgent,
-        })
-        .returning();
-    } catch (err) {
-      // Retry only on a reference collision
-      if (!isUniqueViolation(err) || i === 2) {
-        console.error("[quote] insert failed", err);
-        return fail(t.quoteServerError);
-      }
-    }
+  let request: QuoteRequest;
+  try {
+    request = await createQuoteRequest({
+      ...parsed.data,
+      destinations: destinations.length > 0 ? destinations : null,
+      destinationWaits: destinations.length > 0 ? destinationWaits : null,
+      ipHash,
+      userAgent,
+    });
+  } catch (err) {
+    console.error("[quote] insert failed", err);
+    return fail(t.quoteServerError);
   }
-  const request = saved!;
-  await db.insert(schema.requestEvents).values({ requestId: request.id, event: "received" });
 
   after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));
 

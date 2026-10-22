@@ -49,6 +49,20 @@ export const quoteRequests = pgTable(
     pickupAt: timestamp("pickup_at", { mode: "string" }),
     service: serviceKind("service").notNull(),
     passengers: integer("passengers"),
+    // Suitcases, so the team (and the car step) can tell what fits
+    luggage: integer("luggage"),
+    // As typed: an airline flight ("KL 1002") or a private flight's registration
+    flightNumber: text("flight_number"),
+    // An hourly booking ("as directed") has a duration instead of a destination; see the check constraint below
+    durationHours: integer("duration_hours"),
+    // The return journey, when asked for: same wall-clock convention as `pickup_at`, quoted together with it
+    returnAt: timestamp("return_at", { mode: "string" }),
+    // The person travelling, when the booker books for someone else; null when the booker travels
+    passengerName: text("passenger_name"),
+    passengerPhone: text("passenger_phone"),
+    // Google place ids of the picked addresses (only the id: Google's terms forbid keeping their place data)
+    pickupPlaceId: text("pickup_place_id"),
+    destinationPlaceId: text("destination_place_id"),
 
     // Bespoke inquiries only
     entity: text("entity"),
@@ -89,9 +103,10 @@ export const quoteRequests = pgTable(
     index("quote_requests_ip_created_idx").on(t.ipHash, t.createdAt),
     // A partner's own bookings, newest first (the portal lists them by this)
     index("quote_requests_contact_created_idx").on(t.corporateContactId, t.createdAt),
+    // Every journey has a pick-up and a time, and either a destination or (hourly only) a duration
     check(
       "quote_requests_journey_required",
-      sql`${t.service} = 'bespoke' OR (${t.collection} IS NOT NULL AND ${t.destination} IS NOT NULL AND ${t.pickupAt} IS NOT NULL)`,
+      sql`${t.service} = 'bespoke' OR (${t.collection} IS NOT NULL AND ${t.pickupAt} IS NOT NULL AND (${t.destination} IS NOT NULL OR (${t.service} = 'hourly' AND ${t.durationHours} IS NOT NULL)))`,
     ),
   ],
 );

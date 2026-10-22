@@ -6,6 +6,7 @@ import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
 import { REQUEST_STATUSES, serviceLabel } from "@/lib/quotes/constants";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { interpolate } from "@/lib/i18n/interpolate";
 import type { QuoteRequest } from "@/lib/db/schema";
 import {
   CalendarIcon,
@@ -137,6 +138,9 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const partnerBadge = (id: string) =>
     unseen.has(id) ? <span className="mt-1 inline-block rounded bg-zinc-950 px-1.5 py-0.5 text-[10px] font-medium text-white">{t.requests.partnerMessage}</span> : null;
+  // Where a journey ends: its destination, or for an hourly booking without one, how long the chauffeur is booked
+  const journeyEnd = (r: QuoteRequest) =>
+    r.destination ?? (r.durationHours ? interpolate(t.requestDetail.durationValue, { hours: r.durationHours }) : null);
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const tabs = [
@@ -221,7 +225,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
           <ul className="divide-y divide-zinc-100 xl:hidden">
             {rows.map((r: QuoteRequest) => {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
-              const destinationsArray = [...(r.destinations ?? []), r.destination]; // stops on the way, then where to
+              const destinationsArray = [...(r.destinations ?? []), journeyEnd(r)].filter(Boolean); // stops on the way, then where to
               return (
                 <li key={r.id}>
                   <Link href={`/admin/requests/${r.id}`} className="flex gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
@@ -285,7 +289,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                   const isBespoke = r.collection === null;
                   const allStops = isBespoke
                     ? []
-                    : [r.collection, ...(r.destinations ?? []), r.destination].filter(Boolean);
+                    : [r.collection, ...(r.destinations ?? []), journeyEnd(r)].filter(Boolean);
 
                   return (
                     <tr key={r.id} className="group relative transition-colors hover:bg-zinc-50/80">
