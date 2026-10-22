@@ -40,7 +40,7 @@ export async function ApplicationBadge({ status, size = "sm" }: { status: Applic
  * "Urgent": the booking is still open and the pick-up is within 24 hours (or began in the last few). Nothing renders for
  * any other booking. Reads the clock, so it belongs in a dynamic part of the page, like the relative times beside it.
  */
-export async function UrgentBadge({ request, size = "sm" }: { request: { status: RequestStatus; pickupAt: string | null }; size?: "sm" | "md" }) {
+export async function UrgentBadge({ request, size = "sm" }: { request: { status: RequestStatus; pickupAt: string | null; returnAt?: string | null }; size?: "sm" | "md" }) {
   if (!isUrgent(request)) return null;
   const { admin: t } = await adminDictionary();
   return (

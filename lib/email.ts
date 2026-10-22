@@ -55,7 +55,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Name", q.name],
     ["Email", q.email],
     ["Phone", q.phone],
-    ["Travelling (booked by the contact above)", q.passengerName && [q.passengerName, q.passengerPhone].filter(Boolean).join(" · ")],
+    ["Travelling (booked by the contact above)", [q.passengerName, q.passengerPhone].filter(Boolean).join(" · ") || null],
     ["Notes", q.notes],
     ["Source", q.corporateContactId ? "Verified Corporate Partner" : null],
     ["KvK / company number", q.entityKvk],

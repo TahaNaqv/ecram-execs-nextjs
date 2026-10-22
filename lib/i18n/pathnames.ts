@@ -21,6 +21,8 @@ export const PATHNAMES = {
   "/corporate-partner/account/new-booking": { en: "corporate-partner/account/new-booking", nl: "zakelijke-partner/account/nieuwe-boeking" },
   "/corporate-partner/account/introduction": { en: "corporate-partner/account/introduction", nl: "zakelijke-partner/account/kennismaking" },
   "/privacy": { en: "privacy", nl: "privacybeleid" },
+  // The booking flow after the homepage's bar; the trip travels in the query string
+  "/book": { en: "book", nl: "boeken" },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type AppRoute = keyof typeof PATHNAMES;

@@ -8,7 +8,6 @@ import { SectionNav } from "./_components/section-nav";
 import {
   Concierge,
   Destinations,
-  Enquiry,
   Experience,
   FinalCta,
   Hero,
@@ -75,7 +74,6 @@ export default async function HomePage() {
       <SiteHeader />
       <main id="main">
         <Hero />
-        <Enquiry />
         <WhoWeServe />
         <Concierge />
         <Statement />

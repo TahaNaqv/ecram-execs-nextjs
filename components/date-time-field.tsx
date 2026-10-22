@@ -90,9 +90,12 @@ export function DateTimeField({
   invalid,
   describedBy,
   className,
+  tone = "light",
+  onValueChange,
 }: {
   id: string;
-  name: string;
+  /** The hidden field the value is submitted as; leave out when the form keeps the value itself (onValueChange). */
+  name?: string;
   locale: string;
   copy: DateTimeCopy;
   /** `YYYY-MM-DDTHH:mm`, e.g. the value a failed submission came back with. */
@@ -101,6 +104,10 @@ export function DateTimeField({
   describedBy?: string;
   /** The look of the text box, so the field matches the form around it. */
   className?: string;
+  /** "dark" when the field sits on a dark background (the booking bar in the hero) */
+  tone?: "light" | "dark";
+  /** Told the `YYYY-MM-DDTHH:mm` value (or "" for none) whenever it changes, for forms that keep it in state. */
+  onValueChange?: (value: string) => void;
 }) {
   const initial = useMemo(() => parseDateTime(defaultValue ?? ""), [defaultValue]);
   const [day, setDay] = useState<Day | null>(initial?.day ?? null);
@@ -117,6 +124,18 @@ export function DateTimeField({
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const focusGrid = useRef(false);
+
+  const value = day ? iso(day, time) : "";
+  const reported = useRef(value);
+  const report = useRef(onValueChange);
+  useEffect(() => {
+    report.current = onValueChange;
+  });
+  useEffect(() => {
+    if (value === reported.current) return;
+    reported.current = value;
+    report.current?.(value);
+  }, [value]);
 
   const months = useMemo(() => new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }), [locale]);
   const weekdays = useMemo(() => {
@@ -221,7 +240,7 @@ export function DateTimeField({
         closePicker(true);
       }}
     >
-      <input type="hidden" name={name} value={day ? iso(day, time) : ""} />
+      {name && <input type="hidden" name={name} value={value} />}
       <input
         ref={input}
         id={id}
@@ -251,7 +270,9 @@ export function DateTimeField({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? closePicker(false) : openPicker())}
-        className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 transition-colors"
+        className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent transition-colors ${
+          tone === "dark" ? "text-ink-300 hover:bg-white/10 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
+        }`}
       >
         <CalendarIcon />
       </button>

@@ -15,6 +15,9 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
  * is reported, so a genuinely untranslated string cannot slip through unnoticed.
  */
 const ALLOW_IDENTICAL = new Set([
+  // Google's own attribution wording, required as they word it
+  "booking.poweredByGoogle",
+  "booking.summaryRoute",
   "cookieConsent.marketingTitle",
   "cookieConsent.colName",
   "admin.nav.brand",

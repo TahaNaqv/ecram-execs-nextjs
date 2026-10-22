@@ -2,11 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
+import { JourneyBar } from "../booking/journey-bar";
 
 export async function Hero() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
+  // Clipped sideways only: the booking bar's suggestions and calendar may hang below the hero
   return (
-    <section className="overflow-hidden flex flex-col justify-center min-h-[calc(-77px_+_100svh)] relative md:min-h-[860px]" id="top">
+    <section className="overflow-x-clip flex flex-col justify-center min-h-[calc(-77px_+_100svh)] relative md:min-h-[860px]" id="top">
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
         <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/hero-jet-arrival-v2.png" alt={d.hero.imageAlt} fill priority sizes="100vw" />
         {/* Desktop: dark behind the copy, lighter at the edges so the jet and van show, darker at the bottom for the strip */}
@@ -25,19 +27,24 @@ export async function Hero() {
         <p className="rise d3 m-0 text-ink-150 text-[16px] font-normal max-w-[620px] [text-shadow:0_1px_12px_rgba(0,0,0,0.85)] md:[text-shadow:none] md:text-ink-300 md:text-[17px] md:font-light">
           {d.hero.intro}
         </p>
-        <div className="rise d4 mt-2 gap-3 items-stretch flex flex-col flex-wrap justify-center max-w-[360px] w-full md:gap-4 md:items-center md:flex-row md:max-w-none md:w-auto md:flex-nowrap">
-          <a className="btn-fill py-0 px-5 no-underline items-center bg-ink-50 text-ink-950 inline-flex text-[12px] font-semibold justify-center tracking-[0.24em] min-h-[52px] uppercase md:py-0 md:px-[34px] md:justify-normal" href="#enquire">
-            {d.common.requestQuote}
-          </a>
-          {" "}
-          <Link prefetch={false} className="btn-line py-0 px-5 gap-3 no-underline items-center text-ink-250 inline-flex text-[11px] justify-center tracking-[0.24em] min-h-[44px] uppercase md:border md:border-ink-700 md:text-white md:text-[12px] md:min-h-[52px] md:py-0 md:px-[30px] md:justify-normal" href={localizedPath("/corporate-partner/login", locale)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <circle cx="12" cy="8" r="4"></circle>
-              <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>
-            </svg>
-            {d.hero.corporateLogin}
-          </Link>
+        {/* The booking bar. `enquire` is the anchor every "Request a quote" link on the site points to */}
+        <div id="enquire" className="rise d4 mt-2 w-full max-w-[1180px] scroll-mt-28 text-left">
+          <JourneyBar
+            locale={locale}
+            copy={d.booking}
+            dateTimeCopy={d.dateTimePicker}
+            messages={d.forms}
+            tone="dark"
+            action={localizedPath("/book", locale)}
+          />
         </div>
+        <Link prefetch={false} className="btn-line rise d4 py-0 px-5 gap-3 no-underline items-center text-ink-250 inline-flex text-[11px] justify-center tracking-[0.24em] min-h-[44px] uppercase md:text-ink-200" href={localizedPath("/corporate-partner/login", locale)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>
+          </svg>
+          {d.hero.corporateLogin}
+        </Link>
       </div>
       <div className="rise d4 pb-7 gap-3 items-center hidden flex-col relative md:flex">
         <span className="text-ink-450 text-[10px] tracking-[0.3em]">

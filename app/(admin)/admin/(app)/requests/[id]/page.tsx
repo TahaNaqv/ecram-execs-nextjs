@@ -282,7 +282,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                         {returnLeg.date} · {returnLeg.time}
                       </Meta>
                     )}
-                    {r.passengerName && (
+                    {(r.passengerName || r.passengerPhone) && (
                       <Meta icon={<UsersIcon />} label={rd.travelling}>
                         {r.passengerName}
                         {r.passengerPhone && <span className="block font-normal text-zinc-500">{r.passengerPhone}</span>}

@@ -1,6 +1,5 @@
 export { SiteHeader } from "./site-header";
 export { Hero } from "./hero";
-export { Enquiry } from "./enquiry";
 export { Statement } from "./statement";
 export { Services } from "./services";
 export { Experience } from "./experience";
