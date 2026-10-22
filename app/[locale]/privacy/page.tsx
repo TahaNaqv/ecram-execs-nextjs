@@ -90,6 +90,7 @@ export default async function PrivacyPage() {
             <li>{t.s4Resend}</li>
             <li>{t.s4Anthropic}</li>
           </ul>
+          <p className="m-0">{t.s4Google}</p>
           <p className="m-0">{t.s4p3}</p>
           <p className="m-0">{t.s4p2}</p>
         </Section>
