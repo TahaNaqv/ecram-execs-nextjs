@@ -33,7 +33,8 @@ const VARIANTS = {
     card: "min-h-[280px] md:min-h-[320px]",
     pad: "p-5 md:p-6",
     title: "text-[22px] md:text-[26px]",
-    sizes: "(min-width: 1280px) 340px, (min-width: 640px) 50vw, 100vw",
+    // The cards are half of the column beside the heading: (viewport - 508px) / 2 from 1068px, 386px at 1280px, 466px at 1536px and wider
+    sizes: "(min-width: 1536px) 466px, (min-width: 1280px) 386px, (min-width: 1068px) calc(50vw - 254px), (min-width: 640px) 50vw, 100vw",
   },
 } as const;
 

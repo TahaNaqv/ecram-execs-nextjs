@@ -19,8 +19,8 @@ export async function WhoWeServe() {
   return (
     <section className="border-b border-b-ink-850" id="corporate">
       <div className="py-12 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-16 md:px-6 md:gap-20 2xl:max-w-[1440px]">
-        {/* Beside the cards (from the width where the two columns sit side by side) the heading stays in view while the cards are read */}
-        <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0 min-[1068px]:sticky min-[1068px]:top-32 min-[1068px]:self-start">
+        {/* Beside the cards the heading stays in view while they are read. The columns sit side by side from 1068px; this starts 20px later because a media query counts a classic scrollbar that the layout does not, and the heading must not pin while the columns are still stacked */}
+        <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0 min-[1088px]:sticky min-[1088px]:top-32 min-[1088px]:self-start">
           <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             {d.whoWeServe.eyebrow}
           </span>
