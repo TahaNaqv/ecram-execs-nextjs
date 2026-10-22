@@ -75,7 +75,13 @@
     "bookingSubjectReply": "A reply from Ecram Execs about {reference}",
     "bookingIntroReply": "Our team replied to your booking {reference}:",
     "bookingSubjectInvoice": "An invoice for {reference} is available",
-    "bookingIntroInvoice": "An invoice for your booking {reference} is available to download on your booking page."
+    "bookingIntroInvoice": "An invoice for your booking {reference} is available to download on your booking page.",
+    "bookingSubjectContacted": "Our team is working on your booking {reference}",
+    "bookingIntroContacted": "A member of our team has picked up your booking {reference} and will be in touch shortly. You can follow the progress on your booking page.",
+    "bookingRecordedSubject": "Your booking with Ecram Execs {reference}",
+    "bookingRecordedIntro": "Our team has recorded the following booking for you ({reference}).",
+    "fieldStops": "Stops",
+    "fieldPassengers": "Passengers"
   },
   "criteria": {
     "or": "or",
@@ -209,11 +215,41 @@
   },
   "cookieConsent": {
     "bannerTitle": "Cookie Consent",
+    "bannerText": "We use cookies that are strictly necessary to make this website work, such as your language and your login. Analytical and marketing cookies are optional and stay off unless you allow them.",
     "settingsLink": "Cookie Settings",
+    "necessaryTitle": "Strictly necessary",
+"necessaryText": "Required to make the website work: remembering your language, keeping partners signed in, and recording this choice. These cannot be disabled.",
     "acceptAll": "Accept All",
     "rejectAll": "Reject All",
     "manage": "Manage Preferences",
-    "save": "Save Preferences"
+    "preferences": "Preferences",
+    "policyLink": "Cookie policy",
+    "save": "Save Preferences",
+    "prefsTitle": "Cookie preferences",
+    "prefsIntro": "Choose which cookies you allow. You can change this at any time via “Cookie Settings” in the website footer or in the cookie section of the privacy policy.",
+    "close": "Close",
+    "alwaysOn": "Always on",
+    "noneInUse": "We are not using any at the moment.",
+    "switchOn": "On",
+    "switchOff": "Off",
+    "tableTitle": "Cookies this website may place",
+    "colName": "Cookie",
+    "colPurpose": "Purpose",
+    "colDuration": "Retention period",
+    "localePurpose": "Remembers the language of the pages you viewed last, so the site opens in that language next time.",
+    "localeDuration": "1 year",
+    "consentPurpose": "Remembers your cookie choice.",
+    "consentDuration": "12 months",
+    "accessPurpose": "Keeps you logged in in the corporate partner area.",
+    "accessDuration": "7 days",
+    "challengePurpose": "Remembers your place while logging in or resetting your password, while waiting for the email code.",
+    "challengeDuration": "1 hour",
+    "verifiedPurpose": "Remembers that you entered the email code correctly, until you choose a password.",
+    "verifiedDuration": "Up to 10 minutes",
+    "analyticsTitle": "Analytical",
+    "analyticsText": "Help us understand how the website is used so we can improve it.",
+    "marketingTitle": "Marketing",
+    "marketingText": "Used to show relevant offers and measure campaigns."
   },
   "nav": {
     "tagline": "THE ART OF EXECUTIVE HOSPITALITY",
@@ -254,7 +290,25 @@
     "hotelsTitle": "Hotels & Concierge",
     "hotelsText": "A trusted partner for hotels and concierge desks welcoming international guests to the Netherlands.",
     "bespokeTitle": "Bespoke Programmes",
-    "bespokeText": "Multi-day delegations, events and itineraries planned around your requirements, not ours."
+    "bespokeText": "Multi-day delegations, events and itineraries planned around your requirements, not ours.",
+    "airportP1": "Your chauffeur tracks your flight and adjusts to your actual arrival time.",
+    "airportP2": "Met in arrivals, with the exact meeting point confirmed in advance.",
+    "airportP3": "Luggage handled, straight to the car afterwards.",
+    "businessP1": "Single rides, multi-stop days or hourly bookings, with waiting time as you wish.",
+    "businessP2": "A quiet, fully electric interior to prepare, call or rest.",
+    "businessP3": "Complete discretion: what is said in the car stays in the car.",
+    "corporateP1": "A single point of contact for your organisation.",
+    "corporateP2": "Consolidated invoicing for all your journeys.",
+    "corporateP3": "Book for colleagues, clients and guests and track every booking in the corporate partner area.",
+    "privateP1": "Weddings, celebrations and evenings out.",
+    "privateP2": "Refreshments on board and a calm, attentive chauffeur.",
+    "privateP3": "Arranged around you, with the same composure as a board meeting.",
+    "hotelsP1": "Arrivals and departures for your international guests.",
+    "hotelsP2": "Punctual, discreet transfers, with tracked flights and planned routes.",
+    "hotelsP3": "Experienced, vetted and impeccably presented chauffeurs.",
+    "bespokeP1": "Multi-day delegations, events and itineraries.",
+    "bespokeP2": "Vehicles and chauffeurs coordinated by a single team.",
+    "bespokeP3": "Planned with you in advance, tailored around your requirements and not ours."
   },
   "experienceSection": {
     "eyebrow": "III — THE EXPERIENCE",
@@ -381,6 +435,11 @@
     "faq12A": "Every chauffeur is experienced, vetted and impeccably presented, and holds the licences and insurance required for paid passenger transport in the Netherlands.",
     "faq13Q": "Can I Expect Complete Discretion And Confidentiality?",
     "faq13A": "Absolutely. Discretion and confidentiality are central to everything we do.",
+    "faq14A": "Fill out the Plan Your Journey form on this page with your route, date and time, and choose a vehicle if you have a preference. Our team will get back to you with your personal quotation, usually within the hour. Corporate partners can also book from their own account.",
+    "faq15A": "Every journey receives a personal quotation, based on your route, time and vehicle. Send your request via the Plan Your Journey form and our team will get back to you with a tailored quote.",
+    "faq16A": "Our reservations team is available 24/7. Send your request via the Plan Your Journey form, or continue this conversation with the team via WhatsApp.",
+    "fallbackScope": "I can answer questions about booking and cancellations, airport transfers and flight tracking, our fully electric fleet, corporate accounts, waiting time and our chauffeurs. For anything else, or for a personal quotation, our reservations team is available 24/7 via WhatsApp.",
+    "fallbackBusy": "Our reservations desk is available day and night. You can contact our team directly via WhatsApp.",
     "welcome": "Good day. I am the Ecram Execs Concierge. How may I assist with your journey today?",
     "whatsappCta": "Continue on WhatsApp",
     "whatsappHandoff": "Transfer to WhatsApp",
@@ -497,6 +556,7 @@
     "removeStop": "Remove stop",
     "stopsCount": "Stops ({count}/{max})",
     "addStop": "+ Add Stop",
+    "addStopShort": "+ Stop",
     "stopoversTitle": "Additional Stopovers (Max {max})",
     "noStops": "No extra stopovers added yet.",
     "stopPlaceholder": "Stop {number} (Optional)",
@@ -507,7 +567,9 @@
     "selectedVehicle": "Selected Vehicle",
     "passengersLabel": "Passengers",
     "electricLabel": "100% Electric",
-    "changeVehicle": "Clear selection"
+    "changeVehicle": "Clear selection",
+    "faqTitle": "{name} — Frequently asked questions",
+    "toggleQuestions": "Show or hide questions about this vehicle"
   },
   "dateTimePicker": {
     "placeholder": "dd-mm-yyyy hh:mm",
@@ -538,13 +600,17 @@
     "s2p1": "When you request a quotation we collect your name, email address, phone number, the collection point, destination, date and time of your journey, the service and number of passengers you select, and any notes you add. If you send a bespoke inquiry we also collect your company or account name, the size of your delegation, your vehicle class requirements, your itinerary and special instructions, and whether you prefer to be contacted by phone or WhatsApp. We use this only to prepare and send your quotation or programme, arrange your journey and contact you about it. The legal basis is taking steps at your request before entering into a contract (Article 6(1)(b) GDPR).",
     "s2p2": "When you apply to drive with us we collect your name, email address, phone number, KvK number, years of driving experience, your car's licence plate and any notes you add. We look the plate up in the public register of the RDW (the Dutch vehicle authority) to check the car against our criteria, and store the make, model, colour, seating, registration dates and taxi registration it returns. You also upload copies of your chauffeur card, KvK extract, certificate of conduct (VOG) and insurance; these are stored in a private storage area that only our team can open. We use this only to assess your application and, if it is approved, to work with you. The legal basis is taking steps at your request before entering into a contract (Article 6(1)(b) GDPR).",
     "s2p3": "To protect the forms against abuse we also store a one-way, salted hash of your IP address and your browser's user-agent string. The hash cannot be turned back into your IP address. The legal basis is our legitimate interest in keeping the service secure (Article 6(1)(f) GDPR).",
+    "s2p4": "If you use the chat concierge on the website, the messages you type are forwarded to our AI provider (see “Who processes your data”) so it can write a reply. We do not store the conversation and ask you not to put sensitive personal data in it. If you choose to continue via WhatsApp, the conversation is passed on to WhatsApp at your request and WhatsApp's own privacy policy applies from that moment. The legal basis is our legitimate interest in answering your questions (Article 6(1)(f) GDPR).",
     "s3Title": "Cookies",
     "s3p1": "The public website does not use tracking or advertising cookies. A strictly necessary session cookie is used only when our staff sign in to the internal reservations system.",
+    "s3p2": "Our staff log in to an internal reservation system that uses its own session and language cookies; only staff receive these. The language choice also briefly stores your scroll position in your browser's session storage so the page stays where it was; no personal data is stored there and it disappears as soon as you close the tab.",
     "s4Title": "Who processes your data",
     "s4p1": "We use carefully selected service providers who process data on our behalf under data processing agreements:",
-    "s4Vercel": "Vercel — website hosting",
+    "s4Hosting": "GoDaddy (Host Europe GmbH) — hosting of the website, database and uploaded documents, on a server within the European Union",
     "s4Supabase": "Supabase — database and document storage, in the European Union",
     "s4Resend": "Resend — delivery of email notifications about your request",
+    "s4Anthropic": "Anthropic — the AI that writes the chat concierge's replies; it receives the messages typed into the chat",
+    "s4p3": "Resend and Anthropic are located in the United States. Where personal data is transferred outside the European Economic Area, we rely on the European Commission's standard contractual clauses in our agreements with them.",
     "s4p2": "We do not sell your data or share it with third parties for marketing.",
     "s5Title": "How long we keep it",
     "s5p1": "Quotation and bespoke requests are kept for up to 24 months after our last contact with you, so we can handle follow-up questions and repeat bookings. Driver applications that do not lead to a partnership, including the documents uploaded with them, are kept for up to 12 months. Information that forms part of our financial records is kept for seven years, as Dutch tax law requires. You can ask us to delete your request at any time.",
@@ -556,7 +622,10 @@
     "s7Title": "Security",
     "s7p1": "Your data is transmitted over encrypted connections and stored in access-controlled systems. Only authorised staff can view quotation and bespoke requests and driver applications.",
     "s8Title": "Corporate partners",
-    "s8p1": "If you request access to our Corporate Partner area we collect your company email address, name and position, and the details you add to a corporate account request. We use your email address to send a one-time verification code (taking steps at your request, Article 6(1)(b) GDPR). If you tick the box on the form, we also use your details to keep you informed about our services and news by email, based on your consent (Article 6(1)(a) GDPR); you can withdraw it at any time by contacting us, and we then stop. Verification codes expire after ten minutes and are stored only in a form that cannot be read back."
+    "s8p1": "If you request access to our Corporate Partner area we collect your company email address, name and position, and the details you add to a corporate account request. We use your email address to send a one-time verification code (taking steps at your request, Article 6(1)(b) GDPR). If you tick the box on the form, we also use your details to keep you informed about our services and news by email, based on your consent (Article 6(1)(a) GDPR); you can withdraw it at any time by contacting us, and we then stop. Verification codes expire after ten minutes and are stored only in a form that cannot be read back.",
+    "s8p2": "In this area you can request bookings, answer quotes, send us messages and request a change or cancellation. We store the trip details you enter (collection point, destination, stopovers, date and time, number of passengers, vehicle and notes), your name, email address and phone number as booker, your company name and KvK number if you provided them, the quote and status of the booking, and the messages and replies with it. If you submit the business introduction, we also store your company registration number, who signs on behalf of the company, a point of call, how you prefer to be contacted and which trips you expect to book. We use this to arrange your trips and reply to you (taking steps at your request and performance of our contract, Article 6(1)(b) GDPR). Our team can add invoices to a booking so you can download them; only you and our staff can open them.",
+    "s8p3": "If you tick the box when creating your account, we also use your details to keep you informed about our services and news by email, based on your consent (Article 6(1)(a) GDPR). You can withdraw that consent at any time by contacting us.",
+    "s8p4": "We keep your account as long as you use it. If you have not logged in for 24 months and no work has been done on any of your bookings in that time, we delete it automatically, along with the bookings that are not part of our financial records. If you start creating an account without finishing it, we delete the details after 30 days. You can also ask us at any time to close your account and delete your data; we will do so, except for what we are legally required to keep: bookings that form part of our financial records, such as invoiced bookings, remain for seven years without your personal data (only the company, route, amount and invoices remain)."
   },
   "admin": {
     "common": {
@@ -640,7 +709,9 @@
       "colReceived": "Received",
       "unread": "Unread",
       "all": "All",
-      "partnerMessage": "Partner message"
+      "partnerMessage": "Partner message",
+      "urgent": "Urgent",
+      "urgentNote": "Collection within 24 hours"
     },
     "requestDetail": {
       "journey": "Journey",
@@ -787,6 +858,7 @@
       "attachedSignup": "Linked automatically when {partner} created an account",
       "detached": "Detached from partner {partner}",
       "invoiceAdded": "Invoice added: {file}",
+      "partnerErased": "Partner account deleted; this booking is kept for financial records, without personal data",
       "createdByTeam": "Created by the team"
     },
     "corporate": {
@@ -803,7 +875,16 @@
       "optedIn": "Opted in",
       "noConsent": "No email consent",
       "hasAccount": "Has account",
-      "noAccount": "No account yet"
+      "noAccount": "No account yet",
+      "delete": "Delete",
+      "deleteTitle": "Delete this account?",
+      "deleteIntro": "This will permanently delete {name}'s corporate partner account, including their account, sessions, and email consent. This person will be signed out everywhere. This cannot be undone, and copies in backups expire after 14 days.",
+      "deleteGone": "Bookings deleted with the account: {count}. They will be removed along with their messages and history.",
+      "deleteKept": "Completed or invoiced bookings kept for financial records: {count}. They will remain without a connection to the account, without messages, notes, and contact person details; the company, route, amount, and invoices remain.",
+      "deleteConfirm": "Yes, delete permanently",
+      "deleteCancel": "Cancel",
+      "deleteWorking": "Deleting…",
+      "deleteBlocked": "This partner still has {count} open booking(s) where the journey has not yet taken place. Please cancel or complete them first; the account can only be deleted afterwards."
     },
     "partnerCard": {
       "title": "Corporate partner",
@@ -874,7 +955,13 @@
       "internalNotes": "Internal notes",
       "submit": "Create booking",
       "creating": "Creating…",
-      "cta": "New booking"
+      "cta": "New booking",
+      "stopN": "Stop {number}",
+"removeStop": "Remove stop",
+"language": "Booking language (for emails)",
+      "unavailable": "Unavailable",
+      "notifyClient": "Email confirmation to the contact person",
+      "notifyClientHint": "Uncheck if the address is only a temporary address."
     },
     "vehicles": {
       "title": "Vehicle Fleet Management",
@@ -1038,6 +1125,7 @@
     "optionSignupCta": "Sign Up",
     "signedInAs": "You are signed in as {email}.",
     "goToAccount": "Go To Your Account",
+    "signedInSignupNote": "If you create a new account below, it will replace the account you are currently signed in with.",
     "loginMetaTitle": "Log In — Corporate Partner — Ecram Execs",
     "loginHeading": "Log In",
     "loginIntro": "Enter the email address and password of your corporate partner account.",
@@ -1190,7 +1278,6 @@
       "invoiceAdded": "Invoice added",
       "none": "—"
     },
-    
     "sectionInvoices": "Invoices",
     "invoiceDownload": "Download",
     "repeatCta": "Repeat This Booking",

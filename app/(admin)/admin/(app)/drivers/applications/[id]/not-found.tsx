@@ -9,11 +9,11 @@ export default async function ApplicationNotFound() {
     <Card className="mt-6">
       <EmptyState
         icon={<SearchIcon size={18} />}
-        title={t.common.applicationNotFound}
-        description={t.common.notFoundNote}
+        title={t?.common?.applicationNotFound ?? "Application not found"}
+        description={t?.common?.notFoundNote ?? "The requested application could not be found."}
         action={
           <Link href="/admin/drivers/applications" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
-            {t.common.backToApplications}
+            {t?.common?.backToApplications ?? "Back to Applications"}
           </Link>
         }
       />

@@ -1,11 +1,20 @@
 import { locale as localeParam } from "next/root-params";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "./config";
-import type { Dictionary } from "./types";
+import type enJson from "./dictionaries/en.json";
+import type nlJson from "./dictionaries/nl.json";
 
-// Dynamic imports so each locale is a separate chunk and only the requested one is loaded.
+export type Dictionary = typeof enJson;
+
+// Compile-time only check to enforce full parity between en.json and nl.json
+const _check = (x: typeof nlJson): Dictionary => x;
+
 const dictionaries: Record<Locale, () => Promise<Dictionary>> = {
-  en: () => import("./dictionaries/en.json").then((m) => m.default),
-  nl: () => import("./dictionaries/nl.json").then((m) => m.default),
+  en: () => import("./dictionaries/en.json").then((m) => m.default as Dictionary),
+  nl: () => import("./dictionaries/nl.json").then((m) => {
+    const nlData = m.default;
+    _check(nlData); // triggers type checks for any mismatched or missing keys
+    return nlData as Dictionary;
+  }),
 };
 
 /**
@@ -18,13 +27,6 @@ export function getDictionary(locale: Locale): Promise<Dictionary> {
 
 /**
  * The current locale, for Server Components only.
- *
- * ⚠ `next/root-params` ships a bare `declare module`, and Next.js only generates real types
- * when no other root layout registers at route `/`. `app/(admin)/layout.tsx` is a bare route
- * group, so it registers as `/` and suppresses generation — see T8 in docs/i18n-en-nl-plan.md.
- * Runtime is unaffected (verified: both locales prerender correctly), but the getter is
- * typed `any`. The explicit annotation below is the single boundary where that is pinned
- * back to a real type; everything downstream is properly typed `Locale`.
  */
 export async function currentLocale(): Promise<Locale> {
   const value: string | undefined = await localeParam();
@@ -38,10 +40,6 @@ export async function getDict(): Promise<Dictionary> {
 
 /**
  * The dictionary for the locale a form carried in its hidden `locale` field.
- *
- * Server Actions cannot use `next/root-params`, so this is how they localize validation
- * messages and confirmation copy. An absent or unrecognised value falls back to the default
- * rather than failing the submission.
  */
 export function dictionaryFromForm(formData: FormData): Promise<Dictionary> {
   const value = formData.get("locale");
@@ -50,10 +48,6 @@ export function dictionaryFromForm(formData: FormData): Promise<Dictionary> {
 
 /**
  * The dictionary in the signed-in admin's own language (`admin_users.locale`).
- *
- * The admin panel is not locale-routed — it is behind auth and `noindex`, so there is nothing
- * for a URL locale to buy, and a preference that sticks is better for a dispatch team (D3).
- * Deduplicated per request, because `getAdmin()` is.
  */
 export async function adminDictionary(): Promise<Dictionary> {
   const { getAdmin } = await import("@/lib/auth/session");
