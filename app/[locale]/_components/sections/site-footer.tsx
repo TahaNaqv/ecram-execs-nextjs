@@ -89,7 +89,8 @@ export async function SiteFooter() {
         </div>
       </div>
       <div className="light-surface bg-white text-ink-600">
-        <div className="px-5 pt-6 pb-20 my-0 mx-auto gap-5 items-start flex flex-col flex-wrap text-[12px] justify-between max-w-[1280px] md:px-6 md:items-center md:flex-row md:py-6 2xl:max-w-[1440px]">
+        {/* The icons sit in the middle of the page: from lg the copyright takes the left third (its right third stays empty), below that they stack */}
+        <div className="px-5 pt-6 pb-20 my-0 mx-auto gap-5 grid text-[12px] max-w-[1280px] md:px-6 md:py-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center 2xl:max-w-[1440px]">
           <span>
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}
             <Link className="text-inherit" href={localizedPath("/privacy", locale)}>
@@ -98,7 +99,7 @@ export async function SiteFooter() {
             ·{" "}
             <CookieSettingsButton label={d.cookieConsent.settingsLink} className="cursor-pointer border-none bg-transparent p-0 font-[inherit] text-[length:inherit] text-inherit underline underline-offset-2" />
           </span>
-          <nav className="gap-4 items-center flex flex-wrap" aria-label={d.footer.socialLabel}>
+          <nav className="gap-4 items-center justify-center justify-self-center flex flex-wrap" aria-label={d.footer.socialLabel}>
             {socialLinks.map(([label, url]) => (
               <a className="inline-flex h-9 w-9 items-center justify-center transition-opacity hover:opacity-70" key={label} href={url} aria-label={label} title={label} {...(url.startsWith("http") && { target: "_blank", rel: "noopener noreferrer" })}>
                 <SocialIcon label={label} />

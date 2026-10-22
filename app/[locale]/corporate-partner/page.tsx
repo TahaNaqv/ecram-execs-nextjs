@@ -32,7 +32,7 @@ async function Options() {
   return (
     <ul className="m-0 grid list-none grid-cols-1 gap-px border border-ink-225 bg-ink-225 p-0 md:grid-cols-2">
       {options.map((o) => (
-        <li key={o.href} className="flex flex-col items-start gap-5 bg-white p-8 md:p-10">
+        <li key={o.href} className="flex flex-col items-center gap-5 bg-white p-8 text-center md:p-10">
           <h2 className="m-0 font-serif text-[28px] font-normal leading-[1.1] text-ink-950 md:text-[32px]">{o.title}</h2>
           <p className="m-0 max-w-[420px] flex-1 text-[15px] text-ink-700">{o.text}</p>
           <Link href={o.href} className={linkButton}>

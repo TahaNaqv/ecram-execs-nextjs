@@ -219,7 +219,7 @@ test("running text writes Ecram Execs with a capital E only", async ({ page }) =
 
 test("no dashes interrupt the Who We Serve heading (the audience cards themselves are covered by audience.spec.ts)", async ({ page }) => {
   await page.goto("/en");
-  await expect(page.locator("#corporate h2")).toHaveText("Trusted by those for whom every minute, and every impression, counts.");
+  await expect(page.locator("#corporate h2")).toHaveText("Trusted by those for whom every minute and every impression counts.");
   await expect(page.locator("#corporate article")).toHaveCount(6);
 });
 
