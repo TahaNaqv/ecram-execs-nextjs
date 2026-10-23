@@ -15,7 +15,8 @@ export type Trip = {
   from: Place;
   to: Place;
   stops: Stop[];
-  hours: number;
+  /** Hours booked for an hourly trip, or "" when not chosen yet */
+  hours: number | "";
   /** Wall-clock "YYYY-MM-DDTHH:mm" in the Netherlands, or "" */
   at: string;
   /** The return journey's pick-up, same format; "" when there is none */
@@ -82,8 +83,8 @@ export function tripFromParams(params: URLSearchParams): Trip {
     .map((place, i) => ({ place: text(place), wait: asWait(waits[i]) }))
     .filter((s) => s.place)
     .slice(0, MAX_STOPS);
-  trip.hours = clampInt(params.get("hours"), 1, 24, trip.hours);
-  if (!(HOURLY_DURATIONS as readonly number[]).includes(trip.hours)) trip.hours = 3;
+  const hours = clampInt(params.get("hours"), 1, 24, 0);
+  trip.hours = (HOURLY_DURATIONS as readonly number[]).includes(hours) ? hours : "";
   trip.at = WALL_CLOCK.test(params.get("at") ?? "") ? params.get("at")! : "";
   trip.ret = WALL_CLOCK.test(params.get("ret") ?? "") ? params.get("ret")! : "";
   trip.pax = clampInt(params.get("pax"), 1, MAX_PASSENGERS, trip.pax);
@@ -150,6 +151,7 @@ export function tripProblems(trip: Trip, nowWallClock: string): TripField[] {
   const latest = new Date(Date.parse(`${nowWallClock}:00Z`) + 730 * 86_400_000).toISOString().slice(0, 16);
   if (!trip.from.text.trim()) problems.push("collection");
   if (trip.mode === "oneway" && !trip.to.text.trim()) problems.push("destination");
+  if (trip.mode === "hourly" && trip.hours === "") problems.push("durationHours");
   if (!WALL_CLOCK.test(trip.at) || trip.at < nowWallClock || trip.at > latest) problems.push("pickupAt");
   if (trip.ret && (!WALL_CLOCK.test(trip.ret) || trip.ret <= trip.at || trip.ret > latest)) problems.push("returnAt");
   if (pickupAtAirport(trip) && trip.flight.trim() && !FLIGHT.test(trip.flight.trim().toUpperCase().replace(/\s+/g, " "))) problems.push("flightNumber");
