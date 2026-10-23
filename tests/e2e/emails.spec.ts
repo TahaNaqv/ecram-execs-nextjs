@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { expect, test, type Page } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
-import { PASSWORD, newEmail, ownAddress, seedBooking, seedContact, signedInPartner, submit } from "./corporate-helpers";
+import { PASSWORD, bookingRow, newEmail, ownAddress, seedBooking, seedContact, signedInPartner, submit } from "./corporate-helpers";
 import { fillAdminLogin } from "./helpers";
 
 /**
@@ -190,4 +190,75 @@ test("a send that fails for a moment is tried again with the same idempotency ke
   expect(new Set(mine).size).toBe(1);
   expect(mine[0]).toMatch(/^[0-9a-f-]{36}$/);
   expect(failures).toBe(0);
+});
+
+/** Saves the status (and, when given, the amount) the way the team does, and waits until the booking has it. */
+async function setStatus(page: Page, booking: { id: string; reference: string }, status: string, amount?: string) {
+  await page.goto(`/admin/requests/${booking.id}`);
+  await page.selectOption("#req-status", status);
+  if (amount !== undefined) await page.fill("#req-amount", amount);
+  await page.getByRole("button", { name: en.admin.common.save }).click();
+  await expect.poll(async () => (await bookingRow(booking.reference))?.status, { timeout: 20_000 }).toBe(status);
+}
+
+test("every step the team takes on a partner's booking emails the partner what it should, and only that", async ({ page, context }) => {
+  test.slow();
+  await ownAddress(context);
+  const email = newEmail("lifecycle");
+  const contactId = await seedContact(email, PASSWORD, "Anouk Jansen", "Orion Holdings B.V.");
+  const booking = await seedBooking({ contactId, email, status: "new" });
+  const mails = () => received.filter((m) => m.to.includes(email));
+  const ref = (subject: string) => subject.replace("{reference}", booking.reference);
+  await adminSignIn(page);
+
+  await setStatus(page, booking, "contacted");
+  await mailTo(email, 1);
+  // A quote with no amount is nothing to answer yet
+  await setStatus(page, booking, "quoted");
+  await page.waitForTimeout(2_500);
+  expect(mails()).toHaveLength(1);
+  // The amount arrives: the quote is ready. A different amount on the same quote is a new offer.
+  await setStatus(page, booking, "quoted", "185");
+  await mailTo(email, 2);
+  await setStatus(page, booking, "quoted", "200");
+  await mailTo(email, 3);
+  // Notes alone are the team's own business
+  await page.goto(`/admin/requests/${booking.id}`);
+  await page.fill("#req-notes", "Called the booker, will confirm tomorrow");
+  await page.getByRole("button", { name: en.admin.common.save }).click();
+  await page.waitForTimeout(2_500);
+  expect(mails()).toHaveLength(3);
+  await setStatus(page, booking, "confirmed");
+  await mailTo(email, 4);
+  await setStatus(page, booking, "completed");
+  await mailTo(email, 5);
+  await setStatus(page, booking, "cancelled");
+  await mailTo(email, 6);
+
+  expect(mails().map((m) => m.subject)).toEqual([
+    ref(en.email.bookingSubjectContacted),
+    ref(en.email.bookingSubjectQuoted),
+    ref(en.email.bookingSubjectQuoted),
+    ref(en.email.bookingSubjectConfirmed),
+    ref(en.email.bookingSubjectCompleted),
+    ref(en.email.bookingSubjectCancelled),
+  ]);
+  // The quote mail carries the amount, and every mail links to the booking in the partner's account
+  expect(mails()[1].html).toContain("185");
+  expect(mails()[2].html).toContain("200");
+  for (const m of mails()) expect(m.html).toContain("corporate-partner/account/booking");
+});
+
+test("a status change on a public website enquiry emails nobody: there is no account to send a booking update to", async ({ page, context }) => {
+  test.slow();
+  await ownAddress(context);
+  const email = newEmail("public-enquiry");
+  const booking = await seedBooking({ contactId: null, email, status: "new" });
+  await adminSignIn(page);
+  await setStatus(page, booking, "contacted");
+  await setStatus(page, booking, "quoted", "185");
+  await setStatus(page, booking, "confirmed");
+  await setStatus(page, booking, "completed");
+  await page.waitForTimeout(3_000);
+  expect(received.filter((m) => m.to.includes(email))).toHaveLength(0);
 });
