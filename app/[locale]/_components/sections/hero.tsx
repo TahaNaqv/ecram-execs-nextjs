@@ -39,7 +39,8 @@ export async function Hero() {
             action={localizedPath("/book", locale)}
           />
         </div>
-        <Link prefetch={false} className="btn-line rise d4 py-0 px-5 gap-3 no-underline items-center text-ink-250 inline-flex text-[11px] justify-center tracking-[0.24em] min-h-[44px] uppercase md:text-ink-200" href={localizedPath("/corporate-partner/login", locale)}>
+        {/* Outlined in white on dark glass, so it reads over any part of the photograph without competing with Continue */}
+        <Link prefetch={false} className="rise d4 inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white/80 bg-ink-950/45 px-6 text-[11px] tracking-[0.24em] text-white uppercase no-underline backdrop-blur-sm transition-colors hover:border-white hover:bg-white hover:text-ink-950" href={localizedPath("/corporate-partner/login", locale)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
             <circle cx="12" cy="8" r="4"></circle>
             <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>
