@@ -8,6 +8,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import { BookingDone, BookingFlow, startsAtCar, type BookingStep, type OfferedVehicle } from "./booking-flow";
 import type { BookingCopy, TripMessages } from "./copy";
+import { markBookingSent, useResetAfterBooking } from "./sent";
 import { tripFromParams } from "./trip";
 import type { FleetDictionary } from "./vehicle-details";
 
@@ -34,6 +35,8 @@ export function PublicBooking(props: Props) {
   const search = useSearchParams().toString();
   // "Plan another ride" starts again even when the URL stays the same (a visit to /book with no trip in it)
   const [round, setRound] = useState(0);
+  // Coming back to /book after a booking was sent starts a new one, not the old confirmation (QA round 3, bug 3)
+  useResetAfterBooking(() => setRound((r) => r + 1));
   return <Run key={`${search}#${round}`} search={search} onAgain={() => setRound((r) => r + 1)} {...props} />;
 }
 
@@ -53,6 +56,11 @@ function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict,
       .catch(() => {});
     return () => controller.abort();
   }, []);
+
+  // Counted once per sent booking, so the booking bar on the home page and the next visit to /book start empty
+  useEffect(() => {
+    if (state.status === "success") markBookingSent();
+  }, [state.status]);
 
   if (state.status === "success") {
     return <BookingDone copy={copy} name={state.name} reference={state.reference} onAgain={() => {

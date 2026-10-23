@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { fillAdminLogin } from "./helpers";
-import { bar, chooseCar, confirmedReference, fillDetails, fillJourney, nextYear } from "./booking-helpers";
+import { bar, chooseCar, confirmedReference, fillDetails, fillJourney, nextYear, pickDateTime } from "./booking-helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 
@@ -19,7 +19,7 @@ test("the booking flow checks the journey in the bar, then the details on the se
   const alert = page.locator("#enquire [role=alert]");
   await expect(alert).toContainText(en.forms.collectionRequired);
   await expect(alert).toContainText(en.forms.destinationRequired);
-  await expect(alert).toContainText(en.forms.pickupInvalid);
+  await expect(alert).toContainText(en.forms.guestsRequired); // the guests are chosen by the visitor; the time starts as the time it is now
   await expect(page).toHaveURL(/\/en$/);
 
   // A return journey before the pick-up is caught before anything is sent
@@ -27,7 +27,7 @@ test("the booking flow checks the journey in the bar, then the details on the se
   await expect(alert).toContainText(en.forms.returnBeforePickup);
 
   // A complete journey reaches /book; empty details come back from the server, field by field
-  await page.getByLabel(en.booking.returnLabel, { exact: true }).fill(nextYear("15-03", "09:00"));
+  await pickDateTime(page, page.getByLabel(en.booking.returnLabel, { exact: true }), nextYear("15-03", "09:00"));
   await bar(page).getByRole("button", { name: en.booking.continue }).click();
   await expect(page).toHaveURL(/\/en\/book\?/);
   await chooseCar(page, null);

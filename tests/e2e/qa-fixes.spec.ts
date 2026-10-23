@@ -78,7 +78,7 @@ test("the car step names the vehicles in full, and every car answers the luggage
   }
 });
 
-test("the date and time picker has a Done button, can be typed into, and works from the keyboard", async ({ page }) => {
+test("the date and time picker has a Done button, is chosen in rather than typed into, and works from the keyboard", async ({ page }) => {
   const d = en.dateTimePicker;
   await page.goto("/en");
   // The booking bar in the hero: what it sends on to /book is its `at` field
@@ -105,7 +105,11 @@ test("the date and time picker has a Done button, can be typed into, and works f
   await expect(hidden).toHaveValue(/T14:30$/);
 
   // Days that have gone are not offered: with nothing chosen, the calendar opens on this month and yesterday is greyed out
-  await field.fill("");
+  await page.getByRole("button", { name: d.open }).click();
+  await dialog.getByRole("button", { name: d.clear }).click();
+  await expect(hidden).toHaveCount(0); // nothing chosen, nothing to send
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
   await page.getByRole("button", { name: d.open }).click();
   // ("today" is the date in the Netherlands, where pick-ups are booked, whatever zone this machine is in)
   const dutchToday = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Amsterdam", day: "numeric" }).format(new Date()));
@@ -114,16 +118,10 @@ test("the date and time picker has a Done button, can be typed into, and works f
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
-  // Typing works as well, in either order of day and year, and is tidied when the cursor leaves
-  await field.fill("2031-03-14T08:30");
-  await expect(hidden).toHaveValue("2031-03-14T08:30");
-  await field.blur();
-  await expect(field).toHaveValue("14-03-2031 08:30");
-  await field.fill("31-02-2031 08:30"); // there is no 31 February
-  await expect(hidden).toHaveCount(0); // nothing to send
+  // The box cannot be typed into (QA round 3, bug 10): the picker is the only way to set it
+  await expect(field).not.toBeEditable();
 
   // Keyboard: the calendar opens on a day you can move with the arrow keys and choose with Enter
-  await field.fill("");
   await page.getByRole("button", { name: d.open }).click();
   const focusedDay = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.day ?? "");
   const start = await focusedDay();
@@ -131,7 +129,7 @@ test("the date and time picker has a Done button, can be typed into, and works f
   await page.keyboard.press("ArrowRight");
   expect(await focusedDay()).not.toBe(start);
   await page.keyboard.press("Enter");
-  await expect(hidden).toHaveValue(/^\d{4}-\d{2}-\d{2}T08:30$/); // the time already set (from the typed value above) is kept
+  await expect(hidden).toHaveValue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
 });
 
 // --- the admin panel -------------------------------------------------------------------------------------------

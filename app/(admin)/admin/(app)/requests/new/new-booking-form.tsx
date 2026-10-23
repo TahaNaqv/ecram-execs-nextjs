@@ -88,7 +88,7 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
         <label htmlFor="nb-pickupAt" className={fieldLabel}>
           {copy.pickup}
         </label>
-        <DateTimeField id="nb-pickupAt" name="pickupAt" locale={locale} copy={dateTimeCopy} defaultValue="" className={`${field} h-10`} />
+        <DateTimeField id="nb-pickupAt" name="pickupAt" allowTyping locale={locale} copy={dateTimeCopy} defaultValue="" className={`${field} h-10`} />
       </div>
       <Text values={{}} name="collection" label={copy.collection} className="md:col-span-2" />
 

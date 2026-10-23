@@ -16,7 +16,7 @@ import {
   submit,
   t,
 } from "./corporate-helpers";
-import { carChoice, chooseCar, fillDetails, fillJourney, nextYear } from "./booking-helpers";
+import { carChoice, chooseCar, fillDetails, fillJourney, nextYear, pickDateTime } from "./booking-helpers";
 import { fillAdminLogin, CONSENTED_STATE } from "./helpers";
 
 /**
@@ -306,10 +306,10 @@ test("a new booking from the portal carries the partner's details, and can be re
   await expect(journey.getByLabel(b.from, { exact: true })).toHaveValue("Schiphol Airport, Arrivals 2");
   await expect(journey.getByLabel("Stop 1", { exact: true })).toHaveValue("Rotterdam Centraal");
   await expect(journey.getByLabel(b.stopWaitLabel.replace("{number}", "1"))).toHaveValue("30");
-  await expect(journey.getByLabel(b.when, { exact: true })).toHaveValue("");
+  await expect(journey.getByLabel(b.when, { exact: true })).not.toHaveValue(nextYear("14-03", "08:30")); // not the earlier date: it starts on the time it is now
   await expect(journey.getByLabel(b.flight, { exact: true })).toHaveValue("");
   // …and the car and the passenger start from the earlier booking too
-  await journey.getByLabel(b.when, { exact: true }).fill(nextYear("21-03", "08:30"));
+  await pickDateTime(page, journey.getByLabel(b.when, { exact: true }), nextYear("21-03", "08:30"));
   await journey.getByRole("button", { name: b.continue }).click();
   await expect(carChoice(page, "Mercedes-Benz VLE 300")).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: /^Continue with/ }).click();
@@ -317,15 +317,19 @@ test("a new booking from the portal carries the partner's details, and can be re
   await expect(page.getByLabel(b.passengerName, { exact: true })).toHaveValue("Pieter de Boer");
 });
 
-test("the booking flow says what is wrong, and a past date is refused", async ({ page, context }) => {
+test("the booking flow says what is wrong, and a past time is refused", async ({ page, context }) => {
+  // The picker offers no day that has gone, so a past pick-up is today's early hours: refused once they are more than an hour ago (the server's slack)
+  const nl = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const part = (type: string) => nl.find((p) => p.type === type)!.value;
+  test.skip(Number(part("hour")) < 2, "Needs today's 00:00 to be more than an hour ago in the Netherlands");
   await signedInPartner(page, context, "validate");
   await page.goto("/en/corporate-partner/account/new-booking");
   const journey = page.locator("main");
   await journey.getByRole("button", { name: en.booking.continue }).click();
   const alert = journey.getByRole("alert");
   await expect(alert).toContainText(en.forms.collectionRequired);
-  await expect(alert).toContainText(en.forms.pickupInvalid);
-  await fillJourney(page, { from: "Schiphol", to: "Hotel", at: "01-01-2020 10:00" });
+  await expect(alert).toContainText(en.forms.guestsRequired); // the guests are chosen by the partner; the time starts as the time it is now
+  await fillJourney(page, { from: "Schiphol", to: "Hotel", at: `${part("day")}-${part("month")}-${part("year")} 00:00` });
   await expect(alert).toContainText(en.forms.pickupPast);
   await expect(page.getByRole("heading", { name: en.booking.carTitle })).toHaveCount(0);
 });

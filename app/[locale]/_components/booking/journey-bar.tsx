@@ -4,10 +4,12 @@ import Form from "next/form";
 import { Fragment, useId, useState, useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import { AddressField } from "./address-field";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { GuestsPicker } from "./guests-picker";
+import { useResetAfterBooking } from "./sent";
 import { emptyPlace, emptyTrip, pickupAtAirport, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
 
 const PlusIcon = () => (
@@ -18,6 +20,11 @@ const PlusIcon = () => (
 const CrossIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
     <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+const ChevronDownIcon = ({ open }: { open?: boolean }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`}>
+    <path d="M6 9l6 6 6-6" />
   </svg>
 );
 const ArrowIcon = () => (
@@ -51,16 +58,36 @@ export function JourneyBar({
   const [problems, setProblems] = useState<TripField[]>([]);
   const [returning, setReturning] = useState(Boolean(initial?.ret));
   
-  // Custom duration dropdown state
-  const [hoursOpen, setHoursOpen] = useState(false);
-  const hoursRef = useRef<HTMLDivElement>(null);
-
+  // The date fields hold their own text, so they start again (with a new key) whenever the bar sets a date itself
+  const [fieldsKey, setFieldsKey] = useState(0);
+  const tripRef = useRef(trip);
   useEffect(() => {
-    if (!hoursOpen) return;
-    const outside = (e: MouseEvent) => !hoursRef.current?.contains(e.target as Node) && setHoursOpen(false);
-    document.addEventListener("mousedown", outside);
-    return () => document.removeEventListener("mousedown", outside);
-  }, [hoursOpen]);
+    tripRef.current = trip;
+  });
+  // The time the bar filled in by itself, while the visitor has not chosen another: if they leave the page open for hours and then
+  // press Continue, that time is brought up to date instead of being refused as a time that has passed
+  const autoAt = useRef("");
+
+  // The page is prerendered, so the time it is now in the Netherlands is read when it is shown: the bar starts with it (QA round 3,
+  // bug 11). Runs again when Next shows the page again after Back, and then only fills in a date that is missing.
+  useEffect(() => {
+    if (tripRef.current.at) return;
+    const now = netherlandsNow();
+    autoAt.current = now;
+    setTrip((current) => (current.at ? current : { ...current, at: now }));
+    setFieldsKey((k) => k + 1);
+  }, []);
+
+  // The hero's bar starts again when the visitor comes back after sending a booking (QA round 3, bug 3)
+  useResetAfterBooking(() => {
+    if (!action) return;
+    const now = netherlandsNow();
+    autoAt.current = now;
+    setTrip({ ...emptyTrip(), at: now });
+    setReturning(false);
+    setProblems([]);
+    setFieldsKey((k) => k + 1);
+  });
 
   const update = (patch: Partial<Trip>) => {
     setTrip((current) => ({ ...current, ...patch }));
@@ -76,20 +103,32 @@ export function JourneyBar({
       pickupAt: !trip.at ? messages.pickupInvalid : trip.at < netherlandsNow() ? messages.pickupPast : messages.pickupTooFar,
       returnAt: messages.returnBeforePickup,
       durationHours: messages.checkHighlighted,
+      guests: messages.guestsRequired,
       flightNumber: messages.flightInvalid,
     })[field];
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
-    const found = tripProblems({ ...trip, ret: returning ? trip.ret : "" }, netherlandsNow());
+    let current: Trip = { ...trip, ret: returning ? trip.ret : "" };
+    if (autoAt.current && trip.at === autoAt.current && tripProblems(current, netherlandsNow()).includes("pickupAt")) {
+      const fresh = netherlandsNow();
+      current = { ...current, at: fresh };
+      autoAt.current = fresh;
+      setTrip((t) => ({ ...t, at: fresh }));
+      setFieldsKey((k) => k + 1);
+      // The form sends the hidden copy of the time that was rendered a moment ago: bring that up to date as well
+      const hidden = e.currentTarget.elements.namedItem("at");
+      if (hidden instanceof HTMLInputElement) hidden.value = fresh;
+    }
+    const found = tripProblems(current, netherlandsNow());
     setProblems(found);
     if (found.length > 0) {
       e.preventDefault();
-      document.getElementById({ collection: ids.from, destination: ids.to, pickupAt: ids.at, returnAt: ids.ret, durationHours: ids.hours, flightNumber: ids.flight }[found[0]])?.focus();
+      document.getElementById({ collection: ids.from, destination: ids.to, pickupAt: ids.at, returnAt: ids.ret, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]])?.focus();
       return;
     }
     if (onDone) {
       e.preventDefault();
-      onDone({ ...trip, ret: returning ? trip.ret : "" });
+      onDone(current);
     }
   };
 
@@ -191,7 +230,7 @@ export function JourneyBar({
           </div>
         </div>
 
-        <div className="relative mt-1.5 grid grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(205px,1.1fr)_minmax(165px,0.85fr)_auto]">
+        <div className="relative mt-1.5 grid grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(205px,1.1fr)_minmax(205px,0.95fr)_auto]">
         {cell(
           "collection",
           <>
@@ -248,47 +287,38 @@ export function JourneyBar({
             )
           : cell(
               "durationHours",
-              <div ref={hoursRef} className="relative w-full min-w-0">
-                <span id={`${ids.hours}-label`} className={label}>
+              <>
+                <label htmlFor={ids.hours} className={label}>
                   {t.duration}
+                </label>
+                {/* The select lies over the whole cell, invisible, so a press anywhere in it opens the list; what the visitor sees, arrow included, is drawn under it */}
+                <span className="flex items-center justify-between gap-2" aria-hidden="true">
+                  <span className={`truncate text-[16px] font-medium ${trip.hours === "" ? (dark ? "text-ink-400" : "text-ink-475") : dark ? "text-white" : "text-ink-950"}`}>
+                    {trip.hours === "" ? t.durationPlaceholder : interpolate(t.hoursOption, { hours: trip.hours })}
+                  </span>
+                  <span className={dark ? "text-ink-250" : "text-ink-600"}>
+                    <ChevronDownIcon />
+                  </span>
                 </span>
-                <button
+                <select
                   id={ids.hours}
-                  type="button"
-                  aria-haspopup="listbox"
-                  aria-expanded={hoursOpen}
-                  onClick={() => setHoursOpen((o) => !o)}
-                  className={`w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[16px] font-medium outline-none truncate ${
-                    dark ? (trip.hours === "" ? "text-ink-400" : "text-white") : (trip.hours === "" ? "text-ink-475" : "text-ink-950")
-                  }`}
+                  value={trip.hours === "" ? "" : String(trip.hours)}
+                  onChange={(e) => update({ hours: Number(e.target.value) })}
+                  aria-invalid={invalid("durationHours")}
+                  aria-describedby={describedBy("durationHours")}
+                  className="absolute inset-0 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-[16px] opacity-0 outline-none [&>option]:text-ink-950"
                 >
-                  {trip.hours === "" ? "Select hours" : trip.hours === 1 ? "1 hour" : `${trip.hours} hours`}
-                </button>
-                {hoursOpen && (
-                  <ul
-                    role="listbox"
-                    aria-labelledby={`${ids.hours}-label`}
-                    className="absolute top-full left-0 z-50 mt-3 max-h-60 w-full min-w-[220px] overflow-y-auto rounded-2xl border border-solid border-white/15 bg-ink-900 p-2 text-white shadow-2xl"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-                      <li
-                        key={h}
-                        role="option"
-                        aria-selected={trip.hours === h}
-                        onClick={() => {
-                          update({ hours: h });
-                          setHoursOpen(false);
-                        }}
-                        className={`flex cursor-pointer items-center rounded-xl px-4 py-2.5 text-[15px] font-medium transition-colors ${
-                          trip.hours === h ? "bg-white/15 font-semibold text-white" : "text-ink-200 hover:bg-white/10 hover:text-white"
-                        }`}
-                      >
-                        {h === 1 ? "1 hour" : `${h} hours`}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                  <option value="" disabled>
+                    {t.durationPlaceholder}
+                  </option>
+                  {HOURLY_DURATIONS.map((h) => (
+                    <option key={h} value={h}>
+                      {interpolate(t.hoursOption, { hours: h })}
+                    </option>
+                  ))}
+                </select>
+              </>,
+              `has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset ${dark ? "has-[select:focus-visible]:ring-white/60" : "has-[select:focus-visible]:ring-ink-950"}`,
             )}
         {cell(
           "pickupAt",
@@ -297,11 +327,15 @@ export function JourneyBar({
               {t.when}
             </label>
             <DateTimeField
+              key={`at-${fieldsKey}`}
               id={ids.at}
               locale={locale}
               copy={dateTimeCopy}
               defaultValue={trip.at}
-              onValueChange={(at) => update({ at })}
+              onValueChange={(at) => {
+                if (at !== autoAt.current) autoAt.current = "";
+                update({ at });
+              }}
               invalid={invalid("pickupAt")}
               describedBy={describedBy("pickupAt")}
               tone={tone}
@@ -311,12 +345,22 @@ export function JourneyBar({
           </>,
         )}
         {cell(
-          null,
+          "guests",
           <>
             <span id={ids.guestsLabel} className={label}>
               {t.guests}
             </span>
-            <GuestsPicker id={ids.guests} labelledBy={ids.guestsLabel} pax={trip.pax} bags={trip.bags} onChange={(g) => update(g)} copy={t} tone={tone} />
+            <GuestsPicker
+              id={ids.guests}
+              labelledBy={ids.guestsLabel}
+              pax={trip.pax}
+              bags={trip.bags}
+              set={trip.guestsSet}
+              onChange={(g) => update({ ...g, guestsSet: true })}
+              copy={t}
+              tone={tone}
+              describedBy={describedBy("guests")}
+            />
           </>,
         )}
         <button
@@ -373,6 +417,7 @@ export function JourneyBar({
                 ids.ret,
                 t.returnLabel,
                 <DateTimeField
+                  key={`ret-${fieldsKey}`}
                   id={ids.ret}
                   locale={locale}
                   copy={dateTimeCopy}

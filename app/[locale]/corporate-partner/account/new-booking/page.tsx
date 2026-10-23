@@ -43,6 +43,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
       hours: (HOURLY_DURATIONS as readonly number[]).includes(source.durationHours ?? 0) ? source.durationHours! : trip.hours,
       pax: Math.min(source.passengers ?? trip.pax, MAX_PASSENGERS),
       bags: source.luggage ?? trip.bags,
+      guestsSet: true, // the earlier booking's party is the answer; a new booking starts without one
       vehicle: (VEHICLE_CHOICES as readonly string[]).includes(vehicle) ? (vehicle as VehicleChoice) : "",
     } satisfies Partial<Trip>);
   }

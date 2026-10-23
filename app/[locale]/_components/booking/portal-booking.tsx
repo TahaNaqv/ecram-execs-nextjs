@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import type { Locale } from "@/lib/i18n/config";
 import { createBooking } from "@/lib/corporate/portal-actions";
 import type { PortalState } from "@/lib/corporate/portal-state";
 import { BookingFlow, type DetailDefaults, type OfferedVehicle } from "./booking-flow";
 import type { BookingCopy, TripMessages } from "./copy";
+import { markBookingSent, unmarkBookingSent, useResetAfterBooking } from "./sent";
 import type { Trip } from "./trip";
 import type { FleetDictionary } from "./vehicle-details";
 
@@ -52,8 +53,20 @@ export function PortalBooking({
 }) {
   const [state, action, pending] = useActionState<PortalState, FormData>(createBooking, { status: "idle" });
   const locked = state.status === "locked";
+  // A booking that was sent leaves through the action's redirect, so it is counted when it is sent and taken back if the answer is an
+  // error; the next visit to this panel then starts empty instead of with the old trip (QA round 3, bug 3)
+  const [round, setRound] = useState(0);
+  useResetAfterBooking(() => setRound((r) => r + 1));
+  const send = (data: FormData) => {
+    markBookingSent();
+    action(data);
+  };
+  useEffect(() => {
+    if (state.status === "error" || state.status === "locked") unmarkBookingSent();
+  }, [state]);
   return (
     <BookingFlow
+      key={round}
       variant="portal"
       locale={locale}
       copy={copy}
@@ -69,7 +82,7 @@ export function PortalBooking({
         message: state.status === "error" || locked ? state.message : null,
         fieldErrors: state.status === "error" ? state.fieldErrors : NO_ERRORS,
       }}
-      submit={action}
+      submit={send}
       booker={booker}
       defaultPhone={defaultPhone}
       defaults={defaults}

@@ -23,6 +23,8 @@ export type Trip = {
   ret: string;
   pax: number;
   bags: number;
+  /** Whether the visitor has chosen the guests and bags: until then the bar shows a prompt, not a count (QA round 3, bug 7) */
+  guestsSet: boolean;
   flight: string;
   /** A fleet key, "advise" for no preference, or "" when not chosen yet */
   vehicle: VehicleChoice | "";
@@ -40,7 +42,8 @@ export const emptyTrip = (): Trip => ({
   at: "",
   ret: "",
   pax: 1,
-  bags: 1,
+  bags: 0,
+  guestsSet: false,
   flight: "",
   vehicle: "",
 });
@@ -89,6 +92,7 @@ export function tripFromParams(params: URLSearchParams): Trip {
   trip.ret = WALL_CLOCK.test(params.get("ret") ?? "") ? params.get("ret")! : "";
   trip.pax = clampInt(params.get("pax"), 1, MAX_PASSENGERS, trip.pax);
   trip.bags = clampInt(params.get("bags"), 0, MAX_BAGS, trip.bags);
+  trip.guestsSet = params.has("pax");
   trip.flight = text(params.get("flight"), 12);
   const vehicle = normalizeVehicleKey(params.get("vehicle")) ?? params.get("vehicle");
   trip.vehicle = (VEHICLE_CHOICES as readonly string[]).includes(vehicle ?? "") ? (vehicle as VehicleChoice) : "";
@@ -115,8 +119,10 @@ export function tripToParams(trip: Trip): URLSearchParams {
   } else p.set("hours", String(trip.hours));
   if (trip.at) p.set("at", trip.at);
   if (trip.ret) p.set("ret", trip.ret);
-  p.set("pax", String(trip.pax));
-  p.set("bags", String(trip.bags));
+  if (trip.guestsSet) {
+    p.set("pax", String(trip.pax));
+    p.set("bags", String(trip.bags));
+  }
   if (trip.flight.trim() && pickupAtAirport(trip)) p.set("flight", trip.flight.trim());
   if (trip.vehicle) p.set("vehicle", trip.vehicle);
   return p;
@@ -144,15 +150,19 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
 }
 
 /** Which of the trip's fields are missing or wrong, by the action's field names, so the bar can mark them. */
-export type TripField = "collection" | "destination" | "pickupAt" | "returnAt" | "durationHours" | "flightNumber";
+export type TripField = "collection" | "destination" | "pickupAt" | "returnAt" | "durationHours" | "guests" | "flightNumber";
 export function tripProblems(trip: Trip, nowWallClock: string): TripField[] {
   const problems: TripField[] = [];
   // The server takes bookings up to two years ahead (lib/quotes/validation.ts); same limit here, so nothing typed later is lost to it
   const latest = new Date(Date.parse(`${nowWallClock}:00Z`) + 730 * 86_400_000).toISOString().slice(0, 16);
+  // The server lets a pick-up be up to an hour in the past, for a form that took a while to fill in (lib/quotes/validation.ts); the same
+  // here, so the time the bar starts with (the time it is now) is still accepted a few minutes later
+  const earliest = new Date(Date.parse(`${nowWallClock}:00Z`) - 60 * 60_000).toISOString().slice(0, 16);
   if (!trip.from.text.trim()) problems.push("collection");
   if (trip.mode === "oneway" && !trip.to.text.trim()) problems.push("destination");
   if (trip.mode === "hourly" && trip.hours === "") problems.push("durationHours");
-  if (!WALL_CLOCK.test(trip.at) || trip.at < nowWallClock || trip.at > latest) problems.push("pickupAt");
+  if (!WALL_CLOCK.test(trip.at) || trip.at < earliest || trip.at > latest) problems.push("pickupAt");
+  if (!trip.guestsSet) problems.push("guests");
   if (trip.ret && (!WALL_CLOCK.test(trip.ret) || trip.ret <= trip.at || trip.ret > latest)) problems.push("returnAt");
   if (pickupAtAirport(trip) && trip.flight.trim() && !FLIGHT.test(trip.flight.trim().toUpperCase().replace(/\s+/g, " "))) problems.push("flightNumber");
   return problems;

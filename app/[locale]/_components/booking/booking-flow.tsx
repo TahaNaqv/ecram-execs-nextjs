@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { FLEET, normalizeVehicleKey, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
@@ -13,7 +12,7 @@ import { VehicleGallery } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
+import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, type Trip } from "./trip";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
 export type BookingStep = "journey" | "car" | "details";
@@ -102,7 +101,6 @@ export function BookingFlow({
   /** Portal: the session ran out; a sign-in link in place of the submit button */
   lockedNotice?: ReactNode;
 }) {
-  const router = useRouter();
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
@@ -151,10 +149,8 @@ export function BookingFlow({
         {step !== "journey" ? (
           <button
             type="button"
-            onClick={() => {
-              const params = tripToParams(trip);
-              router.push(`/${locale}?${params.toString()}`);
-            }}
+            // Back to the journey step of this same flow, with the trip as it is: the page the visitor came from (QA round 3, bug 9)
+            onClick={() => go("journey")}
             className="flex min-h-12 max-w-full cursor-pointer items-center gap-3 rounded-full border border-solid border-ink-225 bg-white py-1.5 pr-1.5 pl-5 text-left text-[14px] font-medium text-ink-950 hover:border-ink-950"
           >
             <span className="min-w-0 truncate">{tripLine}</span>
@@ -607,7 +603,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
   return (
     <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(10,10,11,0.08)] lg:sticky lg:top-6">
       <div className="relative aspect-[16/9.5] w-full bg-ink-900 p-2 pb-0">
-        <div className="relative h-full w-full overflow-hidden rounded-[16px]">
+        <div className="relative isolate h-full w-full overflow-hidden rounded-[16px] [clip-path:inset(0_round_16px)]">
           <VehicleGallery
             name={displayName}
             images={galleryImages}

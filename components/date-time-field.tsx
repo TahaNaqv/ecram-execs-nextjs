@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { interpolate } from "@/lib/i18n/interpolate";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 export type DateTimeCopy = Record<
   "placeholder" | "open" | "dialog" | "prevMonth" | "nextMonth" | "hour" | "minute" | "done" | "clear" | "selected",
@@ -25,6 +24,7 @@ const addMonths = (y: number, m: number, by: number) => {
   return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1 };
 };
 
+/** The date and time in the Netherlands right now: pick-ups are Dutch wall-clock times, so "today" and "now" are read there, not in the visitor's own zone. */
 const nowInNetherlands = (): { day: Day; time: Time } => {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Amsterdam",
@@ -36,8 +36,7 @@ const nowInNetherlands = (): { day: Day; time: Time } => {
     hourCycle: "h23",
   }).formatToParts(new Date());
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  // Default to 1 hour (01:00) instead of current clock hour if desired, or keep clock. Prompt says default values should be 1 hr:
-  return { day: { y: get("year"), m: get("month"), d: get("day") }, time: { h: 1, min: 0 } };
+  return { day: { y: get("year"), m: get("month"), d: get("day") }, time: { h: get("hour"), min: get("minute") } };
 };
 
 const display = (day: Day, time: Time) => `${pad(day.d)}-${pad(day.m)}-${pad(day.y, 4)} ${pad(time.h)}:${pad(time.min)}`;
@@ -78,6 +77,7 @@ export function DateTimeField({
   className,
   tone = "light",
   size = "sm",
+  allowTyping = false,
   onValueChange,
 }: {
   id: string;
@@ -90,11 +90,15 @@ export function DateTimeField({
   className?: string;
   tone?: "light" | "dark";
   size?: "sm" | "md";
+  /** Visitors choose in the picker (QA round 3, bug 10); the team's own booking form lets staff key in a date they are told by phone. */
+  allowTyping?: boolean;
   onValueChange?: (value: string) => void;
 }) {
   const initial = useMemo(() => parseDateTime(defaultValue ?? ""), [defaultValue]);
   const [day, setDay] = useState<Day | null>(initial?.day ?? null);
-  const [time, setTime] = useState<Time>(initial?.time ?? { h: 1, min: 0 });
+  // Until a time is chosen the hour and minute lists show the time it is now in the Netherlands, read when the picker opens (the
+  // page is prerendered, so "now" is not known while rendering; this placeholder is never shown or submitted without a day)
+  const [time, setTime] = useState<Time>(initial?.time ?? { h: 0, min: 0 });
   const timeChosen = useRef(!!initial);
   const [text, setText] = useState(initial ? display(initial.day, initial.time) : "");
   const [open, setOpen] = useState(false);
@@ -104,6 +108,9 @@ export function DateTimeField({
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const focusGrid = useRef(false);
+  const dialogId = useId();
+  // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
+  useLayoutEffect(() => () => setOpen(false), []);
 
   const value = day ? iso(day, time) : "";
   const reported = useRef(value);
@@ -122,7 +129,7 @@ export function DateTimeField({
     const f = new Intl.DateTimeFormat(locale, { weekday: "narrow", timeZone: "UTC" });
     return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2024, 0, 1 + i))));
   }, [locale]);
-  const shortDate = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }), [locale]);
+  const longDate = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }), [locale]);
 
   const commit = (nextDay: Day | null, nextTime: Time) => {
     setDay(nextDay);
@@ -133,7 +140,10 @@ export function DateTimeField({
   const openPicker = () => {
     const { day: now, time: clock } = nowInNetherlands();
     setToday(now);
+    // No time chosen yet and no day either: the lists show the time it is now. With a day chosen the time already shown in
+    // the box stays, or the value submitted would drift away from what the visitor can see.
     if (!timeChosen.current && !day) setTime(clock);
+    // The chosen day, or today when none is chosen (or the chosen one is already past): the calendar opens on it
     const start = day && !before(day, now) ? day : now;
     setView({ y: start.y, m: start.m });
     setActive(start);
@@ -154,6 +164,14 @@ export function DateTimeField({
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
+  // Opening near the bottom of the screen would hide the time and Done: bring the whole calendar into view
+  useEffect(() => {
+    if (!open) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    root.current?.querySelector('[role="dialog"]')?.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
+  }, [open]);
+
+  // Keyboard users land on the highlighted day, and arrow keys move it
   useEffect(() => {
     if (!open || !active || !focusGrid.current) return;
     focusGrid.current = false;
@@ -173,8 +191,14 @@ export function DateTimeField({
       ArrowRight: shift(active, 1),
       ArrowUp: shift(active, -7),
       ArrowDown: shift(active, 7),
+      Home: shift(active, -((new Date(Date.UTC(active.y, active.m - 1, active.d)).getUTCDay() + 6) % 7)),
+      End: shift(active, 6 - ((new Date(Date.UTC(active.y, active.m - 1, active.d)).getUTCDay() + 6) % 7)),
     };
     let target = steps[e.key];
+    if (e.key === "PageUp" || e.key === "PageDown") {
+      const next = addMonths(active.y, active.m, e.key === "PageUp" ? -1 : 1);
+      target = { ...next, d: Math.min(active.d, daysIn(next.y, next.m)) };
+    }
     if (target) {
       e.preventDefault();
       moveTo(target);
@@ -192,19 +216,39 @@ export function DateTimeField({
   const navBtn = "grid size-7 cursor-pointer place-items-center rounded-lg border border-solid border-ink-150 bg-white text-ink-700 hover:bg-ink-100 disabled:opacity-20";
 
   return (
-    <div ref={root} className="relative flex items-center justify-between w-full min-w-0 gap-1.5">
+    <div
+      ref={root}
+      className="relative flex items-center justify-between w-full min-w-0 gap-1.5"
+      onKeyDown={(e) => {
+        if (e.key !== "Escape" || !open) return;
+        e.stopPropagation();
+        closePicker(true);
+      }}
+    >
       {name && <input type="hidden" name={name} value={value} />}
+      {/* For visitors a date and time are chosen in the picker, not typed: the box only shows the choice, and opens the picker */}
       <input
         ref={input}
         id={id}
         type="text"
-        inputMode="text"
+        readOnly={!allowTyping}
+        role={allowTyping ? undefined : "combobox"}
+        inputMode={allowTyping ? "text" : "none"}
         autoComplete="off"
         value={text}
         placeholder={copy.placeholder}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className={`${(className || "").replace(/\bp-0\b/, "")} flex-1 min-w-0 text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} outline-none bg-transparent`}
+        aria-haspopup={allowTyping ? undefined : "dialog"}
+        aria-expanded={allowTyping ? undefined : open}
+        aria-controls={!allowTyping && open ? dialogId : undefined}
+        className={`${(className || "").replace(/\bp-0\b/, "")} flex-1 min-w-0 ${allowTyping ? "" : "cursor-pointer"} text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} outline-none bg-transparent`}
+        onClick={allowTyping ? undefined : () => (open ? closePicker(false) : openPicker())}
+        onKeyDown={(e) => {
+          if (allowTyping || open || (e.key !== "Enter" && e.key !== " " && e.key !== "ArrowDown")) return;
+          e.preventDefault();
+          openPicker();
+        }}
         onChange={(e) => {
           const raw = e.target.value;
           setText(raw);
@@ -215,7 +259,7 @@ export function DateTimeField({
             timeChosen.current = true;
           }
         }}
-        onBlur={() => day && setText(display(day, time))}
+        onBlur={() => allowTyping && day && setText(display(day, time))}
       />
       <button
         type="button"
@@ -232,6 +276,7 @@ export function DateTimeField({
 
       {open && (
         <div
+          id={dialogId}
           role="dialog"
           aria-label={copy.dialog}
           className="absolute top-full left-0 z-50 mt-2 w-[18rem] rounded-2xl border border-solid border-ink-200 bg-white p-4 text-left text-ink-950 normal-case shadow-[0_16px_32px_rgba(0,0,0,0.1)] tracking-normal"
@@ -275,6 +320,8 @@ export function DateTimeField({
                           data-day={dayKey(cell)}
                           disabled={past}
                           aria-pressed={chosen}
+                          aria-label={longDate.format(new Date(Date.UTC(cell.y, cell.m - 1, cell.d)))}
+                          tabIndex={sameDay(cell, active) ? 0 : -1}
                           onClick={() => {
                             setActive(cell);
                             commit(cell, time);
@@ -298,7 +345,7 @@ export function DateTimeField({
           {/* Time Picker Compact Row with proper padding */}
           <div className="mt-3.5 flex items-center justify-between border-t border-solid border-ink-100 pt-3.5 px-0.5">
             <div className="flex items-center gap-2">
-              <select value={time.h} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, h: Number(e.target.value) }); }} className={selectStyle}>
+              <select aria-label={copy.hour} value={time.h} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, h: Number(e.target.value) }); }} className={selectStyle}>
                 {Array.from({ length: 24 }, (_, h) => (
                   <option key={h} value={h}>
                     {pad(h)} {copy.hour}
@@ -306,7 +353,7 @@ export function DateTimeField({
                 ))}
               </select>
               <span className="text-xs font-bold text-ink-400 px-0.5">:</span>
-              <select value={time.min} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, min: Number(e.target.value) }); }} className={selectStyle}>
+              <select aria-label={copy.minute} value={time.min} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, min: Number(e.target.value) }); }} className={selectStyle}>
                 {minutes.map((m) => (
                   <option key={m} value={m}>
                     {pad(m)} {copy.minute}
@@ -318,7 +365,7 @@ export function DateTimeField({
               type="button"
               onClick={() => {
                 timeChosen.current = false;
-                commit(null, { h: 1, min: 0 });
+                commit(null, nowInNetherlands().time);
                 setActive(today);
               }}
               className="cursor-pointer border-0 bg-transparent text-[11px] font-medium text-ink-500 underline hover:text-ink-950 px-1"

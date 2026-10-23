@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import postgres from "postgres";
 import en from "../../lib/i18n/dictionaries/en.json";
+import nl from "../../lib/i18n/dictionaries/nl.json";
 
 type Copy = typeof en.booking;
 
@@ -24,9 +25,26 @@ export const nextYear = (dayMonth: string, time: string) => `${dayMonth}-${new D
 /** The booking bar: in the homepage hero (`#enquire`) or as the first step on /book and in the portal. */
 export const bar = (page: Page) => page.locator("form").filter({ has: page.getByRole("button", { name: en.booking.continue }) }).first();
 
+/**
+ * Chooses a date and time in the picker the way a visitor does: the box cannot be typed into (QA round 3, bug 10). `at` is
+ * "dd-mm-yyyy hh:mm"; the months are stepped through until the day is on screen.
+ */
+export async function pickDateTime(page: Page, field: Locator, at: string, copy: typeof en.dateTimePicker = en.dateTimePicker) {
+  const [, dd, mm, yyyy, hh, min] = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/.exec(at)!;
+  await field.click();
+  const dialog = page.getByRole("dialog", { name: copy.dialog });
+  const day = dialog.locator(`[data-day="${yyyy}-${mm}-${dd}"]`);
+  for (let i = 0; i < 36 && (await day.count()) === 0; i++) await dialog.getByRole("button", { name: copy.nextMonth }).click();
+  await day.click();
+  await dialog.getByLabel(copy.hour).selectOption(String(Number(hh)));
+  await dialog.getByLabel(copy.minute).selectOption(String(Number(min)));
+  await dialog.getByRole("button", { name: copy.done }).click();
+}
+
 /** Fills step one of the booking flow the way a visitor does, and presses Continue. */
 export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, scope?: Locator) {
   const root = scope ?? page.locator("main");
+  const dt = t === en.booking ? en.dateTimePicker : nl.dateTimePicker;
   if (j.hours) {
     await root.getByRole("button", { name: t.modeHourly, exact: true }).click();
     await root.getByLabel(t.duration).selectOption(String(j.hours));
@@ -39,7 +57,7 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
     await to.fill(j.to);
     await to.press("Escape");
   }
-  await root.getByLabel(t.when, { exact: true }).fill(j.at);
+  await pickDateTime(page, root.getByLabel(t.when, { exact: true }), j.at, dt);
   for (const [i, stop] of (j.stops ?? []).entries()) {
     await root.getByRole("button", { name: t.addStop }).click();
     await root.getByLabel(t.stopLabel.replace("{number}", String(i + 1)), { exact: true }).fill(stop.place);
@@ -47,16 +65,15 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
   }
   if (j.ret) {
     await root.getByRole("button", { name: t.addReturn }).click();
-    await root.getByLabel(t.returnLabel, { exact: true }).fill(j.ret);
+    await pickDateTime(page, root.getByLabel(t.returnLabel, { exact: true }), j.ret, dt);
   }
   if (j.flight) await root.getByLabel(t.flight, { exact: true }).fill(j.flight);
-  if (j.pax !== undefined || j.bags !== undefined) {
+  // The guests are always chosen by the visitor (the bar starts with a prompt, QA round 3, bug 7); the dialog opens on one guest and no bags
+  {
     await root.getByRole("button", { name: new RegExp(`^${t.guests}`) }).click();
     const dialog = page.getByRole("dialog", { name: t.guestsDialog });
-    for (let n = 2; n < (j.pax ?? 2); n++) await dialog.getByRole("button", { name: t.morePassengers }).click();
-    for (let n = 2; n > (j.pax ?? 2); n--) await dialog.getByRole("button", { name: t.fewerPassengers }).click();
-    for (let n = 2; n < (j.bags ?? 2); n++) await dialog.getByRole("button", { name: t.moreSuitcases }).click();
-    for (let n = 2; n > (j.bags ?? 2); n--) await dialog.getByRole("button", { name: t.fewerSuitcases }).click();
+    for (let n = 1; n < (j.pax ?? 2); n++) await dialog.getByRole("button", { name: t.morePassengers }).click();
+    for (let n = 0; n < (j.bags ?? 2); n++) await dialog.getByRole("button", { name: t.moreSuitcases }).click();
     await dialog.getByRole("button", { name: t.done }).click();
   }
   await root.getByRole("button", { name: t.continue }).click();

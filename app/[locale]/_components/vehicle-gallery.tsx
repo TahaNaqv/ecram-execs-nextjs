@@ -68,7 +68,9 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
   const status = interpolate(copy.counter, { current: index + 1, total: images.length });
 
   return (
-    <div className="border border-ink-800 relative overflow-hidden bg-ink-900 w-full h-full rounded-xs shadow-sm" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
+    // Takes its corners from the box it sits in, and is its own stacking layer: the photos scroll sideways inside it, and without
+    // that the browser can paint them over the rounded corners of the frame (QA round 3, bug 5)
+    <div className="relative isolate overflow-hidden bg-ink-900 w-full h-full rounded-[inherit] shadow-sm" role="group" aria-roledescription="carousel" aria-label={interpolate(copy.label, { name })}>
       <div
         ref={track}
         onScroll={onScroll}

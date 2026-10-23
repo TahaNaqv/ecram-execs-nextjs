@@ -344,7 +344,7 @@ test("signing up with an address that already has an account sets a new password
   await otherContext.close();
 });
 
-test("a signed-in visitor is offered their account instead of the sign-in screens", async ({ page, context }) => {
+test("a signed-in visitor is offered their account, and the entry page still offers both ways in", async ({ page, context }) => {
   await ownAddress(context);
   const email = newEmail("signedin");
   await seedContact(email, PASSWORD);
@@ -353,7 +353,9 @@ test("a signed-in visitor is offered their account instead of the sign-in screen
 
   await page.goto("/en/corporate-partner");
   await expect(page.getByRole("link", { name: t.goToAccount })).toBeVisible();
-  await expect(page.getByRole("link", { name: t.optionSignupCta })).toHaveCount(0);
+  // QA round 3, bug 1: "Become a Corporate Partner" leads to the same ways in as the hero's login button, signed in or not
+  await expect(page.getByRole("link", { name: t.optionLoginCta })).toBeVisible();
+  await expect(page.getByRole("link", { name: t.optionSignupCta })).toBeVisible();
   await page.goto("/en/corporate-partner/login");
   await expect(page.getByRole("link", { name: t.goToAccount })).toBeVisible();
   await page.goto("/en/corporate-partner/signup");
