@@ -10,6 +10,7 @@ import { localizedPath, unprefixedPath, type AppRoute } from "@/lib/i18n/pathnam
 import { linkButton } from "./corporate-styles";
 import { LanguageSwitcher } from "./language-switcher";
 import { SiteFooter } from "./sections";
+import { CorporateRefresh } from "./corporate-refresh";
 
 /**
  * The page around every Corporate Partner screen: header, heading and the light panel the forms sit in. The shell is
@@ -30,6 +31,7 @@ export async function CorporateShell({
   const t = dict.corporatePartner;
   return (
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.6] text-ink-150">
+      <CorporateRefresh />
       <a className="skip-link" href="#main">
         {dict.common.skipToContent}
       </a>

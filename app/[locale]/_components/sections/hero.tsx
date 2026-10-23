@@ -40,13 +40,17 @@ export async function Hero() {
           />
         </div>
         {/* Outlined in white on dark glass, so it reads over any part of the photograph without competing with Continue */}
-        <Link prefetch={false} className="rise d4 inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white/80 bg-ink-950/45 px-6 text-[11px] tracking-[0.24em] text-white uppercase no-underline backdrop-blur-sm transition-colors hover:border-white hover:bg-white hover:text-ink-950" href={localizedPath("/corporate-partner/login", locale)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-            <circle cx="12" cy="8" r="4"></circle>
-            <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>
-          </svg>
-          {d.hero.corporateLogin}
-        </Link>
+    <Link 
+  prefetch={false} 
+  className="rise d4 group inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white/80 bg-ink-950/45 px-6 text-[11px] tracking-[0.24em] text-white uppercase no-underline backdrop-blur-sm transition-colors hover:border-white hover:bg-white hover:text-ink-950" 
+  href={localizedPath("/corporate-partner/login", locale)}
+>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="transition-colors group-hover:text-ink-950">
+    <circle cx="12" cy="8" r="4"></circle>
+    <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>
+  </svg>
+  <span className="transition-colors group-hover:text-ink-950">{d.hero.corporateLogin}</span>
+</Link>
       </div>
       <div className="rise d4 pb-7 gap-3 items-center hidden flex-col relative md:flex">
         <span className="text-ink-450 text-[10px] tracking-[0.3em]">

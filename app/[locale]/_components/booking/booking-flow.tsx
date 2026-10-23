@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { FLEET, normalizeVehicleKey, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
@@ -8,10 +9,11 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
+import { VehicleGallery } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, type Trip } from "./trip";
+import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
 export type BookingStep = "journey" | "car" | "details";
@@ -100,6 +102,7 @@ export function BookingFlow({
   /** Portal: the session ran out; a sign-in link in place of the submit button */
   lockedNotice?: ReactNode;
 }) {
+  const router = useRouter();
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
@@ -148,7 +151,10 @@ export function BookingFlow({
         {step !== "journey" ? (
           <button
             type="button"
-            onClick={() => go("journey")}
+            onClick={() => {
+              const params = tripToParams(trip);
+              router.push(`/${locale}?${params.toString()}`);
+            }}
             className="flex min-h-12 max-w-full cursor-pointer items-center gap-3 rounded-full border border-solid border-ink-225 bg-white py-1.5 pr-1.5 pl-5 text-left text-[14px] font-medium text-ink-950 hover:border-ink-950"
           >
             <span className="min-w-0 truncate">{tripLine}</span>
@@ -252,10 +258,8 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
     .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
     .filter((v): v is FleetVehicle => Boolean(v))
     .map((v) => ({ vehicle: v, seats: v.specs?.passengers ?? null }))
-    // A car whose seats are not confirmed is offered; one that is confirmed too small is not (a large party takes two cars)
-    .map((c) => ({ ...c, fits: large || c.seats === null || c.seats >= trip.pax }));
-  const fitting = cars.filter((c) => c.fits);
-  const tooSmall = cars.filter((c) => !c.fits);
+    .map((c) => ({ ...c, fits: true }));
+  const fitting = cars;
   const party = guestsText(t, trip.pax);
   const choose = (key: VehicleChoice) => onChoose(trip.vehicle === key ? "" : key);
   const chosen = vehicleByKey(trip.vehicle);
@@ -280,7 +284,7 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
             {c.seats !== null && (
               <span className={`flex items-center gap-1.5 text-[13px] whitespace-nowrap ${c.fits ? "text-ink-700" : "text-ink-600"}`}>
                 <SeatIcon />
-                {c.fits ? interpolate(t.seatsUpTo, { seats: c.seats }) : interpolate(t.seatsTooFew, { seats: c.seats })}
+                {interpolate(t.seatsUpTo, { seats: c.seats })}
               </span>
             )}
           </span>
@@ -311,7 +315,7 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
         {t.carTitle}
       </h2>
       <p className="m-0 mt-2 text-[15px] text-ink-600">
-        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting.length, total: cars.length, party })}
+        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: cars.length, total: cars.length, party })}
       </p>
       {error && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
@@ -340,7 +344,6 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
             </span>
           </button>
         </li>
-        {tooSmall.map(card)}
       </ul>
 
       <div className="sticky bottom-0 z-10 mt-8 -mx-5 border-t border-solid border-ink-150 bg-white/95 px-5 pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur md:-mx-6 md:px-6">
@@ -393,7 +396,6 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors: Record<string, string | undefined> = { ...result.fieldErrors, ...localErrors };
   const portal = variant === "portal";
-  // Business or private matters only for a trip that is neither hourly nor to or from an airport
   const askPurpose = trip.mode === "oneway" && !involvesAirport(trip);
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -542,7 +544,6 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} defaultValue={defaults?.notes} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
 
           {!portal && (
-            // Honeypot: real visitors never see or fill this field
             <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
               <input type="text" name="company_website" tabIndex={-1} autoComplete="off" defaultValue="" />
             </div>
@@ -589,6 +590,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
     trip.mode === "hourly"
       ? [trip.from.text, interpolate(t.asDirected, { hours: trip.hours })]
       : [trip.from.text, ...trip.stops.filter((s) => s.place).map((s) => (s.wait ? `${s.place} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : s.place)), trip.to.text];
+  
   const rows: [string, ReactNode][] = [
     [t.summaryRoute, route.map((r, i) => <span key={i} className="block">{i > 0 ? `→ ${r}` : r}</span>)],
     [t.summaryWhen, trip.at ? pretty(trip.at, locale) : ""],
@@ -597,26 +599,55 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
   rows.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
   if (pickupAtAirport(trip) && trip.flight.trim()) rows.push([t.summaryFlight, trip.flight.trim()]);
 
+  const isAdvise = trip.vehicle === "advise";
+  const displayName = chosen?.name ?? (isAdvise ? vehicleAdvise : (FLEET[0]?.name ?? "Mercedes-Benz VLE 300"));
+  const galleryImages = chosen?.images ?? FLEET[0]?.images ?? ["/assets/fleet-interior-v2.jpg"];
+  const seats = chosen?.specs?.passengers ?? FLEET[0]?.specs?.passengers ?? null;
+
   return (
-    <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[20px] bg-ink-950 text-ink-50 lg:sticky lg:top-6">
-      {/* eslint-disable-next-line @next/next/no-img-element -- cover photo from /public */}
-      <img src={chosen?.images[0] ?? "/assets/fleet-interior-v2.jpg"} alt="" className="block h-[180px] w-full object-cover" />
-      <div className="flex flex-col gap-5 p-6">
-        <span className="font-serif text-[26px] leading-[1.1]">{chosen?.name ?? (trip.vehicle === "advise" ? vehicleAdvise : t.summaryAnyCar)}</span>
+    <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(10,10,11,0.08)] lg:sticky lg:top-6">
+      <div className="relative aspect-[16/9.5] w-full bg-ink-900 p-2 pb-0">
+        <div className="relative h-full w-full overflow-hidden rounded-[16px]">
+          <VehicleGallery
+            name={displayName}
+            images={galleryImages}
+            alt={displayName}
+            copy={{
+              label: "Vehicle gallery",
+              prev: "Previous image",
+              next: "Next image",
+              enlarge: "Enlarge image",
+              close: "Close",
+              counter: "{current} of {total}",
+              lightbox: "Lightbox",
+            }}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-5 p-6 pt-4">
+        <div className="flex items-center justify-between gap-3 border-0 border-b border-solid border-ink-150 pb-4">
+          <span className="font-serif text-[22px] leading-tight font-normal">{displayName}</span>
+          {seats !== null && (
+            <span className="flex items-center gap-1.5 text-[13px] text-ink-700 whitespace-nowrap">
+              <SeatIcon />
+              {interpolate(t.seatsUpTo, { seats })}
+            </span>
+          )}
+        </div>
         <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-[14px]">
           {rows.map(([k, v]) => (
             <div key={k} className="contents">
-              <dt className="text-ink-400">{k}</dt>
-              <dd className="m-0 wrap-break-word">{v}</dd>
+              <dt className="text-ink-500">{k}</dt>
+              <dd className="m-0 text-ink-950 wrap-break-word">{v}</dd>
             </div>
           ))}
         </dl>
-        <hr className="m-0 h-px border-0 bg-ink-700" />
-        <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-400 uppercase">{t.nextTitle}</span>
-        <ol className="m-0 flex list-none flex-col gap-3.5 p-0 text-[14px] leading-[1.45]">
+        <hr className="m-0 h-px border-0 bg-ink-150" />
+        <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-500 uppercase">{t.nextTitle}</span>
+        <ol className="m-0 flex list-none flex-col gap-3.5 p-0 text-[14px] leading-[1.45] text-ink-800">
           {[t.next1, portal ? t.next2Portal : t.next2, t.next3].map((line, i) => (
             <li key={i} className="flex gap-3">
-              <span aria-hidden="true" className={`grid size-6 shrink-0 place-items-center rounded-full text-[12px] ${i === 0 ? "bg-white font-semibold text-ink-950" : "border border-solid border-ink-500"}`}>
+              <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-ink-950 text-[12px] font-semibold text-white">
                 {i + 1}
               </span>
               {line}
@@ -633,7 +664,7 @@ export function BookingDone({ copy: t, name, reference, onAgain }: { copy: Booki
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef(false);
   useEffect(() => {
-    if (shown.current) return; // shown again after Back: leave the scroll where the browser puts it
+    if (shown.current) return;
     shown.current = true;
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ block: "center" });

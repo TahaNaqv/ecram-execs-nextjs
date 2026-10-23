@@ -1,10 +1,9 @@
 "use client";
 
 import Form from "next/form";
-import { Fragment, useId, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useId, useState, useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import { AddressField } from "./address-field";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
@@ -27,11 +26,6 @@ const ArrowIcon = () => (
   </svg>
 );
 
-/**
- * Step one of the booking flow: where from, where to (or for how long), when and who. In the homepage hero it is a
- * search bar that sends the trip to /book in the URL (`action`); on /book and in the portal it hands the trip back to
- * the flow (`onDone`). Nothing reaches the server here: the trip is only checked, and the last step posts it.
- */
 export function JourneyBar({
   locale,
   copy: t,
@@ -48,7 +42,6 @@ export function JourneyBar({
   messages: TripMessages;
   tone: "dark" | "light";
   initial?: Trip;
-  /** /book, localised: the hero navigates there with the trip in the query */
   action?: string;
   onDone?: (trip: Trip) => void;
 }) {
@@ -57,6 +50,18 @@ export function JourneyBar({
   const [trip, setTrip] = useState<Trip>(initial ?? emptyTrip());
   const [problems, setProblems] = useState<TripField[]>([]);
   const [returning, setReturning] = useState(Boolean(initial?.ret));
+  
+  // Custom duration dropdown state
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const hoursRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hoursOpen) return;
+    const outside = (e: MouseEvent) => !hoursRef.current?.contains(e.target as Node) && setHoursOpen(false);
+    document.addEventListener("mousedown", outside);
+    return () => document.removeEventListener("mousedown", outside);
+  }, [hoursOpen]);
+
   const update = (patch: Partial<Trip>) => {
     setTrip((current) => ({ ...current, ...patch }));
     setProblems([]);
@@ -70,7 +75,7 @@ export function JourneyBar({
       destination: messages.destinationRequired,
       pickupAt: !trip.at ? messages.pickupInvalid : trip.at < netherlandsNow() ? messages.pickupPast : messages.pickupTooFar,
       returnAt: messages.returnBeforePickup,
-      durationHours: "",
+      durationHours: messages.checkHighlighted,
       flightNumber: messages.flightInvalid,
     })[field];
 
@@ -109,7 +114,6 @@ export function JourneyBar({
   const hasExtras = stops.length > 0 || returning || airport;
   const divider = dark ? "border-white/10" : "border-ink-150";
 
-  /** A cell of the second row (a stop, the return, the flight): the same look as the cells above, with its own ✕ */
   const extraCell = (field: TripField | null, labelFor: string, labelText: string, control: ReactNode, onRemove?: () => void, removeLabel?: string) =>
     cell(
       field,
@@ -131,7 +135,6 @@ export function JourneyBar({
   const body = (
     <>
       {params && [...params.entries()].map(([k, v], i) => <input key={`${k}-${i}`} type="hidden" name={k} value={v} />)}
-      {/* One panel holds the whole journey: the kind of ride and the extras on top, the fields, then any stops, return or flight */}
       <div
         className={`relative rounded-[22px] border border-solid p-1.5 ${
           dark ? "border-white/20 bg-[rgba(18,18,20,0.62)] text-white backdrop-blur-xl" : "border-ink-225 bg-white text-ink-950 shadow-sm"
@@ -188,7 +191,7 @@ export function JourneyBar({
           </div>
         </div>
 
-        <div className="relative mt-1.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(205px,1.1fr)_minmax(165px,0.85fr)_auto]">
+        <div className="relative mt-1.5 grid grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(205px,1.1fr)_minmax(165px,0.85fr)_auto]">
         {cell(
           "collection",
           <>
@@ -217,8 +220,8 @@ export function JourneyBar({
                   type="button"
                   aria-label={t.swap}
                   onClick={() => update({ from: trip.to, to: trip.from })}
-                  className={`absolute top-1/2 left-[-17px] z-10 hidden size-[34px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-solid lg:grid ${
-                    dark ? "border-white/20 bg-ink-850 text-white" : "border-ink-225 bg-white text-ink-950"
+                  className={`absolute top-1/2 -left-10 z-20 hidden size-[34px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-solid lg:grid ${
+                    dark ? "border-white/20 bg-ink-850 text-white shadow-md" : "border-ink-225 bg-white text-ink-950 shadow-md"
                   }`}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -245,23 +248,47 @@ export function JourneyBar({
             )
           : cell(
               "durationHours",
-              <>
-                <label htmlFor={ids.hours} className={label}>
+              <div ref={hoursRef} className="relative w-full min-w-0">
+                <span id={`${ids.hours}-label`} className={label}>
                   {t.duration}
-                </label>
-                <select
+                </span>
+                <button
                   id={ids.hours}
-                  value={trip.hours}
-                  onChange={(e) => update({ hours: Number(e.target.value) })}
-                  className={`w-full cursor-pointer border-0 bg-transparent p-0 text-[16px] font-medium outline-none ${dark ? "text-white [&>option]:text-ink-950" : "text-ink-950"}`}
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={hoursOpen}
+                  onClick={() => setHoursOpen((o) => !o)}
+                  className={`w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[16px] font-medium outline-none truncate ${
+                    dark ? (trip.hours === "" ? "text-ink-400" : "text-white") : (trip.hours === "" ? "text-ink-475" : "text-ink-950")
+                  }`}
                 >
-                  {HOURLY_DURATIONS.map((h) => (
-                    <option key={h} value={h}>
-                      {interpolate(t.hoursOption, { hours: h })}
-                    </option>
-                  ))}
-                </select>
-              </>,
+                  {trip.hours === "" ? "Select hours" : trip.hours === 1 ? "1 hour" : `${trip.hours} hours`}
+                </button>
+                {hoursOpen && (
+                  <ul
+                    role="listbox"
+                    aria-labelledby={`${ids.hours}-label`}
+                    className="absolute top-full left-0 z-50 mt-3 max-h-60 w-full min-w-[220px] overflow-y-auto rounded-2xl border border-solid border-white/15 bg-ink-900 p-2 text-white shadow-2xl"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                      <li
+                        key={h}
+                        role="option"
+                        aria-selected={trip.hours === h}
+                        onClick={() => {
+                          update({ hours: h });
+                          setHoursOpen(false);
+                        }}
+                        className={`flex cursor-pointer items-center rounded-xl px-4 py-2.5 text-[15px] font-medium transition-colors ${
+                          trip.hours === h ? "bg-white/15 font-semibold text-white" : "text-ink-200 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {h === 1 ? "1 hour" : `${h} hours`}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
         {cell(
           "pickupAt",

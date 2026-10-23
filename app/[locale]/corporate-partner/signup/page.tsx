@@ -1,20 +1,20 @@
 import { Suspense } from "react";
-import { getCorporateContact, getPendingChallenge } from "@/lib/corporate/access";
+import Link from "next/link";
+import { getPendingChallenge } from "@/lib/corporate/access";
 import { CODE_MINUTES } from "@/lib/corporate/otp";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { AccountFlow } from "../../_components/corporate-account-flow";
-import { CorporateShell, PanelSkeleton, SignedInNotice, corporateMetadata } from "../../_components/corporate-shell";
+import { CorporateShell, PanelSkeleton, corporateMetadata } from "../../_components/corporate-shell";
 
 /** Where the visitor is in the flow comes from the database, never from the cookie alone; a reload resumes at the code step. */
 async function Flow() {
-  const [locale, d, contact] = await Promise.all([currentLocale(), getDict(), getCorporateContact()]);
+  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const pending = await getPendingChallenge("signup");
+  
   return (
-    <>
-      {/* Someone who is signed in can still create another account (it takes the session over), so the form stays */}
-      {contact && <SignedInNotice explain />}
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-6">
       <AccountFlow
         mode="signup"
         locale={locale}
@@ -24,7 +24,7 @@ async function Flow() {
         privacyHref={localizedPath("/privacy", locale)}
         loginHref={localizedPath("/corporate-partner/login", locale)}
       />
-    </>
+    </div>
   );
 }
 

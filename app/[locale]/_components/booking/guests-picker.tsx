@@ -13,13 +13,13 @@ function Stepper({ value, label, min, max, less, more, onChange, display }: {
   value: number; label: string; min: number; max: number; less: string; more: string; onChange: (n: number) => void; display?: string;
 }) {
   const button =
-    "grid size-11 cursor-pointer place-items-center rounded-full border border-solid border-ink-250 bg-white text-[20px] leading-none text-ink-950 hover:border-ink-950 disabled:cursor-default disabled:border-ink-150 disabled:text-ink-300";
+    "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-ink-250 bg-white text-[18px] leading-none text-ink-950 hover:border-ink-950 disabled:cursor-default disabled:border-ink-150 disabled:text-ink-300";
   return (
-    <span className="flex items-center gap-3">
+    <span className="flex items-center gap-2.5">
       <button type="button" aria-label={less} disabled={value <= min} onClick={() => onChange(value - 1)} className={button}>
         −
       </button>
-      <output aria-label={label} aria-live="polite" className="w-7 text-center text-[16px] font-semibold tabular-nums">
+      <output aria-label={label} aria-live="polite" className="w-6 text-center text-[15px] font-semibold tabular-nums">
         {display ?? value}
       </output>
       <button type="button" aria-label={more} disabled={value >= max} onClick={() => onChange(value + 1)} className={button}>
@@ -94,12 +94,12 @@ export function GuestsPicker({ id, pax, bags, onChange, copy: t, tone, labelledB
             id={dialogId}
             role="dialog"
             aria-label={t.guestsDialog}
-            className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-solid border-ink-150 bg-white px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-[-18px] md:bottom-auto md:mt-4 md:w-[340px] md:rounded-2xl md:pb-5"
+            className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-solid border-ink-150 bg-white px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-[-18px] md:bottom-auto md:mt-3 md:w-[310px] md:rounded-2xl md:p-4"
           >
-            <div ref={first} className="flex items-center justify-between gap-4 border-b border-solid border-ink-150 py-3">
+            <div ref={first} className="flex items-center justify-between gap-3 py-2">
               <span className="flex flex-col">
-                <strong className="text-[15px]">{t.passengers}</strong>
-                <small className="text-[12px] text-ink-600">{t.passengersHint}</small>
+                <strong className="text-[14px]">{t.passengers}</strong>
+                <small className="text-[11.5px] text-ink-600">{t.passengersHint}</small>
               </span>
               <Stepper
                 value={pax}
@@ -112,18 +112,18 @@ export function GuestsPicker({ id, pax, bags, onChange, copy: t, tone, labelledB
                 onChange={(n) => onChange({ pax: n, bags })}
               />
             </div>
-            <div className="flex items-center justify-between gap-4 py-3">
+            <div className="flex items-center justify-between gap-3 py-2">
               <span className="flex flex-col">
-                <strong className="text-[15px]">{t.suitcases}</strong>
-                <small className="text-[12px] text-ink-600">{t.suitcasesHint}</small>
+                <strong className="text-[14px]">{t.suitcases}</strong>
+                <small className="text-[11.5px] text-ink-600">{t.suitcasesHint}</small>
               </span>
               <Stepper value={bags} label={t.suitcases} min={0} max={MAX_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: n })} />
             </div>
-            <p className="m-0 mt-1 text-[12px] text-ink-600">{pax >= MAX_PASSENGERS ? t.partyLarge : t.partyHint}</p>
+            <p className="m-0 mt-1 text-[11.5px] text-ink-600">{pax >= MAX_PASSENGERS ? t.partyLarge : t.partyHint}</p>
             <button
               type="button"
               onClick={close}
-              className="mt-4 h-12 w-full cursor-pointer rounded-xl border-0 bg-ink-950 text-[14px] font-semibold text-white hover:bg-ink-800"
+              className="mt-3 h-10 w-full cursor-pointer rounded-xl border-0 bg-ink-950 text-[13.5px] font-semibold text-white hover:bg-ink-800"
             >
               {t.done}
             </button>

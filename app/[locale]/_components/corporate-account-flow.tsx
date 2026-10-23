@@ -61,14 +61,14 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
 
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8">
-      <ol className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0 text-[11px] tracking-[0.22em] uppercase" aria-label={t.progressLabel}>
-        {steps.map(([key, label], i) => (
-          <li key={key} aria-current={key === step ? "step" : undefined} className={key === step ? "text-ink-950" : "text-ink-450"}>
-            <span className="mr-2">{String(i + 1).padStart(2, "0")}</span>
-            {label}
-          </li>
-        ))}
-      </ol>
+      <ol className="m-0 flex list-none flex-nowrap items-center gap-x-4 p-0 text-[10px] tracking-[0.2em] uppercase whitespace-nowrap overflow-x-auto" aria-label={t.progressLabel}>
+  {steps.map(([key, label], i) => (
+    <li key={key} aria-current={key === step ? "step" : undefined} className={`flex items-center shrink-0 ${key === step ? "text-ink-950 font-medium" : "text-ink-450"}`}>
+      <span className="mr-1.5">{String(i + 1).padStart(2, "0")}</span>
+      {label}
+    </li>
+  ))}
+</ol>
 
       {step === "request" ? (
         <RequestForm

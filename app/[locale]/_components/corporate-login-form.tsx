@@ -106,6 +106,5 @@ export function LoginForm({
 }
 
 export default function LoginPage({ params }: { params: { locale: Locale } }) {
-  // If this file doubles as your page wrapper, ensure searchParams or default props match your setup
   return null;
 }

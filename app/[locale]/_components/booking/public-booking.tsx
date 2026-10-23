@@ -56,7 +56,7 @@ function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict,
 
   if (state.status === "success") {
     return <BookingDone copy={copy} name={state.name} reference={state.reference} onAgain={() => {
-          router.push(bookPath);
+          router.push(`/${locale}`); // Redirects back to the main home screen for the current locale
           onAgain();
         }}
       />;
