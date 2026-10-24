@@ -71,14 +71,13 @@ export function PictureAccordion({ items, variant }: { items: PictureItem[]; var
             }}
           >
             <Image
-  src={item.image}
-  alt=""
-  fill
-  unoptimized
-  sizes={v.sizes}
-  style={{ objectPosition: item.focus }}
-  className={`-z-20 object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.2,0.7,0.1,1)] ${isOpen ? "scale-110" : "scale-100 group-hover:scale-105"}`}
-/>
+              src={item.image}
+              alt=""
+              fill
+              sizes={v.sizes}
+              style={{ objectPosition: item.focus }}
+              className={`-z-20 object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.2,0.7,0.1,1)] ${isOpen ? "scale-110" : "scale-100 group-hover:scale-105"}`}
+            />
             {/* Always a little darker towards the heading; much darker while the details are open, so the text reads */}
             <div className="-z-10 absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.05)_0%,rgba(10,10,11,0.35)_45%,rgba(10,10,11,0.88)_100%)]" aria-hidden="true" />
             <div className={`-z-10 absolute inset-0 bg-ink-950/75 transition-opacity duration-700 ${isOpen ? "opacity-100" : "opacity-0"}`} aria-hidden="true" />

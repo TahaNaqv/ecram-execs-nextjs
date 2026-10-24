@@ -11,7 +11,7 @@ export const SERVICES = ["airport_transfer", "business_travel", "hourly", "priva
 export type Service = (typeof SERVICES)[number];
 
 /** The durations an hourly ("as directed") booking can ask for, in hours. */
-export const HOURLY_DURATIONS = [2, 3, 4, 5, 6, 8, 10, 12] as const;
+export const HOURLY_DURATIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
 /** The English labels this column held before the keys existed, for the one-off migration. */
 export const LEGACY_SERVICE_LABELS: Record<string, Service> = {

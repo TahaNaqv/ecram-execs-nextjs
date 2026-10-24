@@ -306,7 +306,7 @@ export function JourneyBar({
                   onChange={(e) => update({ hours: Number(e.target.value) })}
                   aria-invalid={invalid("durationHours")}
                   aria-describedby={describedBy("durationHours")}
-                  className="absolute inset-0 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-[16px] opacity-0 outline-none [&>option]:text-ink-950"
+                  className="absolute inset-0 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-[16px] opacity-0 outline-none [&>option]:px-4 [&>option]:py-2 [&>option]:text-ink-950"
                 >
                   <option value="" disabled>
                     {t.durationPlaceholder}

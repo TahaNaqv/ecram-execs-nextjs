@@ -10,8 +10,8 @@ export async function WhoWeServe() {
   // Decorative: the title and text already say who it is for.
   const items: PictureItem[] = [
     { key: "executives", title: w.segmentExecutives, text: w.segmentExecutivesText, image: "/assets/serve-executives-v3.jpg", focus: "58% 50%" },
-    { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/Executives_walking.jpg", focus: "60% 50%" },
-    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/Couple_standing.jpg", focus: "54% 50%" },
+    { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/serve-corporate-v4.jpg", focus: "60% 50%" },
+    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v4.jpg", focus: "54% 50%" },
     { key: "hotels", title: w.segmentHotels, text: w.segmentHotelsText, image: "/assets/serve-hotels-v3.jpg", focus: "42% 50%" },
     { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%" },
     { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-v3.jpg", focus: "30% 50%" },
