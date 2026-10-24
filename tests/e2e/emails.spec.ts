@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { expect, test, type Page } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
+import nl from "../../lib/i18n/dictionaries/nl.json";
 import { PASSWORD, bookingRow, newEmail, ownAddress, seedBooking, seedContact, signedInPartner, submit } from "./corporate-helpers";
 import { fillAdminLogin } from "./helpers";
 
@@ -249,16 +250,66 @@ test("every step the team takes on a partner's booking emails the partner what i
   for (const m of mails()) expect(m.html).toContain("corporate-partner/account/booking");
 });
 
-test("a status change on a public website enquiry emails nobody: there is no account to send a booking update to", async ({ page, context }) => {
+test("every step the team takes on a website enquiry emails the person who asked, with the new status and no booking page", async ({ page, context }) => {
   test.slow();
   await ownAddress(context);
   const email = newEmail("public-enquiry");
   const booking = await seedBooking({ contactId: null, email, status: "new" });
+  const mails = () => received.filter((m) => m.to.includes(email));
   await adminSignIn(page);
+
   await setStatus(page, booking, "contacted");
+  await mailTo(email, 1);
+  await setStatus(page, booking, "quoted"); // no amount yet: nothing to tell
+  await page.waitForTimeout(2_500);
+  expect(mails()).toHaveLength(1);
   await setStatus(page, booking, "quoted", "185");
+  await mailTo(email, 2);
   await setStatus(page, booking, "confirmed");
+  await mailTo(email, 3);
   await setStatus(page, booking, "completed");
+  await mailTo(email, 4);
+  await setStatus(page, booking, "cancelled");
+  await mailTo(email, 5);
+
+  const sent = mails();
+  const ref = (subject: string) => subject.replace("{reference}", booking.reference);
+  expect(sent.map((m) => m.subject)).toEqual([
+    ref(en.email.bookingSubjectContacted),
+    ref(en.email.bookingSubjectQuoted),
+    ref(en.email.bookingSubjectConfirmed),
+    ref(en.email.bookingSubjectCompleted),
+    ref(en.email.bookingSubjectCancelled),
+  ]);
+  // Each carries the new status and the booking's details, greets the booker, and has no link to a booking page (there is none)
+  const statuses = ["contacted", "quoted", "confirmed", "completed", "cancelled"] as const;
+  sent.forEach((m, i) => {
+    expect(m.html).toContain(en.email.fieldStatus);
+    expect(m.html).toContain(en.portal.statuses[statuses[i]]);
+    expect(m.html).toContain(booking.reference);
+    expect(m.html).toContain("Schiphol Airport");
+    expect(m.html).toContain("Dear Anouk,");
+    expect(m.html).not.toContain("corporate-partner/account/booking");
+  });
+  expect(sent[1].html).toContain("185");
+});
+
+test("a website enquiry made in Dutch is told in Dutch, and a booking the team keyed in is left alone", async ({ page, context }) => {
+  test.slow();
+  await ownAddress(context);
+  const dutch = newEmail("enquiry-nl");
+  const keyedIn = newEmail("enquiry-admin");
+  const a = await seedBooking({ contactId: null, email: dutch, status: "new", locale: "nl" });
+  const b = await seedBooking({ contactId: null, email: keyedIn, status: "new", source: "admin" });
+  await adminSignIn(page);
+  await setStatus(page, a, "confirmed");
+  const [mail] = await mailTo(dutch);
+  expect(mail.subject).toBe(nl.email.bookingSubjectConfirmed.replace("{reference}", a.reference));
+  expect(mail.html).toContain(nl.email.enquiryIntroConfirmed.replace("{reference}", a.reference));
+  expect(mail.html).toContain(nl.portal.statuses.confirmed);
+  expect(mail.html).toContain("Beste Anouk,");
+  await setStatus(page, b, "contacted");
+  await setStatus(page, b, "confirmed");
   await page.waitForTimeout(3_000);
-  expect(received.filter((m) => m.to.includes(email))).toHaveLength(0);
+  expect(received.filter((m) => m.to.includes(keyedIn))).toHaveLength(0);
 });

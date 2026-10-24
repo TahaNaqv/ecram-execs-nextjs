@@ -8,7 +8,7 @@ import { z } from "zod";
 import { DUMMY_HASH, verifyPassword } from "@/lib/auth/password";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { emailPartnerBooking, type PartnerEmailKind } from "@/lib/email";
+import { emailEnquiryStatus, emailPartnerBooking, type EnquiryEmailKind } from "@/lib/email";
 import { removeFiles } from "@/lib/storage";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { LOCALES } from "@/lib/i18n/config";
@@ -82,8 +82,11 @@ const updateSchema = z.object({
 
 export type UpdateState = { ok?: boolean; error?: string };
 
-/** Which email, if any, a partner gets for a change the team made to their booking. A first contact, a quote, a confirmation, completion and cancellation each get one. */
-function partnerEmailKind(from: RequestStatus, to: RequestStatus, fromAmount: string | null, toAmount: string | null): PartnerEmailKind | null {
+/**
+ * Which email, if any, the person gets for a change the team made to their booking (a partner in their account, or someone who
+ * asked on the website). A first contact, a quote, a confirmation, completion and cancellation each get one.
+ */
+function partnerEmailKind(from: RequestStatus, to: RequestStatus, fromAmount: string | null, toAmount: string | null): EnquiryEmailKind | null {
   if (from !== to) {
     if (to === "contacted") return from === "new" ? "contacted" : null; // "we have picked it up": only on the first step, not when a booking moves back
     if (to === "quoted") return toAmount !== null ? "quoted" : null; // a quote with no amount is nothing to answer
@@ -92,6 +95,9 @@ function partnerEmailKind(from: RequestStatus, to: RequestStatus, fromAmount: st
   // The same status with a different amount on a quoted booking is a new offer
   return to === "quoted" && toAmount !== null && Number(fromAmount ?? Number.NaN) !== Number(toAmount) ? "quoted" : null;
 }
+
+/** Where a request that is not in a partner's account comes from when the person asked for it themselves: the booking bar and the bespoke form. */
+const ENQUIRY_SOURCES: ReadonlySet<string> = new Set(["website", "website-bespoke"]);
 
 export async function updateRequest(_prev: UpdateState, formData: FormData): Promise<UpdateState> {
   const admin = await requireAdmin();
@@ -137,6 +143,10 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
       .where(eq(schema.corporateContacts.id, saved.corporateContactId))
       .limit(1);
     if (partner) after(() => emailPartnerBooking({ request: saved, to: partner, kind: told }));
+  } else if (told && !saved.corporateContactId && ENQUIRY_SOURCES.has(saved.source)) {
+    // Someone who asked on the website has no account to be told in, so the email carries the news itself (QA round 3, tab 2 bug 7).
+    // Bookings the team keyed in (source "admin") are not mailed: the team spoke to them, and chose at the time whether to tell them.
+    after(() => emailEnquiryStatus({ request: saved, kind: told }));
   }
   refresh();
   return { ok: true };

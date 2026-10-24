@@ -23,6 +23,7 @@ const ALLOW_IDENTICAL = new Set([
   "cookieConsent.colName",
   "admin.nav.brand",
   "admin.requestDetail.fieldStatus",
+  "email.fieldStatus",
   "admin.applicationDetail.fieldStatus",
   "admin.drivers.partner",
   "admin.drivers.partners",

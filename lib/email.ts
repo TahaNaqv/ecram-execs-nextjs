@@ -357,6 +357,52 @@ export async function emailPartnerBooking({
   return send("portal", q.reference, `partner email (${kind})`, { from: EMAIL_FROM, to: [to.email], subject: interpolate(subject, values), html });
 }
 
+export type EnquiryEmailKind = Exclude<PartnerEmailKind, "reply" | "invoice">;
+
+/**
+ * Emails the person who asked for a ride on the website, and has no account, when the team changes the status of their
+ * request: picked up, quoted, confirmed, completed or cancelled. In the language the request was made in, with the new status
+ * and the details, and no link to a booking page (they have none): the answer is to reply to the mail or ring. Best-effort:
+ * the change has already happened, so a failed send is logged, not shown. (Partners with an account get `emailPartnerBooking`.)
+ */
+export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteRequest; kind: EnquiryEmailKind }) {
+  const { EMAIL_FROM } = process.env;
+  if (!provider() || !EMAIL_FROM || !q.email) return false;
+  const { phone, email } = siteConfig.contact;
+  const d = await getDictionary(q.locale);
+  const { email: t, services, quoteForm } = d;
+  const copy: Record<EnquiryEmailKind, [string, string]> = {
+    contacted: [t.bookingSubjectContacted, t.enquiryIntroContacted],
+    quoted: [t.bookingSubjectQuoted, t.enquiryIntroQuoted],
+    confirmed: [t.bookingSubjectConfirmed, t.enquiryIntroConfirmed],
+    completed: [t.bookingSubjectCompleted, t.enquiryIntroCompleted],
+    cancelled: [t.bookingSubjectCancelled, t.enquiryIntroCancelled],
+  };
+  const [subject, intro] = copy[kind];
+  const values = { reference: q.reference, amount: euro(q.quotedAmount, q.locale) };
+  const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
+  const status = d.portal.statuses[kind];
+  const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row)];
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
+      <p>${esc(interpolate(intro, values))}</p>
+      <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
+        ${details.join("")}
+      </table>
+      <p>${esc(phone ? interpolate(t.quoteReplyPhone, { phone }) : t.quoteReply)}</p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("quote", q.reference, `enquiry email (${kind})`, {
+    from: EMAIL_FROM,
+    to: [q.email],
+    ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
+    subject: interpolate(subject, values),
+    html,
+  });
+}
+
 /**
  * Tells the person a booking is for that the team has recorded it: a booking keyed in from a phone call or an email, so
  * nothing the client submitted has confirmed it yet. In the language stored on the booking, with the details, and a link
@@ -367,22 +413,8 @@ export async function emailBookingRecorded(q: QuoteRequest) {
   if (!provider() || !EMAIL_FROM) return false;
   const { phone, email } = siteConfig.contact;
   const { email: t, services, quoteForm } = await getDictionary(q.locale);
-  const row = (label: string, value: string) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
-  const stops = stopsWithWaits(q.destinations, q.destinationWaits)
-    .map((s) => (s.wait > 0 ? `${s.place} (${s.wait} min)` : s.place))
-    .join(" → ");
-  const vehicle = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
-  const details = [
-    row(t.fieldReference, q.reference),
-    row(t.fieldService, serviceLabel(q.service, services)),
-    q.collection ? row(t.fieldCollection, q.collection) : "",
-    ...destinationRows(q, t, row),
-    stops ? row(t.fieldStops, stops) : "",
-    q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
-    ...extraRows(q, t, row),
-    q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
-    vehicle ? row(t.fieldVehicle, vehicle) : "",
-  ];
+  const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
+  const details = summaryRows(q, t, services, quoteForm, row);
   const link = q.corporateContactId ? `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", q.locale)}?ref=${encodeURIComponent(q.reference)}` : null;
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
@@ -407,6 +439,31 @@ export async function emailBookingRecorded(q: QuoteRequest) {
 
 type EmailCopy = Awaited<ReturnType<typeof getDictionary>>["email"];
 type Row = (label: string, value: string) => string;
+
+/** The rows that describe a booking in the emails to the person it is for: what was asked, as the team has it. */
+function summaryRows(
+  q: QuoteRequest,
+  t: EmailCopy,
+  services: Awaited<ReturnType<typeof getDictionary>>["services"],
+  quoteForm: Awaited<ReturnType<typeof getDictionary>>["quoteForm"],
+  row: Row,
+) {
+  const stops = stopsWithWaits(q.destinations, q.destinationWaits)
+    .map((s) => (s.wait > 0 ? `${s.place} (${s.wait} min)` : s.place))
+    .join(" → ");
+  const vehicle = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
+  return [
+    row(t.fieldReference, q.reference),
+    row(t.fieldService, serviceLabel(q.service, services)),
+    q.collection ? row(t.fieldCollection, q.collection) : "",
+    ...destinationRows(q, t, row),
+    stops ? row(t.fieldStops, stops) : "",
+    q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
+    ...extraRows(q, t, row),
+    q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
+    vehicle ? row(t.fieldVehicle, vehicle) : "",
+  ];
+}
 
 /** Where the journey ends: the destination, or for an hourly booking without one, how long the chauffeur is booked. */
 function destinationRows(q: QuoteRequest, t: EmailCopy, row: Row) {

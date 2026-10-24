@@ -74,6 +74,7 @@ type BookingSeed = {
   destination?: string;
   stops?: string[];
   source?: string;
+  locale?: "en" | "nl";
 };
 
 /**
@@ -88,7 +89,7 @@ export async function seedBooking(seed: BookingSeed) {
       insert into quote_requests (reference, status, service, collection, destination, destinations, pickup_at, name, email, phone, quoted_amount, corporate_contact_id, source, locale, notes)
       values (${reference}, ${seed.status ?? "new"}, 'airport_transfer', ${seed.collection ?? "Schiphol Airport"}, ${seed.destination ?? "Hotel Des Indes, The Hague"},
               ${seed.stops ? db.array(seed.stops) : null}, ${seed.pickupAt ?? "2031-03-14T08:30"}::text::timestamp, 'Anouk Jansen', ${seed.email}, '+31 6 1234 5678',
-              ${seed.quotedAmount ?? null}, ${seed.contactId}, ${seed.source ?? "website"}, 'en', 'Flight KL1234')
+              ${seed.quotedAmount ?? null}, ${seed.contactId}, ${seed.source ?? "website"}, ${seed.locale ?? "en"}, 'Flight KL1234')
       returning id`;
     await db`insert into request_events (request_id, event) values (${row.id}, 'received')`;
     return { id: row.id as string, reference };
