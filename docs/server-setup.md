@@ -311,11 +311,26 @@ Steps and cautions:
 Deploy an update (as `ecram`, in `/srv/ecram-execs`):
 
 ```bash
-./scripts/deploy.sh                       # pull, install, show pending migrations, build, restart
+./scripts/deploy.sh                       # pull, install if needed, build aside, swap in, restart, check
 APPLY_MIGRATIONS=1 ./scripts/deploy.sh    # same, and apply them (read the list first)
+./scripts/deploy.sh --rollback            # put the previous build back
 ```
 
-Roll back code: `git checkout <previous-commit>` (or `git revert`), `npm ci && npm run build`, `sudo systemctl restart ecram-execs`.
+The deploy never builds over the site that is running. The new version is built into `.next-build` while the site keeps serving
+from `.next`; only after the build succeeds are the folders swapped (`.next-previous` keeps the old one) and the service restarted.
+Then it checks the site is healthy: the service is running, the home page answers, and every script and stylesheet it links to can
+be fetched. Outcomes:
+
+- **The build fails:** nothing has changed, the site is still on the previous version, and the script says so.
+- **The new version does not come up healthy:** the script puts the previous build back and restarts it (the bad build is kept in
+  `.next-failed` for a look). The checkout stays on the new commit and migrations are not undone: fix the problem and deploy again.
+- **Something is wrong later:** `./scripts/deploy.sh --rollback` swaps the previous build back in.
+
+Dependencies are only reinstalled when `package.json` or `package-lock.json` changed (`FORCE_INSTALL=1` to force it), because `npm ci`
+empties `node_modules`, which the running site reads from. The script stops before building if less than 1.5 GB of disk is free.
+`bash scripts/test-deploy.sh` checks the swap and rollback logic with stand-ins, without a server.
+
+Roll back code and data by hand only if the script itself cannot be used: `git checkout <previous-commit>`, build, `sudo systemctl restart ecram-execs`.
 Migrations are additive and are not undone by rolling back code.
 
 Useful: `journalctl -u ecram-execs --since '1 hour ago'`, `sudo systemctl restart ecram-execs`, `sudo nginx -t`,
