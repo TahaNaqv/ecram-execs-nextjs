@@ -66,7 +66,7 @@ export default function NewBookingPage() {
   const bar = <span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />;
   return (
     <PageBody>
-      <Link href="/admin" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950">
+      <Link href="/admin/requests" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950">
         <ArrowLeftIcon size={14} />
         <Suspense fallback={bar}>
           <Back />

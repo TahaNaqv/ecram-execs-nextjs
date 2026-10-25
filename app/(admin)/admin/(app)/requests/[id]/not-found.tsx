@@ -12,7 +12,7 @@ export default async function RequestNotFound() {
         title={t.common.requestNotFound}
         description={t.common.notFoundNote}
         action={
-          <Link href="/admin" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+          <Link href="/admin/requests" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             {t.common.backToRequests}
           </Link>
         }

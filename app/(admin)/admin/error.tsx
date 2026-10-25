@@ -37,7 +37,7 @@ export default function AdminError({ error, retry }: { error: Error & { digest?:
           <button onClick={() => retry()} className={`${btn.base} ${btn.primary} ${btn.md}`}>
             <RefreshIcon /> {COPY.retry}
           </button>
-          <Link href="/admin" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+          <Link href="/admin/requests" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             {COPY.back}
           </Link>
         </div>

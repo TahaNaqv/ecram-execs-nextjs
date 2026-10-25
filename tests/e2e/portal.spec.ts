@@ -363,14 +363,14 @@ test("the team links a request to a partner, they talk, and detaching takes it o
   await submit(partner, p.sendMessage);
 
   // It is flagged in the team's list until someone opens it
-  await page.goto(`/admin?q=${request.reference}`);
+  await page.goto(`/admin/requests?q=${request.reference}`);
   // The list is rendered twice (phone and desktop layouts); only one is visible
   await expect(page.getByText(a.requests.partnerMessage).filter({ visible: true })).toBeVisible();
   await page.goto(`/admin/requests/${request.id}`);
   await expect(page.getByText("We no longer need this transfer.")).toBeVisible();
   await expect(page.getByText(a.messages.tagCancel)).toBeVisible();
   await expect(async () => {
-    await page.goto(`/admin?q=${request.reference}`);
+    await page.goto(`/admin/requests?q=${request.reference}`);
     await expect(page.getByText(a.requests.partnerMessage)).toHaveCount(0);
   }).toPass();
 

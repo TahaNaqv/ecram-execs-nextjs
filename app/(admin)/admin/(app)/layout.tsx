@@ -33,7 +33,7 @@ async function Chrome() {
     <AdminChrome
       copy={{ ...t.nav, openMenu: t.common.openMenu, closeMenu: t.common.closeMenu }}
       badges={{
-        "/admin": (
+        "/admin/requests": (
           <Suspense fallback={null}>
             <NewRequestsBadge />
           </Suspense>

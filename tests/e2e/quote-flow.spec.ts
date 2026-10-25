@@ -9,6 +9,9 @@ async function signIn(page: Page) {
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login/);
   await fillAdminLogin(page);
+  // Signing in lands on the dashboard; the requests have their own page
+  await expect(page.getByRole("heading", { name: en.admin.dashboard.title })).toBeVisible();
+  await page.goto("/admin/requests");
   await expect(page.getByRole("heading", { name: "Quote requests" })).toBeVisible();
 }
 
@@ -93,7 +96,7 @@ test("a quote request flows from the website into the admin panel and can be man
   await page.getByRole("button", { name: /delete this request/i }).click();
   await page.getByRole("button", { name: /yes, delete permanently/i }).click();
   await expect(page.getByRole("heading", { name: "Quote requests" })).toBeVisible();
-  await page.goto(`/admin?q=${reference}`);
+  await page.goto(`/admin/requests?q=${reference}`);
   await expect(page.getByText("No requests match these filters").first()).toBeAttached();
 });
 
@@ -127,6 +130,8 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
   // The admin is English, so the same request must read back as the English label.
   await page.goto("/admin/login");
   await fillAdminLogin(page);
+  await expect(page.getByRole("heading", { name: en.admin.dashboard.title })).toBeVisible();
+  await page.goto("/admin/requests");
   await page.getByPlaceholder(en.admin.requests.searchPlaceholder).fill(reference);
   await page.getByRole("button", { name: en.admin.common.search }).click();
 
@@ -138,11 +143,12 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
 test("an admin can switch the panel language and it sticks", async ({ page }) => {
   await page.goto("/admin/login");
   await fillAdminLogin(page);
-  await expect(page.getByRole("heading", { name: en.admin.requests.title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: en.admin.dashboard.title })).toBeVisible();
 
   const switcher = page.getByRole("form", { name: en.admin.common.language });
   await switcher.getByRole("button", { name: "nl" }).click();
-  await expect(page.getByRole("heading", { name: nl.admin.requests.title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: nl.admin.dashboard.title })).toBeVisible();
+  await expect(page.getByRole("link", { name: nl.admin.nav.requests })).toBeVisible();
 
   // The preference is on the account, not the URL, so it survives navigating elsewhere.
   await page.goto("/admin/drivers");
@@ -151,7 +157,7 @@ test("an admin can switch the panel language and it sticks", async ({ page }) =>
   // Put it back so the rest of the suite sees an English panel.
   await page.goto("/admin");
   await page.getByRole("form", { name: nl.admin.common.language }).getByRole("button", { name: "en" }).click();
-  await expect(page.getByRole("heading", { name: en.admin.requests.title })).toBeVisible();
+  await expect(page.getByRole("link", { name: en.admin.nav.requests })).toBeVisible();
 });
 
 test("a stopover carries its waiting time to the team", async ({ page }) => {

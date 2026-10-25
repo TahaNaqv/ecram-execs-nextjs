@@ -145,6 +145,7 @@ test("the admin requests list shows ten to a page with numbered pages, and searc
   const tag = `qa${Date.now()}`;
   for (let i = 0; i < 11; i++) await seedBooking({ contactId: null, email: `${tag}-${i}@e2e.ecramexecs.test` });
   await adminSignIn(page);
+  await page.goto("/admin/requests"); // signing in lands on the dashboard; the list is its own page
 
   // No Enter and no Search button: the list narrows on its own after a short pause
   await page.getByRole("searchbox").fill(tag);

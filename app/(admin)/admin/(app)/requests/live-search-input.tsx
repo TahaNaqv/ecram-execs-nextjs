@@ -29,7 +29,7 @@ export function LiveSearchInput({ status, ...props }: ComponentProps<"input"> & 
           const sp = new URLSearchParams();
           if (current.current) sp.set("status", current.current);
           if (value) sp.set("q", value);
-          router.replace(sp.size ? `/admin?${sp}` : "/admin", { scroll: false });
+          router.replace(sp.size ? `/admin/requests?${sp}` : "/admin/requests", { scroll: false });
         }, 300);
       }}
     />

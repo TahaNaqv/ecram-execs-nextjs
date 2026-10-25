@@ -162,9 +162,9 @@ test("anything a partner writes about a trip within 24 hours is flagged urgent f
   // And the team sees it flagged in the list and on the request (the list is drawn twice, a table and a stack, one of them hidden)
   const urgentBadge = () => page.getByText(en.admin.requests.urgent, { exact: true }).locator("visible=true");
   await adminSignIn(page);
-  await page.goto(`/admin?q=${soon.reference}`);
+  await page.goto(`/admin/requests?q=${soon.reference}`);
   await expect(urgentBadge().first()).toBeVisible();
-  await page.goto(`/admin?q=${later.reference}`);
+  await page.goto(`/admin/requests?q=${later.reference}`);
   await expect(page.getByText(later.reference).locator("visible=true").first()).toBeVisible();
   await expect(urgentBadge()).toHaveCount(0);
   await page.goto(`/admin/requests/${soon.id}`);

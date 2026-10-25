@@ -40,7 +40,7 @@ async function BackLabel() {
 export default function RequestPage({ params }: PageProps<"/admin/requests/[id]">) {
   return (
     <PageBody>
-      <Link href="/admin" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950">
+      <Link href="/admin/requests" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950">
         <ArrowLeftIcon size={14} />
         <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
           <BackLabel />
