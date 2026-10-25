@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/session";
 import { applicationCounts } from "@/lib/admin/applications";
-import { statusCounts } from "@/lib/admin/queries";
+import { waitingEnquiries } from "@/lib/admin/sla";
 import { logout } from "../actions";
 import { AdminChrome } from "../_components/admin-nav";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -33,9 +33,9 @@ async function Chrome() {
     <AdminChrome
       copy={{ ...t.nav, openMenu: t.common.openMenu, closeMenu: t.common.closeMenu }}
       badges={{
-        "/admin/requests": (
+        "/admin/enquiries": (
           <Suspense fallback={null}>
-            <NewRequestsBadge />
+            <WaitingEnquiriesBadge />
           </Suspense>
         ),
         "/admin/drivers/applications": (
@@ -62,12 +62,13 @@ function ChromeFallback() {
   );
 }
 
-async function NewRequestsBadge() {
-  const counts = await statusCounts();
-  if (!counts.new) return null;
+/** Enquiries from the website still waiting for a first answer: the number beside Enquiries in the menu. */
+async function WaitingEnquiriesBadge() {
+  const waiting = await waitingEnquiries();
+  if (!waiting) return null;
   return (
-    <span className="rounded-full bg-white px-1.5 py-px text-[11px] font-semibold tabular-nums text-zinc-950" title={`${counts.new} new`}>
-      {counts.new}
+    <span className="rounded-full bg-white px-1.5 py-px text-[11px] font-semibold tabular-nums text-zinc-950" title={`${waiting} new`}>
+      {waiting}
     </span>
   );
 }

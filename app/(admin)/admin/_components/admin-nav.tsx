@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BriefcaseIcon, CarIcon, InboxIcon, LayoutGridIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
+import { BriefcaseIcon, CarIcon, ClockIcon, InboxIcon, LayoutGridIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
 
 /** Labels arrive from the server as `copy`, since a Client Component cannot read the dictionary. */
 export type AdminNavCopy = {
   brand: string; subtitle: string; sectionsLabel: string; operations: string;
-  dashboard: string; requests: string; drivers: string; applications: string; corporate: string; vehicles: string;
+  dashboard: string; enquiries: string; requests: string; drivers: string; applications: string; corporate: string; vehicles: string;
   openMenu: string; closeMenu: string;
 };
 
 const LINKS = [
   { href: "/admin", key: "dashboard", icon: LayoutGridIcon, match: (p: string) => p === "/admin" },
+  { href: "/admin/enquiries", key: "enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
   { href: "/admin/requests", key: "requests", icon: InboxIcon, match: (p: string) => p.startsWith("/admin/requests") },
   {
     href: "/admin/drivers",

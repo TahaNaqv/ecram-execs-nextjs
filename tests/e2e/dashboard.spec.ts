@@ -31,10 +31,11 @@ test("signing in lands on the dashboard; the requests list is its own page in th
   await expect(page).toHaveURL(/\/admin$/);
   const menu = page.getByRole("navigation", { name: en.admin.nav.sectionsLabel });
   await expect(menu.getByRole("link", { name: en.admin.nav.dashboard })).toHaveAttribute("aria-current", "page");
-  // Dashboard first, then the requests
+  // Dashboard first, then the enquiry queues, then the requests
   const labels = await menu.getByRole("link").allInnerTexts();
   expect(labels[0]).toContain(en.admin.nav.dashboard);
-  expect(labels[1]).toContain(en.admin.nav.requests);
+  expect(labels[1]).toContain(en.admin.nav.enquiries);
+  expect(labels[2]).toContain(en.admin.nav.requests);
   await menu.getByRole("link", { name: new RegExp(`^${en.admin.nav.requests}`) }).click();
   await expect(page).toHaveURL(/\/admin\/requests$/);
   await expect(page.getByRole("heading", { name: en.admin.requests.title })).toBeVisible();

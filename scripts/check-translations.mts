@@ -29,6 +29,7 @@ const ALLOW_IDENTICAL = new Set([
   "admin.dashboard.svcDatabase",
   "admin.dashboard.svcCdt",
   "admin.dashboard.svcWhatsappBusiness",
+  "admin.enquiries.answeredIn",
   "admin.applicationDetail.fieldStatus",
   "admin.drivers.partner",
   "admin.drivers.partners",
