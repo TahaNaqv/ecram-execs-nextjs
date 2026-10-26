@@ -53,3 +53,16 @@ export const BOOKING_TOOL = {
     },
   },
 } as const;
+
+/**
+ * The second tool: the visitor is shown the cars as a picture carousel in the chat, and chooses there. A car chosen arrives as
+ * the visitor's own message and in the booking draft.
+ */
+export const SHOW_CARS_TOOL = {
+  name: "show_cars",
+  description:
+    "Show the visitor the cars as a picture carousel under your reply, so they can look at the cars and choose one (or choose no preference). " +
+    "Use it once the journey is clear and no car has been chosen yet, or whenever the visitor asks to see the cars or the fleet. " +
+    "Do not list or describe the cars in words when you use it.",
+  input_schema: { type: "object", additionalProperties: false, properties: {} },
+} as const;

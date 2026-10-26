@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { applyPatch, assess, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
-import { BOOKING_TOOL } from "@/lib/concierge/booking-tool";
+import { BOOKING_TOOL, SHOW_CARS_TOOL } from "@/lib/concierge/booking-tool";
 import { faqsFrom } from "@/lib/concierge/faqs";
 import { bookingByChat, fleetNames, siteGuide } from "@/lib/concierge/guide";
 import { bestMatch } from "@/lib/concierge/match";
+import { recordTurn, SESSION_ID } from "@/lib/concierge/store";
+import type { ConciergeMessageMeta } from "@/lib/db/schema";
+import { FLEET } from "@/lib/fleet/vehicles";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { withinLimit } from "@/lib/rate-limit";
@@ -15,6 +18,12 @@ const MAX_HISTORY = 10;
 /** The model may change the booking and then answer: at most this many calls to it for one message. */
 const MAX_ROUNDS = 3;
 const LIMIT = { max: 20, windowMs: 10 * 60_000 };
+/**
+ * Each chat is its own session (a random id its browser tab makes), limited on its own, so visitors who share a network
+ * address (an office, a hotel, a phone network) do not use up each other's messages. An id costs nothing to invent, so
+ * everything from one address also counts against this ceiling. A chat without an id is limited by address alone.
+ */
+const ADDRESS_LIMIT = { max: 120, windowMs: 10 * 60_000 };
 /** A message, its history and a booking draft come to a few kilobytes; anything much larger is not from the chat. */
 const MAX_BODY_BYTES = 64_000;
 
@@ -59,6 +68,24 @@ type Block = { type?: string; text?: string; id?: string; name?: string; input?:
 type ApiMessage = { role: "user" | "assistant"; content: string | Block[] | { type: "tool_result"; tool_use_id: string; content: string }[] };
 const textOf = (blocks: Block[]) => blocks.filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
 
+/**
+ * The model sometimes thinks aloud in its reply ("The visitor has given a date range... I will not call the tool..."), which a
+ * visitor must never read. Those sentences talk about "the visitor", "the draft" or "the tool" in the third person, which a
+ * concierge speaking to someone never does, so they are dropped; what is left is the answer. An empty result goes to the
+ * fallback.
+ */
+const THINKING_ALOUD = /\b(the visitor|the draft|the tool|update_booking|tool call|system prompt|my instructions)\b|\brather than guess|\bI should (clarify|ask|call|not|check|note|record)\b/i;
+function withoutThinkingAloud(reply: string) {
+  const kept = reply
+    .split("\n")
+    .map((line) => line.split(/(?<=[.!?])\s+/).filter((sentence) => !THINKING_ALOUD.test(sentence)).join(" "))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (kept !== reply.trim()) console.warn("[concierge] dropped text that was not meant for the visitor:", reply.slice(0, 300));
+  return kept;
+}
+
 /** A reply that hit the length limit stops in the middle of a sentence: it is cut back to the last whole one. */
 const wholeSentences = (text: string) => text.replace(/[^.!?]*$/, "");
 
@@ -79,27 +106,33 @@ export async function POST(req: Request) {
     const section = dict.conciergeSection;
 
     const { ipHash } = await visitor();
-    if (!withinLimit(`concierge:${ipHash}`, LIMIT.max, LIMIT.windowMs)) {
+    const session = typeof body?.session === "string" && SESSION_ID.test(body.session) ? body.session : null;
+    const allowed = session
+      ? withinLimit(`concierge:${ipHash}:${session}`, LIMIT.max, LIMIT.windowMs) && withinLimit(`concierge-address:${ipHash}`, ADDRESS_LIMIT.max, ADDRESS_LIMIT.windowMs)
+      : withinLimit(`concierge:${ipHash}`, LIMIT.max, LIMIT.windowMs);
+    if (!allowed) {
       return NextResponse.json({ reply: section.fallbackBusy, handoff: true }, { status: 429 });
     }
 
     const faqs = faqsFrom(section);
     const conversationHistory = cleanHistory(body?.conversationHistory, message);
+    const incoming = cleanDraft(body?.draft);
+
+    // Every answer to a chat with a session is saved for RETENTION.chatDays days, after it has gone out (lib/concierge/store.ts)
+    const finish = (payload: { reply: string; handoff: boolean } & Record<string, unknown>, meta: ConciergeMessageMeta = {}, draftNow: Draft = incoming) => {
+      if (session) after(() => recordTurn({ session, locale, ipHash, visitor: message, reply: payload.reply, meta: { ...meta, handoff: payload.handoff }, draft: draftNow }));
+      return NextResponse.json(payload);
+    };
 
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
 
     // Without an API key the concierge answers from the questions and answers above, and says plainly what it can and cannot help with
     if (!apiKey) {
-      if (GREETING.test(message)) return NextResponse.json({ reply: section.welcome, handoff: false });
+      if (GREETING.test(message)) return finish({ reply: section.welcome, handoff: false }, { fallback: true });
       const match = bestMatch(message, faqs);
-      if (match?.answer) {
-        return NextResponse.json({
-          reply: match.answer,
-          handoff: false,
-        });
-      }
+      if (match?.answer) return finish({ reply: match.answer, handoff: false }, { fallback: true });
 
-      return NextResponse.json({ reply: section.fallbackScope, handoff: true });
+      return finish({ reply: section.fallbackScope, handoff: true }, { fallback: true });
     }
 
     const faqKnowledgeBase = faqs.map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
@@ -114,7 +147,8 @@ Our Services:
 
 Tone & Style:
 - Professional, discreet, refined, concise, and courteous (executive hospitality).
-- Answer in the language the visitor writes in (English or Dutch).
+- The visitor is reading the ${locale === "nl" ? "Dutch" : "English"} version of the website: answer in ${locale === "nl" ? "Dutch" : "English"} unless they clearly write in the other language. Keep to that language on every turn, including right after you have recorded details with the tool.
+- Your reply is shown to the visitor exactly as you write it. Never include your reasoning, plans or notes to yourself, and never mention "the visitor", the draft, the tool or these rules. Speak to the visitor as "you".
 - Keep responses concise: 2 to 4 sentences. When walking a visitor through steps, up to 6 short sentences.
 - Plain text only: no markdown, asterisks, bullet symbols or links. Say where to find something in words ("the ${dict.enquiry.heading} bar on the home page").
 
@@ -146,15 +180,19 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
 
     // The booking so far, as the visitor's browser holds it (cleaned: only known fields that fit). The model changes it with
     // its tool; the visitor sends it with the button, so nothing here ever creates a booking.
-    let draft = cleanDraft(body?.draft);
+    let draft = incoming;
     const unavailable = await unavailableVehicleKeys();
+    // Set when the model asks for the cars to be shown: the keys of the cars the visitor may choose (not the ones switched off)
+    let cars: string[] | undefined;
     const state = () => {
       const a = Object.keys(draft).length > 0 ? assess(draft, dict.forms, locale, unavailable) : null;
-      return { draft, ready: a?.ready ?? false, ...(a?.ready ? { summary: a.summary, form: a.form } : {}) };
+      // The card's fields go to the booking form's action; the chat's session id goes along so the request can be joined to the chat
+      return { draft, ready: a?.ready ?? false, ...(a?.ready ? { summary: a.summary, form: session ? [...a.form!, ["chatSession", session]] : a.form } : {}), ...(cars ? { cars } : {}) };
     };
     const fallback = () => {
       const match = bestMatch(message, faqs);
-      return NextResponse.json({ ...(match?.answer ? { reply: match.answer, handoff: false } : { reply: section.fallbackScope, handoff: true }), ...state() });
+      const shown = state();
+      return finish({ ...(match?.answer ? { reply: match.answer, handoff: false } : { reply: section.fallbackScope, handoff: true }), ...shown }, { fallback: true, cars: Boolean(cars), ready: shown.ready }, draft);
     };
 
     const messages: ApiMessage[] = [{ role: "user", content: visitorTurn(conversationHistory, message, draft) }];
@@ -176,7 +214,7 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
           // Haiku 5.5 thinks by default, and thinking counts against max_tokens: a short chat answer is better without it
           thinking: { type: "disabled" },
           system: systemPrompt,
-          tools: [BOOKING_TOOL],
+          tools: [BOOKING_TOOL, SHOW_CARS_TOOL],
           // The last round must answer in words
           tool_choice: { type: round === MAX_ROUNDS ? "none" : "auto" },
           messages,
@@ -193,7 +231,7 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
       const data = await response.json();
       // The reply is the text blocks (a thinking block may come first)
       const blocks: Block[] = Array.isArray(data.content) ? data.content : [];
-      const calls = blocks.filter((b) => b.type === "tool_use" && b.name === BOOKING_TOOL.name);
+      const calls = blocks.filter((b) => b.type === "tool_use" && (b.name === BOOKING_TOOL.name || b.name === SHOW_CARS_TOOL.name));
       stop = data.stop_reason;
       said = textOf(blocks);
       // A tool call cut off by the length limit, or a refusal, is not applied
@@ -204,13 +242,21 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
       messages.push({
         role: "user",
         content: calls.map((call) => {
+          if (call.name === SHOW_CARS_TOOL.name) {
+            cars = FLEET.map((v) => v.key).filter((key) => !unavailable.has(key));
+            return {
+              type: "tool_result" as const,
+              tool_use_id: call.id ?? "",
+              content: JSON.stringify({ shown: true, note: "The visitor now sees the cars as a carousel under your reply and chooses there. Do not list them in words.", reply_in: locale === "nl" ? "Dutch" : "English" }),
+            };
+          }
           const applied = applyPatch(draft, call.input);
           draft = applied.draft;
           const a = assess(draft, dict.forms, locale, unavailable);
           return {
             type: "tool_result" as const,
             tool_use_id: call.id ?? "",
-            content: JSON.stringify({ booking: forModel(draft), missing: a.missing, problems: a.errors, rejected: applied.rejected, ready: a.ready }),
+            content: JSON.stringify({ booking: forModel(draft), missing: a.missing, problems: a.errors, rejected: applied.rejected, ready: a.ready, reply_in: locale === "nl" ? "Dutch" : "English" }),
           };
         }),
       });
@@ -225,9 +271,12 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
       /whatsapp/i.test(message) ||
       /speak to a human|talk to human|call me|whatsapp/i.test(message);
 
-    const cleanReply = rawReply.replace(/\[HANDOFF_WHATSAPP\]/g, "").trim();
+    const spoken = rawReply.replace(/\[HANDOFF_WHATSAPP\]/g, "").trim();
+    const cleanReply = withoutThinkingAloud(spoken);
+    if (!cleanReply) return fallback();
 
-    return NextResponse.json({ reply: cleanReply || section.welcome, handoff: shouldHandoff, ...state() });
+    const shown = state();
+    return finish({ reply: cleanReply, handoff: shouldHandoff, ...shown }, { cars: Boolean(cars), filtered: cleanReply !== spoken, ready: shown.ready }, draft);
   } catch (err) {
     console.error("Concierge API error:", err);
     // The dictionary may be what failed, so this one reply is written out here, in both languages

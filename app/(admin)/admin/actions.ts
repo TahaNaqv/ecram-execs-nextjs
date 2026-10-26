@@ -152,6 +152,16 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   return { ok: true };
 }
 
+/** Permanently removes a chat with the concierge and everything said in it (e.g. a request to erase it). */
+export async function deleteChat(formData: FormData) {
+  await requireAdmin();
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) return;
+  await db.delete(schema.conciergeConversations).where(eq(schema.conciergeConversations.id, id.data));
+  console.info("[admin] chat deleted");
+  redirect("/admin/chats");
+}
+
 /** Permanently removes a request and its history (e.g. a GDPR erasure request). */
 export async function deleteRequest(formData: FormData) {
   await requireAdmin();

@@ -1,6 +1,7 @@
 import { ConciergeChat } from "../concierge-chat";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
+import { RETENTION } from "@/lib/retention";
 
 export async function Concierge() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
@@ -12,6 +13,7 @@ export async function Concierge() {
     stepCar: b.stepCar, stepDetails: b.stepDetails, noPreference: b.noPreference, passengerName: b.passengerName, notes: b.notes,
     stopLabel: b.stopLabel, waitMinutes: b.waitMinutes, asDirected: b.asDirected, guestOne: b.guestOne, guestMany: b.guestMany,
     bagNone: b.bagNone, bagOne: b.bagOne, bagMany: b.bagMany, privacyNote: b.privacyNote, privacyLink: b.privacyLink,
+    seatsUpTo: b.seatsUpTo, carDetails: b.carDetails,
   };
   return (
     <section className="border-b border-b-ink-850">
@@ -46,7 +48,7 @@ export async function Concierge() {
             </div>
             <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
           </div>
-          <ConciergeChat copy={t} locale={locale} card={card} privacyHref={localizedPath("/privacy", locale)} />
+          <ConciergeChat copy={t} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
         </div>
       </div>
     </section>

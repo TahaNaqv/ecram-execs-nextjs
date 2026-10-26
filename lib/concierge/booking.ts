@@ -6,6 +6,7 @@ import { vehicles } from "@/lib/db/schema";
 import { FLEET, VEHICLE_CHOICES, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
+import { plain } from "./plain";
 import { PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
 import { COUNTRY_CODES, HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
@@ -46,7 +47,10 @@ export type Draft = {
 export type DraftKey = keyof Draft;
 
 const WALL_CLOCK = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-const text = (max: number) => (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().replace(/[ \t]+/g, " ").slice(0, max) : undefined);
+const text = (max: number) => (v: unknown) => {
+  const clean = typeof v === "string" ? plain(v).trim().replace(/[ \t]+/g, " ").slice(0, max) : "";
+  return clean || undefined;
+};
 const whole = (min: number, max: number) => (v: unknown) => {
   const n = typeof v === "string" && v.trim() !== "" ? Number(v) : v;
   return typeof n === "number" && Number.isInteger(n) && n >= min && n <= max ? n : undefined;
@@ -84,7 +88,7 @@ const CLEAN: { [K in DraftKey]-?: (v: unknown) => Draft[K] | undefined } = {
   },
   purpose: oneOf(["business", "private"] as const),
   name: text(120),
-  email: (v) => (typeof v === "string" && v.trim() ? v.trim().toLowerCase().slice(0, 200) : undefined),
+  email: (v) => (typeof v === "string" && plain(v).trim() ? plain(v).trim().toLowerCase().slice(0, 200) : undefined),
   phone: text(30),
   passengerName: text(120),
   passengerPhone: text(30),
@@ -266,6 +270,8 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
   if (mode === "hourly" && !draft.hours) missing.push("hours");
   if (!draft.at) missing.push("at");
   if (draft.passengers === undefined) missing.push("passengers");
+  // Asked, not assumed: a visitor who never mentioned luggage would otherwise be shown "no bags"
+  if (draft.bags === undefined) missing.push("bags");
   if (!draft.name) missing.push("name");
   if (!draft.email) missing.push("email");
   if (!draft.phone) missing.push("phone");
