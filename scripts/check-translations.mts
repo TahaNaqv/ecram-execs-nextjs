@@ -81,7 +81,6 @@ const ALLOW_IDENTICAL = new Set([
   "corporatePartner.phCode",
   "corporatePartner.phBookerPhone",
   "corporatePartner.contact_whatsapp",
-  "whoWeServe.segmentHotels",
   "whoWeServe.valueDetail",
 ]);
 
