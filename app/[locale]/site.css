@@ -278,6 +278,20 @@
     animation: ecChrome 9s linear infinite;
   }
 
+  /* The same moving shine on a blue ground: pale stops only, so no part of the word falls to grey against the blue */
+  .chrome-live-light {
+    background: linear-gradient(100deg, var(--color-ink-100) 0%, #fff 18%, #dbe7f7 36%, var(--color-ink-75) 54%, var(--color-ink-100) 72%, #fff 90%, var(--color-ink-100) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: ecChrome 9s linear infinite;
+  }
+
+  .motion-subtle .chrome-live-light {
+    animation: none;
+  }
+
   .drift {
     animation: ecDrift 18s ease-out both;
   }
@@ -340,14 +354,15 @@
     height: 100%;
     object-fit: cover;
     object-position: 50% 55%;
-    filter: saturate(0.8) contrast(1.05) brightness(0.88);
+    /* The night photograph lifted into a blue dusk: brighter and more colour than before, never grey or black */
+    filter: saturate(1.15) contrast(1.02) brightness(1.2);
     animation: ecDrift 18s ease-out both;
   }
 
   @media (max-width: 767px) {
     .hero-img {
       object-position: 50% 70%;
-      filter: saturate(0.8) contrast(1.05) brightness(0.95);
+      filter: saturate(1.15) contrast(1.02) brightness(1.28);
     }
   }
 

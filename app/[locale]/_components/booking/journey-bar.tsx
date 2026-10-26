@@ -176,7 +176,7 @@ export function JourneyBar({
       {params && [...params.entries()].map(([k, v], i) => <input key={`${k}-${i}`} type="hidden" name={k} value={v} />)}
       <div
         className={`relative rounded-[22px] border border-solid p-1.5 ${
-          dark ? "border-white/20 bg-[rgba(18,18,20,0.62)] text-white backdrop-blur-xl" : "border-ink-225 bg-white text-ink-950 shadow-sm"
+          dark ? "border-white/25 bg-[rgba(10,28,60,0.62)] text-white backdrop-blur-xl" : "border-ink-225 bg-white text-ink-950 shadow-sm"
         }`}
       >
         <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-0 border-b border-solid px-1.5 pt-1 pb-2.5 ${divider}`}>
@@ -260,7 +260,7 @@ export function JourneyBar({
                   aria-label={t.swap}
                   onClick={() => update({ from: trip.to, to: trip.from })}
                   className={`absolute top-1/2 -left-10 z-20 hidden size-[34px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-solid lg:grid ${
-                    dark ? "border-white/20 bg-ink-850 text-white shadow-md" : "border-ink-225 bg-white text-ink-950 shadow-md"
+                    dark ? "border-white/25 bg-[rgb(14,36,74)] text-white shadow-md" : "border-ink-225 bg-white text-ink-950 shadow-md"
                   }`}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
