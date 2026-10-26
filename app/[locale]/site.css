@@ -300,7 +300,7 @@
     display: block;
     width: 1px;
     height: 56px;
-    background: var(--color-ink-450);
+    background: var(--color-ink-150);
     animation: ecCue 2.6s cubic-bezier(0.6, 0, 0.4, 1) infinite;
   }
 

@@ -54,13 +54,13 @@ export async function Hero() {
 </Link>
       </div>
       <div className="rise d4 pb-7 gap-3 items-center hidden flex-col relative md:flex">
-        <span className="text-ink-450 text-[10px] tracking-[0.3em]">
+        <span className="text-ink-100 text-[10px] tracking-[0.3em] [text-shadow:0_1px_8px_rgba(9,24,52,0.85)]">
           {d.hero.scroll}
         </span>
         <span className="cue" aria-hidden="true"></span>
       </div>
-      <div className="border-t border-t-white/10 relative max-md:bg-[rgba(9,24,52,0.7)]">
-        <div className="p-5 my-0 mx-auto items-center text-ink-450 gap-x-10 flex flex-col flex-wrap font-display text-[10px] justify-center tracking-[0.28em] max-w-[1280px] gap-y-[10px] text-center md:py-[22px] md:px-6 md:text-[12px] md:tracking-[0.38em] md:gap-y-4 md:gap-x-10 md:items-stretch md:flex-row xl:gap-4 xl:justify-between xl:text-start 2xl:max-w-[1440px]">
+      <div className="border-t border-t-white/15 relative bg-[rgba(9,24,52,0.74)]">
+        <div className="p-5 my-0 mx-auto items-center text-ink-100 gap-x-10 flex flex-col flex-wrap font-display text-[10px] justify-center tracking-[0.28em] max-w-[1280px] gap-y-[10px] text-center md:py-[22px] md:px-6 md:text-[12px] md:tracking-[0.38em] md:gap-y-4 md:gap-x-10 md:items-stretch md:flex-row xl:gap-4 xl:justify-between xl:text-start 2xl:max-w-[1440px]">
           <span>
             {d.hero.stripQuiet}
           </span>
