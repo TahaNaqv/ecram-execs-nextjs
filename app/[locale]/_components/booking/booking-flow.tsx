@@ -270,7 +270,7 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
           disabled={!c.fits}
           onClick={() => choose(c.vehicle.key)}
           className={`flex w-full cursor-pointer flex-col rounded-2xl bg-white p-2 text-left text-ink-950 transition-shadow disabled:cursor-default disabled:bg-transparent ${
-            selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(10,10,11,0.12)]" : c.fits ? "border border-solid border-ink-225 hover:border-ink-950" : "border border-dashed border-ink-300"
+            selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : c.fits ? "border border-solid border-ink-225 hover:border-ink-950" : "border border-dashed border-ink-300"
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here */}
@@ -601,7 +601,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
   const seats = chosen?.specs?.passengers ?? FLEET[0]?.specs?.passengers ?? null;
 
   return (
-    <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(10,10,11,0.08)] lg:sticky lg:top-6">
+    <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.08)] lg:sticky lg:top-6">
       <div className="relative aspect-[16/9.5] w-full bg-ink-900 p-2 pb-0">
         <div className="relative isolate h-full w-full overflow-hidden rounded-[16px] [clip-path:inset(0_round_16px)]">
           <VehicleGallery

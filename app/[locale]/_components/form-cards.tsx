@@ -14,7 +14,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 
 /** Inputs use 16px on phones so iOS doesn't zoom in on focus. */
 export const cardControl =
-  "box-border block w-full min-w-0 rounded-md font-sans border border-solid border-ink-225 bg-ink-50 px-3 py-2.5 text-[16px] text-ink-950 outline-none placeholder:text-ink-420 hover:border-ink-350 focus:border-ink-950 focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,10,11,0.1)] aria-[invalid=true]:border-error md:text-[15px]";
+  "box-border block w-full min-w-0 rounded-md font-sans border border-solid border-ink-225 bg-ink-50 px-3 py-2.5 text-[16px] text-ink-950 outline-none placeholder:text-ink-420 hover:border-ink-350 focus:border-ink-950 focus:bg-white focus:shadow-[0_0_0_3px_rgba(var(--ec-black-rgb),0.1)] aria-[invalid=true]:border-error md:text-[15px]";
 
 const ICONS = {
   building: <path d="M4 21V4h10v17M14 9h6v12M2 21h20M8 8h2M8 12h2M8 16h2M17 13h1M17 17h1" />,
@@ -239,7 +239,7 @@ export function PhoneField({
   return (
     <CardField idPrefix={idPrefix} name="phone" label={label} error={error}>
       <div
-        className={`flex items-stretch rounded-md border border-solid bg-ink-50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(10,10,11,0.1)] ${error ? "border-error" : "border-ink-225 hover:border-ink-350 focus-within:border-ink-950"}`}
+        className={`flex items-stretch rounded-md border border-solid bg-ink-50 focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(var(--ec-black-rgb),0.1)] ${error ? "border-error" : "border-ink-225 hover:border-ink-350 focus-within:border-ink-950"}`}
       >
         <select
           id={`${idPrefix}-phoneCountry`}

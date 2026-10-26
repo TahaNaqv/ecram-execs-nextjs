@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { fontVariables } from "@/lib/fonts";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { siteTheme } from "@/lib/site-theme";
 import "./[locale]/site.css";
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export default async function GlobalNotFound() {
   const [en, nl] = await Promise.all([getDictionary("en"), getDictionary("nl")]);
 
   return (
-    <html lang="en" className={fontVariables}>
+    <html lang="en" data-theme={siteTheme} className={fontVariables}>
       <body className="bg-ink-950 font-sans text-ink-150">
         <main className="box-border flex min-h-svh flex-col items-center justify-center gap-8 px-5 py-12 text-center">
           <span className="font-display text-[12px] tracking-[0.42em] text-ink-450">{en.notFound.eyebrow}</span>
