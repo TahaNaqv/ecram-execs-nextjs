@@ -465,7 +465,15 @@
     "whatsappHandoff": "Transfer to WhatsApp",
     "chipAirport": "Airport Transfers",
     "chipFleet": "Executive Fleet",
-    "chipCorporate": "Corporate Accounts"
+    "chipCorporate": "Corporate Accounts",
+    "chipBook": "Book A Ride",
+    "chipBookQuery": "I would like to book a ride.",
+    "bookTitle": "Your request",
+    "bookSend": "Send my request",
+    "bookSending": "Sending…",
+    "bookChange": "Change something",
+    "bookSent": "Thank you, {name}. Your request {reference} has been received. Your personal quote follows, usually within the hour.",
+    "bookFailed": "I could not send your request. {reason} You can also use the Plan Your Journey bar above, or write to our team on WhatsApp."
   },
   "finalCta": {
     "eyebrow": "TAILORED TO YOUR JOURNEY",

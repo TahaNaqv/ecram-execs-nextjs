@@ -68,7 +68,7 @@ test("the model is briefed on the fleet, on how booking works and on what it can
   // The request itself
   expect(key).toBe("test");
   expect(body.thinking).toEqual({ type: "disabled" });
-  expect(body.max_tokens).toBe(450);
+  expect(body.max_tokens).toBe(1000);
   expect(body.messages.at(-1)).toEqual({ role: "user", content: "How do I book a car for two hours?" });
 
   // The fleet is read from the fleet data

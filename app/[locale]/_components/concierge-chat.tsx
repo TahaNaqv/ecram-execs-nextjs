@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import type { Summary } from "@/lib/concierge/booking";
+import { interpolate } from "@/lib/i18n/interpolate";
+import { submitQuote } from "@/lib/quotes/actions";
+import { markBookingSent } from "./booking/sent";
 
 type Message = {
   from: "guest" | "agent";
@@ -16,6 +20,14 @@ type Copy = {
   chipAirport?: string;
   chipFleet?: string;
   chipCorporate?: string;
+  chipBook?: string;
+  chipBookQuery?: string;
+  bookTitle: string;
+  bookSend: string;
+  bookSending: string;
+  bookChange: string;
+  bookSent: string;
+  bookFailed: string;
   faqLabel: string;
   inputLabel: string;
   inputPlaceholder: string;
@@ -23,6 +35,33 @@ type Copy = {
   noAnswer: string;
   isTyping: string;
 };
+
+/** The booking form's own words, so the card reads like the form (the section hands them over from the `booking` dictionary). */
+export type CardCopy = {
+  summaryRoute: string;
+  summaryWhen: string;
+  summaryReturn: string;
+  summaryParty: string;
+  summaryFlight: string;
+  stepCar: string;
+  stepDetails: string;
+  noPreference: string;
+  passengerName: string;
+  notes: string;
+  stopLabel: string;
+  waitMinutes: string;
+  asDirected: string;
+  guestOne: string;
+  guestMany: string;
+  bagNone: string;
+  bagOne: string;
+  bagMany: string;
+  privacyNote: string;
+  privacyLink: string;
+};
+
+/** What the server says is ready to send: the card's contents and the fields the booking form's action takes. */
+type ReadyBooking = { summary: Summary; form: [string, string][] };
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "31627133700";
 
@@ -34,7 +73,7 @@ function WhatsAppIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) {
+export function ConciergeChat({ copy, locale, card: cardCopy, privacyHref }: { copy: Copy; locale: string; card: CardCopy; privacyHref: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       from: "agent",
@@ -42,11 +81,16 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
     },
   ]);
   const [waiting, setWaiting] = useState(false);
+  // The booking being taken in the chat: the model fills it in, the server checks it, and the visitor sends it from the card
+  const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const [ready, setReady] = useState<ReadyBooking | null>(null);
+  const [sending, setSending] = useState(false);
   const log = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
 
   // Suggestions for quick interaction
   const starterChips = [
+    { label: copy.chipBook || "Book A Ride", query: copy.chipBookQuery || "I would like to book a ride." },
     { label: copy.chipAirport || "Airport Transfers", query: "Can you explain your airport transfer services and meet & greet?" },
     { label: copy.chipFleet || "Executive Fleet", query: "Which luxury vehicles are in your electric fleet?" },
     { label: copy.chipCorporate || "Corporate Accounts", query: "How do corporate partner accounts work?" },
@@ -57,7 +101,7 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
     const el = log.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, waiting]);
+  }, [messages, waiting, ready]);
 
   function getWhatsAppUrl(allMessages: Message[]) {
     const formatted = allMessages
@@ -87,6 +131,7 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
             content: m.text,
           })),
           locale,
+          draft,
         }),
       });
 
@@ -95,6 +140,9 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
       }
 
       const data = await res.json();
+      // The server answers with the booking as it now stands, and whether it is complete
+      if (data.draft && typeof data.draft === "object") setDraft(data.draft);
+      setReady(data.ready && data.summary && Array.isArray(data.form) ? { summary: data.summary, form: data.form } : null);
       setMessages((prev) => [
         ...prev,
         {
@@ -115,6 +163,30 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
     } finally {
       setWaiting(false);
       field.current?.focus();
+    }
+  }
+
+  /** The visitor's own press of the button: the same action the booking form uses, with the same checks. */
+  async function sendBooking() {
+    if (!ready || sending) return;
+    setSending(true);
+    try {
+      const data = new FormData();
+      for (const [key, value] of ready.form) data.append(key, value);
+      const result = await submitQuote({ status: "idle" }, data);
+      if (result.status === "success") {
+        markBookingSent();
+        setDraft({});
+        setReady(null);
+        setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookSent, { name: result.name, reference: result.reference }) }]);
+      } else {
+        const reason = result.status === "error" ? Object.values(result.fieldErrors).filter(Boolean).join(" ") || result.message : "";
+        setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookFailed, { reason }).replace("  ", " "), handoff: true }]);
+      }
+    } catch {
+      setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookFailed, { reason: "" }).replace("  ", " "), handoff: true }]);
+    } finally {
+      setSending(false);
     }
   }
 
@@ -187,6 +259,40 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
           </div>
         )}
 
+        {/* The booking the visitor can send: complete, checked by the server, shown for them to read once more */}
+        {ready && !waiting && (
+          <section role="group" aria-labelledby="concierge-card-title" className="self-start w-full max-w-[94%] rounded-2xl border border-ink-600 bg-ink-850 p-4 text-[13px] text-ink-150">
+            <h3 id="concierge-card-title" className="m-0 font-display text-[12px] uppercase tracking-[0.24em] text-ink-300">
+              {copy.bookTitle}
+            </h3>
+            <BookingRows summary={ready.summary} c={cardCopy} />
+            <p className="mt-3 mb-0 text-[12px] leading-relaxed text-ink-400">
+              {cardCopy.privacyNote}{" "}
+              <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-white">
+                {cardCopy.privacyLink}
+              </a>
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={sendBooking}
+                disabled={sending}
+                className="cursor-pointer rounded-xl bg-white px-4 py-2 text-[13px] font-semibold text-ink-950 transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {sending ? copy.bookSending : copy.bookSend}
+              </button>
+              <button
+                type="button"
+                onClick={() => field.current?.focus()}
+                disabled={sending}
+                className="cursor-pointer rounded-xl border border-ink-600 bg-transparent px-4 py-2 text-[13px] font-medium text-ink-200 transition-colors hover:border-ink-400 hover:text-white disabled:opacity-50"
+              >
+                {copy.bookChange}
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Typing indicator */}
         {waiting && (
           <div className="py-3 px-4 border border-ink-750 bg-ink-850/60 rounded-2xl rounded-tl-xs self-start text-ink-450 flex items-center gap-2.5 text-[12px]">
@@ -225,5 +331,31 @@ export function ConciergeChat({ copy, locale }: { copy: Copy; locale: string }) 
         </button>
       </form>
     </div>
+  );
+}
+
+function BookingRows({ summary: b, c }: { summary: Summary; c: CardCopy }) {
+  const guests = b.passengers === 1 ? c.guestOne : interpolate(c.guestMany, { count: b.passengers });
+  const bags = b.bags === 0 ? c.bagNone : b.bags === 1 ? c.bagOne : interpolate(c.bagMany, { count: b.bags });
+  const stops = b.stops.map((s, i) => `${interpolate(c.stopLabel, { number: i + 1 })}: ${s.place}${s.wait ? ` (${interpolate(c.waitMinutes, { minutes: s.wait })})` : ""}`);
+  const rows: [string, string][] = [
+    [c.summaryRoute, b.mode === "hourly" ? `${b.from} · ${interpolate(c.asDirected, { hours: b.hours ?? "" })}` : [`${b.from} → ${b.to}`, ...stops].join("\n")],
+    [c.summaryWhen, b.when],
+  ];
+  if (b.returning) rows.push([c.summaryReturn, b.returning]);
+  rows.push([c.summaryParty, `${guests}, ${bags}`], [c.stepCar, b.car ?? c.noPreference]);
+  if (b.flight) rows.push([c.summaryFlight, b.flight]);
+  rows.push([c.stepDetails, `${b.name}\n${b.email}\n${b.phone}`]);
+  if (b.passengerName) rows.push([c.passengerName, [b.passengerName, b.passengerPhone].filter(Boolean).join("\n")]);
+  if (b.notes) rows.push([c.notes, b.notes]);
+  return (
+    <dl className="m-0 mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+      {rows.map(([label, value]) => (
+        <div key={label} className="contents">
+          <dt className="text-ink-400">{label}</dt>
+          <dd className="m-0 min-w-0 whitespace-pre-line break-words text-white">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

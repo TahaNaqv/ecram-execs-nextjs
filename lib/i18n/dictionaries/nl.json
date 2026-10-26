@@ -465,7 +465,15 @@
     "whatsappHandoff": "Overdragen naar WhatsApp",
     "chipAirport": "Luchthaventransfers",
     "chipFleet": "Executive Vloot",
-    "chipCorporate": "Zakelijke Accounts"
+    "chipCorporate": "Zakelijke Accounts",
+    "chipBook": "Rit Boeken",
+    "chipBookQuery": "Ik wil graag een rit boeken.",
+    "bookTitle": "Uw aanvraag",
+    "bookSend": "Aanvraag versturen",
+    "bookSending": "Versturen…",
+    "bookChange": "Iets aanpassen",
+    "bookSent": "Dank u, {name}. Uw aanvraag {reference} is ontvangen. Uw persoonlijke prijsopgave volgt, meestal binnen het uur.",
+    "bookFailed": "Ik kon uw aanvraag niet versturen. {reason} U kunt ook het formulier Plan uw rit hierboven gebruiken, of ons team schrijven via WhatsApp."
   },
   "finalCta": {
     "eyebrow": "AFGESTEMD OP UW RIT",
