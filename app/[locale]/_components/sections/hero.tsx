@@ -43,7 +43,7 @@ export async function Hero() {
     <Link 
   prefetch={false} 
   className="rise d4 group inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white/80 bg-ink-950/45 px-6 text-[11px] tracking-[0.24em] text-white uppercase no-underline backdrop-blur-sm transition-colors hover:border-white hover:bg-white hover:text-ink-950" 
-  href={localizedPath("/corporate-partner/login", locale)}
+  href={localizedPath("/corporate-partner", locale)}
 >
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="transition-colors group-hover:text-ink-950">
     <circle cx="12" cy="8" r="4"></circle>
