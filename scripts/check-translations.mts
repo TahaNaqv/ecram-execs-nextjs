@@ -30,6 +30,7 @@ const ALLOW_IDENTICAL = new Set([
   "admin.dashboard.svcCdt",
   "admin.dashboard.svcWhatsappBusiness",
   "admin.enquiries.answeredIn",
+  "admin.chats.concierge",
   "admin.applicationDetail.fieldStatus",
   "admin.drivers.partner",
   "admin.drivers.partners",
@@ -81,7 +82,6 @@ const ALLOW_IDENTICAL = new Set([
   "corporatePartner.phCode",
   "corporatePartner.phBookerPhone",
   "corporatePartner.contact_whatsapp",
-  "whoWeServe.segmentHotels",
   "whoWeServe.valueDetail",
 ]);
 

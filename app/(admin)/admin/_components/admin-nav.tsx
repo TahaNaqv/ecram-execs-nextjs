@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   BriefcaseIcon,
   CarIcon,
+  ChatIcon,
   ClockIcon,
   CompassIcon,
   EuroIcon,
@@ -27,6 +28,7 @@ export type AdminNavCopy = {
   dashboard: string;
   enquiries: string;
   requests: string;
+  chats?: string;
   drivers: string;
   applications: string;
   corporate: string;
@@ -58,6 +60,7 @@ const SECTIONS: NavSection[] = [
       { href: "/admin", key: "dashboard", defaultLabel: "Dashboard", icon: LayoutGridIcon, match: (p: string) => p === "/admin" },
       { href: "/admin/enquiries", key: "enquiries", defaultLabel: "Enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
       { href: "/admin/requests", key: "requests", defaultLabel: "Bookings", icon: InboxIcon, match: (p: string) => p.startsWith("/admin/requests") },
+      { href: "/admin/chats", key: "chats", defaultLabel: "Live Chats", icon: ChatIcon, match: (p: string) => p.startsWith("/admin/chats") },
       { href: "/admin/dispatch", key: "dispatch", defaultLabel: "Visual Dispatch", icon: CompassIcon, match: (p: string) => p.startsWith("/admin/dispatch") },
     ],
   },

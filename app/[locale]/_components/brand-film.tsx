@@ -71,8 +71,8 @@ export function BrandFilm({ copy }: { copy: BrandFilmCopy }) {
           <div className="p-4 gap-[10px] items-start flex flex-col justify-end absolute inset-0 md:p-7 md:items-end md:justify-end md:gap-0 md:flex-row">
             <Image className="object-cover" src={POSTER} alt="" fill sizes="(min-width: 1536px) 1392px, (min-width: 1280px) 1232px, 100vw" />
             {/* Darkens the daylight still to sit with the site and keep the caption and controls legible */}
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,11,0.45)_0%,rgba(10,10,11,0.35)_45%,rgba(10,10,11,0.85)_100%)]" aria-hidden="true"></div>
-            <button className="top-1/2 left-1/2 border border-ink-250 rounded-full items-center bg-[rgba(10,10,11,0.5)] shadow-[0_0_0_6px_rgba(10,10,11,0.35),0_0_32px_8px_rgba(10,10,11,0.55)] text-white cursor-pointer flex h-14 justify-center absolute [transform:translate(-50%,-50%)] w-14 md:h-24 md:w-24" type="button" onClick={start} aria-label={copy.play} title={copy.playTitle}>
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--ec-black-rgb),0.45)_0%,rgba(var(--ec-black-rgb),0.35)_45%,rgba(var(--ec-black-rgb),0.85)_100%)]" aria-hidden="true"></div>
+            <button className="top-1/2 left-1/2 border border-ink-250 rounded-full items-center bg-[rgba(var(--ec-black-rgb),0.5)] shadow-[0_0_0_6px_rgba(var(--ec-black-rgb),0.35),0_0_32px_8px_rgba(var(--ec-black-rgb),0.55)] text-white cursor-pointer flex h-14 justify-center absolute [transform:translate(-50%,-50%)] w-14 md:h-24 md:w-24" type="button" onClick={start} aria-label={copy.play} title={copy.playTitle}>
               <span className="ring" aria-hidden="true"></span>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
                 <path d="M8 5l11 7-11 7z"></path>

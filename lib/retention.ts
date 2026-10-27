@@ -2,7 +2,7 @@ import type { Sql, TransactionSql } from "postgres";
 
 /**
  * How long personal data is kept, and the code that removes it. The periods are the ones the privacy policy promises
- * (privacy.s5p1 and s8p* in the dictionaries): change one here and the policy text has to change with it.
+ * (privacy.s2p4, s5p1 and s8p* in the dictionaries): change one here and the policy text has to change with it.
  *
  * Takes a postgres.js client rather than the app's Drizzle `db`, so the same code runs in the admin panel (the Delete
  * button), in `scripts/retention.mts` (the scheduled job) and in the tests, none of which can share the app's server-only
@@ -25,9 +25,16 @@ export const RETENTION = {
   accountInactiveMonths: 24,
   /** Someone who started creating an account and never finished. */
   abandonedSignupDays: 30,
+  /** What the website's AI concierge and a visitor said to each other: days after the last message in the chat... */
+  chatDays: 90,
+  /** ...except a chat that belongs to a live booking (see CHAT_BOOKING_STATUSES): a year after its last message. */
+  chatBookingDays: 365,
   /** The most rows one rule removes in one run: a wrong rule or a bad clock then loses a few hundred rows, not the table. */
   maxPerRule: 200,
 } as const;
+
+/** A booking is live, for the chat it came from, once the team has confirmed it (and after it has been driven). */
+export const CHAT_BOOKING_STATUSES = ["confirmed", "completed"] as const;
 
 type Db = Sql | TransactionSql;
 export type RemoveFiles = (paths: string[]) => Promise<void>;
@@ -60,6 +67,19 @@ const notUpcoming = (sql: Db) => sql`(r.pickup_at is null or r.pickup_at < ${nlN
 
 /** A booking that is still open and not yet driven: an account holding one cannot be erased until it is cancelled or completed. */
 const isUpcoming = (sql: Db) => sql`(r.status in ('new', 'contacted', 'quoted', 'confirmed') and r.pickup_at is not null and r.pickup_at >= ${nlNow(sql)})`;
+
+/**
+ * Chats with the concierge past their period, as a WHERE fragment over `concierge_conversations c`: 90 days after the last
+ * message, or a year when the chat belongs to a booking that is live at this moment (so a chat whose booking is confirmed
+ * later is kept, as long as it has not been removed already). lib/concierge/store.ts removes the same chats as new ones start.
+ */
+const chatDue = (sql: Db) => sql`(
+  c.last_message_at < now() - make_interval(days => ${RETENTION.chatBookingDays})
+  or (
+    c.last_message_at < now() - make_interval(days => ${RETENTION.chatDays})
+    and not exists (select 1 from quote_requests r where r.id = c.request_id and r.status in ${sql(CHAT_BOOKING_STATUSES)})
+  )
+)`;
 
 /** Requests past their retention, as a WHERE fragment over `quote_requests r`. */
 const requestDue = (sql: Db) => sql`
@@ -141,6 +161,8 @@ export async function erasePartnerAccount(sql: Sql, contactId: string, options: 
     if (kept.length > 0) {
       const ids = kept.map((b) => b.id);
       await tx`delete from booking_messages where request_id in ${tx(ids)}`;
+      // The chat the booking was sent from holds the contact person's words too
+      await tx`delete from concierge_conversations where request_id in ${tx(ids)}`;
       // Only what the invoice needs stays. (The contact person is a natural person; the invoice is to the company.)
       await tx`
         update quote_requests set
@@ -177,6 +199,8 @@ export type RetentionReport = {
   signups: string[];
   /** Ids of accounts the job would not erase because they hold an open upcoming booking. */
   blocked: string[];
+  /** Ids of chats with the concierge removed (ids only: what was said is personal data). */
+  chats: string[];
   /** True when a rule stopped at its cap: run again to continue. */
   capped: boolean;
 };
@@ -188,7 +212,7 @@ export type RetentionReport = {
  */
 export async function runRetention({ sql, apply, removeFiles }: { sql: Sql; apply: boolean; removeFiles: RemoveFiles }): Promise<RetentionReport> {
   const cap = RETENTION.maxPerRule;
-  const report: RetentionReport = { requests: [], scrubbed: [], applications: [], accounts: [], signups: [], blocked: [], capped: false };
+  const report: RetentionReport = { requests: [], scrubbed: [], applications: [], accounts: [], signups: [], blocked: [], chats: [], capped: false };
 
   // 1. Requests past their period
   const requests = await sql<{ id: string; reference: string }[]>`select r.id, r.reference from quote_requests r where ${requestDue(sql)} order by r.created_at limit ${cap + 1}`;
@@ -220,6 +244,7 @@ export async function runRetention({ sql, apply, removeFiles }: { sql: Sql; appl
       const [row] = await tx<{ id: string }[]>`select r.id from quote_requests r where r.id = ${id} and ${financialToScrub(tx)} for update of r`;
       if (!row) return false;
       await tx`delete from booking_messages where request_id = ${id}`;
+      await tx`delete from concierge_conversations where request_id = ${id}`;
       await tx`update quote_requests set notes = null, internal_notes = null, ip_hash = null, user_agent = null where id = ${id}`;
       return true;
     });
@@ -263,6 +288,18 @@ export async function runRetention({ sql, apply, removeFiles }: { sql: Sql; appl
     }
     const removed = await sql`delete from corporate_contacts c where c.id = ${id} and ${signupAbandoned(sql)} returning c.id`;
     if (removed.length > 0) report.signups.push(id);
+  }
+
+  // 6. Chats with the website's concierge: 90 days after their last message, a year for those that belong to a live booking (their messages go with them)
+  const chats = await sql<{ id: string }[]>`select c.id from concierge_conversations c where ${chatDue(sql)} order by c.last_message_at limit ${cap + 1}`;
+  if (chats.length > cap) report.capped = true;
+  for (const { id } of chats.slice(0, cap)) {
+    if (!apply) {
+      report.chats.push(id);
+      continue;
+    }
+    const removed = await sql`delete from concierge_conversations c where c.id = ${id} and ${chatDue(sql)} returning c.id`;
+    if (removed.length > 0) report.chats.push(id);
   }
 
   return report;

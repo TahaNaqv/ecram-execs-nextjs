@@ -133,12 +133,7 @@ export const UndoIcon = icon(
     <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
   </>,
 );
-export const NoteIcon = icon(
-  <>
-    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-    <path d="M14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8" />
-  </>,
-);
+
 export const ActivityIcon = icon(<path d="M22 12h-4l-3 9L9 3l-3 9H2" />);
 export const LockIcon = icon(
   <>
@@ -156,6 +151,12 @@ export const EyeOffIcon = icon(
   <>
     <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
     <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24M2 2l20 20" />
+  </>,
+);
+export const NoteIcon = icon(
+  <>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8" />
   </>,
 );
 export const RefreshIcon = icon(

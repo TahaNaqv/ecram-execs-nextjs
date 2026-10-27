@@ -4,6 +4,7 @@ import { and, count, eq, gt } from "drizzle-orm";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
+import { linkChatToRequest, SESSION_ID } from "@/lib/concierge/store";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
@@ -88,7 +89,9 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return fail(t.quoteServerError);
   }
 
-  after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));
+  // A request sent from the concierge chat carries that chat's session id, so the team can read what led to it
+  const chat = String(formData.get("chatSession") ?? "");
+  after(() => Promise.all([notifyNewQuote(request), confirmToClient(request), SESSION_ID.test(chat) ? linkChatToRequest(chat, request.id) : undefined]));
 
   return { status: "success", reference: request.reference, name: request.name.split(" ")[0] };
 }

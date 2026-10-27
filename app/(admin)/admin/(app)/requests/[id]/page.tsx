@@ -3,6 +3,7 @@ import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
+import { chatForRequest } from "@/lib/admin/chats";
 import { getRequest } from "@/lib/admin/queries";
 import { serviceLabel, type RequestStatus } from "@/lib/quotes/constants";
 import { eventLabels, renderEvent } from "@/lib/admin/events";
@@ -122,6 +123,8 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
     events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
   };
   const d = await adminDictionary();
+  // The concierge chat the request was sent from, if it was sent from one
+  const chatId = await chatForRequest(r.id);
   const serviceLabels = d.services;
   const waNumber = r.phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${r.name}, thank you for your request ${r.reference} with Ecram Execs.`);
@@ -172,6 +175,11 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
           <a href={tel} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <PhoneIcon /> Call
           </a>
+          {chatId && (
+            <Link href={`/admin/chats/${chatId}`} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+              <ChatIcon /> {d.admin.chats.chatLink}
+            </Link>
+          )}
           {waNumber.length >= 8 && (
             <a
               href={`https://wa.me/${waNumber}?text=${waText}`}

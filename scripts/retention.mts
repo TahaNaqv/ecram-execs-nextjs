@@ -4,7 +4,7 @@
 //
 // The periods and the rules live in lib/retention.ts (RETENTION). In short: requests 24 months after the last contact
 // (completed or invoiced bookings 7 years after the end of that year, stripped of notes and messages from 24 months), driver applications that did not become a partnership 12 months, Corporate
-// Partner accounts nobody has used for 24 months, sign-ups never finished after 30 days. Run weekly from cron (docs/server-setup.md).
+// Partner accounts nobody has used for 24 months, sign-ups never finished after 30 days, chats with the concierge 90 days after their last message (a year for those that belong to a confirmed booking). Run weekly from cron (docs/server-setup.md).
 //
 // Nothing is deleted without --apply, no rule removes more than RETENTION.maxPerRule rows in one run (run again if it says
 // "more remain"), and the output holds references and ids only: no names, emails or notes, so the log is not itself personal data.
@@ -47,7 +47,7 @@ const { host, pathname } = new URL(url);
 console.log(`Target: ${host}${pathname}`);
 console.log(
   `Rules: requests ${RETENTION.requestMonths} months (financial ${RETENTION.financialYears} years), applications ${RETENTION.applicationMonths} months, ` +
-    `idle partner accounts ${RETENTION.accountInactiveMonths} months, unfinished sign-ups ${RETENTION.abandonedSignupDays} days; at most ${RETENTION.maxPerRule} per rule per run`,
+    `idle partner accounts ${RETENTION.accountInactiveMonths} months, unfinished sign-ups ${RETENTION.abandonedSignupDays} days, concierge chats ${RETENTION.chatDays} days (${RETENTION.chatBookingDays} for a confirmed booking); at most ${RETENTION.maxPerRule} per rule per run`,
 );
 
 const sql = postgres(url, { prepare: false, max: 1 });
@@ -74,8 +74,9 @@ try {
   list("partner accounts", report.accounts);
   if (report.blocked.length) console.log(`partner accounts left alone because they hold an open upcoming booking: ${report.blocked.length}`);
   list("unfinished sign-ups", report.signups);
+  list("concierge chats", report.chats);
   if (report.capped) console.log("More remain: a rule reached its cap for one run. Run again to continue.");
-  if (!apply && report.requests.length + report.scrubbed.length + report.applications.length + report.accounts.length + report.signups.length > 0) {
+  if (!apply && report.requests.length + report.scrubbed.length + report.applications.length + report.accounts.length + report.signups.length + report.chats.length > 0) {
     console.log("Dry run — nothing deleted. Re-run with --apply.");
   }
 } finally {

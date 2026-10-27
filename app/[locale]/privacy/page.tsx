@@ -13,7 +13,7 @@ import { CookieTable } from "../_components/cookie-table";
 // NOTE: Describes how this website actually handles data (see lib/quotes, lib/email).
 // Have it reviewed before launch, and update it whenever a new processor or feature is added.
 /** ISO date; rendered in the reader's language. */
-const LAST_UPDATED = "2026-10-22";
+const LAST_UPDATED = "2026-10-27";
 
 function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (

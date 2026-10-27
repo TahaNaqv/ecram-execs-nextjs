@@ -280,3 +280,95 @@ test("the admin's Delete button on the Corporate page says what happens to the b
     await db.end();
   }
 });
+
+/** A chat with the concierge whose last message is `ago` old (Postgres interval text), with its two messages. */
+async function chat(db: Db, o: { ago: string; requestId?: string | null }) {
+  const [row] = await db`
+    insert into concierge_conversations (session_id, message_count, started_at, last_message_at, request_id)
+    values (${randomUUID().replaceAll("-", "")}, 2, now() - ${o.ago}::interval, now() - ${o.ago}::interval, ${o.requestId ?? null}) returning id`;
+  await db`insert into concierge_messages (conversation_id, position, role, content) values (${row.id}, 0, 'visitor', 'Hello'), (${row.id}, 1, 'concierge', 'Good day')`;
+  return row.id as string;
+}
+const chatExists = async (db: Db, id: string) => (await db`select 1 from concierge_conversations where id = ${id}`).length > 0;
+
+test("chats with the concierge are removed 90 days after their last message, a year for those of a live booking; their messages go with them", async () => {
+  const db = sql();
+  const ids: string[] = [];
+  try {
+    expect(RETENTION.chatDays).toBe(90);
+    expect(RETENTION.chatBookingDays).toBe(365);
+    const kept = (id: string) => {
+      ids.push(id);
+      return id;
+    };
+    const booking = async (status: string) => (await request(db, { ago: "1 day", status })).id;
+    const confirmed = await booking("confirmed");
+    const completed = await booking("completed");
+    const quoted = await booking("quoted");
+    const cancelled = await booking("cancelled");
+    const fresh = await booking("new");
+
+    // Not joined to a booking: 90 days
+    const old = kept(await chat(db, { ago: `${RETENTION.chatDays + 1} days` }));
+    const recent = kept(await chat(db, { ago: `${RETENTION.chatDays - 1} days` }));
+    // Joined to a booking that did not close (still a quote, cancelled, or not even answered): 90 days too
+    const quotedChat = kept(await chat(db, { ago: "91 days", requestId: quoted }));
+    const cancelledChat = kept(await chat(db, { ago: "91 days", requestId: cancelled }));
+    const freshChat = kept(await chat(db, { ago: "91 days", requestId: fresh }));
+    // Joined to a live booking (confirmed, or driven): a year
+    const confirmedChat = kept(await chat(db, { ago: "200 days", requestId: confirmed }));
+    const completedChat = kept(await chat(db, { ago: "364 days", requestId: completed }));
+    const confirmedOld = kept(await chat(db, { ago: `${RETENTION.chatBookingDays + 1} days`, requestId: confirmed }));
+
+    // A dry run lists what is due and removes nothing
+    const preview = await runRetention({ sql: db, apply: false, removeFiles: async () => {} });
+    for (const due of [old, quotedChat, cancelledChat, freshChat, confirmedOld]) expect(preview.chats, due).toContain(due);
+    for (const stays of [recent, confirmedChat, completedChat]) expect(preview.chats, stays).not.toContain(stays);
+    expect(await chatExists(db, old)).toBe(true);
+
+    // The real run removes them, with their messages, and leaves the rest and every booking alone
+    const done = await runRetention({ sql: db, apply: true, removeFiles: async () => {} });
+    for (const gone of [old, quotedChat, cancelledChat, freshChat, confirmedOld]) {
+      expect(done.chats, gone).toContain(gone);
+      expect(await chatExists(db, gone), gone).toBe(false);
+      expect(await db`select 1 from concierge_messages where conversation_id = ${gone}`).toHaveLength(0);
+    }
+    for (const stays of [recent, confirmedChat, completedChat]) expect(await chatExists(db, stays), stays).toBe(true);
+    for (const request of [confirmed, completed, quoted, cancelled, fresh]) expect(await exists(db, "quote_requests", request)).toBe(true);
+
+    // The booking is confirmed only now: its chat, past 90 days but not yet removed, is kept
+    const late = await chat(db, { ago: "100 days", requestId: quoted });
+    await db`update quote_requests set status = 'confirmed' where id = ${quoted}`;
+    expect((await runRetention({ sql: db, apply: true, removeFiles: async () => {} })).chats).not.toContain(late);
+    expect(await chatExists(db, late)).toBe(true);
+    ids.push(late);
+  } finally {
+    await db`delete from concierge_conversations where id = any(${ids})`;
+    await db.end();
+  }
+});
+
+test("a chat goes with the booking request it led to, also when the request is kept as a financial record and its partner is erased", async () => {
+  const db = sql();
+  try {
+    // A request deleted (the admin's Delete, or its retention) takes its chat with it
+    const plain = await request(db, { ago: "1 day" });
+    const plainChat = await chat(db, { ago: "1 day", requestId: plain.id });
+    await db`delete from quote_requests where id = ${plain.id}`;
+    expect(await chatExists(db, plainChat)).toBe(false);
+
+    // A partner erased: the booking that has to be kept for the tax records loses the chat it was sent from, which holds the contact person's words
+    const idle = await contact(db, { created: "30 months", lastLogin: "25 months" });
+    const done = await request(db, { ago: "25 months", contactId: idle, status: "completed", entity: "Orion Holdings B.V." });
+    const open = await request(db, { ago: "25 months", contactId: idle });
+    const keptChat = await chat(db, { ago: "1 day", requestId: done.id });
+    const goneChat = await chat(db, { ago: "1 day", requestId: open.id });
+    const report = await runRetention({ sql: db, apply: true, removeFiles: async () => {} });
+    expect(report.accounts).toContain(idle);
+    expect(await exists(db, "quote_requests", done.id)).toBe(true);
+    expect(await chatExists(db, keptChat)).toBe(false);
+    expect(await chatExists(db, goneChat)).toBe(false);
+  } finally {
+    await db.end();
+  }
+});

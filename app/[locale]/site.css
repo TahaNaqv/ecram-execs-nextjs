@@ -59,6 +59,55 @@
   --font-sans: var(--font-manrope), sans-serif;
 }
 
+/* ---------- Colour theme ----------
+   The site's colours are the `ink` scale above, so a theme is a different set of values for it. "navy" (the default, see
+   lib/site-theme.ts) puts the page background on #000f4d (ink-950) and tints the rest of the dark steps, the greys and the paper
+   tones toward it. The greys and paper tones keep exactly the brightness they had, so text keeps its contrast; the dark steps,
+   which are surfaces and borders, move up with the background. "classic" sets nothing: the values in @theme stay as they were. */
+:root {
+  /* Colours used inside gradients and shadows, as red, green, blue: the near-black that darkens photographs and the navy of the hero */
+  --ec-black-rgb: 10, 10, 11;
+  --ec-deep-rgb: 9, 24, 52;
+  --ec-panel-rgb: 10, 28, 60;
+  --ec-swap-rgb: 14, 36, 74;
+}
+
+:root[data-theme="navy"] {
+  --color-ink-50: #f3f4f6;
+  --color-ink-75: #f1f1f4;
+  --color-ink-100: #e8e9ee;
+  --color-ink-150: #e2e4e9;
+  --color-ink-200: #d7dae2;
+  --color-ink-225: #d2d4dd;
+  --color-ink-250: #c6c9d6;
+  --color-ink-300: #b0b4c7;
+  --color-ink-350: #a3a9c0;
+  --color-ink-400: #9fa6be;
+  --color-ink-420: #9aa1bb;
+  --color-ink-450: #858db1;
+  --color-ink-475: #616fa7;
+  --color-ink-500: #5968a5;
+  --color-ink-550: #4c588a;
+  --color-ink-600: #445082;
+  --color-ink-650: #2d3c74;
+  --color-ink-700: #233373;
+  --color-ink-750: #19296b;
+  --color-ink-800: #132365;
+  --color-ink-825: #112162;
+  --color-ink-850: #0e1f5f;
+  --color-ink-875: #071656;
+  --color-ink-900: #051453;
+  --color-ink-925: #041452;
+  --color-ink-940: #01104e;
+  --color-ink-950: #000f4d;
+  --color-ink-975: #000b38;
+
+  --ec-black-rgb: 0, 8, 40;
+  --ec-deep-rgb: 0, 15, 77;
+  --ec-panel-rgb: 0, 22, 92;
+  --ec-swap-rgb: 0, 27, 105;
+}
+
 /* ---------- Base ---------- */
 @layer base {
   body {
@@ -278,6 +327,20 @@
     animation: ecChrome 9s linear infinite;
   }
 
+  /* The same moving shine on a blue ground: pale stops only, so no part of the word falls to grey against the blue */
+  .chrome-live-light {
+    background: linear-gradient(100deg, var(--color-ink-100) 0%, #fff 18%, #dbe7f7 36%, var(--color-ink-75) 54%, var(--color-ink-100) 72%, #fff 90%, var(--color-ink-100) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: ecChrome 9s linear infinite;
+  }
+
+  .motion-subtle .chrome-live-light {
+    animation: none;
+  }
+
   .drift {
     animation: ecDrift 18s ease-out both;
   }
@@ -286,7 +349,7 @@
     display: block;
     width: 1px;
     height: 56px;
-    background: var(--color-ink-450);
+    background: var(--color-ink-150);
     animation: ecCue 2.6s cubic-bezier(0.6, 0, 0.4, 1) infinite;
   }
 
@@ -340,14 +403,15 @@
     height: 100%;
     object-fit: cover;
     object-position: 50% 55%;
-    filter: saturate(0.8) contrast(1.05) brightness(0.88);
+    /* The night photograph lifted into a blue dusk: brighter and more colour than before, never grey or black */
+    filter: saturate(1.15) contrast(1.02) brightness(1.2);
     animation: ecDrift 18s ease-out both;
   }
 
   @media (max-width: 767px) {
     .hero-img {
       object-position: 50% 70%;
-      filter: saturate(0.8) contrast(1.05) brightness(0.95);
+      filter: saturate(1.15) contrast(1.02) brightness(1.28);
     }
   }
 
@@ -625,8 +689,8 @@ a:not(:where(.light-surface *)):hover {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(10, 10, 11, 0) 45%,
-    rgba(10, 10, 11, 0.55) 100%
+    rgba(var(--ec-black-rgb), 0) 45%,
+    rgba(var(--ec-black-rgb), 0.55) 100%
   );
   pointer-events: none;
 }

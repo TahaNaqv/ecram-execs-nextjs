@@ -6,6 +6,7 @@ import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
 import { WhatsAppFloat } from "@/components/whatsapp-float";
 import { localizedPath } from "@/lib/i18n/pathnames";
+import { siteTheme, themeColor } from "@/lib/site-theme";
 import { CookieConsent } from "./_components/cookie-consent";
 import { SameHashScroll } from "./_components/same-hash-scroll";
 import "./site.css";
@@ -40,7 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = { themeColor: "#0a0a0b", viewportFit: "cover" };
+export const viewport: Viewport = { themeColor: themeColor[siteTheme], viewportFit: "cover" };
 
 export default async function SiteLayout({ 
   children 
@@ -52,7 +53,7 @@ export default async function SiteLayout({
   const consentCopy = (await getDictionary(value)).cookieConsent;
 
   return (
-    <html lang={value} translate="no" className={`notranslate ${fontVariables}`}>
+    <html lang={value} translate="no" data-theme={siteTheme} className={`notranslate ${fontVariables}`}>
       <head>
         <meta name="google" content="notranslate" />
       </head>

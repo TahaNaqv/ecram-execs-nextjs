@@ -322,6 +322,66 @@ export const corporateAccess = pgTable("corporate_access", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * What the website's AI concierge and a visitor said to each other, kept for RETENTION.chatDays days (lib/retention.ts).
+ * One row per chat: `session_id` is the anonymous random id the visitor's browser tab made for it (the same one it is
+ * rate-limited by). The messages are in `concierge_messages`. `draft` is what the assistant had recorded of a booking
+ * at the last message (the visitor's words: it can hold the name, email and phone they gave), and `request_id` the
+ * booking request the visitor sent from the chat, if they did: deleting that request deletes the chat with it.
+ */
+export const conciergeConversations = pgTable(
+  "concierge_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: text("session_id").notNull().unique(),
+    locale: contentLocale("locale").notNull().default("en"),
+    ipHash: text("ip_hash"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    messageCount: integer("message_count").notNull().default(0),
+    draft: jsonb("draft").$type<Record<string, unknown>>(),
+    requestId: uuid("request_id").references(() => quoteRequests.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    index("concierge_conversations_last_message_idx").on(t.lastMessageAt),
+    index("concierge_conversations_request_idx").on(t.requestId),
+    index("concierge_conversations_ip_started_idx").on(t.ipHash, t.startedAt),
+  ],
+);
+
+export type ConciergeMessageMeta = {
+  /** The concierge offered the WhatsApp hand-over */
+  handoff?: boolean;
+  /** The car carousel was shown with this reply */
+  cars?: boolean;
+  /** Text meant for the assistant's own reasoning was taken out of the reply before the visitor saw it */
+  filtered?: boolean;
+  /** The reply is a stored answer, not the model's (it failed, refused or said nothing usable) */
+  fallback?: boolean;
+  /** The booking was complete after this reply */
+  ready?: boolean;
+};
+
+export const conciergeMessages = pgTable(
+  "concierge_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conciergeConversations.id, { onDelete: "cascade" }),
+    /** The order within the chat (the two messages of one turn are saved together, so their times are equal) */
+    position: integer("position").notNull(),
+    role: text("role", { enum: ["visitor", "concierge"] }).notNull(),
+    content: text("content").notNull(),
+    meta: jsonb("meta").$type<ConciergeMessageMeta>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("concierge_messages_position_idx").on(t.conversationId, t.position),
+    check("concierge_messages_role_check", sql`${t.role} in ('visitor', 'concierge')`),
+  ],
+);
+
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Vehicle = typeof vehicles.$inferSelect;
@@ -330,3 +390,5 @@ export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;
 export type BookingMessage = typeof bookingMessages.$inferSelect;
 export type BookingInvoice = typeof bookingInvoices.$inferSelect;
+export type ConciergeConversation = typeof conciergeConversations.$inferSelect;
+export type ConciergeMessage = typeof conciergeMessages.$inferSelect;

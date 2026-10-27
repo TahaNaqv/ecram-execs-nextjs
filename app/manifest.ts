@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { siteTheme, themeColor } from "@/lib/site-theme";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -7,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "The art of executive hospitality — executive chauffeur services throughout the Netherlands.",
     start_url: "/",
     display: "browser",
-    background_color: "#0a0a0b",
-    theme_color: "#0a0a0b",
+    background_color: themeColor[siteTheme],
+    theme_color: themeColor[siteTheme],
     icons: [
       { src: "/icon.png", sizes: "512x512", type: "image/png" },
       { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },

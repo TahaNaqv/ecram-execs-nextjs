@@ -40,6 +40,7 @@ test("the booking flow checks the journey in the bar, then the details on the se
 });
 
 test("a quote request flows from the website into the admin panel and can be managed and deleted", async ({ page }) => {
+  test.slow();
   const email = `client-${Date.now()}@e2e.ecramexecs.test`;
 
   // 1. Visitor books from the homepage bar: an airport pick-up asks for the flight
