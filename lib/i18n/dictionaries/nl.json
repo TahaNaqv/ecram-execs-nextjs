@@ -687,11 +687,14 @@
       "subtitle": "Reserveringen",
       "sectionsLabel": "Beheersecties",
       "operations": "Operatie",
-      "requests": "Aanvragen",
+      "requests": "Boekingen",
+      "dispatch": "Visuele Dispatch",
       "drivers": "Chauffeurs",
       "applications": "Aanmeldingen",
-      "corporate": "Zakelijk",
-      "vehicles": "Voertuigen"
+      "corporate": "Corporate Partners",
+      "vehicles": "Vloot & Compliance",
+      "financials": "Facturatie & Financiën",
+      "audit": "Systeem & Audit"
     },
     "enquiries": {
       "title": "Aanvraagbeheer",

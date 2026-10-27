@@ -684,11 +684,14 @@
       "subtitle": "Reservations",
       "sectionsLabel": "Admin sections",
       "operations": "Operations",
-      "requests": "Requests",
+      "requests": "Bookings",
+      "dispatch": "Visual Dispatch",
       "drivers": "Drivers",
       "applications": "Applications",
-      "corporate": "Corporate",
-      "vehicles": "Vehicles"
+      "corporate": "Corporate Partners",
+      "vehicles": "Fleet & Compliance",
+      "financials": "Billing & Financials",
+      "audit": "Settings & Audit"
     },
     "enquiries": {
       "title": "Enquiry management",

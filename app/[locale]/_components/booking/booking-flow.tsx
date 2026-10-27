@@ -23,7 +23,13 @@ export type BookingResult = {
   fieldErrors: Partial<Record<string, string>>;
 };
 export type OfferedVehicle = { key: string; name: string };
-export type DetailDefaults = { notes?: string; passengerName?: string; passengerPhone?: { country: string; number: string } };
+export type DetailDefaults = {
+  notes?: string;
+  passengerName?: string;
+  passengerPhone?: { country: string; number: string };
+  entity?: string;
+  entityKvk?: string;
+};
 
 // Fields the server checks, by the step that asks for them: an error sends the visitor back there
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "returnAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
@@ -534,6 +540,39 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {purpose === "business" && !portal && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {field(
+                "entity",
+                locale === "nl" ? "Bedrijfsnaam" : "Company / Organization",
+                <input
+                  {...aria("entity")}
+                  name="entity"
+                  type="text"
+                  autoComplete="organization"
+                  maxLength={200}
+                  defaultValue={defaults?.entity}
+                  placeholder={locale === "nl" ? "bv. Acme B.V." : "e.g. Acme Corporation"}
+                  className={input}
+                />,
+              )}
+              {field(
+                "entityKvk",
+                locale === "nl" ? "KVK-nummer" : "KVK / CoC Number",
+                <input
+                  {...aria("entityKvk")}
+                  name="entityKvk"
+                  type="text"
+                  autoComplete="off"
+                  maxLength={30}
+                  defaultValue={defaults?.entityKvk}
+                  placeholder={locale === "nl" ? "8 cijfers (optioneel)" : "8 digits (optional)"}
+                  className={input}
+                />,
+              )}
             </div>
           )}
 

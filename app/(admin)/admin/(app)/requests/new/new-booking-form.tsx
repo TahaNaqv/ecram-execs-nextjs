@@ -83,6 +83,8 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
       <div className="md:col-span-2">
         <Select values={{}} name="contactId" label={copy.partner} options={partners} empty={copy.noPartner} />
       </div>
+      <Text values={{}} name="entity" label="Company / Entity (Optional)" hint="Auto-filled from partner if selected" />
+      <Text values={{}} name="entityKvk" label="KVK / Chamber of Commerce (Optional)" />
       <Select values={{}} name="service" label={copy.service} options={services} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="nb-pickupAt" className={fieldLabel}>

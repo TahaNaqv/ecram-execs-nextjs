@@ -31,6 +31,7 @@ import { InvoicesCard } from "./invoices-card";
 import { MessagesCard } from "./messages-card";
 import { PartnerCard } from "./partner-card";
 import { UpdateForm } from "./update-form";
+import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 
 async function BackLabel() {
   const { admin } = await adminDictionary();
@@ -188,6 +189,11 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         <Pipeline status={r.status} />
       </div>
 
+      {/* Module 2: Plan Your Journey Auto-Pricing & Authorisation Gateway */}
+      <div className="mt-6">
+        <AutoPricingGateway request={r} />
+      </div>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
           {/* Journey */}
@@ -286,6 +292,12 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                       <Meta icon={<UsersIcon />} label={rd.travelling}>
                         {r.passengerName}
                         {r.passengerPhone && <span className="block font-normal text-zinc-500">{r.passengerPhone}</span>}
+                      </Meta>
+                    )}
+                    {(r.entity || r.entityKvk) && (
+                      <Meta icon={<BriefcaseIcon />} label="Corporate / Entity">
+                        {r.entity ?? "Corporate Client"}
+                        {r.entityKvk && <span className="block font-normal text-zinc-500">KVK: {r.entityKvk}</span>}
                       </Meta>
                     )}
                   </dl>

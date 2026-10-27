@@ -41,8 +41,8 @@ export function formatTimestamp(value: Date, locale: Locale = "en") {
  * company quoting in euros, and the amount should read the same on an invoice whichever
  * language the panel is in.
  */
-export function formatEuro(value: string | null) {
-  if (value === null) return "—";
+export function formatEuro(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return "—";
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(Number(value));
 }
 

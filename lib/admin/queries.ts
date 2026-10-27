@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { cache } from "react";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
@@ -8,13 +8,18 @@ import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 const { quoteRequests: q, requestEvents: ev, adminUsers } = schema;
 export const PAGE_SIZE = 10;
 
-export type ListFilters = { status?: string; search?: string; page?: number };
+export type ListFilters = { status?: string; search?: string; page?: number; queue?: string };
 
-export async function listRequests({ status, search, page = 1 }: ListFilters) {
+export async function listRequests({ status, search, page = 1, queue }: ListFilters) {
   await requireAdmin();
   const where: SQL[] = [];
   if (status && (REQUEST_STATUSES as readonly string[]).includes(status)) {
     where.push(eq(q.status, status as RequestStatus));
+  }
+  if (queue === "corporate") {
+    where.push(or(isNotNull(q.corporateContactId), isNotNull(q.entity), inArray(q.source, ["portal", "website-corporate", "website-bespoke"]))!);
+  } else if (queue === "standard") {
+    where.push(and(isNull(q.corporateContactId), isNull(q.entity), notInArray(q.source, ["portal", "website-corporate", "website-bespoke"]))!);
   }
   if (search) {
     const term = `%${search.replace(/[%_\\]/g, "\\$&")}%`;

@@ -117,7 +117,7 @@ export const upcomingPickups = cache(async (limit = 6): Promise<UpcomingPickup[]
   });
 });
 
-export type FleetRow = { id: string; name: string; available: boolean; nextAt: string | null };
+export type FleetRow = { id: string; name: string; available: boolean; nextAt: string | null; batterySoC: number; rangeKm: number };
 
 /** Every registered vehicle, whether it is switched on, and the time of its next confirmed booking. */
 export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
@@ -138,7 +138,7 @@ export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
     const have = next.get(key);
     if (!have || b.next < have) next.set(key, b.next);
   }
-  return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(normalizeVehicleKey(v.id) ?? v.id) ?? null }));
+  return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(normalizeVehicleKey(v.id) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
 });
 
 /** The newest requests, newest first. */
