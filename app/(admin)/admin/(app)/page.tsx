@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -125,7 +124,6 @@ async function Figures() {
       <StatCard label={d.partnersLabel} value={partners.total} hint={interpolate(d.partnersHint, { count: partners.recent })} icon={<BriefcaseIcon />} />
       <StatCard
         label={d.revenueLabel}
-        // Wrap the formatted string or let the UI component handle scaling
         value={formatEuro(revenue.amount)}
         hint={interpolate(d.revenueHint, { count: revenue.count })}
         icon={<EuroIcon />}
@@ -222,23 +220,23 @@ async function Fleet() {
   return (
     <Card>
       <CardHeader
-        title="Vehicle Telemetry Feed (Top 5 BEVs)"
-        description="Real-time battery SoC, range, and dispatch telemetry"
+        title="Executive Fleet Telemetry Feed"
+        description="Real-time battery SoC, range, and dispatch availability"
         icon={<BatteryIcon size={16} />}
         actions={
           <Link
-            href="/admin/dispatch"
+            href="/admin/vehicles"
             className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap"
           >
-            Live Dispatch Grid →
+            Manage Fleet →
           </Link>
         }
       />
       {rows.length === 0 ? (
         <EmptyState icon={<CarIcon size={18} />} title={d.fleetEmpty} />
       ) : (
-        <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5">
-          {rows.slice(0, 5).map((v) => (
+        <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5 max-h-[380px] overflow-y-auto">
+          {rows.map((v) => (
             <li key={v.id} className="flex items-center justify-between gap-3 py-3">
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-zinc-950">{v.name}</span>
@@ -315,7 +313,6 @@ const HEALTH_TONE: Record<HealthState, "good" | "bad" | "muted"> = {
   notConnected: "muted",
 };
 
-/** Real-time health check pulling live environment configurations and DB pings */
 async function SystemHealthStatus() {
   const items = await systemHealth();
   const names: Record<HealthKey, string> = {

@@ -1,20 +1,22 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { ClockIcon, PlusIcon, XIcon } from "../../_components/icons";
+import { useRouter } from "next/navigation";
+import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
 import type { VehicleRow } from "@/lib/admin/live-queries";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 
 export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"snapshot" | "reminders">("snapshot");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Derived stats from real data
+  // Derived stats from real database data
   const available = vehicles.filter((v) => v.status === "available").length;
-  const maintenance = vehicles.filter((v) => v.status === "maintenance").length;
+  const maintenance = vehicles.filter((v) => v.status === "maintenance" || v.status === "unavailable").length;
   const total = vehicles.length;
   const complianceRate =
     total > 0 ? Math.round((vehicles.filter((v) => v.iltPermitStatus === "Valid").length / total) * 100) : 0;
@@ -39,24 +41,14 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
     setTimeout(() => setReportStatus(null), 3000);
   };
 
-  const statusColor = (s: string) =>
-    s === "available"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : s === "maintenance"
-        ? "bg-amber-50 text-amber-700 border-amber-200"
-        : "bg-rose-50 text-rose-700 border-rose-200";
-
-  const dotColor = (s: string) =>
-    s === "available" ? "bg-emerald-500" : s === "maintenance" ? "bg-amber-500" : "bg-rose-500";
-
   return (
     <div className="space-y-6 relative">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Vehicles", value: total, color: "text-zinc-950" },
-          { label: "Available", value: available, color: "text-emerald-600" },
-          { label: "In Maintenance", value: maintenance, color: "text-amber-600" },
+          { label: "Total Registered", value: total, color: "text-zinc-950" },
+          { label: "Available Now", value: available, color: "text-emerald-600" },
+          { label: "Unavailable / Maint.", value: maintenance, color: "text-amber-600" },
           { label: "ILT Compliance", value: `${complianceRate}%`, color: "text-zinc-950" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm flex flex-col justify-between">
@@ -78,8 +70,8 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
         <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
           <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">Vehicle Telemetry</h3>
-              <p className="text-[11px] text-zinc-500">Live battery SoC &amp; ILT compliance from database</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">Executive Fleet Telemetry</h3>
+              <p className="text-[11px] text-zinc-500">Live battery SoC, dispatch availability, and ILT compliance</p>
             </div>
             <div className="flex gap-1 bg-zinc-200/60 p-1 rounded-lg text-xs">
               {(["snapshot", "reminders"] as const).map((tab) => (
@@ -88,7 +80,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   onClick={() => setActiveTab(tab)}
                   className={`px-3 py-1.5 rounded-md font-semibold transition cursor-pointer ${activeTab === tab ? "bg-white text-zinc-950 shadow-xs" : "text-zinc-600"}`}
                 >
-                  {tab === "snapshot" ? "Live Fleet" : "APK / Insurance"}
+                  {tab === "snapshot" ? "Live Fleet & Availability" : "APK / Insurance"}
                 </button>
               ))}
             </div>
@@ -106,49 +98,81 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                     <th className="px-3 py-3">Battery</th>
                     <th className="px-3 py-3">Range</th>
                     <th className="px-3 py-3">ILT</th>
-                    <th className="px-4 py-3 text-right">Status</th>
+                    <th className="px-4 py-3 text-center">Availability Toggle</th>
+                    <th className="px-4 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicles.map((veh) => (
-                    <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
-                      <td className="px-4 py-3.5 font-medium text-zinc-950 truncate max-w-[180px]">{veh.name}</td>
-                      <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.licensePlate ?? "—"}</td>
-                      <td className="px-3 py-3.5 font-mono">
-                        <span className={veh.batterySoC < 25 ? "text-rose-600 font-bold" : "text-zinc-900"}>
-                          {veh.batterySoC}%
-                        </span>
-                      </td>
-                      <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.evRangeKm} km</td>
-                      <td className="px-3 py-3.5">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
-                        >
-                          {veh.iltPermitStatus}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            startTransition(() => toggleVehicleStatus(new FormData(e.currentTarget)));
-                          }}
-                          className="inline-flex items-center"
-                        >
-                          <input type="hidden" name="id" value={veh.id} />
-                          <input type="hidden" name="status" value={veh.status} />
-                          <button
-                            type="submit"
-                            disabled={isPending}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer transition border ${statusColor(veh.status)}`}
+                  {vehicles.map((veh) => {
+                    const isAvailable = veh.status === "available";
+                    return (
+                      <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
+                        <td className="px-4 py-3.5 font-medium text-zinc-950 truncate max-w-[160px]">{veh.name}</td>
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.licensePlate ?? "—"}</td>
+                        <td className="px-3 py-3.5 font-mono">
+                          <span className={veh.batterySoC < 25 ? "text-rose-600 font-bold" : "text-zinc-900"}>
+                            {veh.batterySoC}%
+                          </span>
+                        </td>
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.evRangeKm} km</td>
+                        <td className="px-3 py-3.5">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
                           >
-                            <span className={`size-1.5 rounded-full ${dotColor(veh.status)}`} />
-                            {veh.status}
+                            {veh.iltPermitStatus}
+                          </span>
+                        </td>
+                        
+                        {/* Interactive Pretty Toggle Switch */}
+                        <td className="px-4 py-3.5 text-center">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              const formData = new FormData();
+                              formData.append("id", veh.id);
+                              formData.append("status", isAvailable ? "unavailable" : "available");
+                              startTransition(async () => {
+                                await toggleVehicleStatus(formData);
+                                router.refresh();
+                              });
+                            }}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              isAvailable ? "bg-emerald-600" : "bg-zinc-300"
+                            }`}
+                            title={isAvailable ? "Click to set unavailable" : "Click to set available"}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                                isAvailable ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
                           </button>
-                        </form>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        {/* Delete Vehicle Action */}
+                        <td className="px-4 py-3.5 text-right">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              if (!confirm(`Remove ${veh.name} from the fleet?`)) return;
+                              const formData = new FormData();
+                              formData.append("id", veh.id);
+                              startTransition(async () => {
+                                await deleteVehicle(formData);
+                                router.refresh();
+                              });
+                            }}
+                            className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
+                            title="Delete Vehicle"
+                          >
+                            <TrashIcon size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -178,23 +202,23 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => {
                             if (!confirm("Remove this vehicle from the fleet?")) return;
-                            startTransition(() => deleteVehicle(new FormData(e.currentTarget)));
+                            const formData = new FormData();
+                            formData.append("id", veh.id);
+                            startTransition(async () => {
+                              await deleteVehicle(formData);
+                              router.refresh();
+                            });
                           }}
-                          className="inline"
+                          className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
+                          title="Delete Vehicle"
                         >
-                          <input type="hidden" name="id" value={veh.id} />
-                          <button
-                            type="submit"
-                            disabled={isPending}
-                            className="text-rose-600 hover:text-rose-800 text-[11px] font-semibold cursor-pointer"
-                          >
-                            Remove
-                          </button>
-                        </form>
+                          <TrashIcon size={15} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -242,7 +266,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
               {[
                 { label: "Total Registered", value: total },
                 { label: "Available Now", value: available, cls: "text-emerald-700" },
-                { label: "In Maintenance", value: maintenance, cls: "text-amber-700" },
+                { label: "Unavailable / Maint.", value: maintenance, cls: "text-amber-700" },
                 { label: "ILT Compliance", value: `${complianceRate}%` },
               ].map(({ label, value, cls }) => (
                 <div key={label} className="flex justify-between border-t border-zinc-200 pt-2 first:border-0 first:pt-0">
@@ -273,6 +297,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                 startTransition(async () => {
                   await addVehicle(new FormData(e.currentTarget));
                   setIsAddModalOpen(false);
+                  router.refresh();
                 });
               }}
               className="space-y-3 text-xs"
@@ -318,7 +343,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   disabled={isPending}
                   className="bg-black hover:bg-zinc-800 text-white font-semibold px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50"
                 >
-                  {isPending ? "Savingâ€¦" : "Register Vehicle"}
+                  {isPending ? "Saving..." : "Register Vehicle"}
                 </button>
               </div>
             </form>
@@ -379,4 +404,3 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
     </div>
   );
 }
-

@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { SearchIcon, PlusIcon, XIcon, BriefcaseIcon, UsersIcon } from "../../_components/icons";
+import { SearchIcon, PlusIcon, XIcon, BriefcaseIcon } from "../../_components/icons";
 import type { CorporatePartnerRow } from "@/lib/admin/live-queries";
 import { addCorporatePartner, deleteCorporatePartner } from "@/lib/admin/corporate-actions";
 import { formatEuro } from "@/lib/admin/format";
@@ -14,7 +13,13 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
   const [partners, setPartners] = useState<CorporatePartnerRow[]>(initialPartners);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  
+  // Selected partner for the right-side profile sidebar drawer
   const [selectedPartner, setSelectedPartner] = useState<CorporatePartnerRow | null>(null);
+  
+  // Sub-drawers/modals inside the profile sidebar
+  const [activeTabDrawer, setActiveTabDrawer] = useState<"bookings" | "billing" | "edit" | null>(null);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -52,14 +57,21 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
     startTransition(async () => {
       await deleteCorporatePartner(id);
       setPartners((prev) => prev.filter((p) => p.id !== id));
-      if (selectedPartner?.id === id) setSelectedPartner(null);
+      setSelectedPartner(null);
       router.refresh();
     });
   };
 
+  const handleUpdatePartner = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Here you can hook up your update server action if available
+    setActiveTabDrawer(null);
+    router.refresh();
+  };
+
   return (
     <div className="w-full relative">
-      {/* Full-Width Corporate Partner Management Table */}
+      {/* Corporate Partner Management Table */}
       <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden flex flex-col w-full">
         {/* Top Controls Bar */}
         <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
@@ -98,7 +110,7 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
           </div>
         </div>
 
-        {/* Full-Width Table */}
+        {/* Table */}
         <div className="overflow-x-auto w-full">
           {filteredPartners.length === 0 ? (
             <div className="p-12 text-center text-xs text-zinc-500">
@@ -106,11 +118,7 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
                 <BriefcaseIcon size={20} />
               </div>
               <p className="font-semibold text-zinc-900 text-sm">No corporate partners found</p>
-              <p className="mt-1 text-zinc-500">
-                {partners.length === 0
-                  ? "No corporate partners have been registered yet. Add your first client above."
-                  : "No partners match the current search or status filter."}
-              </p>
+              <p className="mt-1 text-zinc-500">No partners match the current search or status filter.</p>
             </div>
           ) : (
             <table className="w-full text-left text-xs">
@@ -121,15 +129,17 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
                   <th className="px-5 py-4">Booker Details</th>
                   <th className="px-5 py-4">Preferred Vehicle</th>
                   <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Spend MTD</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-6 py-4">Spend MTD</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {filteredPartners.map((partner) => (
                   <tr
                     key={partner.id}
-                    onClick={() => setSelectedPartner(partner)}
+                    onClick={() => {
+                      setSelectedPartner(partner);
+                      setActiveTabDrawer(null);
+                    }}
                     className="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
                   >
                     <td className="px-6 py-4 font-semibold text-zinc-950">
@@ -144,11 +154,7 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="size-8 shrink-0 rounded-full bg-zinc-200 flex items-center justify-center text-[11px] font-bold text-zinc-700">
-                          {partner.bookerName
-                            .split(" ")
-                            .map((n) => n[0])
-                            .slice(0, 2)
-                            .join("")}
+                          {partner.bookerName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                         </div>
                         <div>
                           <p className="font-medium text-zinc-900">{partner.bookerName}</p>
@@ -162,47 +168,15 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
                           partner.status === "Active"
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : partner.status === "Pending 2FA"
-                            ? "bg-amber-50 text-amber-700 border border-amber-200"
-                            : "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
                         }`}
                       >
-                        <span
-                          className={`size-1.5 rounded-full ${
-                            partner.status === "Active"
-                              ? "bg-emerald-500"
-                              : partner.status === "Pending 2FA"
-                              ? "bg-amber-500 animate-pulse"
-                              : "bg-rose-500"
-                          }`}
-                        />
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
                         {partner.status}
                       </span>
                     </td>
-                    <td className="px-5 py-4 font-mono font-medium text-zinc-900">
+                    <td className="px-6 py-4 font-mono font-medium text-zinc-900">
                       {formatEuro(partner.totalSpend)}
-                    </td>
-                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex items-center gap-1.5">
-                        <Link
-                          href={`/admin/corporate/${partner.id}`}
-                          className="bg-zinc-950 hover:bg-zinc-800 text-white font-semibold px-2.5 py-1.5 rounded-lg transition text-[11px] cursor-pointer shadow-xs"
-                        >
-                          Profile
-                        </Link>
-                        <Link
-                          href={`/admin/corporate/${partner.id}/bookings`}
-                          className="bg-white hover:bg-zinc-100 text-zinc-700 font-semibold px-2.5 py-1.5 rounded-lg border border-zinc-200 transition text-[11px] cursor-pointer"
-                        >
-                          Bookings
-                        </Link>
-                        <Link
-                          href={`/admin/corporate/${partner.id}/billing`}
-                          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-2.5 py-1.5 rounded-lg transition text-[11px] cursor-pointer"
-                        >
-                          Billing
-                        </Link>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -211,36 +185,30 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
           )}
         </div>
 
-        {/* Bottom Pagination & Summary Statistics Bar */}
+        {/* Bottom Pagination & Summary Bar */}
         <div className="p-4 sm:px-6 border-t border-zinc-100 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-4 text-xs text-zinc-600">
           <div>
             Showing <span className="font-bold text-zinc-900">{filteredPartners.length} of {partners.length}</span> partners
           </div>
           <div className="flex flex-wrap items-center gap-6 font-mono text-[11px]">
-            <div>
-              Total Active Partners: <span className="font-bold text-emerald-700">{totalActive}</span>
-            </div>
-            <div>
-              Pending Approvals: <span className="font-bold text-amber-700">{totalPending}</span>
-            </div>
+            <div>Active: <span className="font-bold text-emerald-700">{totalActive}</span></div>
+            <div>Pending: <span className="font-bold text-amber-700">{totalPending}</span></div>
           </div>
         </div>
       </div>
 
-      {/* User & Partner Details Slide-Over Drawer (Opens on Row Click) */}
+      {/* --- RIGHT-SIDE PROFILE SIDEBAR DRAWER --- */}
       {selectedPartner && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-zinc-950/60 backdrop-blur-xs">
-          <div className="bg-white border-l border-zinc-200 w-full max-w-md h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
-            <div>
+        <div className="fixed inset-0 z-50 flex justify-end bg-zinc-950/40 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white border-l border-zinc-200 w-full max-w-xl h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
+            <div className="space-y-6">
+              {/* Drawer Header & Action Buttons */}
               <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-xl bg-black text-white font-mono text-xs font-bold flex items-center justify-center">
-                    {selectedPartner.companyName.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-zinc-950">{selectedPartner.companyName}</h3>
-                    <p className="text-xs text-zinc-500 font-mono">KVK: {selectedPartner.kvk}</p>
-                  </div>
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-950">{selectedPartner.companyName}</h2>
+                  <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                    KVK: {selectedPartner.kvk} &bull; Booker: {selectedPartner.bookerName}
+                  </p>
                 </div>
                 <button
                   onClick={() => setSelectedPartner(null)}
@@ -250,80 +218,191 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
                 </button>
               </div>
 
-              <div className="mt-6 space-y-6">
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-                    Primary Booker Details
-                  </h4>
-                  <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200/80 space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Name:</span>
-                      <span className="font-semibold text-zinc-900">{selectedPartner.bookerName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Role:</span>
-                      <span className="text-zinc-700">{selectedPartner.bookerRole}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Email:</span>
-                      <span className="font-mono text-zinc-700">{selectedPartner.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Phone:</span>
-                      <span className="font-mono text-zinc-700">{selectedPartner.phone}</span>
-                    </div>
-                  </div>
-                </div>
+              {/* Conditional Quick Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setActiveTabDrawer(activeTabDrawer === "edit" ? null : "edit")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeTabDrawer === "edit"
+                      ? "bg-black text-white border-black"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  {activeTabDrawer === "edit" ? "View Overview" : "Edit Profile"}
+                </button>
 
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-                    Account Metrics
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-zinc-50 p-3.5 rounded-xl border border-zinc-200/80">
-                      <p className="text-zinc-500 text-[11px]">Total Lifetime Spend</p>
-                      <p className="text-lg font-bold font-mono text-zinc-950 mt-1">
-                        {formatEuro(selectedPartner.totalSpend)}
-                      </p>
+                {selectedPartner.activeBookings > 0 && (
+                  <button
+                    onClick={() => setActiveTabDrawer("bookings")}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  >
+                    View Bookings ({selectedPartner.activeBookings})
+                  </button>
+                )}
+
+                {selectedPartner.totalSpend > 0 && (
+                  <button
+                    onClick={() => setActiveTabDrawer("billing")}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  >
+                    Billing &amp; VAT
+                  </button>
+                )}
+              </div>
+
+              {/* Conditional Sub-views inside the sidebar drawer */}
+              {activeTabDrawer === "bookings" ? (
+                <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2 animate-in fade-in">
+                  <h4 className="font-semibold text-xs text-zinc-900">Recent Itineraries &amp; Bookings</h4>
+                  <p className="text-[11px] text-zinc-500">Detailed logs for {selectedPartner.companyName}.</p>
+                </div>
+              ) : activeTabDrawer === "billing" ? (
+                <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2 animate-in fade-in">
+                  <h4 className="font-semibold text-xs text-zinc-900">Billing Ledger &amp; KVK Verification</h4>
+                  <p className="text-[11px] text-zinc-500">KVK: {selectedPartner.kvk}</p>
+                </div>
+              ) : activeTabDrawer === "edit" ? (
+                /* --- FULL EDITABLE FORM FOR ALL FIELDS --- */
+                <form onSubmit={handleUpdatePartner} className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-3.5 animate-in fade-in text-xs">
+                  <h4 className="font-bold text-zinc-900 text-sm mb-1">Edit Partner Details</h4>
+                  
+                  <div>
+                    <label className="block font-medium text-zinc-700 mb-1">Company Legal Name</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedPartner.companyName}
+                      className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-medium text-zinc-700 mb-1">KVK Number</label>
+                      <input
+                        type="text"
+                        defaultValue={selectedPartner.kvk}
+                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 font-mono text-zinc-900 focus:outline-none"
+                      />
                     </div>
-                    <div className="bg-zinc-50 p-3.5 rounded-xl border border-zinc-200/80">
-                      <p className="text-zinc-500 text-[11px]">Active Bookings</p>
-                      <p className="text-lg font-bold font-mono text-zinc-950 mt-1">
-                        {selectedPartner.activeBookings}
-                      </p>
+                    <div>
+                      <label className="block font-medium text-zinc-700 mb-1">Preferred Vehicle</label>
+                      <input
+                        type="text"
+                        defaultValue={selectedPartner.preferredVehicle}
+                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                      />
                     </div>
                   </div>
-                </div>
-              </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-medium text-zinc-700 mb-1">Primary Booker Name</label>
+                      <input
+                        type="text"
+                        defaultValue={selectedPartner.bookerName}
+                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-medium text-zinc-700 mb-1">Booker Role</label>
+                      <input
+                        type="text"
+                        defaultValue={selectedPartner.bookerRole}
+                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-medium text-zinc-700 mb-1">Booker Email</label>
+                      <input
+                        type="email"
+                        defaultValue={selectedPartner.email}
+                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-medium text-zinc-700 mb-1">Phone Number</label>
+                      <input
+                        type="text"
+                        defaultValue={selectedPartner.phone}
+                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 font-mono text-zinc-900 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTabDrawer(null)}
+                      className="bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-semibold px-3 py-1.5 rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-black hover:bg-zinc-800 text-white font-semibold px-4 py-1.5 rounded-lg"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  {/* Compact Overview Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Active Bookings</p>
+                      <p className="text-xl font-bold tracking-tight text-zinc-950">{selectedPartner.activeBookings}</p>
+                    </div>
+                    <div className="rounded-xl border border-zinc-950 bg-zinc-950 text-white p-4 space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Total Spend MTD</p>
+                      <p className="text-xl font-bold tracking-tight">{formatEuro(selectedPartner.totalSpend)}</p>
+                    </div>
+                  </div>
+
+                  {/* Booker Contact Details */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Primary Contact</h3>
+                    <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200/80 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Name:</span>
+                        <span className="font-semibold text-zinc-900">{selectedPartner.bookerName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Role:</span>
+                        <span className="text-zinc-700">{selectedPartner.bookerRole}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Email:</span>
+                        <span className="font-mono text-zinc-700">{selectedPartner.email}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">Phone:</span>
+                        <span className="font-mono text-zinc-700">{selectedPartner.phone}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="pt-6 border-t border-zinc-100 flex flex-col gap-2">
-              <div className="grid grid-cols-3 gap-2">
-                <Link
-                  href={`/admin/corporate/${selectedPartner.id}`}
-                  className="bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 rounded-xl text-center text-xs transition"
-                >
-                  Profile
-                </Link>
-                <Link
-                  href={`/admin/corporate/${selectedPartner.id}/bookings`}
-                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold py-2.5 rounded-xl text-center text-xs transition"
-                >
-                  Bookings
-                </Link>
-                <Link
-                  href={`/admin/corporate/${selectedPartner.id}/billing`}
-                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold py-2.5 rounded-xl text-center text-xs transition"
-                >
-                  Billing
-                </Link>
-              </div>
+            {/* Bottom Actions */}
+            <div className="pt-6 border-t border-zinc-100 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => handleDeletePartner(selectedPartner.id)}
-                className="w-full text-rose-600 hover:bg-rose-50 font-semibold py-2 rounded-xl text-xs transition cursor-pointer"
+                className="text-rose-600 hover:bg-rose-50 font-semibold px-3 py-2 rounded-xl text-xs transition cursor-pointer"
               >
-                Delete Corporate Account
+                Delete Account
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPartner(null)}
+                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-4 py-2 rounded-xl text-xs transition cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

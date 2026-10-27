@@ -8,13 +8,11 @@ import {
   CarIcon,
   ChatIcon,
   ClockIcon,
-  CompassIcon,
   EuroIcon,
   InboxIcon,
   LayoutGridIcon,
   MenuIcon,
   NoteIcon,
-  ShieldIcon,
   SteeringIcon,
   XIcon,
 } from "./icons";
@@ -33,9 +31,7 @@ export type AdminNavCopy = {
   applications: string;
   corporate: string;
   vehicles: string;
-  dispatch?: string;
   financials?: string;
-  audit?: string;
   openMenu: string;
   closeMenu: string;
 };
@@ -61,7 +57,6 @@ const SECTIONS: NavSection[] = [
       { href: "/admin/enquiries", key: "enquiries", defaultLabel: "Enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
       { href: "/admin/requests", key: "requests", defaultLabel: "Bookings", icon: InboxIcon, match: (p: string) => p.startsWith("/admin/requests") },
       { href: "/admin/chats", key: "chats", defaultLabel: "Live Chats", icon: ChatIcon, match: (p: string) => p.startsWith("/admin/chats") },
-      { href: "/admin/dispatch", key: "dispatch", defaultLabel: "Visual Dispatch", icon: CompassIcon, match: (p: string) => p.startsWith("/admin/dispatch") },
     ],
   },
   {
@@ -80,10 +75,9 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Finance & Security",
+    title: "Finance",
     items: [
       { href: "/admin/financials", key: "financials", defaultLabel: "Billing & Financials", icon: EuroIcon, match: (p: string) => p.startsWith("/admin/financials") },
-      { href: "/admin/audit", key: "audit", defaultLabel: "Settings & Audit", icon: ShieldIcon, match: (p: string) => p.startsWith("/admin/audit") },
     ],
   },
 ];
@@ -113,7 +107,6 @@ export function AdminChrome({
   copy: AdminNavCopy;
 }) {
   const pathname = usePathname();
-  // The drawer is only open on the page it was opened from, so navigating closes it
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
 

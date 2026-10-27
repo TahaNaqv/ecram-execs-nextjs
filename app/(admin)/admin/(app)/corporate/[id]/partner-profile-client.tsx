@@ -5,38 +5,73 @@ import Link from "next/link";
 import { AdminDrawer } from "@/app/(admin)/admin/_components/admin-drawer";
 import { AdminModal } from "@/app/(admin)/admin/_components/admin-modal";
 
-export function PartnerDetailClient({ partner, bookings }: { partner: any; bookings: any[] }) {
+export function PartnerProfileClient({ partner }: { partner: any }) {
   // Manage which drawer or modal is active
   const [activeDrawer, setActiveDrawer] = useState<"bookings" | "billing" | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  // Check if data exists for conditional drawer triggers
+  const hasBookings = partner.recentBookings && partner.recentBookings.length > 0;
+  const hasBillingData = partner.totalSpend > 0 || partner.kvkNumber;
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Top action buttons triggering the drawers / modals */}
-      <div className="flex items-center justify-end gap-2">
-        {/* Edit Button -> Opens Edit Modal */}
-        <button
-          onClick={() => setIsEditModalOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
-        >
-          Edit Profile
-        </button>
+      {/* Top Header & Action Buttons */}
+      <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-950">{partner.companyName}</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">KVK: {partner.kvkNumber} &bull; Booker: {partner.bookerName}</p>
+        </div>
 
-        {/* Bookings Button -> Opens Bookings Drawer */}
-        <button
-          onClick={() => setActiveDrawer("bookings")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
-        >
-          View All Bookings ({bookings.length})
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Edit Profile Button -> Opens Modal */}
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
+          >
+            Edit Profile
+          </button>
 
-        {/* Billing Button -> Opens Billing Drawer */}
-        <button
-          onClick={() => setActiveDrawer("billing")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
-        >
-          Billing &amp; VAT
-        </button>
+          {/* Bookings Button -> Opens Drawer ONLY IF bookings exist */}
+          {hasBookings && (
+            <button
+              onClick={() => setActiveDrawer("bookings")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
+            >
+              View Bookings ({partner.recentBookings.length})
+            </button>
+          )}
+
+          {/* Billing Button -> Opens Drawer ONLY IF billing/spend data exists */}
+          {hasBillingData && (
+            <button
+              onClick={() => setActiveDrawer("billing")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
+            >
+              Billing &amp; VAT
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Profile Dashboard Overview Grids */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Trips</p>
+          <p className="text-2xl font-bold tracking-tight text-zinc-950">{partner.totalTrips}</p>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Avg Trip Value</p>
+          <p className="text-2xl font-bold tracking-tight text-zinc-950">€ {partner.avgTripValue}</p>
+        </div>
+        <div className="rounded-xl border border-zinc-950 bg-zinc-950 text-white p-5 shadow-xs space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Spend</p>
+          <p className="text-2xl font-bold tracking-tight">€ {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Preferred Vehicle</p>
+          <p className="text-lg font-bold tracking-tight text-zinc-950 truncate">{partner.topVehicle}</p>
+        </div>
       </div>
 
       {/* --- BOOKINGS SIDEBAR DRAWER --- */}
@@ -66,24 +101,16 @@ export function PartnerDetailClient({ partner, bookings }: { partner: any; booki
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {bookings.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-6 text-center text-zinc-400">
-                      No bookings found.
+                {partner.recentBookings.map((b: any) => (
+                  <tr key={b.id} className="hover:bg-zinc-50/50">
+                    <td className="px-4 py-3 font-mono text-sky-700 font-bold">{b.reference}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-zinc-900">{b.passengerName}</p>
+                      <p className="text-[11px] text-zinc-400">{b.pickupDate}</p>
                     </td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold">€ {b.amount.toFixed(2)}</td>
                   </tr>
-                ) : (
-                  bookings.map((b) => (
-                    <tr key={b.id} className="hover:bg-zinc-50/50">
-                      <td className="px-4 py-3 font-mono text-sky-700 font-bold">{b.reference}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-zinc-900">{b.passengerName}</p>
-                        <p className="text-[11px] text-zinc-400">{b.pickupDate}</p>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold">€ {b.amount.toFixed(2)}</td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
@@ -110,6 +137,7 @@ export function PartnerDetailClient({ partner, bookings }: { partner: any; booki
           <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
             <p className="text-xs"><strong className="text-zinc-950">KVK Number:</strong> {partner.kvkNumber}</p>
             <p className="text-xs"><strong className="text-zinc-950">KVR Number:</strong> {partner.kvrNumber}</p>
+            <p className="text-xs"><strong className="text-zinc-950">Total YTD Spend:</strong> € {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
       </AdminDrawer>
@@ -121,7 +149,6 @@ export function PartnerDetailClient({ partner, bookings }: { partner: any; booki
         title={`Edit ${partner.companyName}`}
         subtitle="Update corporate partner parameters and configuration settings"
       >
-        {/* Put your edit form or inputs here */}
         <div className="space-y-4 text-xs">
           <div>
             <label className="block font-medium text-zinc-700 mb-1">Company Name</label>
@@ -147,10 +174,7 @@ export function PartnerDetailClient({ partner, bookings }: { partner: any; booki
               Cancel
             </button>
             <button
-              onClick={() => {
-                // Handle save action here
-                setIsEditModalOpen(false);
-              }}
+              onClick={() => setIsEditModalOpen(false)}
               className="rounded-lg bg-zinc-950 px-3 py-1.5 font-medium text-white hover:bg-zinc-800"
             >
               Save Changes
