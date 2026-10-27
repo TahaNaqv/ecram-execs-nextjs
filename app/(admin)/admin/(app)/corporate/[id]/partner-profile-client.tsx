@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  ArrowLeftIcon,
   BriefcaseIcon,
   CalendarIcon,
   CarIcon,
@@ -81,6 +82,59 @@ export function PartnerProfileClient({
 
   return (
     <div className="space-y-6">
+      {/* Top Header & Sub-module Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-4">
+        <div>
+          <Link
+            href="/admin/corporate"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-950 transition-colors mb-1.5"
+          >
+            <ArrowLeftIcon size={13} /> Back to Corporate Directory
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold tracking-tight text-zinc-950">{partner.companyName}</h1>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${
+                partner.status === "Active"
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                  : partner.status === "Pending 2FA"
+                  ? "bg-amber-50 text-amber-800 ring-amber-200"
+                  : "bg-red-50 text-red-700 ring-red-200"
+              }`}
+            >
+              {partner.status}
+            </span>
+            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-800">
+              {partner.tier} Tier ({partner.discountRate} off)
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            KVK: {partner.kvkNumber} · Booker: {partner.bookerName} ({partner.bookerPosition})
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/admin/corporate/${partner.id}/bookings`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 shadow-xs transition"
+          >
+            <CalendarIcon size={14} /> Bookings ({partner.totalTrips})
+          </Link>
+          <Link
+            href={`/admin/corporate/${partner.id}/billing`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 shadow-xs transition"
+          >
+            <CreditCardIcon size={14} /> Billing &amp; VAT
+          </Link>
+          <Link
+            href={`/admin/corporate/${partner.id}/edit`}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 shadow-xs transition"
+          >
+            <NoteIcon size={14} /> Edit Partner
+          </Link>
+        </div>
+      </div>
+
       {/* Overview Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

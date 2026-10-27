@@ -97,7 +97,7 @@ export function BookingFlow({
   result: BookingResult;
   submit: (data: FormData) => void;
   /** Portal: the signed-in partner, shown instead of name and email fields */
-  booker?: { name: string; email: string };
+  booker?: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
   /** Portal "repeat this booking": the details step starts from the earlier booking's notes and passenger */
   defaults?: DetailDefaults;
@@ -383,7 +383,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   vehicleAdvise: string;
   result: BookingResult;
   submit: (data: FormData) => void;
-  booker?: { name: string; email: string };
+  booker?: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
   defaults?: DetailDefaults;
   privacyHref?: string;
@@ -504,7 +504,9 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
               <div className="flex flex-col gap-1 rounded-xl bg-ink-50 px-3.5 py-2.5 md:col-span-2">
                 <span className="text-[12px] text-ink-600">{t.yourName}</span>
                 <span className="text-[16px] font-medium text-ink-950">
-                  {booker.name} · <span className="font-normal text-ink-700">{booker.email}</span>
+                  {booker.name}
+                  {booker.companyName ? ` (${booker.companyName})` : ""} ·{" "}
+                  <span className="font-normal text-ink-700">{booker.email}</span>
                 </span>
               </div>
             ) : (

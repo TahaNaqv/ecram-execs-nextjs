@@ -266,6 +266,7 @@ export const corporateContacts = pgTable(
     position: text("position").notNull(),
     companyName: text("company_name"),
     kvkNumber: text("kvk_number"),
+    phone: text("phone"), // <-- Added phone field to persist direct phone numbers
     locale: contentLocale("locale").notNull().default("en"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     lastAccessAt: timestamp("last_access_at", { withTimezone: true }),

@@ -33,6 +33,7 @@ export async function addCorporatePartner(formData: FormData) {
         email,
         emailDomain,
         position,
+        phone, // <-- Included phone so it saves to the database
         verifiedAt: new Date(),
         source: "admin",
       })
@@ -89,5 +90,43 @@ export async function updateCorporateBilling(formData: FormData) {
   } catch (error) {
     console.error("❌ Error updating corporate billing:", error);
     return { ok: false, error: "Failed to update billing details." };
+  }
+}
+
+export async function updateCorporatePartner(formData: FormData) {
+  await requireAdmin();
+
+  const id = formData.get("id") as string;
+  const companyName = (formData.get("companyName") as string)?.trim();
+  const kvkNumber = (formData.get("kvk") as string)?.trim() || null;
+  const name = (formData.get("bookerName") as string)?.trim();
+  const position = (formData.get("bookerRole") as string)?.trim();
+  const status = (formData.get("status") as string)?.trim();
+
+  if (!id || !companyName || !name) {
+    return { ok: false, error: "Missing required fields" };
+  }
+
+  try {
+    const lockedUntil = status === "Suspended" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null;
+    await db
+      .update(corporateContacts)
+      .set({
+        companyName,
+        kvkNumber,
+        name,
+        position: position || undefined,
+        lockedUntil,
+        updatedAt: new Date(),
+      })
+      .where(eq(corporateContacts.id, id));
+
+    revalidatePath(`/admin/corporate/${id}`);
+    revalidatePath(`/admin/corporate/${id}/edit`);
+    revalidatePath("/admin/corporate");
+    return { ok: true };
+  } catch (error) {
+    console.error("❌ Error updating corporate partner:", error);
+    return { ok: false, error: "Failed to update partner." };
   }
 }

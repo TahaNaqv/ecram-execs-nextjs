@@ -183,16 +183,22 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
                       {formatEuro(partner.totalSpend)}
                     </td>
                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5">
+                        <Link
+                          href={`/admin/corporate/${partner.id}`}
+                          className="bg-zinc-950 hover:bg-zinc-800 text-white font-semibold px-2.5 py-1.5 rounded-lg transition text-[11px] cursor-pointer shadow-xs"
+                        >
+                          Profile
+                        </Link>
                         <Link
                           href={`/admin/corporate/${partner.id}/bookings`}
-                          className="bg-zinc-50 hover:bg-zinc-200 text-zinc-700 font-semibold px-3 py-1.5 rounded-lg border border-zinc-200 transition text-[11px] cursor-pointer"
+                          className="bg-white hover:bg-zinc-100 text-zinc-700 font-semibold px-2.5 py-1.5 rounded-lg border border-zinc-200 transition text-[11px] cursor-pointer"
                         >
                           Bookings
                         </Link>
                         <Link
                           href={`/admin/corporate/${partner.id}/billing`}
-                          className="bg-zinc-100 hover:bg-black hover:text-white text-zinc-800 font-semibold px-3 py-1.5 rounded-lg transition text-[11px] cursor-pointer"
+                          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-2.5 py-1.5 rounded-lg transition text-[11px] cursor-pointer"
                         >
                           Billing
                         </Link>
@@ -292,18 +298,24 @@ export function CorporateDirectoryHub({ initialPartners = [] }: { initialPartner
             </div>
 
             <div className="pt-6 border-t border-zinc-100 flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <Link
+                  href={`/admin/corporate/${selectedPartner.id}`}
+                  className="bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 rounded-xl text-center text-xs transition"
+                >
+                  Profile
+                </Link>
                 <Link
                   href={`/admin/corporate/${selectedPartner.id}/bookings`}
-                  className="bg-black hover:bg-zinc-800 text-white font-semibold py-2.5 rounded-xl text-center text-xs transition"
+                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold py-2.5 rounded-xl text-center text-xs transition"
                 >
-                  View Bookings
+                  Bookings
                 </Link>
                 <Link
                   href={`/admin/corporate/${selectedPartner.id}/billing`}
                   className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold py-2.5 rounded-xl text-center text-xs transition"
                 >
-                  Manage Billing
+                  Billing
                 </Link>
               </div>
               <button
