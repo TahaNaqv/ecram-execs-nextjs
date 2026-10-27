@@ -1,3 +1,4 @@
+export const instant = false;
 import { notFound } from "next/navigation";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
 import { PartnerBillingClient } from "./partner-billing-client";

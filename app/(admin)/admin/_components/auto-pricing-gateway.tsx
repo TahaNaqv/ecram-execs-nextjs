@@ -15,7 +15,9 @@ import {
 } from "./icons";
 
 export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
-  const [status, setStatus] = useState(request.status);
+  const [status, setStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
+    request.status as any
+  );
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
@@ -340,7 +342,7 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
               <select
                 value={status}
                 onChange={(e) => {
-                  setStatus(e.target.value);
+                  setStatus(e.target.value as any);
                   setToast(`Status updated to ${e.target.value.toUpperCase()}`);
                   setTimeout(() => setToast(null), 3000);
                 }}
