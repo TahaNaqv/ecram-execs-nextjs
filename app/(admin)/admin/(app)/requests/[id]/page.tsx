@@ -1,3 +1,4 @@
+export const instant = false;
 import Link from "next/link";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound } from "next/navigation";

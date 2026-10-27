@@ -1,3 +1,4 @@
+export const instant = false;
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
