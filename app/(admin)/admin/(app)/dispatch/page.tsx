@@ -1,3 +1,4 @@
+export const instant = false;
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageBody, PageHeader } from "../../_components/ui";

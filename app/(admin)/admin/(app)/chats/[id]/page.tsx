@@ -16,6 +16,7 @@ import { deleteChat } from "../../../actions";
 // Allow blocking dynamic rendering under cacheComponents for this route
 export const instant = false;
 
+
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
   return { title: admin.chats.detailTitle };

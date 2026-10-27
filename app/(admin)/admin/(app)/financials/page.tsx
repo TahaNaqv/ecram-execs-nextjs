@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
+export const instant = false;
 import { Suspense } from "react";
 import { PageBody, PageHeader } from "../../_components/ui";
 import { FinancialAutomationEngine } from "./financial-engine";
 import { getFinancialSummary, getDriverPayoutRows } from "@/lib/admin/live-queries";
 
-export const metadata: Metadata = {
-  title: "Billing & Financial Automation | Ecram Execs",
-};
 
 async function FinancialsContent() {
   const [summary, drivers] = await Promise.all([

@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -122,12 +123,12 @@ async function Figures() {
         icon={<CalendarIcon />}
       />
       <StatCard label={d.partnersLabel} value={partners.total} hint={interpolate(d.partnersHint, { count: partners.recent })} icon={<BriefcaseIcon />} />
-      <StatCard 
-        label={d.revenueLabel} 
+      <StatCard
+        label={d.revenueLabel}
         // Wrap the formatted string or let the UI component handle scaling
-        value={formatEuro(revenue.amount)} 
-        hint={interpolate(d.revenueHint, { count: revenue.count })} 
-        icon={<EuroIcon />} 
+        value={formatEuro(revenue.amount)}
+        hint={interpolate(d.revenueHint, { count: revenue.count })}
+        icon={<EuroIcon />}
       />
     </div>
   );

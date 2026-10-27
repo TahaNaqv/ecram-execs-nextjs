@@ -1,11 +1,10 @@
+export const instant = false;
 import { requireAdmin } from "@/lib/auth/session";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { FleetComplianceSentinel } from "./compliance-sentinel";
 import { getAllVehicles } from "@/lib/admin/live-queries";
-
-export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
