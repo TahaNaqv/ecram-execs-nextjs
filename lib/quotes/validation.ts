@@ -112,6 +112,9 @@ export const quoteSchema = (t: QuoteMessages) =>
       .optional()
       .transform((v) => (v ? (normalizeVehicleKey(v) ?? v) : undefined))
       .pipe(z.enum(VEHICLE_CHOICES).optional()),
+    // When the booker books on behalf of a company or organization
+    entity: z.preprocess(blank, z.string().trim().max(200).optional()),
+    entityKvk: z.preprocess(blank, z.string().trim().max(30).optional()),
     // Collected as two fields; stored as one "+31 6 1234 5678" string (see the transform below).
     phoneCountry: countryCode(t.phoneCountryInvalid),
     phone: z.string().trim().regex(PHONE_DIGITS, t.phoneNumberInvalid),

@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.requests.title };
 }
 
-type Search = { status?: string; q?: string; page?: string };
+type Search = { status?: string; q?: string; page?: string; queue?: string };
 
 async function Heading({ part }: { part: "title" | "description" }) {
   const { admin } = await adminDictionary();
@@ -125,10 +125,10 @@ function StatsSkeleton() {
 }
 
 async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
-  const { status, q, page: pageParam } = await searchParams;
+  const { status, q, page: pageParam, queue } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
   const [{ rows, total }, counts, dict] = await Promise.all([
-    listRequests({ status, search: q?.trim(), page }),
+    listRequests({ status, search: q?.trim(), page, queue }),
     statusCounts(),
     adminDictionary(),
   ]);
@@ -147,12 +147,48 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
     { key: "", label: t.requests.all, n: all, dot: "" },
     ...REQUEST_STATUSES.map((s) => ({ key: s, label: t.statuses[s], n: counts[s], dot: STATUS_DOT[s] })),
   ];
-  const filtered = Boolean(q || status);
+  const filtered = Boolean(q || status || queue);
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(total, page * PAGE_SIZE);
 
   return (
     <Card className="mt-6 overflow-hidden">
+      {/* Booking Streams: Plan Your Journey (Standard) vs Corporate Bookings */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/70 px-4 py-2.5 sm:px-5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-zinc-500">Booking Stream:</span>
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 shadow-xs">
+            <Link
+              href={href({ status, q, queue: undefined })}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                !queue ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
+              }`}
+            >
+              All Bookings
+            </Link>
+            <Link
+              href={href({ status, q, queue: "standard" })}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                queue === "standard" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
+              }`}
+            >
+              Plan Your Journey (Standard)
+            </Link>
+            <Link
+              href={href({ status, q, queue: "corporate" })}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                queue === "corporate" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
+              }`}
+            >
+              Corporate Bookings (Verified B2B)
+            </Link>
+          </div>
+        </div>
+        <span className="text-xs text-zinc-400">
+          SLA compliance auto-monitored · Real-time auto-pricing active
+        </span>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col gap-3 border-b border-zinc-100 p-3 sm:p-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
         <nav className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0" aria-label={t.common.filterByStatus}>
@@ -162,7 +198,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               return (
                 <Link
                   key={t.key || "all"}
-                  href={href({ status: t.key, q })}
+                  href={href({ status: t.key, q, queue })}
                   aria-current={active ? "page" : undefined}
                   className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition ${
                     active ? "bg-white text-zinc-950 shadow-card ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"
@@ -178,6 +214,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
         </nav>
         <form action="/admin/requests" role="search" className="flex w-full gap-2 sm:max-w-md 2xl:w-auto 2xl:max-w-none">
           {status && <input type="hidden" name="status" value={status} />}
+          {queue && <input type="hidden" name="queue" value={queue} />}
           <div className="relative min-w-0 flex-1 2xl:w-72 2xl:flex-none">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <LiveSearchInput
@@ -189,7 +226,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
             />
             {q && (
               <Link
-                href={href({ status })}
+                href={href({ status, queue })}
                 aria-label={t.common.clear}
                 title={t.common.clear}
                 className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-zinc-950 hover:bg-zinc-100 hover:text-zinc-950"
@@ -221,11 +258,11 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
         />
       ) : (
         <>
-          {/* Phones, tablets and small laptops: stacked list (the table needs about a thousand pixels) */}
+          {/* Phones, tablets and small laptops: stacked list */}
           <ul className="divide-y divide-zinc-100 xl:hidden">
             {rows.map((r: QuoteRequest) => {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
-              const destinationsArray = [...(r.destinations ?? []), journeyEnd(r)].filter(Boolean); // stops on the way, then where to
+              const destinationsArray = [...(r.destinations ?? []), journeyEnd(r)].filter(Boolean);
               return (
                 <li key={r.id}>
                   <Link href={`/admin/requests/${r.id}`} className="flex gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
@@ -266,7 +303,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
             })}
           </ul>
 
-          {/* Wide screens: table. It scrolls inside the card in both directions, so its scrollbars are always in view */}
+          {/* Wide screens: table */}
           <div className="hidden max-h-[calc(100dvh-9rem)] overflow-auto xl:block">
             <table className="w-full text-left text-sm">
               <thead>
@@ -298,7 +335,6 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           {r.status === "new" && <span aria-label={t.requests.unread} className="absolute left-1.5 size-1.5 rounded-full bg-zinc-950" />}
                           <Avatar name={r.name} size="sm" />
                           <div className="min-w-0">
-                            {/* Stretched link: the whole row is clickable */}
                             <Link
                               href={`/admin/requests/${r.id}`}
                               className={`block max-w-44 truncate text-zinc-950 after:absolute after:inset-0 after:content-[''] ${
@@ -320,9 +356,9 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           </div>
                         ) : (
                           <div className="relative flex flex-col gap-1.5 py-0.5 text-[13px] leading-4 text-zinc-700">
-                            {allStops.map((stop, i, arr) => {
+                            {allStops.map((stop, i) => {
                               const isFirst = i === 0;
-                              const isLast = i === arr.length - 1;
+                              const isLast = i === allStops.length - 1;
                               
                               return (
                                 <div key={i} className="flex items-center gap-2.5">
@@ -393,7 +429,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
           </p>
           {pages > 1 && (
             <nav className="flex items-center gap-2" aria-label={t.common.pagination}>
-              <PageLink disabled={page <= 1} href={href({ status, q, page: String(page - 1) })} label={t.common.previousPage}>
+              <PageLink disabled={page <= 1} href={href({ status, q, queue, page: String(page - 1) })} label={t.common.previousPage}>
                 <ChevronLeftIcon />
               </PageLink>
               {pageWindow(page, pages).map((n, i) =>
@@ -404,7 +440,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 ) : (
                   <Link
                     key={n}
-                    href={href({ status, q, page: n === 1 ? undefined : String(n) })}
+                    href={href({ status, q, queue, page: n === 1 ? undefined : String(n) })}
                     aria-current={n === page ? "page" : undefined}
                     className={`${btn.base} size-8 px-0 tabular-nums ${n === page ? btn.primary : btn.secondary}`}
                   >
@@ -412,7 +448,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                   </Link>
                 ),
               )}
-              <PageLink disabled={page >= pages} href={href({ status, q, page: String(page + 1) })} label={t.common.nextPage}>
+              <PageLink disabled={page >= pages} href={href({ status, q, queue, page: String(page + 1) })} label={t.common.nextPage}>
                 <ChevronRightIcon />
               </PageLink>
             </nav>
@@ -423,7 +459,6 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   );
 }
 
-/** The page numbers to show: the first, the last and the ones around the current page, with a gap (null) where numbers are left out. */
 function pageWindow(page: number, pages: number): (number | null)[] {
   const shown = [...new Set([1, page - 1, page, page + 1, pages].filter((n) => n >= 1 && n <= pages))].sort((a, b) => a - b);
   return shown.flatMap((n, i) => (i > 0 && n - shown[i - 1] > 1 ? [null, n] : [n]));

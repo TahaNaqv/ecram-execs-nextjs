@@ -39,7 +39,7 @@ export async function CorporateShell({
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-5 py-[22px] md:px-6 2xl:max-w-[1440px]">
           <Link href={localizedPath("/", locale)} className="inline-flex items-center gap-2 whitespace-nowrap chrome font-display text-[15px] tracking-[0.2em] md:gap-3 md:text-[22px] no-underline md:tracking-[0.32em]">
             <Image className="h-10 w-10 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} />
-            <span className="max-sm:sr-only">ECRAM EXECS</span>
+            <span className="text-white">ECRAM EXECS</span>
           </Link>
           <LanguageSwitcher route={route} />
         </div>
@@ -85,7 +85,7 @@ export async function SignedInNotice({ explain }: { explain?: boolean }) {
   if (!contact) return null;
   const t = d.corporatePartner;
   return (
-    <div className="mb-8 flex flex-col items-start gap-3 border border-ink-225 bg-white p-5">
+    <div className="mb-8 flex flex-col items-center text-center gap-3 border border-ink-225 bg-white p-5">
       <p className="m-0 text-[15px] text-ink-700">{interpolate(t.signedInAs, { email: contact.email })}</p>
       {explain && <p className="m-0 text-[14px] text-ink-600">{t.signedInSignupNote}</p>}
       <Link href={localizedPath("/corporate-partner/account", locale)} className={linkButton}>

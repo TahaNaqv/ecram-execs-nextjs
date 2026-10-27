@@ -43,7 +43,7 @@ export function PortalBooking({
   fleetDict: FleetDictionary;
   vehicleAdvise: string;
   vehicles: OfferedVehicle[];
-  booker: { name: string; email: string };
+  booker: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
   initialTrip: Trip;
   defaults?: DetailDefaults;

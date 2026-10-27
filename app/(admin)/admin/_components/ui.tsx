@@ -150,7 +150,10 @@ export function StatCard({
           {icon}
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight sm:text-[28px]">{value}</p>
+      {/* Updated value class with responsive scaling and text truncation to prevent multi-million euro overflows */}
+      <div className="mt-3 text-xl sm:text-2xl lg:text-[28px] font-semibold tabular-nums tracking-tight truncate" title={typeof value === "string" ? value : undefined}>
+        {value}
+      </div>
       {hint && <p className={`mt-1 line-clamp-2 text-xs ${accent ? "text-zinc-400" : "text-zinc-500"}`}>{hint}</p>}
     </div>
   );

@@ -1,3 +1,4 @@
+export const instant = false;
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -41,7 +42,7 @@ async function Heading() {
   return admin.applications.title;
 }
 
-export const instant = false;
+
 export default function ApplicationsPage({ searchParams }: PageProps<"/admin/drivers/applications">) {
   return (
     <PageBody>
@@ -97,9 +98,8 @@ async function Applications({ searchParams }: { searchParams: Promise<{ status?:
                 key={t.key || "all"}
                 href={t.key ? `/admin/drivers/applications?status=${t.key}` : "/admin/drivers/applications"}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition ${
-                  active ? "bg-white text-zinc-950 shadow-card ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"
-                }`}
+                className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition ${active ? "bg-white text-zinc-950 shadow-card ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"
+                  }`}
               >
                 {t.dot && <span aria-hidden="true" className={`size-1.5 rounded-full ${t.key === "new" ? "bg-zinc-950" : t.dot}`} />}
                 {t.label}

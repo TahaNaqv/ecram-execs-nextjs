@@ -3,30 +3,86 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BriefcaseIcon, CarIcon, ChatIcon, ClockIcon, InboxIcon, LayoutGridIcon, MenuIcon, NoteIcon, SteeringIcon, XIcon } from "./icons";
+import {
+  BriefcaseIcon,
+  CarIcon,
+  ChatIcon,
+  ClockIcon,
+  EuroIcon,
+  InboxIcon,
+  LayoutGridIcon,
+  MenuIcon,
+  NoteIcon,
+  SteeringIcon,
+  XIcon,
+} from "./icons";
 
 /** Labels arrive from the server as `copy`, since a Client Component cannot read the dictionary. */
 export type AdminNavCopy = {
-  brand: string; subtitle: string; sectionsLabel: string; operations: string;
-  dashboard: string; enquiries: string; requests: string; chats: string; drivers: string; applications: string; corporate: string; vehicles: string;
-  openMenu: string; closeMenu: string;
+  brand: string;
+  subtitle: string;
+  sectionsLabel: string;
+  operations: string;
+  dashboard: string;
+  enquiries: string;
+  requests: string;
+  chats?: string;
+  drivers: string;
+  applications: string;
+  corporate: string;
+  vehicles: string;
+  financials?: string;
+  openMenu: string;
+  closeMenu: string;
 };
 
-const LINKS = [
-  { href: "/admin", key: "dashboard", icon: LayoutGridIcon, match: (p: string) => p === "/admin" },
-  { href: "/admin/enquiries", key: "enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
-  { href: "/admin/requests", key: "requests", icon: InboxIcon, match: (p: string) => p.startsWith("/admin/requests") },
-  { href: "/admin/chats", key: "chats", icon: ChatIcon, match: (p: string) => p.startsWith("/admin/chats") },
+type NavItem = {
+  href: string;
+  key: keyof AdminNavCopy;
+  defaultLabel: string;
+  icon: (props: { size?: number; className?: string }) => React.JSX.Element;
+  match: (p: string) => boolean;
+};
+
+type NavSection = {
+  title?: string;
+  items: NavItem[];
+};
+
+const SECTIONS: NavSection[] = [
   {
-    href: "/admin/drivers",
-    key: "drivers",
-    icon: SteeringIcon,
-    match: (p: string) => p.startsWith("/admin/drivers") && !p.startsWith("/admin/drivers/applications"),
+    title: "Operations",
+    items: [
+      { href: "/admin", key: "dashboard", defaultLabel: "Dashboard", icon: LayoutGridIcon, match: (p: string) => p === "/admin" },
+      { href: "/admin/enquiries", key: "enquiries", defaultLabel: "Enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
+      { href: "/admin/requests", key: "requests", defaultLabel: "Bookings", icon: InboxIcon, match: (p: string) => p.startsWith("/admin/requests") },
+      { href: "/admin/chats", key: "chats", defaultLabel: "Live Chats", icon: ChatIcon, match: (p: string) => p.startsWith("/admin/chats") },
+    ],
   },
-  { href: "/admin/drivers/applications", key: "applications", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/drivers/applications") },
-  { href: "/admin/corporate", key: "corporate", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
-  { href: "/admin/vehicles", key: "vehicles", icon: CarIcon, match: (p: string) => p.startsWith("/admin/vehicles") },
-] as const;
+  {
+    title: "Fleet & Partners",
+    items: [
+      { href: "/admin/corporate", key: "corporate", defaultLabel: "Corporate Partners", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
+      { href: "/admin/vehicles", key: "vehicles", defaultLabel: "Fleet & Compliance", icon: CarIcon, match: (p: string) => p.startsWith("/admin/vehicles") },
+      {
+        href: "/admin/drivers",
+        key: "drivers",
+        defaultLabel: "Drivers",
+        icon: SteeringIcon,
+        match: (p: string) => p.startsWith("/admin/drivers") && !p.startsWith("/admin/drivers/applications"),
+      },
+      { href: "/admin/drivers/applications", key: "applications", defaultLabel: "Applications", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/drivers/applications") },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      { href: "/admin/financials", key: "financials", defaultLabel: "Billing & Financials", icon: EuroIcon, match: (p: string) => p.startsWith("/admin/financials") },
+    ],
+  },
+];
+
+const ALL_LINKS = SECTIONS.flatMap((s) => s.items);
 
 function Wordmark({ copy }: { copy: AdminNavCopy }) {
   return (
@@ -51,7 +107,6 @@ export function AdminChrome({
   copy: AdminNavCopy;
 }) {
   const pathname = usePathname();
-  // The drawer is only open on the page it was opened from, so navigating closes it
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
 
@@ -66,7 +121,7 @@ export function AdminChrome({
     };
   }, [open]);
 
-  const current = LINKS.find((l) => l.match(pathname));
+  const current = ALL_LINKS.find((l) => l.match(pathname));
 
   return (
     <>
@@ -83,7 +138,11 @@ export function AdminChrome({
           <MenuIcon size={20} />
         </button>
         <Wordmark copy={copy} />
-        {current && <span className="ml-auto text-xs font-medium text-zinc-400">{copy[current.key]}</span>}
+        {current && (
+          <span className="ml-auto text-xs font-medium text-zinc-400">
+            {copy[current.key] || current.defaultLabel}
+          </span>
+        )}
       </div>
 
       {/* Backdrop */}
@@ -113,28 +172,37 @@ export function AdminChrome({
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-2" aria-label={copy.sectionsLabel}>
-          <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-600">{copy.operations}</p>
-          <div className="flex flex-col gap-0.5">
-            {LINKS.map((l) => {
-              const active = l.match(pathname);
-              const Icon = l.icon;
-              return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors ${
-                    active ? "bg-white/[0.08] text-white" : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
-                  }`}
-                >
-                  <Icon size={18} className={active ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"} />
-                  {copy[l.key]}
-                  <span className="ml-auto">{badges[l.href]}</span>
-                </Link>
-              );
-            })}
-          </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-2 scrollbar-none" aria-label={copy.sectionsLabel}>
+          {SECTIONS.map((section, sIdx) => (
+            <div key={section.title || sIdx} className={sIdx > 0 ? "mt-4 pt-3 border-t border-zinc-900" : ""}>
+              {section.title && (
+                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  {section.title === "Operations" ? copy.operations : section.title}
+                </p>
+              )}
+              <div className="flex flex-col gap-0.5">
+                {section.items.map((l) => {
+                  const active = l.match(pathname);
+                  const Icon = l.icon;
+                  const label = copy[l.key] || l.defaultLabel;
+                  return (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`group flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors ${
+                        active ? "bg-white/[0.08] text-white" : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
+                      }`}
+                    >
+                      <Icon size={17} className={active ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"} />
+                      <span className="truncate">{label}</span>
+                      <span className="ml-auto">{badges[l.href]}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="border-t border-white/[0.06] p-3">{account}</div>

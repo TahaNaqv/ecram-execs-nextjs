@@ -1,3 +1,4 @@
+export const instant = false;
 import Link from "next/link";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound } from "next/navigation";
@@ -28,10 +29,8 @@ import { StatusBadge, UrgentBadge } from "../../../_components/status-badge";
 import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
-import { InvoicesCard } from "./invoices-card";
-import { MessagesCard } from "./messages-card";
 import { PartnerCard } from "./partner-card";
-import { UpdateForm } from "./update-form";
+import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 
 async function BackLabel() {
   const { admin } = await adminDictionary();
@@ -54,7 +53,7 @@ export default function RequestPage({ params }: PageProps<"/admin/requests/[id]"
   );
 }
 
-const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed"];
+const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"];
 
 async function Pipeline({ status }: { status: RequestStatus }) {
   const { admin: t } = await adminDictionary();
@@ -67,7 +66,7 @@ async function Pipeline({ status }: { status: RequestStatus }) {
   }
   const at = PIPELINE.indexOf(status);
   return (
-    <ol className="grid grid-cols-5 gap-1.5" aria-label={t.common.progress}>
+    <ol className="grid grid-cols-6 gap-1" aria-label={t.common.progress}>
       {PIPELINE.map((s, i) => {
         const done = i < at;
         const current = i === at;
@@ -80,24 +79,12 @@ async function Pipeline({ status }: { status: RequestStatus }) {
               }`}
             >
               {done && <CheckIcon size={12} className="hidden shrink-0 sm:block" />}
-              {t.statuses[s]}
+              {t.statuses[s] ?? s}
             </span>
           </li>
         );
       })}
     </ol>
-  );
-}
-
-function Meta({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3">
-      <span className="mt-0.5 shrink-0 text-zinc-400">{icon}</span>
-      <div className="min-w-0">
-        <dt className="text-xs text-zinc-500">{label}</dt>
-        <dd className="mt-0.5 wrap-break-word text-sm font-medium text-zinc-900">{children}</dd>
-      </div>
-    </div>
   );
 }
 
@@ -122,29 +109,12 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
     events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
   };
   const d = await adminDictionary();
-  // The concierge chat the request was sent from, if it was sent from one
   const chatId = await chatForRequest(r.id);
-  const serviceLabels = d.services;
   const waNumber = r.phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${r.name}, thank you for your request ${r.reference} with Ecram Execs.`);
   const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs quotation ${r.reference}`)}`;
   const tel = `tel:${r.phone.replace(/\s/g, "")}`;
-  const bespoke = r.service === "bespoke";
-  const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
-  const pickupAt = r.pickupAt ? pickupInstant(r.pickupAt) : null;
   const rd = d.admin.requestDetail;
-  const bespokeCopy = d.bespokeSection;
-
-  const allStops = bespoke
-    ? []
-    : // from, stops on the way (each with how long the chauffeur waits), to
-      [
-        { text: r.collection, wait: 0 },
-        ...stopsWithWaits(r.destinations, r.destinationWaits).map((s) => ({ text: s.place, wait: s.wait })),
-        // An hourly booking may have no destination: its duration ends the journey instead
-        { text: r.destination ?? (r.durationHours ? interpolate(rd.durationValue, { hours: r.durationHours }) : null), wait: 0 },
-      ].filter((s) => s.text);
-  const returnLeg = r.returnAt ? pickupParts(r.returnAt) : null;
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -196,125 +166,13 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         <Pipeline status={r.status} />
       </div>
 
+      {/* Auto-Pricing Gateway */}
+      <div className="mt-6">
+        <AutoPricingGateway request={r} />
+      </div>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
-          {/* Journey */}
-          <Card>
-            <CardHeader title={d.admin.requestDetail.journey} description={serviceLabel(r.service, serviceLabels)} icon={<BriefcaseIcon />} />
-            <div className="p-5">
-              {bespoke ? (
-                <>
-                  <dl className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 rounded-lg bg-zinc-50 p-4">
-                    <Meta icon={<BriefcaseIcon />} label={rd.entity}>
-                      {r.entity ?? "—"}
-                    </Meta>
-                    <Meta icon={<UsersIcon />} label={rd.delegationSize}>
-                      {r.passengers ?? "—"}
-                    </Meta>
-                    <Meta icon={<BriefcaseIcon />} label={rd.vehicleClass}>
-                      {r.vehicleClass ? ((bespokeCopy.vehicleClasses as Record<string, string>)[r.vehicleClass] ?? r.vehicleClass) : "—"}
-                    </Meta>
-                    <Meta icon={<ChatIcon />} label={rd.contactPreference}>
-                      {r.contactPreference ? ((bespokeCopy.contactOptions as Record<string, string>)[r.contactPreference] ?? r.contactPreference) : "—"}
-                    </Meta>
-                  </dl>
-                  <div className="mt-5">
-                    <p className="flex items-center gap-2 text-xs font-medium text-zinc-500">
-                      <NoteIcon size={14} /> {rd.itinerary}
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap wrap-break-word border-l-2 border-zinc-300 bg-white pl-3 text-sm leading-relaxed text-zinc-800">
-                      {r.itinerary}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <ol className="relative flex flex-col gap-3 py-1">
-                    {allStops.map((stop, i, arr) => {
-                      const isFirst = i === 0;
-                      const isLast = i === arr.length - 1;
-
-                      return (
-                        <li key={i} className="relative flex items-center gap-4">
-                          <span aria-hidden="true" className="relative flex size-4 shrink-0 items-center justify-center">
-                            {!isFirst && (
-                              <span className="absolute -top-3.5 left-[7px] h-4 w-px bg-zinc-300" />
-                            )}
-                            <span
-                              className={`size-2 rounded-full ${
-                                isFirst
-                                  ? "size-[15px] rounded-full border-[3px] border-zinc-950 bg-white"
-                                  : isLast
-                                  ? "size-[15px] rounded-full bg-zinc-950 ring-4 ring-zinc-200"
-                                  : "size-2 bg-zinc-900 ring-2 ring-zinc-100"
-                              }`}
-                            />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                              {isFirst ? d.admin.requestDetail.collection : isLast ? (r.destination ? rd.destination : rd.asDirected) : `Stopover ${i}`}
-                            </p>
-                            <p className="mt-0.5 wrap-break-word text-[15px] font-medium text-zinc-950">{stop.text}</p>
-                            {stop.wait > 0 && <p className="mt-0.5 text-xs text-zinc-500">{interpolate(d.admin.requestDetail.stopWait, { minutes: stop.wait })}</p>}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-
-                  <dl className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 rounded-lg bg-zinc-50 p-4">
-                    <Meta icon={<CalendarIcon />} label={d.admin.requestDetail.pickupDate}>
-                      {pickup?.date}
-                    </Meta>
-                    <Meta icon={<ClockIcon />} label={d.admin.requestDetail.pickupTime}>
-                      {pickup?.time} <span className="font-normal text-zinc-500">· {pickupAt ? formatRelative(pickupAt) : ""}</span>
-                    </Meta>
-                    <Meta icon={<UsersIcon />} label={d.admin.requestDetail.passengers}>
-                      {r.passengers ?? "—"}
-                    </Meta>
-                    <Meta icon={<BriefcaseIcon />} label={rd.vehicle}>
-                      {r.vehicle ? (vehicleByKey(r.vehicle)?.name ?? (r.vehicle === "advise" ? d.quoteForm.vehicleAdvise : r.vehicle)) : "—"}
-                    </Meta>
-                    {r.luggage !== null && (
-                      <Meta icon={<BriefcaseIcon />} label={rd.luggage}>
-                        {r.luggage}
-                      </Meta>
-                    )}
-                    {r.flightNumber && (
-                      <Meta icon={<ClockIcon />} label={rd.flight}>
-                        {r.flightNumber}
-                      </Meta>
-                    )}
-                    {returnLeg && (
-                      <Meta icon={<CalendarIcon />} label={rd.returnJourney}>
-                        {returnLeg.date} · {returnLeg.time}
-                      </Meta>
-                    )}
-                    {(r.passengerName || r.passengerPhone) && (
-                      <Meta icon={<UsersIcon />} label={rd.travelling}>
-                        {r.passengerName}
-                        {r.passengerPhone && <span className="block font-normal text-zinc-500">{r.passengerPhone}</span>}
-                      </Meta>
-                    )}
-                  </dl>
-                </>
-              )}
-
-              <div className="mt-5">
-                <p className="flex items-center gap-2 text-xs font-medium text-zinc-500">
-                  <NoteIcon size={14} /> Client notes
-                </p>
-                {r.notes ? (
-                  <p className="mt-2 whitespace-pre-wrap wrap-break-word border-l-2 border-zinc-300 bg-white pl-3 text-sm leading-relaxed text-zinc-800">
-                    {r.notes}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-zinc-400">{d.admin.requestDetail.noNotes}</p>
-                )}
-              </div>
-            </div>
-          </Card>
-
           {/* Activity */}
           <Card>
             <CardHeader title={d.admin.requestDetail.activity} description={d.admin.requestDetail.activityNote} icon={<ActivityIcon />} />
@@ -336,58 +194,22 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
                   </div>
                 </li>
               ))}
-              {events.length === 0 && <li className="text-sm text-zinc-500">{d.admin.requestDetail.noActivity}</li>}
             </ol>
           </Card>
         </div>
 
         {/* Sidebar */}
         <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
-          <Card>
-            <CardHeader title={d.admin.requestDetail.manage} description={d.admin.requestDetail.manageNote} />
-            <div className="p-5">
-              <UpdateForm
-                key={r.updatedAt.toISOString()}
-                id={r.id}
-                status={r.status}
-                quotedAmount={r.quotedAmount}
-                internalNotes={r.internalNotes}
-                statusLabels={d.admin.statuses}
-                copy={{
-                  save: d.admin.common.save,
-                  saving: d.admin.common.saving,
-                  status: d.admin.requestDetail.fieldStatus,
-                  quotedAmount: d.admin.requestDetail.fieldQuotedAmountEur,
-                  internalNotes: d.admin.requestDetail.fieldInternalNotes,
-                  amountPlaceholder: d.admin.requestDetail.amountPlaceholder,
-                  internalPlaceholder: d.admin.requestDetail.internalPlaceholder,
-                }}
-              />
-            </div>
-          </Card>
-
           <PartnerCard requestId={r.id} />
-          <MessagesCard requestId={r.id} linked={!!r.corporateContactId} />
-          <InvoicesCard requestId={r.id} linked={!!r.corporateContactId} />
 
           <Card>
             <CardHeader title={d.admin.requestDetail.client} />
             <dl className="divide-y divide-zinc-100 p-5">
               <ContactRow icon={<MailIcon />} label={d.admin.common.email}>
-                <a className="hover:underline" href={mailto}>
-                  {r.email}
-                </a>
+                <a className="hover:underline" href={mailto}>{r.email}</a>
               </ContactRow>
               <ContactRow icon={<PhoneIcon />} label={d.admin.common.phone}>
-                <a className="hover:underline" href={tel}>
-                  {r.phone}
-                </a>
-              </ContactRow>
-              <ContactRow icon={<EuroIconText />} label={d.admin.requestDetail.quotedAmount}>
-                <span className="font-medium tabular-nums">{formatEuro(r.quotedAmount)}</span>
-              </ContactRow>
-              <ContactRow icon={<CalendarIcon />} label={d.admin.requestDetail.received}>
-                {formatTimestamp(r.createdAt)}
+                <a className="hover:underline" href={tel}>{r.phone}</a>
               </ContactRow>
             </dl>
           </Card>
@@ -405,10 +227,6 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   );
 }
 
-function EuroIconText() {
-  return <span className="text-sm font-semibold">€</span>;
-}
-
 function DetailSkeleton() {
   return (
     <div className="mt-4">
@@ -420,10 +238,6 @@ function DetailSkeleton() {
         </div>
       </div>
       <Skeleton className="mt-8 h-6 w-full" />
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Skeleton className="h-96 rounded-xl" />
-        <Skeleton className="h-80 rounded-xl" />
-      </div>
     </div>
   );
 }

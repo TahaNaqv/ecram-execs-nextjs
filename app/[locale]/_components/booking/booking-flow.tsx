@@ -23,7 +23,13 @@ export type BookingResult = {
   fieldErrors: Partial<Record<string, string>>;
 };
 export type OfferedVehicle = { key: string; name: string };
-export type DetailDefaults = { notes?: string; passengerName?: string; passengerPhone?: { country: string; number: string } };
+export type DetailDefaults = {
+  notes?: string;
+  passengerName?: string;
+  passengerPhone?: { country: string; number: string };
+  entity?: string;
+  entityKvk?: string;
+};
 
 // Fields the server checks, by the step that asks for them: an error sends the visitor back there
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "returnAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
@@ -91,7 +97,7 @@ export function BookingFlow({
   result: BookingResult;
   submit: (data: FormData) => void;
   /** Portal: the signed-in partner, shown instead of name and email fields */
-  booker?: { name: string; email: string };
+  booker?: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
   /** Portal "repeat this booking": the details step starts from the earlier booking's notes and passenger */
   defaults?: DetailDefaults;
@@ -377,7 +383,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   vehicleAdvise: string;
   result: BookingResult;
   submit: (data: FormData) => void;
-  booker?: { name: string; email: string };
+  booker?: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
   defaults?: DetailDefaults;
   privacyHref?: string;
@@ -498,7 +504,9 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
               <div className="flex flex-col gap-1 rounded-xl bg-ink-50 px-3.5 py-2.5 md:col-span-2">
                 <span className="text-[12px] text-ink-600">{t.yourName}</span>
                 <span className="text-[16px] font-medium text-ink-950">
-                  {booker.name} · <span className="font-normal text-ink-700">{booker.email}</span>
+                  {booker.name}
+                  {booker.companyName ? ` (${booker.companyName})` : ""} ·{" "}
+                  <span className="font-normal text-ink-700">{booker.email}</span>
                 </span>
               </div>
             ) : (
@@ -534,6 +542,39 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {purpose === "business" && !portal && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {field(
+                "entity",
+                locale === "nl" ? "Bedrijfsnaam" : "Company / Organization",
+                <input
+                  {...aria("entity")}
+                  name="entity"
+                  type="text"
+                  autoComplete="organization"
+                  maxLength={200}
+                  defaultValue={defaults?.entity}
+                  placeholder={locale === "nl" ? "bv. Acme B.V." : "e.g. Acme Corporation"}
+                  className={input}
+                />,
+              )}
+              {field(
+                "entityKvk",
+                locale === "nl" ? "KVK-nummer" : "KVK / CoC Number",
+                <input
+                  {...aria("entityKvk")}
+                  name="entityKvk"
+                  type="text"
+                  autoComplete="off"
+                  maxLength={30}
+                  defaultValue={defaults?.entityKvk}
+                  placeholder={locale === "nl" ? "8 cijfers (optioneel)" : "8 digits (optional)"}
+                  className={input}
+                />,
+              )}
             </div>
           )}
 

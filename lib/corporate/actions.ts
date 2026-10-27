@@ -25,7 +25,12 @@ import {
 /** Step one of sign-up: the person's details. Nothing about an existing contact changes until the code is entered. */
 export async function requestCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
-  const values = Object.fromEntries(["email", "name", "position", "marketingConsent", "locale"].map((k) => [k, String(formData.get(k) ?? "")]));
+  const values = Object.fromEntries(
+    ["email", "name", "position", "companyName", "kvkNumber", "phone", "marketingConsent", "locale"].map((k) => [
+      k,
+      String(formData.get(k) ?? ""),
+    ])
+  );
   const fail = (message: string, fieldErrors: Partial<Record<RequestField, string>> = {}) =>
     ({ status: "error", message, fieldErrors, values }) as const;
 
@@ -38,7 +43,7 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as RequestField] ??= issue.message;
     return fail(f.checkHighlighted, fieldErrors);
   }
-  const { email, name, position, marketingConsent, locale } = parsed.data;
+  const { email, name, position, companyName, kvkNumber, phone, marketingConsent, locale } = parsed.data;
 
   try {
     // Check if a corporate contact with this email already has a completed account registration
@@ -63,7 +68,18 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
     // code and the same screens: entering the code sets a new password for it, which only the address's owner can do.
     await db
       .insert(schema.corporateContacts)
-      .values({ email, emailDomain: email.split("@")[1], name, position, locale, ipHash, userAgent })
+      .values({
+        email,
+        emailDomain: email.split("@")[1],
+        name,
+        position,
+        companyName,
+        kvkNumber: kvkNumber || null,
+        phone: phone || null,
+        locale,
+        ipHash,
+        userAgent,
+      })
       .onConflictDoNothing({ target: schema.corporateContacts.email });
     const [contact] = await db.select(contactColumns).from(schema.corporateContacts).where(eq(schema.corporateContacts.email, email)).limit(1);
 
@@ -238,7 +254,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
     await db.insert(schema.requestEvents).values({ requestId: request.id, event: "received" });
     await db
       .update(schema.corporateContacts)
-      .set({ companyName: input.company, kvkNumber: input.companyNumber })
+      .set({ companyName: input.company, kvkNumber: input.companyNumber, phone: input.phone })
       .where(eq(schema.corporateContacts.id, contact.id));
 
     after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));

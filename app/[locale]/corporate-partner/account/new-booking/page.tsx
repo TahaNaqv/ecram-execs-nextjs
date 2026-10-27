@@ -63,7 +63,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
         fleetDict={d.fleetSection}
         vehicleAdvise={d.quoteForm.vehicleAdvise}
         vehicles={dbVehicles && dbVehicles.length > 0 ? dbVehicles : FLEET.map(({ key, name }) => ({ key, name }))}
-        booker={{ name: contact.name, email: contact.email }}
+        booker={{ name: contact.name, email: contact.email, companyName: contact.companyName }}
         defaultPhone={phone ?? undefined}
         initialTrip={trip}
         defaults={

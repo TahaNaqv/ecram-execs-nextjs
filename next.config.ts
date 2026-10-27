@@ -36,7 +36,7 @@ const nextConfig: NextConfig = {
   // The folder the build goes to. scripts/deploy.sh builds into another folder while the site keeps serving from `.next`, and swaps
   // it in when the build has succeeded; everything else uses the default
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  cacheComponents: true,
+  cacheComponents: true, // <-- Change this from false to true
   partialPrefetching: true,
   poweredByHeader: false,
   experimental: {
@@ -69,5 +69,4 @@ const nextConfig: NextConfig = {
     ];
   },
 };
-
 export default nextConfig;

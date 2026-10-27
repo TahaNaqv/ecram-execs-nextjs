@@ -17,13 +17,15 @@ import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
 export type NewBookingState = { error?: string; values?: Record<string, string> };
 
-const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes", "locale", "notifyClient"] as const;
+const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes", "locale", "notifyClient", "entity", "entityKvk"] as const;
 
 const PHONE_MESSAGE = "Enter the contact's phone number, e.g. 6 1234 5678.";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const schemaFor = z.object({
   contactId: z.preprocess(blank, z.uuid().optional()),
+  entity: z.preprocess(blank, z.string().trim().max(200).optional()),
+  entityKvk: z.preprocess(blank, z.string().trim().max(30).optional()),
   // Bespoke programmes have an itinerary rather than one journey, and were once submitted through their own form on the website
   service: z.enum(["airport_transfer", "business_travel", "hourly", "private_occasion"]),
   collection: z.string().trim().min(1, "Enter the collection point.").max(200),
@@ -120,8 +122,8 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
         internalNotes: input.internalNotes,
         status: input.status,
         quotedAmount: input.quotedAmount,
-        entity: partner?.companyName ?? null,
-        entityKvk: partner?.kvkNumber ?? null,
+        entity: input.entity ?? partner?.companyName ?? null,
+        entityKvk: input.entityKvk ?? partner?.kvkNumber ?? null,
         corporateContactId: partner?.id ?? null,
         locale: partner?.locale ?? input.locale,
         source: "admin",

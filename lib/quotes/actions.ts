@@ -26,7 +26,7 @@ export type QuoteFormState =
 const FIELDS = [
   "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "name", "email", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry",
-  "passengerPhone", "vehicle", "notes", "locale",
+  "passengerPhone", "vehicle", "notes", "locale", "entity", "entityKvk",
 ] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
@@ -52,6 +52,8 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     passengers: values.passengers || undefined,
     vehicle: values.vehicle || undefined,
     notes: values.notes || undefined,
+    entity: values.entity || undefined,
+    entityKvk: values.entityKvk || undefined,
   });
   if (!parsed.success) {
     const fieldErrors: Partial<Record<QuoteField, string>> = {};
