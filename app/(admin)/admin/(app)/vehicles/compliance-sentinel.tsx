@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
 import type { VehicleRow } from "@/lib/admin/live-queries";
@@ -8,24 +8,56 @@ import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehi
 
 export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }) {
   const router = useRouter();
+  const [vehicleList, setVehicleList] = useState<VehicleRow[]>(vehicles);
   const [activeTab, setActiveTab] = useState<"snapshot" | "reminders">("snapshot");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    setVehicleList(vehicles);
+  }, [vehicles]);
+
   // Derived stats from real database data
-  const available = vehicles.filter((v) => v.status === "available").length;
-  const maintenance = vehicles.filter((v) => v.status === "maintenance" || v.status === "unavailable").length;
-  const total = vehicles.length;
+  const available = vehicleList.filter((v) => v.status === "available").length;
+  const maintenance = vehicleList.filter((v) => v.status === "maintenance" || v.status === "unavailable").length;
+  const total = vehicleList.length;
   const complianceRate =
-    total > 0 ? Math.round((vehicles.filter((v) => v.iltPermitStatus === "Valid").length / total) * 100) : 0;
+    total > 0 ? Math.round((vehicleList.filter((v) => v.iltPermitStatus === "Valid").length / total) * 100) : 0;
+
+  const handleToggle = (vehId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === "available" ? "unavailable" : "available";
+    setVehicleList((prev) =>
+      prev.map((v) => (v.id === vehId ? { ...v, status: nextStatus } : v))
+    );
+
+    const formData = new FormData();
+    formData.append("id", vehId);
+    formData.append("status", nextStatus);
+
+    startTransition(async () => {
+      await toggleVehicleStatus(formData);
+      router.refresh();
+    });
+  };
+
+  const handleDelete = (vehId: string, name: string) => {
+    if (!confirm(`Remove ${name} from the fleet?`)) return;
+    setVehicleList((prev) => prev.filter((v) => v.id !== vehId));
+    const formData = new FormData();
+    formData.append("id", vehId);
+    startTransition(async () => {
+      await deleteVehicle(formData);
+      router.refresh();
+    });
+  };
 
   const handleDownloadReport = () => {
     setReportStatus("Compiling telemetry report...");
     const headers =
       "Vehicle ID,Name,License Plate,Battery SoC,Range km,Status,ILT Permit,APK Expiry,Insurance Expiry\n";
-    const rows = vehicles
+    const rows = vehicleList
       .map(
         (v) =>
           `"${v.id}","${v.name}","${v.licensePlate ?? ""}","${v.batterySoC}%","${v.evRangeKm} km","${v.status}","${v.iltPermitStatus}","${v.apkExpiry ?? ""}","${v.insuranceExpiry ?? ""}"`,
@@ -86,7 +118,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
             </div>
           </div>
 
-          {vehicles.length === 0 ? (
+          {vehicleList.length === 0 ? (
             <p className="p-8 text-center text-sm text-zinc-400">No vehicles registered yet.</p>
           ) : activeTab === "snapshot" ? (
             <div className="overflow-x-auto">
@@ -103,7 +135,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicles.map((veh) => {
+                  {vehicleList.map((veh) => {
                     const isAvailable = veh.status === "available";
                     return (
                       <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
@@ -123,27 +155,18 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                           </span>
                         </td>
                         
-                        {/* Interactive Pretty Toggle Switch */}
+                        {/* Interactive Optimistic Pretty Toggle Switch */}
                         <td className="px-4 py-3.5 text-center">
                           <button
                             type="button"
-                            disabled={isPending}
-                            onClick={() => {
-                              const formData = new FormData();
-                              formData.append("id", veh.id);
-                              formData.append("status", isAvailable ? "unavailable" : "available");
-                              startTransition(async () => {
-                                await toggleVehicleStatus(formData);
-                                router.refresh();
-                              });
-                            }}
+                            onClick={() => handleToggle(veh.id, veh.status)}
                             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                              isAvailable ? "bg-emerald-600" : "bg-zinc-300"
+                              isAvailable ? "bg-emerald-600" : "bg-zinc-300 hover:bg-zinc-400"
                             }`}
                             title={isAvailable ? "Click to set unavailable" : "Click to set available"}
                           >
                             <span
-                              className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                              className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${
                                 isAvailable ? "translate-x-5" : "translate-x-0"
                               }`}
                             />
@@ -154,16 +177,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                         <td className="px-4 py-3.5 text-right">
                           <button
                             type="button"
-                            disabled={isPending}
-                            onClick={() => {
-                              if (!confirm(`Remove ${veh.name} from the fleet?`)) return;
-                              const formData = new FormData();
-                              formData.append("id", veh.id);
-                              startTransition(async () => {
-                                await deleteVehicle(formData);
-                                router.refresh();
-                              });
-                            }}
+                            onClick={() => handleDelete(veh.id, veh.name)}
                             className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
                             title="Delete Vehicle"
                           >
@@ -189,7 +203,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicles.map((veh) => (
+                  {vehicleList.map((veh) => (
                     <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-medium text-zinc-950 truncate max-w-[180px]">{veh.name}</td>
                       <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.apkExpiry ?? "—"}</td>
@@ -204,16 +218,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                       <td className="px-4 py-3.5 text-right">
                         <button
                           type="button"
-                          disabled={isPending}
-                          onClick={() => {
-                            if (!confirm("Remove this vehicle from the fleet?")) return;
-                            const formData = new FormData();
-                            formData.append("id", veh.id);
-                            startTransition(async () => {
-                              await deleteVehicle(formData);
-                              router.refresh();
-                            });
-                          }}
+                          onClick={() => handleDelete(veh.id, veh.name)}
                           className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
                           title="Delete Vehicle"
                         >

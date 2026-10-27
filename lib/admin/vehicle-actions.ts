@@ -62,14 +62,20 @@ export async function toggleVehicleStatus(formData: FormData) {
   await requireAdmin();
 
   const id = formData.get("id") as string;
-  const currentStatus = formData.get("status") as string;
+  const targetStatus = formData.get("status") as string | null;
 
-  if (!id || !currentStatus) {
-    console.error("❌ Toggle status failed: Missing vehicle ID or status");
+  if (!id) {
+    console.error("❌ Toggle status failed: Missing vehicle ID");
     return;
   }
 
-  const newStatus = currentStatus === "available" ? "unavailable" : "available";
+  let newStatus: string;
+  if (targetStatus === "available" || targetStatus === "unavailable" || targetStatus === "maintenance") {
+    newStatus = targetStatus;
+  } else {
+    const existing = await db.query.vehicles.findFirst({ where: eq(vehicles.id, id) });
+    newStatus = existing?.status === "available" ? "unavailable" : "available";
+  }
 
   try {
     await db
