@@ -25,7 +25,7 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
   
   // Inline editing state for fare
   const [isEditing, setIsEditing] = useState(false);
-  const [editedAmount, setEditedAmount] = useState(request.quotedAmount ?? 100);
+  const [editedAmount, setEditedAmount] = useState(request.quotedAmount ? Number(request.quotedAmount) : 0);
 
   // Real data extracted from request
   const collection = request.collection ?? "—";
@@ -250,9 +250,18 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       setIsEditing(false);
                       setToast("Fare updated successfully!");
+                      try {
+                        await fetch(`/api/admin/requests/${request.id}/authorise`, {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({ status: status, amount: grandTotal }),
+                        });
+                      } catch {
+                        // ignore network error
+                      }
                       setTimeout(() => setToast(null), 3000);
                     }}
                     className="text-xs font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1.5 rounded-lg transition cursor-pointer"
