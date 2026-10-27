@@ -4,21 +4,14 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import type { Dictionary } from "@/lib/i18n/types";
 import { phoneLengthOk } from "@/lib/phone";
 
-/** Long enough that a passphrase of a few words fits, short enough that hashing one can't be used to burn the CPU. */
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 128;
-/** The same typed password must hash the same way whatever keyboard or device it was typed on. */
 export const normalizePassword = (value: string) => value.normalize("NFKC");
 
 export const CONTACT_METHODS = ["email", "phone", "whatsapp"] as const;
 export const TRIP_TIMES = ["morning", "afternoon", "evening"] as const;
 export const DURATIONS = ["2_4", "2_8", "2_12", "2_24"] as const;
 
-/**
- * The vehicles offered on the Corporate Partner form, exactly as the client listed them. Brand names are shown as-is
- * in every language. `fleetKey` links one to the website's fleet (lib/fleet/vehicles.ts) so the request carries the
- * same vehicle key as a quote does.
- */
 export const CORPORATE_VEHICLES = [
   { key: "audi_etron_gt", name: "Audi e-tron GT", fleetKey: "audi" },
   { key: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", fleetKey: "mercedes_vle_300" },
@@ -31,7 +24,6 @@ export const CORPORATE_VEHICLE_KEYS = CORPORATE_VEHICLES.map((v) => v.key) as [
   ...(typeof CORPORATE_VEHICLES)[number]["key"][],
 ];
 
-/** `dictionary.forms` and `dictionary.corporatePartner` satisfy these structurally. */
 type FormMessages = Pick<
   Dictionary["forms"],
   "emailInvalid" | "nameRequired" | "nameTooLong" | "phoneInvalid" | "phoneCountryInvalid" | "phoneNumberInvalid" | "kvkInvalid" | "notesTooLong"
@@ -60,22 +52,21 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
     email: email(f.emailInvalid),
     name: z.string().trim().min(1, f.nameRequired).max(120, f.nameTooLong),
     position: z.string().trim().min(1, c.positionRequired).max(120, c.positionTooLong),
-    // A checkbox: present ("on") when ticked, absent otherwise
+    companyName: z.string().trim().min(1, c.companyRequired).max(200, c.companyTooLong),
+    kvkNumber: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9 .\-/]{2,24}$/, c.companyNumberInvalid),
+    phone: z.string().trim().regex(/^[0-9 ()\-.+]{5,25}$/, f.phoneNumberInvalid),
     marketingConsent: z.preprocess((v) => v === "on", z.boolean()),
     locale: z.enum(LOCALES).catch("en"),
   });
 
-/** The reset form asks for the address only. */
 export const resetRequestSchema = (f: FormMessages) => z.object({ email: email(f.emailInvalid), locale: z.enum(LOCALES).catch("en") });
 
-/** The emailed code, entered on its own: the first of the two last steps of sign-up and of a reset. */
 export const codeSchema = (c: CorporateMessages) =>
   z.object({
     code: z.string().trim().regex(/^[0-9]{6}$/, c.codeInvalidFormat),
     locale: z.enum(LOCALES).catch("en"),
   });
 
-/** The new password, chosen once the code has been proved. */
 export const completeSchema = (c: CorporateMessages) =>
   z
     .object({
@@ -96,10 +87,7 @@ export const completeSchema = (c: CorporateMessages) =>
 export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
   z.object({
     company: z.string().trim().min(1, c.companyRequired).max(200, c.companyTooLong),
-    // A Dutch KvK number is 8 digits, but a foreign company has its own registration format, so this only
-    // requires something that looks like a registration number.
     companyNumber: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9 .\-/]{2,24}$/, c.companyNumberInvalid),
-    // The country code is its own field, as in the quote form; the two are stored together as "+31 6 1234 5678"
     phoneCountry: z
       .string()
       .trim()
@@ -118,7 +106,6 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     notes: z.string().trim().max(2000, f.notesTooLong).optional(),
     locale: z.enum(LOCALES).catch("en"),
   }).superRefine(({ phoneCountry, phone }, ctx) => {
-    // Too many or too few digits for the country (the forms stop typing at the limit; this is for anything that gets past them)
     if (!phoneLengthOk(phoneCountry, phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: f.phoneNumberInvalid });
   }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 

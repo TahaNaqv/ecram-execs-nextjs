@@ -2,351 +2,162 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeftIcon,
-  BriefcaseIcon,
-  CalendarIcon,
-  CarIcon,
-  ChatIcon,
-  CheckCircleIcon,
-  CreditCardIcon,
-  EuroIcon,
-  MailIcon,
-  NoteIcon,
-  PhoneIcon,
-  PlusIcon,
-  TrendingUpIcon,
-  UsersIcon,
-} from "../../../_components/icons";
-import { Avatar, btn, Card, CardHeader, StatCard } from "../../../_components/ui";
+import { AdminDrawer } from "@/app/(admin)/admin/_components/admin-drawer";
+import { AdminModal } from "@/app/(admin)/admin/_components/admin-modal";
 
-export function PartnerProfileClient({
-  partner,
-}: {
-  partner: {
-    id: string;
-    name: string;
-    companyName: string;
-    kvkNumber: string;
-    kvrNumber: string;
-    bookerName: string;
-    bookerPosition: string;
-    bookerEmail: string;
-    bookerPhone: string;
-    tier: "Platinum" | "Gold" | "Silver";
-    discountRate: string;
-    status: "Active" | "Pending 2FA" | "Suspended";
-    totalTrips: number;
-    avgTripValue: number;
-    totalSpend: number;
-    topVehicle: string;
-    recentBookings: Array<{
-      id: string;
-      reference: string;
-      passengerName: string;
-      route: string;
-      vehicle: string;
-      pickupDate: string;
-      amount: number;
-      status: string;
-    }>;
-    initialNotes: Array<{
-      id: string;
-      author: string;
-      timestamp: string;
-      content: string;
-    }>;
-  };
-}) {
-  const [notes, setNotes] = useState(partner.initialNotes);
-  const [newNote, setNewNote] = useState("");
-  const [isAddingNote, setIsAddingNote] = useState(false);
-
-  const handleAddNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-
-    const noteItem = {
-      id: `n-${Date.now()}`,
-      author: "Admin Aish",
-      timestamp: "Just now",
-      content: newNote.trim(),
-    };
-
-    setNotes([noteItem, ...notes]);
-    setNewNote("");
-    setIsAddingNote(false);
-  };
-
-  const rawPhone = partner.bookerPhone.replace(/[^\d]/g, "");
+export function PartnerDetailClient({ partner, bookings }: { partner: any; bookings: any[] }) {
+  // Manage which drawer or modal is active
+  const [activeDrawer, setActiveDrawer] = useState<"bookings" | "billing" | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   return (
-    <div className="space-y-6">
-      {/* Top Header & Sub-module Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-4">
-        <div>
-          <Link
-            href="/admin/corporate"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-950 transition-colors mb-1.5"
-          >
-            <ArrowLeftIcon size={13} /> Back to Corporate Directory
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-950">{partner.companyName}</h1>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${
-                partner.status === "Active"
-                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                  : partner.status === "Pending 2FA"
-                  ? "bg-amber-50 text-amber-800 ring-amber-200"
-                  : "bg-red-50 text-red-700 ring-red-200"
-              }`}
-            >
-              {partner.status}
-            </span>
-            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-800">
-              {partner.tier} Tier ({partner.discountRate} off)
-            </span>
-          </div>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            KVK: {partner.kvkNumber} · Booker: {partner.bookerName} ({partner.bookerPosition})
-          </p>
-        </div>
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Top action buttons triggering the drawers / modals */}
+      <div className="flex items-center justify-end gap-2">
+        {/* Edit Button -> Opens Edit Modal */}
+        <button
+          onClick={() => setIsEditModalOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
+        >
+          Edit Profile
+        </button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/admin/corporate/${partner.id}/bookings`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 shadow-xs transition"
-          >
-            <CalendarIcon size={14} /> Bookings ({partner.totalTrips})
-          </Link>
-          <Link
-            href={`/admin/corporate/${partner.id}/billing`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 shadow-xs transition"
-          >
-            <CreditCardIcon size={14} /> Billing &amp; VAT
-          </Link>
-          <Link
-            href={`/admin/corporate/${partner.id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 shadow-xs transition"
-          >
-            <NoteIcon size={14} /> Edit Partner
-          </Link>
-        </div>
+        {/* Bookings Button -> Opens Bookings Drawer */}
+        <button
+          onClick={() => setActiveDrawer("bookings")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
+        >
+          View All Bookings ({bookings.length})
+        </button>
+
+        {/* Billing Button -> Opens Billing Drawer */}
+        <button
+          onClick={() => setActiveDrawer("billing")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
+        >
+          Billing &amp; VAT
+        </button>
       </div>
 
-      {/* Overview Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Trips"
-          value={partner.totalTrips}
-          hint="Completed executive journeys"
-          icon={<CarIcon size={18} />}
-        />
-        <StatCard
-          label="Average Trip Value"
-          value={`€ ${partner.avgTripValue.toFixed(2)}`}
-          hint="Contracted rate applied"
-          icon={<TrendingUpIcon size={18} />}
-        />
-        <StatCard
-          tone="accent"
-          label="Total Spend"
-          value={`€ ${partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}`}
-          hint="Contract YTD · Net of VAT"
-          icon={<EuroIcon size={18} />}
-        />
-        <StatCard
-          label="Top Preferred Vehicle"
-          value="Mercedes-EQS"
-          hint={partner.topVehicle}
-          icon={<BriefcaseIcon size={18} />}
-        />
-      </div>
-
-      {/* Booker Contact Card with Direct Actions */}
-      <div className="rounded-xl border border-zinc-200/90 bg-white p-5 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <Avatar name={partner.bookerName} size="lg" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-zinc-950">{partner.bookerName}</h2>
-              <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                Primary Booker
-              </span>
-            </div>
-            <p className="text-xs text-zinc-500">{partner.bookerPosition} · {partner.companyName}</p>
-            <p className="text-xs text-zinc-400 mt-0.5 font-mono">
-              {partner.bookerEmail} · {partner.bookerPhone}
-            </p>
-          </div>
-        </div>
-
-        {/* Quick Communication Actions (WhatsApp / Email / Call) */}
-        <div className="flex flex-wrap items-center gap-2">
-          <a
-            href={`https://wa.me/${rawPhone}?text=${encodeURIComponent(`Dear ${partner.bookerName}, following up regarding your Ecram Execs executive travel account.`)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition"
-          >
-            <ChatIcon size={14} /> Message {partner.bookerName.split(" ")[0]} (WhatsApp)
-          </a>
-
-          <a
-            href={`mailto:${partner.bookerEmail}?subject=${encodeURIComponent(`Ecram Execs Executive Service — ${partner.name}`)}`}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 shadow-xs transition"
-          >
-            <MailIcon size={14} /> Email {partner.bookerName.split(" ")[0]}
-          </a>
-
-          <a
-            href={`tel:${partner.bookerPhone.replace(/\s/g, "")}`}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 shadow-xs transition"
-          >
-            <PhoneIcon size={14} /> Call {partner.bookerName.split(" ")[0]}
-          </a>
-        </div>
-      </div>
-
-      {/* Main Split: Left = Recent Bookings Table, Right = Notes & Activity Timeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Recent Bookings (7 cols) */}
-        <div className="lg:col-span-7 rounded-xl border border-zinc-200 bg-white shadow-card overflow-hidden">
-          <div className="border-b border-zinc-100 p-4 sm:px-5 flex items-center justify-between">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
-                Recent Executive Bookings
-              </h3>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Chauffeur itineraries and billing status
-              </p>
-            </div>
+      {/* --- BOOKINGS SIDEBAR DRAWER --- */}
+      <AdminDrawer
+        isOpen={activeDrawer === "bookings"}
+        onClose={() => setActiveDrawer(null)}
+        title={`${partner.companyName} — Bookings`}
+        subtitle="Complete history of executive transport itineraries"
+      >
+        <div className="space-y-4">
+          <div className="flex justify-end">
             <Link
-              href={`/admin/requests?q=${encodeURIComponent(partner.bookerName)}`}
-              className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline"
+              href={`/admin/corporate/${partner.id}/bookings`}
+              className="text-xs font-medium text-sky-700 hover:underline"
             >
-              View All ({partner.totalTrips})
+              Open in full page view &rarr;
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-zinc-100 bg-zinc-50/50 text-[11px] uppercase tracking-wider text-zinc-500">
                 <tr>
-                  <th className="px-5 py-3 font-semibold">Reference</th>
-                  <th className="px-4 py-3 font-semibold">Passenger / Itinerary</th>
-                  <th className="px-4 py-3 font-semibold">Vehicle</th>
-                  <th className="px-4 py-3 font-semibold">Amount</th>
-                  <th className="px-5 py-3 font-semibold text-right">Status</th>
+                  <th className="px-4 py-3 font-semibold">Reference</th>
+                  <th className="px-4 py-3 font-semibold">Passenger</th>
+                  <th className="px-4 py-3 font-semibold text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {partner.recentBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <Link
-                        href={`/admin/requests/${b.id}`}
-                        className="font-mono font-bold text-sky-700 hover:underline"
-                      >
-                        {b.reference}
-                      </Link>
-                      <span className="block text-[11px] text-zinc-400">{b.pickupDate}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-semibold text-zinc-900">{b.passengerName}</p>
-                      <p className="text-[11px] text-zinc-500 truncate max-w-xs">{b.route}</p>
-                    </td>
-                    <td className="px-4 py-3.5 text-zinc-700">{b.vehicle}</td>
-                    <td className="px-4 py-3.5 font-mono font-semibold text-zinc-950">
-                      € {b.amount.toFixed(2)}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${
-                          b.status === "confirmed"
-                            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                            : "bg-zinc-100 text-zinc-600 ring-zinc-200"
-                        }`}
-                      >
-                        {b.status}
-                      </span>
+                {bookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-zinc-400">
+                      No bookings found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  bookings.map((b) => (
+                    <tr key={b.id} className="hover:bg-zinc-50/50">
+                      <td className="px-4 py-3 font-mono text-sky-700 font-bold">{b.reference}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-zinc-900">{b.passengerName}</p>
+                        <p className="text-[11px] text-zinc-400">{b.pickupDate}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold">€ {b.amount.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+      </AdminDrawer>
 
-        {/* Notes & Activity Timeline with [+ Add Note] (5 cols) */}
-        <div className="lg:col-span-5 rounded-xl border border-zinc-200 bg-white shadow-card p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
-                Notes & Reminders Timeline
-              </h3>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                VIP protocol instructions & account manager logs
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsAddingNote(!isAddingNote)}
-              className="flex items-center gap-1 rounded-lg bg-zinc-950 px-2.5 py-1 text-xs font-semibold text-white hover:bg-zinc-800 transition shadow-xs"
+      {/* --- BILLING SIDEBAR DRAWER --- */}
+      <AdminDrawer
+        isOpen={activeDrawer === "billing"}
+        onClose={() => setActiveDrawer(null)}
+        title={`${partner.companyName} — Billing & VAT`}
+        subtitle="Corporate financial ledger and KVK registration details"
+      >
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Link
+              href={`/admin/corporate/${partner.id}/billing`}
+              className="text-xs font-medium text-sky-700 hover:underline"
             >
-              <PlusIcon size={12} /> Add Note
-            </button>
+              Open in full page view &rarr;
+            </Link>
           </div>
 
-          {/* Add Note Form */}
-          {isAddingNote && (
-            <form onSubmit={handleAddNote} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-2 animate-fade-in">
-              <label className="block text-xs font-medium text-zinc-700">New Account Note:</label>
-              <textarea
-                rows={3}
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Add special instructions, billing notes, or VIP preferences..."
-                className="w-full rounded border border-zinc-300 bg-white p-2 text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                required
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNote(false)}
-                  className="rounded px-2.5 py-1 text-xs text-zinc-600 hover:text-zinc-950"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded bg-zinc-950 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-800"
-                >
-                  Save Note
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Timeline List */}
-          <div className="space-y-3">
-            {notes.length === 0 ? (
-              <p className="text-xs text-zinc-400 py-4 text-center">No notes recorded yet for this partner.</p>
-            ) : (
-              notes.map((n) => (
-                <div key={n.id} className="rounded-lg border border-zinc-100 bg-zinc-50/70 p-3 space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-zinc-900">{n.author}</span>
-                    <span className="font-mono text-zinc-400">{n.timestamp}</span>
-                  </div>
-                  <p className="text-xs text-zinc-700 leading-relaxed">{n.content}</p>
-                </div>
-              ))
-            )}
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
+            <p className="text-xs"><strong className="text-zinc-950">KVK Number:</strong> {partner.kvkNumber}</p>
+            <p className="text-xs"><strong className="text-zinc-950">KVR Number:</strong> {partner.kvrNumber}</p>
           </div>
         </div>
-      </div>
+      </AdminDrawer>
+
+      {/* --- EDIT PROFILE MODAL --- */}
+      <AdminModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit ${partner.companyName}`}
+        subtitle="Update corporate partner parameters and configuration settings"
+      >
+        {/* Put your edit form or inputs here */}
+        <div className="space-y-4 text-xs">
+          <div>
+            <label className="block font-medium text-zinc-700 mb-1">Company Name</label>
+            <input
+              type="text"
+              defaultValue={partner.companyName}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+            />
+          </div>
+          <div>
+            <label className="block font-medium text-zinc-700 mb-1">KVK Number</label>
+            <input
+              type="text"
+              defaultValue={partner.kvkNumber}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setIsEditModalOpen(false)}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 font-medium text-zinc-600 hover:bg-zinc-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                // Handle save action here
+                setIsEditModalOpen(false);
+              }}
+              className="rounded-lg bg-zinc-950 px-3 py-1.5 font-medium text-white hover:bg-zinc-800"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </AdminModal>
     </div>
   );
 }

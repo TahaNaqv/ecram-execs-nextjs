@@ -171,6 +171,18 @@ function RequestForm({
               <input id="c-position" name="position" type="text" required maxLength={120} autoComplete="organization-title" placeholder={t.phPosition}
                 defaultValue={v.position} aria-invalid={!!err.position} aria-describedby={err.position ? "c-position-error" : undefined} className={control} />
             </Field>
+            <Field idPrefix="c" label="Company Legal Name" name="companyName" error={err.companyName}>
+              <input id="c-companyName" name="companyName" type="text" required maxLength={200} placeholder="e.g. Shell B.V."
+                defaultValue={v.companyName} aria-invalid={!!err.companyName} className={control} />
+            </Field>
+            <Field idPrefix="c" label="KVK Number" name="kvkNumber" error={err.kvkNumber}>
+              <input id="c-kvkNumber" name="kvkNumber" type="text" required maxLength={30} placeholder="8 digits or reg no."
+                defaultValue={v.kvkNumber} aria-invalid={!!err.kvkNumber} className={control} />
+            </Field>
+            <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className="md:col-span-2">
+              <input id="c-phone" name="phone" type="tel" required maxLength={25} placeholder="+31 20 123 4567"
+                defaultValue={v.phone} aria-invalid={!!err.phone} className={control} />
+            </Field>
           </>
         )}
       </div>
