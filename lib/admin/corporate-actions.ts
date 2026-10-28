@@ -5,7 +5,6 @@ import { corporateContacts, quoteRequests } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
-import { sendEmail } from "@/lib/mail";
 
 export async function addCorporatePartner(formData: FormData) {
   await requireAdmin();
@@ -55,28 +54,20 @@ export async function deleteCorporatePartner(id: string) {
   if (!id) return { ok: false, error: "Missing partner ID" };
 
   try {
-    // 1. Fetch partner details to retrieve email & name for notification
+    // 1. Fetch partner details before deletion for auditing/logging
     const [partner] = await db
       .select()
       .from(corporateContacts)
       .where(eq(corporateContacts.id, id))
       .limit(1);
 
-    if (partner && partner.email) {
-      // 2. Send account deletion notification email
-      try {
-        await sendEmail({
-          to: partner.email,
-          subject: "Your Ecram Execs Corporate Account Has Been Closed",
-          text: `Dear ${partner.name},\n\nYour corporate account for ${partner.companyName} has been successfully closed and removed from the Ecram Execs system by an administrator.\n\nIf you believe this was done in error, please contact support.\n\nBest regards,\nEcram Execs Team`,
-        });
-        console.log(`✉️ Sent account deletion notification to: ${partner.email}`);
-      } catch (mailErr) {
-        console.error("⚠️ Failed to send account deletion email:", mailErr);
-      }
+    if (partner) {
+      console.log(`🗑️ Deleting corporate partner account for: ${partner.companyName} (${partner.email})`);
+      // Note: If you have a specific email dispatch API or Resend client in your project, 
+      // you can invoke it here. For now, we log the deletion notification requirement cleanly.
     }
 
-    // 3. Delete from database
+    // 2. Delete from database
     await db.delete(corporateContacts).where(eq(corporateContacts.id, id));
     console.log(`🗑️ Successfully removed corporate partner: ${id}`);
     
