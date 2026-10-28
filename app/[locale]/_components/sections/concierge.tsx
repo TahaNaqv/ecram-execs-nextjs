@@ -47,7 +47,7 @@ export async function Concierge() {
               <div className="flex items-center gap-3.5">
                 <span className="relative grid size-12 shrink-0 place-items-center rounded-full border border-solid border-ink-400 bg-ink-950">
                   <Image src="/assets/logo-mark.png" alt="" width={48} height={48} className="size-9" />
-                  <span className="live absolute right-0 bottom-0 size-3 rounded-full border-2 border-solid border-ink-800 bg-[#25D366]" aria-hidden="true"></span>
+                  <span className="live absolute bottom-0 left-0 size-3 rounded-full border-2 border-solid border-ink-800 bg-[#25D366]" aria-hidden="true"></span>
                 </span>
                 <div className="flex flex-col">
                   <span className="font-display text-[13px] tracking-[0.3em] text-white">{d.conciergeSection.panelTitle}</span>
