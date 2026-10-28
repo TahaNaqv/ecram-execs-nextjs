@@ -149,3 +149,29 @@ test("with document storage on, an application keeps its four documents, an admi
   await page.getByRole("button", { name: "Yes, delete permanently" }).click();
   await expect.poll(() => readdir(dir).then(() => true, () => false), { timeout: 15_000 }).toBe(false);
 });
+
+
+test("the application form formats the plate, limits the phone number and KvK number while typing, and offers a country code", async ({ page }) => {
+  await page.goto("/en/drive-with-us");
+  const plate = page.getByLabel(t.labelPlate);
+  for (const [typed, shown] of [["xx999x", "XX-999-X"], ["99xx99", "99-XX-99"], ["9999xx", "99-99-XX"], ["xxxx99", "XX-XX-99"], ["h737hj", "H-737-HJ"]]) {
+    await plate.fill("");
+    await plate.pressSequentially(typed);
+    await expect(plate).toHaveValue(shown);
+  }
+
+  // The Netherlands is chosen to begin with; a Dutch number is at most 10 digits, a British one 11
+  const country = page.getByRole("combobox", { name: t.labelCountry });
+  await expect(country).toHaveValue("31");
+  const phone = page.locator("#a-phone");
+  await phone.pressSequentially("5646454545454545");
+  await expect(phone).toHaveValue("5646454545");
+  await country.selectOption("44");
+  await phone.fill("");
+  await phone.pressSequentially("5646454545454545");
+  await expect(phone).toHaveValue("56464545454");
+
+  const kvk = page.getByLabel(t.labelKvk);
+  await kvk.pressSequentially("123456789123");
+  await expect(kvk).toHaveValue("12345678");
+});

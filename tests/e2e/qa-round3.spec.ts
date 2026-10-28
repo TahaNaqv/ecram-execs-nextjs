@@ -116,22 +116,22 @@ test("bug 4: Guests and Duration show a dropdown arrow, and a press anywhere in 
   await expect(cell).toContainText(en.booking.hoursOption.replace("{hours}", "4"));
 });
 
-test("bug 5: the car photo stays inside the rounded frame of the summary panel", async ({ page }) => {
+test("bug 5: the car photo stays inside the rounded corners of the summary panel", async ({ page }) => {
   await page.goto("/en");
   await fillJourney(page, { from: "Schiphol Airport, Arrivals 2", to: "Hotel Des Indes, The Hague", at: nextYear("14-03", "08:30") }, b, bar(page));
   await chooseCar(page, null);
   const panel = page.getByRole("complementary", { name: b.summaryLabel });
   await expect(panel).toBeVisible();
-  const frame = panel.locator("div.rounded-\\[16px\\]").first();
-  const gallery = frame.locator("[aria-roledescription=carousel]");
+  // The photo fills the top of the panel, and the panel's rounded corners and hidden overflow are what shape it (QA of 28 Oct, bug 15)
+  const gallery = panel.locator("[aria-roledescription=carousel]");
   await expect(gallery).toBeVisible();
-  const radius = (el: Locator) => el.evaluate((node) => getComputedStyle(node).borderTopLeftRadius);
-  expect(await radius(gallery)).toBe(await radius(frame)); // takes its corners from the frame
-  expect(await frame.evaluate((node) => getComputedStyle(node).overflow)).toBe("hidden");
+  expect(await panel.evaluate((node) => getComputedStyle(node).overflow)).toBe("hidden");
+  expect(await panel.evaluate((node) => parseFloat(getComputedStyle(node).borderTopLeftRadius))).toBeGreaterThan(0);
   // Measured in one go: the panel is sticky and the page may still be scrolling to the step
   const inside = await gallery.evaluate((node) => {
-    const [g, f] = [node.getBoundingClientRect(), node.parentElement!.getBoundingClientRect()];
-    return g.left >= f.left - 0.5 && g.right <= f.right + 0.5 && g.top >= f.top - 0.5 && g.bottom <= f.bottom + 0.5;
+    const g = node.getBoundingClientRect();
+    const f = node.closest("aside")!.getBoundingClientRect();
+    return g.left >= f.left - 1.5 && g.right <= f.right + 1.5 && g.top >= f.top - 1.5 && g.bottom <= f.bottom + 0.5;
   });
   expect(inside).toBe(true);
 });

@@ -44,7 +44,7 @@ export async function Hero() {
 <div className="flex flex-wrap items-center justify-center gap-3">
         <Link
           prefetch={false}
-          className="rise d4 group inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white/80 bg-[rgba(var(--ec-deep-rgb),0.5)] px-6 text-[11px] tracking-[0.24em] text-white uppercase no-underline backdrop-blur-sm transition-colors hover:border-white hover:bg-white hover:text-ink-950"
+          className="rise d4 group inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border-0 ring-1 ring-white/85 bg-[rgba(var(--ec-deep-rgb),0.5)] px-6 text-[11px] tracking-[0.24em] text-white uppercase no-underline backdrop-blur-sm transition-colors hover:ring-white hover:bg-white hover:text-ink-950"
           href={localizedPath("/corporate-partner/login", locale)}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="transition-colors group-hover:text-ink-950">

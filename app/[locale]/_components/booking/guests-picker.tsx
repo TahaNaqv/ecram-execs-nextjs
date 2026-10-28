@@ -113,7 +113,7 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
             id={dialogId}
             role="dialog"
             aria-label={t.guestsDialog}
-            className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-solid border-ink-150 bg-white px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-0 md:bottom-auto md:mt-1 md:w-[310px] md:rounded-2xl md:p-4"
+            className="fixed inset-x-0 bottom-0 z-[70] rounded-t-3xl border-t border-solid border-ink-300 bg-white px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-0 md:bottom-auto md:mt-1 md:w-[310px] md:rounded-2xl md:p-4"
           >
             <div ref={first} className="flex items-center justify-between gap-3 py-2">
               <span className="flex flex-col">

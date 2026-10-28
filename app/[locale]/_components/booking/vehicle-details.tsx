@@ -57,16 +57,16 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
       onClose={onClose}
       onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       aria-label={vehicle?.name}
-      className="m-auto w-[min(960px,calc(100vw-32px))] max-w-none rounded-3xl border-0 bg-white p-0 text-ink-950 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm overflow-visible"
+      className="m-auto max-h-[calc(100dvh-24px)] w-[min(960px,calc(100vw-24px))] max-w-none overflow-y-auto overscroll-contain rounded-3xl border-0 bg-white p-0 text-ink-950 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       {vehicle && (
         <div className="relative flex flex-col gap-8 p-6 md:flex-row md:p-10">
-          {/* Close button safely positioned inside the top-right corner of the modal */}
+          {/* Close button inside the top-right corner: the dialog scrolls on a small screen, which would clip a button hanging outside it */}
           <button
             type="button"
             onClick={() => dialog.current?.close()}
             aria-label={closeLabel}
-            className="absolute -top-4 -right-4 z-30 grid size-11 cursor-pointer place-items-center rounded-full bg-white text-ink-700 transition-all hover:bg-ink-100 hover:text-ink-950 shadow-lg border border-ink-200"
+            className="absolute top-3 right-3 z-30 grid size-11 cursor-pointer place-items-center rounded-full bg-white text-ink-700 transition-all hover:bg-ink-100 hover:text-ink-950 shadow-lg border border-ink-200"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -97,7 +97,7 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
           {/* Right Column: Individual padded and rounded card borders with smaller fonts */}
           <div className="flex min-w-0 flex-1 flex-col gap-3 justify-center">
             {questionsFor(vehicle, t, locale).map(([question, answer]) => (
-              <details key={question} className="group rounded-xl border border-solid border-ink-225 bg-white p-3.5 transition-all hover:border-ink-400">
+              <details key={question} name="vehicle-questions" className="group rounded-xl border border-solid border-ink-225 bg-white p-3.5 transition-all hover:border-ink-400">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[13.5px] font-medium text-ink-900 transition-colors hover:text-ink-950 [&::-webkit-details-marker]:hidden">
                   <span className="pr-2">{question}</span>
                   <svg className="shrink-0 text-ink-500 transition-transform duration-300 group-open:rotate-45" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

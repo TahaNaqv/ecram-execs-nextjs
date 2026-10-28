@@ -1,13 +1,15 @@
 import { z } from "zod";
 import { DECLARATIONS, DRIVER_CRITERIA, type Declaration, type DocumentName } from "./criteria";
 import { LOCALES } from "@/lib/i18n/config";
+import { phoneLengthOk } from "@/lib/phone";
 
 /** The messages the schema needs. `dictionary.forms` satisfies this structurally. */
 export type ApplicationMessages = {
   nameRequired: string;
   nameTooLong: string;
   emailInvalid: string;
-  phoneInvalid: string;
+  phoneCountryInvalid: string;
+  phoneNumberInvalid: string;
   kvkInvalid: string;
   experienceRequired: string;
   experienceWhole: string;
@@ -26,10 +28,16 @@ export const applicationSchema = (t: ApplicationMessages) => {
   return z.object({
     name: z.string().trim().min(1, t.nameRequired).max(120, t.nameTooLong),
     email: z.string().trim().toLowerCase().max(200).pipe(z.email(t.emailInvalid)),
+    // The country code is chosen apart from the number, as in the booking form; the number is held to that country's length
+    phoneCountry: z
+      .string()
+      .trim()
+      .transform((v) => v.replace(/^\+/, ""))
+      .pipe(z.string().regex(/^[0-9]{1,4}$/, t.phoneCountryInvalid)),
     phone: z
       .string()
       .trim()
-      .regex(/^\+?[0-9 ()\-.]{7,24}$/, t.phoneInvalid),
+      .regex(/^[0-9 ()\-.]{5,24}$/, t.phoneNumberInvalid),
     kvk: z
       .string()
       .transform((v) => v.replace(/\s/g, ""))
@@ -48,10 +56,12 @@ export const applicationSchema = (t: ApplicationMessages) => {
     // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
     locale: z.enum(LOCALES).catch("en"),
     ...(Object.fromEntries(DECLARATIONS.map((d) => [d, confirmed])) as Record<Declaration, typeof confirmed>),
-  });
+  }).superRefine(({ phoneCountry, phone }, ctx) => {
+    if (!phoneLengthOk(phoneCountry, phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: t.phoneNumberInvalid });
+  }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 };
 
 export type ApplicationInput = z.infer<ReturnType<typeof applicationSchema>>;
 export type ApplicationField = keyof ApplicationInput;
 /** Everything the form can flag an error on */
-export type FormField = ApplicationField | DocumentName;
+export type FormField = ApplicationField | "phoneCountry" | DocumentName;

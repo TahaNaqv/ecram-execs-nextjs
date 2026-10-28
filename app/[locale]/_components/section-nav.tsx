@@ -56,11 +56,11 @@ export function SectionNav({ copy }: { copy: Copy }) {
   };
 
   const button =
-    "flex h-12 w-12 cursor-pointer items-center justify-center border border-ink-700 bg-ink-950/80 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-ink-950/80 disabled:hover:text-ink-50";
+    "flex h-9 w-9 cursor-pointer md:h-12 md:w-12 items-center justify-center border border-ink-700 bg-ink-950/80 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-ink-950/80 disabled:hover:text-ink-50";
 
   return (
     <div
-      className={`section-nav cookie-lift fixed right-4 z-50 flex flex-col gap-px transition-[bottom] duration-300 md:right-8 ${atBottom || hasWhatsApp ? "bottom-24 md:bottom-28" : "bottom-4 md:bottom-8"} ${visible ? "is-visible" : ""}`}
+      className={`section-nav cookie-lift fixed right-2 z-50 flex flex-col gap-px transition-[bottom] duration-300 md:right-8 ${atBottom || hasWhatsApp ? "bottom-24 md:bottom-28" : "bottom-4 md:bottom-8"} ${visible ? "is-visible" : ""}`}
       aria-hidden={!visible}
     >
       <button type="button" className={button} onClick={() => go(-1)} disabled={atTop} aria-label={copy.prev} tabIndex={visible ? 0 : -1}>

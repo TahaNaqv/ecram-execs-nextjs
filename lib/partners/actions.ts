@@ -45,7 +45,7 @@ export type CheckResult =
   | Exclude<ApplicationFormState, { status: "idle" }>
   | { status: "ready"; ticket: string; uploads: { name: DocumentName; url: string }[] };
 
-const FIELDS = ["name", "email", "phone", "kvk", "experienceYears", "plate", "notes", ...DECLARATIONS] as const;
+const FIELDS = ["name", "email", "phoneCountry", "phone", "kvk", "experienceYears", "plate", "notes", ...DECLARATIONS] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 60 };
 const TICKET_TTL_MS = 60 * 60_000;
 

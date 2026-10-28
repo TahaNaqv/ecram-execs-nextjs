@@ -331,6 +331,13 @@
   --color-ink-50: #eff5fc;
 }
 
+/* While a dialog (a car's details, its photo viewer, the cookie settings) is open the page behind it does not scroll: a touch that
+   reaches the end of the dialog would otherwise carry on into the page */
+html:has(dialog[open]),
+body:has(dialog[open]) {
+  overflow: hidden !important;
+}
+
 /* ---------- Base ---------- */
 @layer base {
   body {

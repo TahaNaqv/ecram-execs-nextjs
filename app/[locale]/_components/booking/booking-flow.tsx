@@ -485,14 +485,14 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             {portal ? t.detailsTitlePortal : t.detailsTitle}
           </h2>
 
-          <div role="group" aria-label={t.whoLabel} className="flex flex-wrap self-start rounded-full bg-ink-100 p-1">
+          <div role="group" aria-label={t.whoLabel} className="grid w-full max-w-full grid-cols-2 gap-1 self-start rounded-full bg-ink-100 p-1 sm:inline-grid sm:w-auto">
             {(["me", "other"] as const).map((w) => (
               <button
                 key={w}
                 type="button"
                 aria-pressed={who === w}
                 onClick={() => setWho(w)}
-                className={`h-10 cursor-pointer rounded-full border-0 px-[18px] text-[14px] ${who === w ? "bg-ink-950 font-semibold text-white" : "bg-transparent font-medium text-ink-950"}`}
+                className={`min-h-10 min-w-0 cursor-pointer rounded-full border-0 px-3 py-1 text-center text-[13px] leading-tight sm:px-[18px] sm:text-[14px] ${who === w ? "bg-ink-950 font-semibold text-white" : "bg-transparent font-medium text-ink-950"}`}
               >
                 {w === "me" ? t.whoMe : t.whoOther}
               </button>
@@ -643,8 +643,8 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
 
   return (
     <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.08)] lg:sticky lg:top-6">
-      <div className="relative aspect-[16/9.5] w-full bg-ink-900 p-2 pb-0">
-        <div className="relative isolate h-full w-full overflow-hidden rounded-[16px] [clip-path:inset(0_round_16px)]">
+      <div className="relative aspect-[16/9.5] w-full bg-ink-900">
+        <div className="relative isolate h-full w-full overflow-hidden">
           <VehicleGallery
             name={displayName}
             images={galleryImages}

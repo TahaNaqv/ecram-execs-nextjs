@@ -9,6 +9,8 @@ import type { Locale } from "@/lib/i18n/config";
 import type { DeclarationLabels, DocumentLabels } from "@/lib/partners/criteria";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import Link from "next/link";
+import { COUNTRY_CODES } from "@/lib/quotes/constants";
+import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 
 // Inputs use 16px on phones so iOS doesn't zoom in on focus
 const control =
@@ -53,7 +55,7 @@ export type ApplicationFormCopy = {
   declarations: DeclarationLabels;
   forms: { documentRequired: string; documentType: string; documentTooLarge: string; documentConnectionFailed: string; documentNotUploaded: string };
   page: Record<
-    | "labelPlate" | "phPlate" | "labelName" | "phName" | "labelEmail" | "phEmail" | "labelPhone" | "phPhone"
+    | "labelPlate" | "phPlate" | "labelName" | "phName" | "labelEmail" | "phEmail" | "labelPhone" | "labelCountry" | "phPhone"
     | "labelKvk" | "phKvk" | "labelExperience" | "phExperience" | "labelNotes" | "phNotes"
     | "documentsLegend" | "confirmLegend" | "submit" | "stageChecking" | "stageUploading" | "stageSaving"
     | "successLabel" | "successHeading" | "successNote" | "rdwRejected" | "privacyNote" | "privacyLink",
@@ -63,6 +65,16 @@ export type ApplicationFormCopy = {
 
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
+
+/**
+ * A Dutch plate as it is written, with its dashes put in while it is typed. The dashes fall between runs of letters and runs of digits
+ * (XX-999-X, 99-XXX-9, 9-XXX-99, XXX-99-X, X-999-XX), and a run of four is split in two (99-99-XX, XX-XX-99, 99-XX-XX).
+ */
+export function formatPlate(raw: string): string {
+  const chars = raw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  const runs = chars.match(/[A-Z]+|[0-9]+/g) ?? [];
+  return runs.flatMap((run) => (run.length === 4 ? [run.slice(0, 2), run.slice(2)] : [run])).join("-");
+}
 
 /** `documents` is false when document storage isn't configured (local development) */
 export function ApplicationForm({
@@ -75,6 +87,8 @@ export function ApplicationForm({
   copy: ApplicationFormCopy;
 }) {
   const [stage, setStage] = useState<Stage>("checking");
+  const [plate, setPlate] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("31");
   const t = copy.page;
   const stageText: Record<Stage, string> = {
     checking: t.stageChecking,
@@ -164,6 +178,7 @@ export function ApplicationForm({
               NL
             </span>
             <input id="a-plate" name="plate" type="text" placeholder={t.phPlate} required maxLength={12}
+              value={plate} onChange={(e) => setPlate(formatPlate(e.target.value))}
               autoComplete="off" autoCapitalize="characters" spellCheck={false}
               aria-invalid={!!err.plate} aria-describedby={describedBy("plate")}
               className={`${control} font-semibold tracking-[0.12em] uppercase`} />
@@ -179,13 +194,41 @@ export function ApplicationForm({
             autoComplete="email" aria-invalid={!!err.email}
             aria-describedby={describedBy("email")} className={control} />
         </Field>
-        <Field label={t.labelPhone} name="phone" error={err.phone}>
-          <input id="a-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={24}
-            autoComplete="tel" aria-invalid={!!err.phone}
-            aria-describedby={describedBy("phone")} className={control} />
+        <Field label={t.labelPhone} name="phone" error={err.phone ?? err.phoneCountry}>
+          <span className="flex items-center gap-2">
+            <select
+              name="phoneCountry"
+              aria-label={t.labelCountry}
+              value={phoneCountry}
+              onChange={(e) => {
+                setPhoneCountry(e.target.value);
+                // A country with shorter numbers than the last one: cut what was typed down to the new limit
+                const typed = document.getElementById("a-phone");
+                if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
+              }}
+              className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-solid border-ink-225 bg-transparent py-0 pr-1 pl-0 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]"
+            >
+              {COUNTRY_CODES.map(([code, iso]) => (
+                <option key={code} value={code}>
+                  {iso} +{code}
+                </option>
+              ))}
+            </select>
+            <input id="a-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={PASTE_MAX}
+              onInput={(e) => {
+                const target = e.target as HTMLInputElement;
+                target.value = cleanPhoneInput(target.value, phoneCountry);
+              }}
+              autoComplete="tel-national" inputMode="tel" aria-invalid={!!(err.phone ?? err.phoneCountry)}
+              aria-describedby={describedBy("phone")} className={control} />
+          </span>
         </Field>
         <Field label={t.labelKvk} name="kvk" error={err.kvk}>
-          <input id="a-kvk" name="kvk" type="text" inputMode="numeric" placeholder={t.phKvk} required maxLength={12}
+          <input id="a-kvk" name="kvk" type="text" inputMode="numeric" placeholder={t.phKvk} required maxLength={8}
+            onInput={(e) => {
+              const target = e.target as HTMLInputElement;
+              target.value = target.value.replace(/\D/g, "").slice(0, 8);
+            }}
             autoComplete="off" aria-invalid={!!err.kvk}
             aria-describedby={describedBy("kvk")} className={control} />
         </Field>
