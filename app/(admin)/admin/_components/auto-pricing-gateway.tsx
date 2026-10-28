@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import type { QuoteRequest } from "@/lib/db/schema";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -8,6 +9,10 @@ import { interpolate } from "@/lib/i18n/interpolate";
 type PricingCopy = Dictionary["admin"]["pricing"];
 type StatusCopy = Dictionary["admin"]["statuses"];
 const STATUSES = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"] as const;
+
+function esc(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+}
 import { formatEuro, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { 
@@ -31,9 +36,11 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   
-  // Inline editing state for fare, tax rates, and tax descriptions
+  // Inline editing state for fare, tax rates, and tax descriptions (Bug ID 8 fix)
   const [isEditing, setIsEditing] = useState(false);
-  const [editedAmount, setEditedAmount] = useState(request.quotedAmount ? Number(request.quotedAmount) : 0);
+  const [editedAmount, setEditedAmount] = useState<number | string>(
+    request.quotedAmount ? Number(request.quotedAmount) : 0
+  );
   const [btw9Rate, setBtw9Rate] = useState(9);
   const [btw21Rate, setBtw21Rate] = useState(21);
   const [btw9Label, setBtw9Label] = useState("Passenger Transport");
@@ -43,16 +50,18 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const collection = request.collection ?? "—";
   const destination = request.destination ?? (request.durationHours ? interpolate(copy.hoursAsDirected, { hours: request.durationHours }) : "—");
   const stopovers = request.destinations ?? [];
+  const stopWaits = request.destinationWaits ?? [];
   const pickup = request.pickupAt ? pickupParts(request.pickupAt) : null;
   const pickupAt = request.pickupAt ? pickupInstant(request.pickupAt) : null;
 
-  // Fare calculations
-  const subtotal = Number(editedAmount);
+  // Fare calculations with safe number fallback
+  const numericSubtotal = typeof editedAmount === "number" ? editedAmount : (Number(editedAmount) || 0);
+  const subtotal = numericSubtotal;
   const durationHours = request.durationHours ?? 0;
   const hourlyRate = 50;
   const timeCost = durationHours * hourlyRate;
   const airportSurcharge = request.flightNumber ? 25 : 0;
-  const totalWaitMinutes = (request.destinationWaits ?? []).reduce((a, b) => a + (b ?? 0), 0);
+  const totalWaitMinutes = stopWaits.reduce((a, b) => a + (b ?? 0), 0);
   const waitRate = 0.5;
   const waitCost = totalWaitMinutes * waitRate;
   const deadheadFee = request.returnAt ? subtotal * 0.10 : 0;
@@ -108,10 +117,10 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
     }
   }
 
-// 3. Save Fare: Updates fare amount, sets status to "quoted", and saves to DB without sending mail
+  // 3. Save Fare: Updates fare amount, sets status to "quoted", and saves to DB without sending mail
   async function handleSaveFare() {
     setIsEditing(false);
-    setStatus("quoted"); // Automatically update local status state to quoted
+    setStatus("quoted");
     setLoading(true);
     setToast("Fare updated and status set to quoted (No email sent).");
     try {
@@ -126,6 +135,97 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
       setLoading(false);
       setTimeout(() => setToast(null), 3000);
     }
+  }
+
+  function printQuote() {
+    const vehicleName = request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—";
+    const when = [pickup?.date, pickup?.time].filter(Boolean).join(" · ") || "—";
+    const issued = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Amsterdam",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date());
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ecram Execs quote ${esc(request.reference)}</title>
+<style>
+  @page { size: A4 portrait; margin: 18mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; color: #111; font-family: "Segoe UI", Helvetica, Arial, sans-serif; }
+  body { padding: 0; }
+  .brand { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.34em; text-transform: uppercase; color: #065f46; }
+  h1 { margin: 14px 0 0; font-size: 22px; line-height: 1.2; }
+  .ref { margin: 8px 0 0; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #3f3f46; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 28px; padding: 18px 0; border-top: 1px solid #d4d4d8; border-bottom: 1px solid #d4d4d8; }
+  .k { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #71717a; }
+  .v { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+  p { margin: 2px 0 0; font-size: 13px; }
+  table { width: 100%; margin-top: 22px; border-collapse: collapse; }
+  td { padding: 10px 0; border-bottom: 1px solid #e4e4e7; font-size: 14px; vertical-align: top; }
+  td.amt { text-align: right; font-family: ui-monospace, Consolas, monospace; font-weight: 600; white-space: nowrap; }
+  tr.total td { border-bottom: 0; border-top: 2px solid #111; padding-top: 14px; font-size: 16px; font-weight: 700; }
+  tr.total td.amt { color: #065f46; }
+  footer { margin-top: 48px; padding-top: 14px; border-top: 1px solid #e4e4e7; text-align: center; font-size: 11px; color: #71717a; }
+</style>
+</head>
+<body>
+  <p class="brand">Ecram Execs</p>
+  <h1>${esc(copy.quoteHeading)}</h1>
+  <p class="ref">${esc(copy.reference)} ${esc(request.reference)} · ${esc(issued)}</p>
+  <div class="meta">
+    <div>
+      <p class="k">Client</p>
+      <p class="v">${esc(request.name)}</p>
+      <p>${esc(request.email)}</p>
+      <p>${esc(request.phone)}</p>
+    </div>
+    <div>
+      <p class="k">${esc(copy.itinerary)}</p>
+      <p class="v">${esc(collection)} → ${esc(destination)}</p>
+      <p>${esc(when)}</p>
+      <p>${esc(vehicleName)}${request.passengers ? ` · ${esc(String(request.passengers))}` : ""}</p>
+    </div>
+  </div>
+  <table>
+    <tr><td>${esc(copy.totalBaseExcl)}</td><td class="amt">${esc(formatEuro(baseFare))}</td></tr>
+    <tr><td>${esc(String(btw9Rate))}% BTW (${esc(btw9Label)})</td><td class="amt">${esc(formatEuro(btw9))}</td></tr>
+    <tr><td>${esc(String(btw21Rate))}% BTW (${esc(btw21Label)})</td><td class="amt">${esc(formatEuro(btw21))}</td></tr>
+    <tr class="total"><td>${esc(copy.finalAmount)}</td><td class="amt">${esc(formatEuro(grandTotal))}</td></tr>
+  </table>
+  <footer>Ecram Execs Chauffeur Services · Amsterdam, Netherlands</footer>
+</body>
+</html>`;
+
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:#fff;";
+    document.body.appendChild(frame);
+    const win = frame.contentWindow;
+    const doc = frame.contentDocument;
+    if (!win || !doc) {
+      frame.remove();
+      return;
+    }
+    const previousTitle = document.title;
+    document.title = `Ecram Execs quote ${request.reference}`;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    let closed = false;
+    const finish = () => {
+      if (closed) return;
+      closed = true;
+      document.title = previousTitle;
+      frame.remove();
+    };
+    win.onafterprint = finish;
+    setTimeout(() => {
+      win.focus();
+      win.print();
+    }, 50);
   }
 
   function handleWhatsappLink() {
@@ -185,31 +285,104 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
         </div>
       )}
 
-      {/* Branded PDF Quote Preview Modal */}
-      {showPdfModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-zinc-900 text-zinc-100 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative my-auto">
-            <button onClick={() => setShowPdfModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 cursor-pointer">
-              <XIcon size={18} />
-            </button>
-            <div className="text-center border-b border-zinc-800 pb-5 mb-5">
-              <span className="font-display text-xs tracking-[0.4em] uppercase text-emerald-400">ECRAM EXECS</span>
-              <h2 className="text-lg font-bold text-white mt-1">{copy.quoteHeading}</h2>
-              <p className="text-xs text-zinc-400 mt-1 font-mono">{copy.reference} {request.reference}</p>
+      {/* Branded quote. Portaled to the page root so print can drop the admin chrome and keep this sheet. */}
+      {showPdfModal &&
+        createPortal(
+          <div id="official-quote">
+            <button
+              type="button"
+              aria-label={copy.close}
+              className="quote-chrome fixed inset-0 z-[80] cursor-pointer bg-zinc-950/70"
+              onClick={() => setShowPdfModal(false)}
+            />
+            <div className="quote-sheet-frame pointer-events-none fixed inset-0 z-[81] overflow-y-auto p-4 sm:p-8">
+              <article className="quote-sheet pointer-events-auto relative mx-auto my-4 w-full max-w-[720px] bg-white px-8 py-10 text-zinc-950 shadow-2xl sm:px-12">
+                <button
+                  type="button"
+                  onClick={() => setShowPdfModal(false)}
+                  className="quote-chrome absolute top-4 right-4 cursor-pointer p-1 text-zinc-400 hover:text-zinc-950"
+                >
+                  <XIcon size={18} />
+                </button>
+
+                <header className="border-b border-zinc-300 pb-6 text-center">
+                  <p className="font-display text-xs font-bold tracking-[0.4em] text-emerald-800 uppercase">Ecram Execs</p>
+                  <h2 className="mt-3 text-xl font-bold tracking-tight text-zinc-950">{copy.quoteHeading}</h2>
+                  <p className="mt-2 font-mono text-xs text-zinc-600">
+                    {copy.reference} {request.reference}
+                  </p>
+                </header>
+
+                <div className="grid grid-cols-1 gap-6 border-b border-zinc-200 py-6 text-sm sm:grid-cols-2">
+                  <div>
+                    <p className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Client</p>
+                    <p className="mt-1 font-semibold text-zinc-950">{request.name}</p>
+                    <p className="text-zinc-700">{request.email}</p>
+                    <p className="text-zinc-700">{request.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">{copy.itinerary}</p>
+                    <p className="mt-1 font-semibold text-zinc-950">
+                      {collection} → {destination}
+                    </p>
+                    <p className="text-zinc-700">
+                      {[pickup?.date, pickup?.time].filter(Boolean).join(" · ") || "—"}
+                    </p>
+                    <p className="text-zinc-700">
+                      {request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—"}
+                      {request.passengers ? ` · ${request.passengers}` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 text-sm">
+                  <div className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
+                    <span className="text-zinc-800">{copy.totalBaseExcl}</span>
+                    <span className="font-mono font-semibold text-zinc-950">{formatEuro(baseFare)}</span>
+                  </div>
+                  <div className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
+                    <span className="text-zinc-800">
+                      {btw9Rate}% BTW ({btw9Label})
+                    </span>
+                    <span className="font-mono font-semibold text-zinc-950">{formatEuro(btw9)}</span>
+                  </div>
+                  <div className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
+                    <span className="text-zinc-800">
+                      {btw21Rate}% BTW ({btw21Label})
+                    </span>
+                    <span className="font-mono font-semibold text-zinc-950">{formatEuro(btw21)}</span>
+                  </div>
+                  <div className="mt-4 flex justify-between gap-6 border-t-2 border-zinc-950 pt-4 text-base font-bold">
+                    <span>{copy.finalAmount}</span>
+                    <span className="font-mono text-emerald-800">{formatEuro(grandTotal)}</span>
+                  </div>
+                </div>
+
+                <p className="mt-12 border-t border-zinc-200 pt-4 text-center text-[11px] text-zinc-500">
+                  Ecram Execs Chauffeur Services · Amsterdam, Netherlands
+                </p>
+
+                <div className="quote-chrome mt-6 flex justify-end gap-3 border-t border-zinc-200 pt-4">
+                  <button
+                    type="button"
+                    onClick={printQuote}
+                    className="cursor-pointer rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                  >
+                    {copy.printPdf}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPdfModal(false)}
+                    className="cursor-pointer rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+                  >
+                    {copy.close}
+                  </button>
+                </div>
+              </article>
             </div>
-            <div className="space-y-4 text-xs font-mono">
-              <div className="flex justify-between py-1"><span className="text-zinc-300">{copy.totalBase}</span><span className="text-white">{formatEuro(baseFare)}</span></div>
-              <div className="flex justify-between py-1"><span className="text-cyan-400">{btw9Rate}% BTW ({btw9Label})</span><span className="text-cyan-400">{formatEuro(btw9)}</span></div>
-              <div className="flex justify-between py-1"><span className="text-blue-400">{btw21Rate}% BTW ({btw21Label})</span><span className="text-blue-400">{formatEuro(btw21)}</span></div>
-              <div className="flex justify-between pt-3 border-t border-zinc-800 text-sm font-bold"><span className="text-white">{copy.total}</span><span className="text-emerald-400 text-base">{formatEuro(grandTotal)}</span></div>
-            </div>
-            <div className="mt-5 pt-4 border-t border-zinc-800 flex justify-end gap-3">
-              <button onClick={() => window.print()} className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer">{copy.printPdf}</button>
-              <button onClick={() => setShowPdfModal(false)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer">{copy.close}</button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Header bar */}
       <div className="border-b border-zinc-100 bg-zinc-50/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
@@ -254,12 +427,25 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
                 <span className="text-zinc-900 truncate font-medium">📍 {collection}</span>
                 <span className="text-zinc-400 text-[11px]">{copy.collection}</span>
               </div>
-              {stopovers.map((stop: string, idx: number) => (
-                <div key={idx} className="flex items-center justify-between bg-white border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs">
-                  <span className="text-zinc-900 truncate font-medium">📍 {stop}</span>
-                  <span className="text-zinc-400 text-[11px]">{interpolate(copy.stop, { number: idx + 1 })}</span>
-                </div>
-              ))}
+              
+              {/* Bug ID 10 Fix: Displaying stop-over wait times */}
+              {stopovers.map((stop: string, idx: number) => {
+                const waitMins = stopWaits[idx] ?? 0;
+                return (
+                  <div key={idx} className="flex items-center justify-between bg-white border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs">
+                    <span className="text-zinc-900 truncate font-medium">📍 {stop}</span>
+                    <div className="flex items-center gap-2">
+                      {waitMins > 0 && (
+                        <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-mono text-[10px]">
+                          ⏱ {waitMins} min wait
+                        </span>
+                      )}
+                      <span className="text-zinc-400 text-[11px]">{interpolate(copy.stop, { number: idx + 1 })}</span>
+                    </div>
+                  </div>
+                );
+              })}
+
               <div className="flex items-center justify-between bg-white border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs">
                 <span className="text-zinc-900 truncate font-medium">📍 {destination}</span>
                 <span className="text-zinc-400 text-[11px]">{copy.destination}</span>
@@ -267,6 +453,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
             </div>
           </div>
 
+          {/* Bug ID 11 Fix: Displaying Luggage and Passenger Details */}
           <div className="bg-white border border-zinc-200 rounded-xl p-4 grid grid-cols-2 gap-3 text-xs shadow-2xs">
             <div>
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
@@ -288,6 +475,12 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
             </div>
             <div>
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
+                🧳 Luggage
+              </p>
+              <p className="font-semibold text-zinc-900 mt-0.5">{(request as any).luggage ?? "Standard / 2 Bags"}</p>
+            </div>
+            <div className="col-span-2 pt-2 border-t border-zinc-100">
+              <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
                 <BriefcaseIcon size={12} /> {copy.vehicle}
               </p>
               <p className="font-semibold text-zinc-900 mt-0.5 truncate">
@@ -300,7 +493,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
         {/* Column 2 & 3 Combined: Single Flow Without Gaps */}
         <div className="flex flex-col gap-4 md:col-span-1 xl:col-span-2">
           
-          {/* Fare Breakdown Engine with Fully Editable Tax Percentages & Descriptions */}
+          {/* Fare Breakdown Engine with Bug ID 8 Editable Fare Fix */}
           <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5 flex flex-col gap-4">
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
@@ -342,7 +535,16 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
                       <input
                         type="number"
                         value={editedAmount}
-                        onChange={(e) => setEditedAmount(Number(e.target.value))}
+                        onFocus={() => {
+                          if (editedAmount === 0) setEditedAmount("");
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditedAmount(val === "" ? "" : Number(val));
+                        }}
+                        onBlur={() => {
+                          if (editedAmount === "" || isNaN(Number(editedAmount))) setEditedAmount(0);
+                        }}
                         className="w-32 bg-white border border-zinc-300 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                         autoFocus
                       />

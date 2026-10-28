@@ -87,3 +87,51 @@
     }
   }
 }
+
+/* The branded quote is portaled to the end of body. Print that sheet only. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body > *:not(#official-quote) {
+    display: none !important;
+  }
+
+  #official-quote,
+  #official-quote .quote-sheet-frame {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #0a0a0b !important;
+  }
+
+  #official-quote .quote-sheet {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #0a0a0b !important;
+    box-shadow: none !important;
+  }
+
+  #official-quote .quote-chrome {
+    display: none !important;
+  }
+}

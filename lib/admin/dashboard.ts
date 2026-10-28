@@ -17,10 +17,12 @@ function amsterdamNow() {
 const minutes = (value: string) => value.replace("T", " ").slice(0, 16);
 
 /**
- * A booking the team still has, or has already run. The website, the portal and the concierge all save a request as
- * "new"; it only becomes "confirmed" once a quote is accepted. Cancelled is the one status that is not a job.
+ * A booking the team still has. The website, the portal and the concierge all save a request as "new"; it only becomes
+ * "confirmed" once a quote is accepted. Completed and cancelled are finished, so they are not today's remaining work.
  */
-const JOB_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed"] as const;
+const OPEN_STATUSES = ["new", "contacted", "quoted", "confirmed"] as const;
+/** Today's jobs count a trip that already ran as well as one that is still to come. */
+const JOB_STATUSES = [...OPEN_STATUSES, "completed"] as const;
 
 export type DashboardFigures = {
   fleet: { available: number; total: number };
@@ -48,7 +50,7 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
       .where(
         and(
           inArray(q.status, [...JOB_STATUSES]),
-          sql`(to_char(${q.pickupAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD') or to_char(${q.returnAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD'))`,
+          sql`(${q.pickupAt}::date = ${NOW}::date or ${q.returnAt}::date = ${NOW}::date)`,
         ),
       ),
     db
@@ -95,10 +97,8 @@ export type UpcomingPickup = {
 };
 
 /**
- * Today's jobs, whatever stage the booking is in, plus later bookings that are still open.
- * A request from the website starts as "new", so a confirmed-only list hides the booking the team just received.
- * Today's jobs count a trip whose pick-up or return is today even after that time has passed;
- * the list has to include those same rows or the counter and "Next pick-ups" disagree.
+ * Bookings still to be done: new, contacted, quoted, or confirmed, with a pick-up or return today or still ahead.
+ * A completed booking stays in the Today's jobs count, and stays off this list.
  */
 export const upcomingPickups = cache(async (limit = 6): Promise<UpcomingPickup[]> => {
   await requireAdmin();
@@ -107,13 +107,12 @@ export const upcomingPickups = cache(async (limit = 6): Promise<UpcomingPickup[]
     .from(q)
     .where(
       and(
-        inArray(q.status, [...JOB_STATUSES]),
+        inArray(q.status, [...OPEN_STATUSES]),
         sql`(
-          to_char(${q.pickupAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD')
-          or to_char(${q.returnAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD')
+          ${q.pickupAt}::date = ${NOW}::date
+          or ${q.returnAt}::date = ${NOW}::date
           or (
-            ${q.status} <> 'completed'
-            and ${q.pickupAt} is not null
+            ${q.pickupAt} is not null
             and greatest(${q.pickupAt}, ${q.returnAt}) >= ${NOW}
           )
         )`,
@@ -169,12 +168,13 @@ export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
   return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(normalizeVehicleKey(v.id) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
 });
 
-/** The newest requests, newest first. */
+/** Finished bookings, newest first. Anything still open stays in Next pick-ups until it is completed or cancelled. */
 export const recentRequests = cache(async (limit = 5) => {
   await requireAdmin();
   return db
     .select({ id: q.id, reference: q.reference, service: q.service, name: q.name, entity: q.entity, status: q.status, createdAt: q.createdAt })
     .from(q)
+    .where(inArray(q.status, ["completed", "cancelled"]))
     .orderBy(desc(q.createdAt))
     .limit(limit);
 });
