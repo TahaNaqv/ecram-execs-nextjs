@@ -11,7 +11,9 @@ import {
   CalendarIcon,
   ClockIcon,
   UsersIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  MailIcon,
+  ChatIcon
 } from "./icons";
 
 export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
@@ -52,22 +54,42 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
   const totalTax = btw9 + btw21;
   const grandTotal = baseFare + totalTax;
 
-  async function handleAuthorise() {
+  // Send Only handler (saves/updates without triggering automated status quote mail unless specified)
+  async function handleSendOnly() {
     setLoading(true);
     try {
       await fetch(`/api/admin/requests/${request.id}/authorise`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: "quoted", amount: grandTotal })
+        body: JSON.stringify({ status: status, amount: grandTotal, sendMail: false })
       });
-      setStatus("quoted");
-      setToast("Quote successfully authorised and dispatched to client!");
+      setToast("Quote saved successfully (No mail sent).");
     } catch {
-      setStatus("quoted");
-      setToast("Quote authorised & sent successfully.");
+      setToast("Quote saved successfully.");
     } finally {
       setLoading(false);
       setTimeout(() => setToast(null), 4000);
+    }
+  }
+
+  // Status Change handler (Triggers mail automatically because status changed)
+  async function handleStatusChange(newStatus: typeof status) {
+    const prevStatus = status;
+    setStatus(newStatus);
+    setLoading(true);
+    try {
+      // Status change triggers quote/dispatch email
+      await fetch(`/api/admin/requests/${request.id}/authorise`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: newStatus, amount: grandTotal, sendMail: true })
+      });
+      setToast(`Status updated to ${newStatus.toUpperCase()} & quote email dispatched!`);
+    } catch {
+      setToast(`Status updated to ${newStatus.toUpperCase()}`);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setToast(null), 3000);
     }
   }
 
@@ -159,9 +181,9 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
         <div>
           <h2 className="text-base font-semibold tracking-tight text-zinc-950 flex items-center gap-2">
             <span className="inline-block size-2 rounded-full bg-emerald-600 animate-pulse" />
-            Executive Itinerary Fare Management
+            Executive Itinerary Fare Management &amp; Dispatch
           </h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Automated fare calculation and BTW tax splitting for complex itineraries</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Automated fare calculation, tax splits, and live status dispatch controls</p>
         </div>
         <div className="text-xs font-mono text-zinc-600 bg-white border border-zinc-200 px-3 py-1.5 rounded-lg shadow-2xs">
           {formatTimestamp(request.createdAt)}
@@ -169,7 +191,7 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
       </div>
 
       {/* Main Grid Body */}
-      <div className="p-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="p-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
         
         {/* Column 1: Itinerary, Distance & Journey Timing Info */}
         <div className="flex flex-col gap-5 bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5">
@@ -210,7 +232,6 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
             </div>
           </div>
 
-          {/* Integrated Journey Timing and Vehicle Details Card */}
           <div className="bg-white border border-zinc-200 rounded-xl p-4 grid grid-cols-2 gap-3 text-xs shadow-2xs">
             <div>
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
@@ -241,10 +262,12 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
           </div>
         </div>
 
-        {/* Column 2: Fare Breakdown Engine */}
-        <div className="flex flex-col gap-5">
-          <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5 flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-2 mb-4">
+        {/* Column 2 & 3 Combined: Single Flow Without Gaps */}
+        <div className="flex flex-col gap-4 md:col-span-1 xl:col-span-2">
+          
+          {/* Fare Breakdown Engine */}
+          <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">Fare Breakdown Engine</h3>
               {isEditing ? (
                 <div className="flex items-center gap-2 shrink-0">
@@ -252,15 +275,16 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
                     type="button"
                     onClick={async () => {
                       setIsEditing(false);
-                      setToast("Fare updated successfully!");
+                      setStatus("quoted"); // Changing fare changes status to quoted, which triggers status change mail
+                      setToast("Fare updated & status set to Quoted (email sent via status change)!");
                       try {
                         await fetch(`/api/admin/requests/${request.id}/authorise`, {
                           method: "POST",
                           headers: { "content-type": "application/json" },
-                          body: JSON.stringify({ status: status, amount: grandTotal }),
+                          body: JSON.stringify({ status: "quoted", amount: grandTotal, sendMail: true }),
                         });
                       } catch {
-                        // ignore network error
+                        // ignore
                       }
                       setTimeout(() => setToast(null), 3000);
                     }}
@@ -288,7 +312,7 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
             </div>
 
             <div className="space-y-1 text-xs divide-y divide-zinc-100">
-              <div className="flex justify-between items-center py-3">
+              <div className="flex justify-between items-center py-2.5">
                 <span className="text-zinc-600 font-medium">Base Quoted Fare</span>
                 {isEditing ? (
                   <div className="flex items-center gap-1.5">
@@ -306,56 +330,36 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
                 )}
               </div>
 
-              <div className="flex justify-between py-3">
+              <div className="flex justify-between py-2.5">
                 <span className="text-zinc-600 font-medium">Time Charge ({durationHours}h × €{hourlyRate}/hr)</span>
                 <span className="font-mono font-semibold text-zinc-900">{formatEuro(timeCost)}</span>
               </div>
-              <div className="flex justify-between py-3">
+              <div className="flex justify-between py-2.5">
                 <span className="text-zinc-600 font-medium">Wait Time ({totalWaitMinutes}m)</span>
                 <span className="font-mono font-semibold text-zinc-900">{formatEuro(waitCost)}</span>
               </div>
-              <div className="flex justify-between py-3.5 text-sm font-bold text-zinc-950">
+            </div>
+
+            <div className="pt-3 mt-3 border-t border-zinc-200">
+              <div className="flex justify-between text-sm font-bold text-zinc-950">
                 <span>Total Base (excl. BTW)</span>
                 <span className="font-mono text-emerald-700 text-base">{formatEuro(baseFare)}</span>
               </div>
             </div>
           </div>
 
+          {/* Authorisation & Dispatch Controls */}
           <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-3">Automated BTW Splits</h3>
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-cyan-900 font-semibold">9% BTW (Passenger Transport)</span>
-                <span className="font-mono font-bold text-zinc-900">{formatEuro(btw9)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-blue-900 font-semibold">21% BTW (Ancillary / Fees)</span>
-                <span className="font-mono font-bold text-zinc-900">{formatEuro(btw21)}</span>
-              </div>
-              <div className="flex justify-between pt-3 border-t border-zinc-200 font-bold text-zinc-950 text-sm">
-                <span>Total BTW Tax</span>
-                <span className="font-mono">{formatEuro(totalTax)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Column 3: Authorisation & Dispatch */}
-        <div className="flex flex-col gap-5 bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5 justify-between md:col-span-2 xl:col-span-1">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-3">Authorisation &amp; Dispatch</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-2.5">Authorisation &amp; Dispatch</h3>
             
-            {/* Status Dropdown Selector with Cancel option */}
-            <div className="bg-white border border-zinc-200 rounded-lg p-3.5 mb-4 space-y-1 shadow-2xs">
+            {/* Status Dropdown Selector */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
               <label className="text-[11px] font-medium text-zinc-500 uppercase block">Status</label>
               <select
                 value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value as any);
-                  setToast(`Status updated to ${e.target.value.toUpperCase()}`);
-                  setTimeout(() => setToast(null), 3000);
-                }}
-                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-2 focus:outline-none cursor-pointer"
+                onChange={(e) => handleStatusChange(e.target.value as any)}
+                disabled={loading}
+                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50"
               >
                 <option value="new">New</option>
                 <option value="contacted">Contacted</option>
@@ -366,52 +370,60 @@ export function AutoPricingGateway({ request }: { request: QuoteRequest }) {
               </select>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <button
                 type="button"
                 disabled={loading}
-                onClick={handleAuthorise}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                onClick={handleSendOnly}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <ShieldIcon size={16} /> {loading ? "Authorising..." : "Authorise & Send Quote"}
+                {loading ? "Saving..." : "Send"}
               </button>
               
               <button
                 type="button"
                 onClick={() => setShowAuditModal(true)}
-                className="w-full bg-white hover:bg-zinc-50 text-zinc-800 font-semibold py-2.5 px-3 rounded-xl text-xs transition border border-zinc-200 shadow-2xs cursor-pointer"
+                className="w-full bg-white hover:bg-zinc-50 text-zinc-800 font-semibold py-2 px-3 rounded-xl text-xs transition border border-zinc-200 shadow-2xs cursor-pointer"
               >
                 View Audit Trail
               </button>
             </div>
 
             {/* Client Notification Previews */}
-            <div className="mt-5 pt-4 border-t border-zinc-200">
-              <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider block mb-2.5">Client Notification Preview</span>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="mt-3 pt-3 border-t border-zinc-200">
+              <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider block mb-2">Client Notification Preview</span>
+              <div className="grid grid-cols-2 gap-2">
                 <div
                   onClick={() => setShowPdfModal(true)}
-                  className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-center shadow-sm cursor-pointer transition group flex flex-col items-center justify-between"
+                  className="bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl p-2.5 text-center shadow-2xs cursor-pointer transition group flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-[11px] text-zinc-200 font-semibold group-hover:text-white py-4">Branded PDF Quote</span>
+                  <div className="size-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-700 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+                    <MailIcon size={12} />
+                  </div>
+                  <span className="text-[11px] text-zinc-800 font-semibold">Branded PDF Quote</span>
                 </div>
 
                 <div
                   onClick={handleWhatsappLink}
-                  className="bg-zinc-950 hover:bg-zinc-900 border border-emerald-900/60 rounded-xl p-3 text-center shadow-sm cursor-pointer transition group flex flex-col items-center justify-between"
+                  className="bg-white hover:bg-zinc-50 border border-emerald-200 rounded-xl p-2.5 text-center shadow-2xs cursor-pointer transition group flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-[11px] text-zinc-200 font-semibold group-hover:text-white py-4">WhatsApp Pay</span>
+                  <div className="size-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <ChatIcon size={12} />
+                  </div>
+                  <span className="text-[11px] text-zinc-800 font-semibold">WhatsApp Pay</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-zinc-900 to-zinc-950 text-white border border-zinc-900 rounded-xl p-4 text-center mt-4 shadow-sm">
-            <span className="text-xs text-zinc-400 uppercase tracking-wider block">FINAL AMOUNT (incl. tax)</span>
-            <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">
+          {/* Final Amount Banner */}
+          <div className="bg-gradient-to-r from-zinc-900 to-zinc-950 text-white border border-zinc-900 rounded-xl p-3.5 text-center shadow-sm flex items-center justify-between">
+            <span className="text-xs text-zinc-400 uppercase tracking-wider">FINAL AMOUNT (INCL. TAX)</span>
+            <span className="text-xl font-bold font-mono text-emerald-400">
               {formatEuro(grandTotal)}
             </span>
           </div>
+
         </div>
 
       </div>
