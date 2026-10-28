@@ -131,18 +131,18 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
               <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">{r.reference}</span>
               <span aria-hidden="true">·</span>
-              <span title={formatTimestamp(r.createdAt)}>Received {formatRelative(r.createdAt)}</span>
+              <span title={formatTimestamp(r.createdAt)}>{interpolate(rd.receivedRelative, { when: formatRelative(r.createdAt) })}</span>
               <span aria-hidden="true">·</span>
-              <span>via {r.source}</span>
+              <span>{interpolate(rd.viaSource, { source: r.source })}</span>
             </p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:flex">
           <a href={mailto} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
-            <MailIcon /> Email
+            <MailIcon /> {rd.emailAction}
           </a>
           <a href={tel} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
-            <PhoneIcon /> Call
+            <PhoneIcon /> {rd.callAction}
           </a>
           {chatId && (
             <Link href={`/admin/chats/${chatId}`} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
@@ -168,7 +168,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
       {/* Auto-Pricing Gateway */}
       <div className="mt-6">
-        <AutoPricingGateway request={r} />
+        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">

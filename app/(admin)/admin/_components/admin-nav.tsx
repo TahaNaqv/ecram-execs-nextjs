@@ -23,6 +23,8 @@ export type AdminNavCopy = {
   subtitle: string;
   sectionsLabel: string;
   operations: string;
+  fleetPartners: string;
+  finance: string;
   dashboard: string;
   enquiries: string;
   requests: string;
@@ -45,13 +47,13 @@ type NavItem = {
 };
 
 type NavSection = {
-  title?: string;
+  titleKey: "operations" | "fleetPartners" | "finance";
   items: NavItem[];
 };
 
 const SECTIONS: NavSection[] = [
   {
-    title: "Operations",
+    titleKey: "operations",
     items: [
       { href: "/admin", key: "dashboard", defaultLabel: "Dashboard", icon: LayoutGridIcon, match: (p: string) => p === "/admin" },
       { href: "/admin/enquiries", key: "enquiries", defaultLabel: "Enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
@@ -60,7 +62,7 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Fleet & Partners",
+    titleKey: "fleetPartners",
     items: [
       { href: "/admin/corporate", key: "corporate", defaultLabel: "Corporate Partners", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
       { href: "/admin/vehicles", key: "vehicles", defaultLabel: "Fleet & Compliance", icon: CarIcon, match: (p: string) => p.startsWith("/admin/vehicles") },
@@ -75,7 +77,7 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Finance",
+    titleKey: "finance",
     items: [
       { href: "/admin/financials", key: "financials", defaultLabel: "Billing & Financials", icon: EuroIcon, match: (p: string) => p.startsWith("/admin/financials") },
     ],
@@ -174,12 +176,10 @@ export function AdminChrome({
 
         <nav className="flex-1 overflow-y-auto px-3 py-2 scrollbar-none" aria-label={copy.sectionsLabel}>
           {SECTIONS.map((section, sIdx) => (
-            <div key={section.title || sIdx} className={sIdx > 0 ? "mt-4 pt-3 border-t border-zinc-900" : ""}>
-              {section.title && (
-                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                  {section.title === "Operations" ? copy.operations : section.title}
-                </p>
-              )}
+            <div key={section.titleKey} className={sIdx > 0 ? "mt-4 pt-3 border-t border-zinc-900" : ""}>
+              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                {copy[section.titleKey]}
+              </p>
               <div className="flex flex-col gap-0.5">
                 {section.items.map((l) => {
                   const active = l.match(pathname);

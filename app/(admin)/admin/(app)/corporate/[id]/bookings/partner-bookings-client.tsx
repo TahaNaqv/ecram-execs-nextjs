@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { ArrowLeftIcon } from "@/app/(admin)/admin/_components/icons";
+import type { Dictionary } from "@/lib/i18n/get-dictionary";
+import { interpolate } from "@/lib/i18n/interpolate";
+
+type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
 export function PartnerBookingsClient({
   partnerId,
   companyName,
   bookings,
+  copy,
 }: {
   partnerId: string;
   companyName: string;
+  copy: HubCopy;
   bookings: Array<{
     id: string;
     reference: string;
@@ -29,10 +35,10 @@ export function PartnerBookingsClient({
             href={`/admin/corporate/${partnerId}`}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-950 transition-colors mb-1.5"
           >
-            <ArrowLeftIcon size={13} /> Back to Partner Profile
+            <ArrowLeftIcon size={13} /> {copy.backToProfile}
           </Link>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-950">{companyName} — All Bookings</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Complete history of executive transport itineraries</p>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-950">{interpolate(copy.allBookingsTitle, { company: companyName })}</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">{copy.bookingsSubtitle}</p>
         </div>
       </div>
 
@@ -41,18 +47,18 @@ export function PartnerBookingsClient({
           <table className="w-full text-left text-xs">
             <thead className="border-b border-zinc-100 bg-zinc-50/50 text-[11px] uppercase tracking-wider text-zinc-500">
               <tr>
-                <th className="px-5 py-3 font-semibold">Reference</th>
-                <th className="px-4 py-3 font-semibold">Passenger / Itinerary</th>
-                <th className="px-4 py-3 font-semibold">Vehicle</th>
-                <th className="px-4 py-3 font-semibold">Amount</th>
-                <th className="px-5 py-3 font-semibold text-right">Status</th>
+                <th className="px-5 py-3 font-semibold">{copy.colReference}</th>
+                <th className="px-4 py-3 font-semibold">{copy.colPassengerRoute}</th>
+                <th className="px-4 py-3 font-semibold">{copy.colVehicle}</th>
+                <th className="px-4 py-3 font-semibold">{copy.colAmount}</th>
+                <th className="px-5 py-3 font-semibold text-right">{copy.colStatus}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {bookings.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-12 text-center text-zinc-400">
-                    No bookings found.
+                    {copy.noBookings}
                   </td>
                 </tr>
               ) : (

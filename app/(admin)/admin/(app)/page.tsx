@@ -161,14 +161,14 @@ async function ScheduleMap() {
   return (
     <Card>
       <CardHeader
-        title="Live Interactive Schedule Map - Amsterdam & Schiphol"
-        description="Real-time vehicle GPS tracking & corridor dispatch"
+        title={d.mapLiveTitle}
+        description={d.mapLiveDescription}
         icon={<MapIcon size={16} />}
         actions={
           <div className="flex items-center gap-2">
-            <Pill tone="good">Real-Time</Pill>
+            <Pill tone="good">{d.realTime}</Pill>
             <Link href="/admin/dispatch" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
-              Dispatch Grid →
+              {d.dispatchGrid}
             </Link>
           </div>
         }
@@ -220,15 +220,14 @@ async function Fleet() {
   return (
     <Card>
       <CardHeader
-        title="Executive Fleet Telemetry Feed"
-        description="Real-time battery SoC, range, and dispatch availability"
+        title={d.fleetLiveTitle}
         icon={<BatteryIcon size={16} />}
         actions={
           <Link
             href="/admin/vehicles"
             className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap"
           >
-            Manage Fleet →
+            {d.manageFleet}
           </Link>
         }
       />
@@ -241,9 +240,9 @@ async function Fleet() {
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-zinc-950">{v.name}</span>
                 <span className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
-                  <span className="font-mono text-emerald-700 font-semibold">{v.batterySoC}% Battery</span>
+                  <span className="font-mono text-emerald-700 font-semibold">{interpolate(d.batteryPct, { percent: v.batterySoC })}</span>
                   <span>·</span>
-                  <span className="font-mono text-zinc-600">{v.rangeKm} km Range</span>
+                  <span className="font-mono text-zinc-600">{interpolate(d.rangeKm, { km: v.rangeKm })}</span>
                 </span>
               </span>
               <Pill tone={v.available ? "good" : "muted"}>{v.available ? d.available : d.switchedOff}</Pill>
@@ -252,8 +251,8 @@ async function Fleet() {
         </ul>
       )}
       <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
-        <span>OBD-II &amp; RDW Registry Connected</span>
-        <span className="font-mono text-[11px] text-emerald-700 font-semibold">● 100% BEV Telemetry Live</span>
+        <span>{d.telemetryConnected}</span>
+        <span className="font-mono text-[11px] text-emerald-700 font-semibold">● {d.telemetryLive}</span>
       </div>
     </Card>
   );
@@ -301,12 +300,6 @@ async function Recent() {
   );
 }
 
-const HEALTH_LABEL: Record<HealthState, string> = {
-  operational: "Operational",
-  down: "Down",
-  notConnected: "Not Connected",
-};
-
 const HEALTH_TONE: Record<HealthState, "good" | "bad" | "muted"> = {
   operational: "good",
   down: "bad",
@@ -314,30 +307,39 @@ const HEALTH_TONE: Record<HealthState, "good" | "bad" | "muted"> = {
 };
 
 async function SystemHealthStatus() {
+  const { admin: t } = await dashboardCopy();
+  const d = t.dashboard;
   const items = await systemHealth();
   const names: Record<HealthKey, string> = {
-    database: "PostgreSQL Database",
-    cdt: "CDT API (ILT)",
-    googleMaps: "Google Maps API",
-    mollie: "Mollie Payment API",
-    whatsappBusiness: "WhatsApp Business API",
+    database: d.svcDatabase,
+    cdt: d.svcCdt,
+    googleMaps: d.svcAddress,
+    mollie: d.svcMollie,
+    whatsappBusiness: d.svcWhatsappBusiness,
+  };
+  const labels: Record<HealthState, string> = {
+    operational: d.stateOperational,
+    down: d.stateDown,
+    notConnected: d.stateNotConnected,
   };
 
   return (
     <Card>
-      <CardHeader title="System Health Status" description="Live integration gateways and real-time environment checks" icon={<ActivityIcon size={16} />} />
+      <CardHeader title={d.healthTitle} description={d.healthDescription} icon={<ActivityIcon size={16} />} />
       <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5">
         {items.map((item) => (
-          <li key={item.key} className="flex items-center justify-between gap-3 py-3">
+          <li key={item.key} data-health={item.key} data-state={item.state} className="flex items-center justify-between gap-3 py-3">
             <span className="text-sm font-medium text-zinc-950">
               {names[item.key]}
-              {item.ms !== undefined && <span className="block text-[11px] font-mono text-zinc-400">{item.ms}ms response</span>}
+              {item.ms !== undefined && (
+                <span className="block text-[11px] font-mono text-zinc-400">{interpolate(d.svcDatabaseNote, { ms: item.ms })}</span>
+              )}
             </span>
-            <Pill tone={HEALTH_TONE[item.state]}>{HEALTH_LABEL[item.state]}</Pill>
+            <Pill tone={HEALTH_TONE[item.state]}>{labels[item.state]}</Pill>
           </li>
         ))}
       </ul>
-      <p className="m-0 border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">Statuses update dynamically based on live database handshakes and environment keys.</p>
+      <p className="m-0 border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">{d.healthNote}</p>
     </Card>
   );
 }

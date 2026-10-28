@@ -6,6 +6,29 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 
+function optionalText(formData: FormData, key: string): string | null {
+  const value = formData.get(key);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+/** Accepts an `<input type="date">` value and rejects anything that is not a real calendar day. */
+function optionalIsoDate(formData: FormData, key: string): string | null {
+  const value = optionalText(formData, key);
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return value;
+}
+
 export async function addVehicle(formData: FormData) {
   await requireAdmin();
 
@@ -23,6 +46,10 @@ export async function addVehicle(formData: FormData) {
       id: rawKey,
       name,
       status: "available",
+      licensePlate: optionalText(formData, "licensePlate"),
+      color: optionalText(formData, "color"),
+      apkExpiry: optionalIsoDate(formData, "apkExpiry"),
+      insuranceExpiry: optionalIsoDate(formData, "insuranceExpiry"),
     });
     console.log(`🎉 Successfully added vehicle: ${name} (${rawKey})`);
   } catch (error) {

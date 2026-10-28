@@ -2,6 +2,7 @@ export const instant = false;
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { PartnerProfileClient } from "./partner-profile-client";
 
 export async function generateMetadata({
@@ -66,5 +67,6 @@ export default async function CorporatePartnerProfilePage({
     initialNotes: [],
   };
 
-  return <PartnerProfileClient partner={mappedPartner} />;
+  const { admin } = await adminDictionary();
+  return <PartnerProfileClient partner={mappedPartner} copy={admin.corporate.hub} />;
 }

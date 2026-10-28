@@ -67,10 +67,10 @@ test("the four figures follow the vehicles, the day's bookings, the partner acco
   expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 123, 2);
   expect(await card(page, d.jobsLabel).innerText()).toContain(d.jobsHint);
 
-  // A booking that is not confirmed counts for nothing here
+  // A quoted booking for today is still one of today's jobs. Revenue stays on confirmed and completed only.
   await seedBooking({ contactId, email, status: "quoted", pickupAt: `${today()}T23:58`, quotedAmount: "999.00" });
   await page.reload();
-  await expect.poll(async () => Number(await figure(page, d.jobsLabel))).toBe(jobsBefore + 1);
+  await expect.poll(async () => Number(await figure(page, d.jobsLabel))).toBe(jobsBefore + 2);
   expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 123, 2);
 
   // It shows in the next pick-ups and in the recent requests, and both lead to it

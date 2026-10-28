@@ -41,7 +41,7 @@ async function VehiclesContent() {
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{t.title}</h1>
         <p className="text-sm text-zinc-500 mt-1">{t.description}</p>
       </div>
-      <FleetComplianceSentinel vehicles={vehicles} />
+      <FleetComplianceSentinel vehicles={vehicles} copy={admin.vehicles} />
     </div>
   );
 }

@@ -222,9 +222,42 @@ export type VehicleRow = {
   updatedAt: Date;
 };
 
+/** Drizzle `date` columns are calendar days (`YYYY-MM-DD`). Keep that shape for the fleet table. */
+function asCalendarDate(value: string | Date | null): string | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return value.toISOString().slice(0, 10);
+  }
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  return match ? match[1] : null;
+}
+
 export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
   await requireAdmin();
-  return db.select().from(v).orderBy(asc(v.name));
+  const rows = await db
+    .select({
+      id: v.id,
+      name: v.name,
+      vin: v.vin,
+      licensePlate: v.licensePlate,
+      color: v.color,
+      evRangeKm: v.evRangeKm,
+      batterySoC: v.batterySoC,
+      status: v.status,
+      apkExpiry: v.apkExpiry,
+      insuranceExpiry: v.insuranceExpiry,
+      iltPermitStatus: v.iltPermitStatus,
+      updatedAt: v.updatedAt,
+    })
+    .from(v)
+    .orderBy(asc(v.name));
+
+  return rows.map((row) => ({
+    ...row,
+    apkExpiry: asCalendarDate(row.apkExpiry),
+    insuranceExpiry: asCalendarDate(row.insuranceExpiry),
+  }));
 });
 
 // --- Corporate Partners ---

@@ -4,8 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { AdminDrawer } from "@/app/(admin)/admin/_components/admin-drawer";
 import { AdminModal } from "@/app/(admin)/admin/_components/admin-modal";
+import type { Dictionary } from "@/lib/i18n/get-dictionary";
+import { interpolate } from "@/lib/i18n/interpolate";
 
-export function PartnerProfileClient({ partner }: { partner: any }) {
+type HubCopy = Dictionary["admin"]["corporate"]["hub"];
+
+export function PartnerProfileClient({ partner, copy }: { partner: any; copy: HubCopy }) {
   // Manage which drawer or modal is active
   const [activeDrawer, setActiveDrawer] = useState<"bookings" | "billing" | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -20,7 +24,7 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
       <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-zinc-950">{partner.companyName}</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">KVK: {partner.kvkNumber} &bull; Booker: {partner.bookerName}</p>
+          <p className="text-xs text-zinc-500 mt-0.5">{interpolate(copy.bookerLine, { kvk: partner.kvkNumber, name: partner.bookerName })}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -29,7 +33,7 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
             onClick={() => setIsEditModalOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
           >
-            Edit Profile
+            {copy.editProfile}
           </button>
 
           {/* Bookings Button -> Opens Drawer ONLY IF bookings exist */}
@@ -38,7 +42,7 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
               onClick={() => setActiveDrawer("bookings")}
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
             >
-              View Bookings ({partner.recentBookings.length})
+              {interpolate(copy.viewBookings, { count: partner.recentBookings.length })}
             </button>
           )}
 
@@ -48,7 +52,7 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
               onClick={() => setActiveDrawer("billing")}
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 transition-colors"
             >
-              Billing &amp; VAT
+              {copy.billingVat}
             </button>
           )}
         </div>
@@ -57,19 +61,19 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
       {/* Profile Dashboard Overview Grids */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Trips</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{copy.totalTrips}</p>
           <p className="text-2xl font-bold tracking-tight text-zinc-950">{partner.totalTrips}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Avg Trip Value</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{copy.avgTrip}</p>
           <p className="text-2xl font-bold tracking-tight text-zinc-950">€ {partner.avgTripValue}</p>
         </div>
         <div className="rounded-xl border border-zinc-950 bg-zinc-950 text-white p-5 shadow-xs space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Spend</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">{copy.totalSpend}</p>
           <p className="text-2xl font-bold tracking-tight">€ {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Preferred Vehicle</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{copy.preferredVehicle}</p>
           <p className="text-lg font-bold tracking-tight text-zinc-950 truncate">{partner.topVehicle}</p>
         </div>
       </div>
@@ -78,8 +82,8 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
       <AdminDrawer
         isOpen={activeDrawer === "bookings"}
         onClose={() => setActiveDrawer(null)}
-        title={`${partner.companyName} — Bookings`}
-        subtitle="Complete history of executive transport itineraries"
+        title={interpolate(copy.bookingsTitle, { company: partner.companyName })}
+        subtitle={copy.bookingsSubtitle}
       >
         <div className="space-y-4">
           <div className="flex justify-end">
@@ -87,7 +91,7 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
               href={`/admin/corporate/${partner.id}/bookings`}
               className="text-xs font-medium text-sky-700 hover:underline"
             >
-              Open in full page view &rarr;
+              {copy.openFull}
             </Link>
           </div>
 
@@ -95,9 +99,9 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-zinc-100 bg-zinc-50/50 text-[11px] uppercase tracking-wider text-zinc-500">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Reference</th>
-                  <th className="px-4 py-3 font-semibold">Passenger</th>
-                  <th className="px-4 py-3 font-semibold text-right">Amount</th>
+                  <th className="px-4 py-3 font-semibold">{copy.colReference}</th>
+                  <th className="px-4 py-3 font-semibold">{copy.colPassenger}</th>
+                  <th className="px-4 py-3 font-semibold text-right">{copy.colAmount}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -121,8 +125,8 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
       <AdminDrawer
         isOpen={activeDrawer === "billing"}
         onClose={() => setActiveDrawer(null)}
-        title={`${partner.companyName} — Billing & VAT`}
-        subtitle="Corporate financial ledger and KVK registration details"
+        title={interpolate(copy.billingTitle, { company: partner.companyName })}
+        subtitle={copy.billingSubtitle}
       >
         <div className="space-y-4">
           <div className="flex justify-end">
@@ -130,14 +134,14 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
               href={`/admin/corporate/${partner.id}/billing`}
               className="text-xs font-medium text-sky-700 hover:underline"
             >
-              Open in full page view &rarr;
+              {copy.openFull}
             </Link>
           </div>
 
           <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
-            <p className="text-xs"><strong className="text-zinc-950">KVK Number:</strong> {partner.kvkNumber}</p>
-            <p className="text-xs"><strong className="text-zinc-950">KVR Number:</strong> {partner.kvrNumber}</p>
-            <p className="text-xs"><strong className="text-zinc-950">Total YTD Spend:</strong> € {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs"><strong className="text-zinc-950">{copy.kvkNumber}:</strong> {partner.kvkNumber}</p>
+            <p className="text-xs"><strong className="text-zinc-950">{copy.kvrNumber}:</strong> {partner.kvrNumber}</p>
+            <p className="text-xs"><strong className="text-zinc-950">{copy.ytdSpend}:</strong> € {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
       </AdminDrawer>
@@ -146,12 +150,12 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
       <AdminModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={`Edit ${partner.companyName}`}
-        subtitle="Update corporate partner parameters and configuration settings"
+        title={interpolate(copy.editTitle, { company: partner.companyName })}
+        subtitle={copy.editSubtitle}
       >
         <div className="space-y-4 text-xs">
           <div>
-            <label className="block font-medium text-zinc-700 mb-1">Company Name</label>
+            <label className="block font-medium text-zinc-700 mb-1">{copy.companyName}</label>
             <input
               type="text"
               defaultValue={partner.companyName}
@@ -159,7 +163,7 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
             />
           </div>
           <div>
-            <label className="block font-medium text-zinc-700 mb-1">KVK Number</label>
+            <label className="block font-medium text-zinc-700 mb-1">{copy.kvkNumber}</label>
             <input
               type="text"
               defaultValue={partner.kvkNumber}
@@ -171,13 +175,13 @@ export function PartnerProfileClient({ partner }: { partner: any }) {
               onClick={() => setIsEditModalOpen(false)}
               className="rounded-lg border border-zinc-200 px-3 py-1.5 font-medium text-zinc-600 hover:bg-zinc-50"
             >
-              Cancel
+              {copy.cancel}
             </button>
             <button
               onClick={() => setIsEditModalOpen(false)}
               className="rounded-lg bg-zinc-950 px-3 py-1.5 font-medium text-white hover:bg-zinc-800"
             >
-              Save Changes
+              {copy.save}
             </button>
           </div>
         </div>

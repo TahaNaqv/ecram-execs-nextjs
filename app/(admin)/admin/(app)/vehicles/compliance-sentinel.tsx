@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
 import type { VehicleRow } from "@/lib/admin/live-queries";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
+import type { Dictionary } from "@/lib/i18n/get-dictionary";
+import { interpolate } from "@/lib/i18n/interpolate";
 
-export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }) {
+type VehicleCopy = Dictionary["admin"]["vehicles"];
+
+export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleRow[]; copy: VehicleCopy }) {
   const router = useRouter();
   const [vehicleList, setVehicleList] = useState<VehicleRow[]>(vehicles);
   const [activeTab, setActiveTab] = useState<"snapshot" | "reminders">("snapshot");
@@ -23,8 +27,8 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
   const available = vehicleList.filter((v) => v.status === "available").length;
   const maintenance = vehicleList.filter((v) => v.status === "maintenance" || v.status === "unavailable").length;
   const total = vehicleList.length;
-  const complianceRate =
-    total > 0 ? Math.round((vehicleList.filter((v) => v.iltPermitStatus === "Valid").length / total) * 100) : 0;
+  const compliant = vehicleList.filter((vehicle) => vehicle.iltPermitStatus === "Valid").length;
+  const complianceRate = total > 0 ? Math.round((compliant / total) * 100) : 0;
 
   const handleToggle = (vehId: string, currentStatus: string) => {
     const nextStatus = currentStatus === "available" ? "unavailable" : "available";
@@ -43,7 +47,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
   };
 
   const handleDelete = (vehId: string, name: string) => {
-    if (!confirm(`Remove ${name} from the fleet?`)) return;
+    if (!confirm(interpolate(copy.removeConfirm, { name }))) return;
     setVehicleList((prev) => prev.filter((v) => v.id !== vehId));
     const formData = new FormData();
     formData.append("id", vehId);
@@ -54,7 +58,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
   };
 
   const handleDownloadReport = () => {
-    setReportStatus("Compiling telemetry report...");
+    setReportStatus(copy.compilingReport);
     const headers =
       "Vehicle ID,Name,License Plate,Battery SoC,Range km,Status,ILT Permit,APK Expiry,Insurance Expiry\n";
     const rows = vehicleList
@@ -69,7 +73,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setReportStatus("Fleet report downloaded.");
+    setReportStatus(copy.reportDownloaded);
     setTimeout(() => setReportStatus(null), 3000);
   };
 
@@ -78,10 +82,10 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Registered", value: total, color: "text-zinc-950" },
-          { label: "Available Now", value: available, color: "text-emerald-600" },
-          { label: "Unavailable / Maint.", value: maintenance, color: "text-amber-600" },
-          { label: "ILT Compliance", value: `${complianceRate}%`, color: "text-zinc-950" },
+          { label: copy.totalRegistered, value: total, color: "text-zinc-950" },
+          { label: copy.availableNow, value: available, color: "text-emerald-600" },
+          { label: copy.unavailableMaint, value: maintenance, color: "text-amber-600" },
+          { label: copy.iltCompliance, value: `${complianceRate}%`, color: "text-zinc-950" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm flex flex-col justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
@@ -102,8 +106,8 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
         <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
           <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">Executive Fleet Telemetry</h3>
-              <p className="text-[11px] text-zinc-500">Live battery SoC, dispatch availability, and ILT compliance</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.telemetryTitle}</h3>
+              <p className="text-[11px] text-zinc-500">{copy.telemetryNote}</p>
             </div>
             <div className="flex gap-1 bg-zinc-200/60 p-1 rounded-lg text-xs">
               {(["snapshot", "reminders"] as const).map((tab) => (
@@ -112,26 +116,26 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   onClick={() => setActiveTab(tab)}
                   className={`px-3 py-1.5 rounded-md font-semibold transition cursor-pointer ${activeTab === tab ? "bg-white text-zinc-950 shadow-xs" : "text-zinc-600"}`}
                 >
-                  {tab === "snapshot" ? "Live Fleet & Availability" : "APK / Insurance"}
+                  {tab === "snapshot" ? copy.tabSnapshot : copy.tabReminders}
                 </button>
               ))}
             </div>
           </div>
 
           {vehicleList.length === 0 ? (
-            <p className="p-8 text-center text-sm text-zinc-400">No vehicles registered yet.</p>
+            <p className="p-8 text-center text-sm text-zinc-400">{copy.emptyFleet}</p>
           ) : activeTab === "snapshot" ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                   <tr>
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-3 py-3">Plate</th>
-                    <th className="px-3 py-3">Battery</th>
-                    <th className="px-3 py-3">Range</th>
-                    <th className="px-3 py-3">ILT</th>
-                    <th className="px-4 py-3 text-center">Availability Toggle</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="px-4 py-3">{copy.colName}</th>
+                    <th className="px-3 py-3">{copy.colPlate}</th>
+                    <th className="px-3 py-3">{copy.colBattery}</th>
+                    <th className="px-3 py-3">{copy.colRange}</th>
+                    <th className="px-3 py-3">{copy.colIlt}</th>
+                    <th className="px-4 py-3 text-center">{copy.colAvailability}</th>
+                    <th className="px-4 py-3 text-right">{copy.colAction}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -151,7 +155,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
                           >
-                            {veh.iltPermitStatus}
+                            {veh.iltPermitStatus === "Valid" ? copy.permitValid : veh.iltPermitStatus}
                           </span>
                         </td>
                         
@@ -163,7 +167,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                               isAvailable ? "bg-emerald-600" : "bg-zinc-300 hover:bg-zinc-400"
                             }`}
-                            title={isAvailable ? "Click to set unavailable" : "Click to set available"}
+                            title={isAvailable ? copy.setUnavailable : copy.setAvailable}
                           >
                             <span
                               className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${
@@ -179,7 +183,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                             type="button"
                             onClick={() => handleDelete(veh.id, veh.name)}
                             className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                            title="Delete Vehicle"
+                            title={copy.deleteVehicle}
                           >
                             <TrashIcon size={15} />
                           </button>
@@ -195,11 +199,11 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                   <tr>
-                    <th className="px-4 py-3">Vehicle</th>
-                    <th className="px-3 py-3">APK Expiry</th>
-                    <th className="px-3 py-3">Insurance</th>
-                    <th className="px-3 py-3">ILT</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="px-4 py-3">{copy.colVehicle}</th>
+                    <th className="px-3 py-3">{copy.colApk}</th>
+                    <th className="px-3 py-3">{copy.colInsurance}</th>
+                    <th className="px-3 py-3">{copy.colIlt}</th>
+                    <th className="px-4 py-3 text-right">{copy.colAction}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -212,7 +216,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
                         >
-                          {veh.iltPermitStatus}
+                          {veh.iltPermitStatus === "Valid" ? copy.permitValid : veh.iltPermitStatus}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
@@ -220,7 +224,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                           type="button"
                           onClick={() => handleDelete(veh.id, veh.name)}
                           className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                          title="Delete Vehicle"
+                          title={copy.deleteVehicle}
                         >
                           <TrashIcon size={15} />
                         </button>
@@ -236,14 +240,14 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
         {/* Quick actions sidebar */}
         <div className="space-y-6">
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">Fleet Quick Actions</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.quickActions}</h3>
             <div className="space-y-2 text-xs">
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
                 className="w-full bg-zinc-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-between cursor-pointer"
               >
-                <span>[ + Add New Vehicle ]</span>
+                <span>{copy.addVehicleAction}</span>
                 <PlusIcon size={14} />
               </button>
               <button
@@ -251,7 +255,7 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                 onClick={() => setIsServiceModalOpen(true)}
                 className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-between cursor-pointer"
               >
-                <span>[ Schedule Service ]</span>
+                <span>{copy.scheduleService}</span>
                 <ClockIcon size={14} />
               </button>
               <button
@@ -259,20 +263,20 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                 onClick={handleDownloadReport}
                 className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-between cursor-pointer"
               >
-                <span>[ Export Fleet CSV ]</span>
+                <span>{copy.exportCsv}</span>
                 <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
               </button>
             </div>
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 mb-3">Fleet Summary</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 mb-3">{copy.summaryTitle}</h3>
             <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 space-y-2 text-xs font-mono">
               {[
-                { label: "Total Registered", value: total },
-                { label: "Available Now", value: available, cls: "text-emerald-700" },
-                { label: "Unavailable / Maint.", value: maintenance, cls: "text-amber-700" },
-                { label: "ILT Compliance", value: `${complianceRate}%` },
+                { label: copy.totalRegistered, value: total },
+                { label: copy.availableNow, value: available, cls: "text-emerald-700" },
+                { label: copy.unavailableMaint, value: maintenance, cls: "text-amber-700" },
+                { label: copy.iltCompliance, value: `${complianceRate}%` },
               ].map(({ label, value, cls }) => (
                 <div key={label} className="flex justify-between border-t border-zinc-200 pt-2 first:border-0 first:pt-0">
                   <span className="text-zinc-500 font-sans">{label}</span>
@@ -294,8 +298,8 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
             >
               <XIcon size={18} />
             </button>
-            <h3 className="text-base font-semibold text-zinc-950 mb-1">Register New Vehicle</h3>
-            <p className="text-xs text-zinc-500 mb-4">Add a new executive BEV unit to the fleet telemetry network.</p>
+            <h3 className="text-base font-semibold text-zinc-950 mb-1">{copy.registerTitle}</h3>
+            <p className="text-xs text-zinc-500 mb-4">{copy.registerNote}</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -308,32 +312,56 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
               className="space-y-3 text-xs"
             >
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">Vehicle Name / Model</label>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.labelModel}</label>
                 <input
                   type="text"
                   name="name"
                   required
-                  placeholder="e.g. Mercedes-EQS 450+ Luxury Line"
+                  placeholder={copy.modelPlaceholder}
                   className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
               </div>
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">License Plate</label>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.labelPlate}</label>
                 <input
                   type="text"
                   name="licensePlate"
-                  placeholder="e.g. AB-12-CD"
+                  placeholder={copy.platePlaceholder}
                   className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
               </div>
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">Color</label>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.labelColor}</label>
                 <input
                   type="text"
                   name="color"
-                  placeholder="e.g. Obsidian Black"
+                  placeholder={copy.colorPlaceholder}
                   className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-apk-expiry">
+                    {copy.colApk}
+                  </label>
+                  <input
+                    id="vehicle-apk-expiry"
+                    type="date"
+                    name="apkExpiry"
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-insurance-expiry">
+                    {copy.colInsurance}
+                  </label>
+                  <input
+                    id="vehicle-insurance-expiry"
+                    type="date"
+                    name="insuranceExpiry"
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  />
+                </div>
               </div>
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">
                 <button
@@ -341,14 +369,14 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   onClick={() => setIsAddModalOpen(false)}
                   className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-4 py-2 rounded-xl cursor-pointer"
                 >
-                  Cancel
+                  {copy.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
                   className="bg-black hover:bg-zinc-800 text-white font-semibold px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50"
                 >
-                  {isPending ? "Saving..." : "Register Vehicle"}
+                  {isPending ? copy.saving : copy.registerCta}
                 </button>
               </div>
             </form>
@@ -366,20 +394,20 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
             >
               <XIcon size={18} />
             </button>
-            <h3 className="text-base font-semibold text-zinc-950 mb-1">Schedule Maintenance Service</h3>
-            <p className="text-xs text-zinc-500 mb-4">Book routine APK and battery diagnostics for depot vehicles.</p>
+            <h3 className="text-base font-semibold text-zinc-950 mb-1">{copy.serviceTitle}</h3>
+            <p className="text-xs text-zinc-500 mb-4">{copy.serviceNote}</p>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">Service Type</label>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.serviceType}</label>
                 <select className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 text-zinc-900 focus:outline-none cursor-pointer">
-                  <option>Routine APK Inspection &amp; Calibration</option>
-                  <option>High-Voltage Battery Diagnostics</option>
-                  <option>Tire Pressure &amp; Alignment Service</option>
-                  <option>Executive Interior Detailing</option>
+                  <option>{copy.serviceApk}</option>
+                  <option>{copy.serviceBattery}</option>
+                  <option>{copy.serviceTyres}</option>
+                  <option>{copy.serviceDetail}</option>
                 </select>
               </div>
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">Scheduled Date</label>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.scheduledDate}</label>
                 <input
                   type="date"
                   defaultValue={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
@@ -392,14 +420,14 @@ export function FleetComplianceSentinel({ vehicles }: { vehicles: VehicleRow[] }
                   onClick={() => setIsServiceModalOpen(false)}
                   className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-4 py-2 rounded-xl cursor-pointer"
                 >
-                  Cancel
+                  {copy.cancel}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsServiceModalOpen(false)}
                   className="bg-black hover:bg-zinc-800 text-white font-semibold px-5 py-2 rounded-xl cursor-pointer"
                 >
-                  Confirm Booking
+                  {copy.confirmBooking}
                 </button>
               </div>
             </div>

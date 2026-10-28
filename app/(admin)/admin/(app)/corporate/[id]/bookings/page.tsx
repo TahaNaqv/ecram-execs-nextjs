@@ -1,6 +1,7 @@
 export const instant = false;
 import { notFound } from "next/navigation";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { PartnerBookingsClient } from "./partner-bookings-client";
 
 export default async function PartnerBookingsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,5 +21,6 @@ export default async function PartnerBookingsPage({ params }: { params: Promise<
     status: b.status,
   }));
 
-  return <PartnerBookingsClient partnerId={partner.id} companyName={partner.companyName} bookings={mappedBookings} />;
+  const { admin } = await adminDictionary();
+  return <PartnerBookingsClient partnerId={partner.id} companyName={partner.companyName} bookings={mappedBookings} copy={admin.corporate.hub} />;
 }

@@ -8,22 +8,22 @@ import { getCorporatePartners } from "@/lib/admin/live-queries";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
-  return { title: admin?.corporate?.title ?? "Corporate Partners | Ecram Execs" };
+  return { title: admin.corporate.hub.title };
 }
 
 async function Heading() {
   const { admin } = await adminDictionary();
-  return admin?.corporate?.title ?? "Corporate Partners";
+  return admin.corporate.hub.title;
 }
 
 async function Description() {
   const { admin } = await adminDictionary();
-  return admin?.corporate?.description ?? "Manage corporate partner accounts, tiers, and engagement workflows.";
+  return admin.corporate.hub.description;
 }
 
 async function CorporateContent() {
-  const partners = await getCorporatePartners();
-  return <CorporateDirectoryHub initialPartners={partners} />;
+  const [{ admin }, partners] = await Promise.all([adminDictionary(), getCorporatePartners()]);
+  return <CorporateDirectoryHub initialPartners={partners} copy={admin.corporate.hub} />;
 }
 
 export default function CorporatePage() {

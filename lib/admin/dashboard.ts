@@ -16,9 +16,15 @@ function amsterdamNow() {
 }
 const minutes = (value: string) => value.replace("T", " ").slice(0, 16);
 
+/**
+ * A booking the team still has, or has already run. The website, the portal and the concierge all save a request as
+ * "new"; it only becomes "confirmed" once a quote is accepted. Cancelled is the one status that is not a job.
+ */
+const JOB_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed"] as const;
+
 export type DashboardFigures = {
   fleet: { available: number; total: number };
-  /** Confirmed and completed bookings with a pick-up or a return today, and the time of the next confirmed one still to come today */
+  /** Bookings with a pick-up or a return today (any status but cancelled), and the time of the next one still to come today */
   jobs: { today: number; nextAt: string | null };
   /** Partner accounts (a password has been chosen), and those that signed in during the last 30 days */
   partners: { total: number; recent: number };
@@ -41,9 +47,8 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
       .from(q)
       .where(
         and(
-          // Completed counts too: a trip marked done at noon is still one of today's jobs
-          inArray(q.status, ["confirmed", "completed"]),
-          sql`(${q.pickupAt}::date = ${NOW}::date or ${q.returnAt}::date = ${NOW}::date)`,
+          inArray(q.status, [...JOB_STATUSES]),
+          sql`(to_char(${q.pickupAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD') or to_char(${q.returnAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD'))`,
         ),
       ),
     db
@@ -70,7 +75,7 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
   const now = amsterdamNow();
   const today = now.slice(0, 10);
   // The next one is the next that is still to happen: a trip already marked completed is not
-  const times = todays.filter((r) => r.status === "confirmed").flatMap((r) => [r.pickupAt, r.returnAt]).filter((t): t is string => !!t).map(minutes).filter((t) => t.startsWith(today) && t >= now);
+  const times = todays.filter((r) => r.status !== "completed").flatMap((r) => [r.pickupAt, r.returnAt]).filter((t): t is string => !!t).map(minutes).filter((t) => t.startsWith(today) && t >= now);
   times.sort();
   return { fleet, jobs: { today: todays.length, nextAt: times[0]?.slice(11) ?? null }, partners, revenue };
 });
@@ -89,22 +94,45 @@ export type UpcomingPickup = {
   vehicle: string | null;
 };
 
-/** The confirmed bookings still to come, soonest first. */
+/**
+ * Today's jobs, whatever stage the booking is in, plus later bookings that are still open.
+ * A request from the website starts as "new", so a confirmed-only list hides the booking the team just received.
+ * Today's jobs count a trip whose pick-up or return is today even after that time has passed;
+ * the list has to include those same rows or the counter and "Next pick-ups" disagree.
+ */
 export const upcomingPickups = cache(async (limit = 6): Promise<UpcomingPickup[]> => {
   await requireAdmin();
   const rows = await db
     .select()
     .from(q)
-    .where(and(eq(q.status, "confirmed"), isNotNull(q.pickupAt), sql`greatest(${q.pickupAt}, ${q.returnAt}) >= ${NOW}`))
-    .orderBy(sql`case when ${q.pickupAt} >= ${NOW} then ${q.pickupAt} else ${q.returnAt} end`, asc(q.createdAt))
+    .where(
+      and(
+        inArray(q.status, [...JOB_STATUSES]),
+        sql`(
+          to_char(${q.pickupAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD')
+          or to_char(${q.returnAt}, 'YYYY-MM-DD') = to_char(${NOW}, 'YYYY-MM-DD')
+          or (
+            ${q.status} <> 'completed'
+            and ${q.pickupAt} is not null
+            and greatest(${q.pickupAt}, ${q.returnAt}) >= ${NOW}
+          )
+        )`,
+      ),
+    )
+    .orderBy(
+      sql`case when ${q.pickupAt} >= ${NOW} then ${q.pickupAt} else coalesce(${q.returnAt}, ${q.pickupAt}) end`,
+      asc(q.createdAt),
+    )
     .limit(limit);
   const now = amsterdamNow();
-  return rows.map((r) => {
-    const isReturn = minutes(r.pickupAt!) < now && !!r.returnAt;
-    return {
+  return rows.flatMap((r) => {
+    const at = r.pickupAt && minutes(r.pickupAt) >= now ? r.pickupAt : (r.returnAt ?? r.pickupAt);
+    if (!at) return [];
+    const isReturn = at === r.returnAt && at !== r.pickupAt;
+    return [{
       id: r.id,
       reference: r.reference,
-      at: isReturn ? r.returnAt! : r.pickupAt!,
+      at,
       isReturn,
       // A return runs the other way round (an hourly booking has nowhere to return from: it is only the time)
       from: isReturn ? (r.destination ?? r.collection) : r.collection,
@@ -113,7 +141,7 @@ export const upcomingPickups = cache(async (limit = 6): Promise<UpcomingPickup[]
       name: r.name,
       entity: r.entity,
       vehicle: r.vehicle,
-    };
+    }];
   });
 });
 

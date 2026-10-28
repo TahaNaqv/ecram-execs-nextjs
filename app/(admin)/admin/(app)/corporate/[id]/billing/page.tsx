@@ -1,6 +1,7 @@
 export const instant = false;
 import { notFound } from "next/navigation";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { PartnerBillingClient } from "./partner-billing-client";
 
 export default async function PartnerBillingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +11,7 @@ export default async function PartnerBillingPage({ params }: { params: Promise<{
 
   const { partner, contact, bookings, totalSpend } = detail;
   
+  const { admin } = await adminDictionary();
   return (
     <PartnerBillingClient
       partnerId={partner.id}
@@ -18,6 +20,7 @@ export default async function PartnerBillingPage({ params }: { params: Promise<{
       kvrNumber={contact.kvkNumber || "—"}
       totalSpend={totalSpend}
       bookings={bookings}
+      copy={admin.corporate.hub}
     />
   );
 }

@@ -33,7 +33,7 @@ function NewApplications({ count }: { count: number }) {
   );
 }
 
-function DriverName({ name, phone, partner, vehicle }: { name: string; phone: string | null; partner: boolean; vehicle: string | null }) {
+function DriverName({ name, phone, partner, vehicle, partnerBadge }: { name: string; phone: string | null; partner: boolean; vehicle: string | null; partnerBadge: string }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <Avatar name={name} size="sm" />
@@ -42,7 +42,7 @@ function DriverName({ name, phone, partner, vehicle }: { name: string; phone: st
           <span className="truncate">{name}</span>
           {partner && (
             <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-px text-[11px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
-              Partner
+              {partnerBadge}
             </span>
           )}
         </p>
@@ -124,7 +124,7 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
               {onShift.map((r: any) => (
                 <li key={r.id} className="flex min-w-0 flex-col rounded-xl border border-zinc-200/80 bg-white shadow-card">
                   <div className="flex items-start justify-between gap-3 p-5 pb-0">
-                    <DriverName {...r} />
+                    <DriverName {...r} partnerBadge={t.partnerBadge} />
                     {isPast(new Date(r.shiftStartedAt!.getTime() + SHIFT_MS)) ? (
                       <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-inset ring-red-200">
                         Overtime
@@ -178,7 +178,7 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
                 <ul className="divide-y divide-zinc-100">
                   {offShift.map((r: any) => (
                     <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                      <DriverName {...r} />
+                      <DriverName {...r} partnerBadge={t.partnerBadge} />
                       <div className="flex shrink-0 items-center gap-1">
                         <form action={setDriverActive}>
                           <input type="hidden" name="driverId" value={r.id} />
@@ -211,7 +211,7 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
                   {archived.map((r: any) => (
                     <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
                       <div className="min-w-0 opacity-60">
-                        <DriverName {...r} />
+                        <DriverName {...r} partnerBadge={t.partnerBadge} />
                       </div>
                       <form action={setDriverActive}>
                         <input type="hidden" name="driverId" value={r.id} />
@@ -239,8 +239,8 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
             >
               <XIcon size={18} />
             </button>
-            <h3 className="text-base font-semibold text-zinc-950 mb-1">Register New Driver</h3>
-            <p className="text-xs text-zinc-500 mb-4">Add a verified chauffeur or partner driver to the roster.</p>
+            <h3 className="text-base font-semibold text-zinc-950 mb-1">{t.registerTitle}</h3>
+            <p className="text-xs text-zinc-500 mb-4">{t.registerNote}</p>
             <AddDriverForm
               copy={{
                 driverName: dict.common.driverName,

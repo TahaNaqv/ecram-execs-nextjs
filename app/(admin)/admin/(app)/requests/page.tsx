@@ -156,7 +156,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
       {/* Booking Streams: Plan Your Journey (Standard) vs Corporate Bookings */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/70 px-4 py-2.5 sm:px-5">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-zinc-500">Booking Stream:</span>
+          <span className="text-xs font-medium text-zinc-500">{t.requests.streamLabel}</span>
           <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 shadow-xs">
             <Link
               href={href({ status, q, queue: undefined })}
@@ -164,7 +164,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 !queue ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
               }`}
             >
-              All Bookings
+              {t.requests.streamAll}
             </Link>
             <Link
               href={href({ status, q, queue: "standard" })}
@@ -172,7 +172,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 queue === "standard" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
               }`}
             >
-              Plan Your Journey (Standard)
+              {t.requests.streamStandard}
             </Link>
             <Link
               href={href({ status, q, queue: "corporate" })}
@@ -180,12 +180,12 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                 queue === "corporate" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
               }`}
             >
-              Corporate Bookings (Verified B2B)
+              {t.requests.streamCorporate}
             </Link>
           </div>
         </div>
         <span className="text-xs text-zinc-400">
-          SLA compliance auto-monitored · Real-time auto-pricing active
+          {t.requests.streamNote}
         </span>
       </div>
 
