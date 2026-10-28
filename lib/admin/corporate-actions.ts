@@ -5,6 +5,7 @@ import { corporateContacts, quoteRequests } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
+import { sendEmail } from "@/lib/mail";
 
 export async function addCorporatePartner(formData: FormData) {
   await requireAdmin();
@@ -33,7 +34,7 @@ export async function addCorporatePartner(formData: FormData) {
         email,
         emailDomain,
         position,
-        phone, // <-- Included phone so it saves to the database
+        phone,
         verifiedAt: new Date(),
         source: "admin",
       })
@@ -54,8 +55,31 @@ export async function deleteCorporatePartner(id: string) {
   if (!id) return { ok: false, error: "Missing partner ID" };
 
   try {
+    // 1. Fetch partner details to retrieve email & name for notification
+    const [partner] = await db
+      .select()
+      .from(corporateContacts)
+      .where(eq(corporateContacts.id, id))
+      .limit(1);
+
+    if (partner && partner.email) {
+      // 2. Send account deletion notification email
+      try {
+        await sendEmail({
+          to: partner.email,
+          subject: "Your Ecram Execs Corporate Account Has Been Closed",
+          text: `Dear ${partner.name},\n\nYour corporate account for ${partner.companyName} has been successfully closed and removed from the Ecram Execs system by an administrator.\n\nIf you believe this was done in error, please contact support.\n\nBest regards,\nEcram Execs Team`,
+        });
+        console.log(`✉️ Sent account deletion notification to: ${partner.email}`);
+      } catch (mailErr) {
+        console.error("⚠️ Failed to send account deletion email:", mailErr);
+      }
+    }
+
+    // 3. Delete from database
     await db.delete(corporateContacts).where(eq(corporateContacts.id, id));
     console.log(`🗑️ Successfully removed corporate partner: ${id}`);
+    
     revalidatePath("/admin/corporate");
     return { ok: true };
   } catch (error) {
@@ -101,6 +125,8 @@ export async function updateCorporatePartner(formData: FormData) {
   const kvkNumber = (formData.get("kvk") as string)?.trim() || null;
   const name = (formData.get("bookerName") as string)?.trim();
   const position = (formData.get("bookerRole") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim()?.toLowerCase();
+  const phone = (formData.get("phone") as string)?.trim() || null;
   const status = (formData.get("status") as string)?.trim();
 
   if (!id || !companyName || !name) {
@@ -108,7 +134,7 @@ export async function updateCorporatePartner(formData: FormData) {
   }
 
   try {
-    const lockedUntil = status === "Suspended" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null;
+    const lockedUntil = status === "Suspended" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : status === "Active" ? null : undefined;
     await db
       .update(corporateContacts)
       .set({
@@ -116,7 +142,9 @@ export async function updateCorporatePartner(formData: FormData) {
         kvkNumber,
         name,
         position: position || undefined,
-        lockedUntil,
+        ...(email ? { email, emailDomain: email.split("@")[1] || undefined } : {}),
+        phone,
+        ...(lockedUntil !== undefined ? { lockedUntil } : {}),
         updatedAt: new Date(),
       })
       .where(eq(corporateContacts.id, id));

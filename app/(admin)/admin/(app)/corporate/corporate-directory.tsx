@@ -1,17 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchIcon, PlusIcon, XIcon, BriefcaseIcon } from "../../_components/icons";
 import type { CorporatePartnerRow } from "@/lib/admin/live-queries";
-import { addCorporatePartner, deleteCorporatePartner } from "@/lib/admin/corporate-actions";
-import { formatEuro } from "@/lib/admin/format";
+import { addCorporatePartner, deleteCorporatePartner, updateCorporatePartner } from "@/lib/admin/corporate-actions";
+import { formatEuro, formatPickup, STATUS_STYLE } from "@/lib/admin/format";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import type { RequestStatus } from "@/lib/quotes/constants";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
-export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialPartners: CorporatePartnerRow[]; copy: HubCopy }) {
+export function CorporateDirectoryHub({
+  initialPartners = [],
+  copy,
+  statuses,
+}: {
+  initialPartners: CorporatePartnerRow[];
+  copy: HubCopy;
+  statuses: Dictionary["admin"]["statuses"];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [partners, setPartners] = useState<CorporatePartnerRow[]>(initialPartners);
@@ -26,6 +36,15 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPartners(initialPartners);
+    setSelectedPartner((current) => (current ? initialPartners.find((p) => p.id === current.id) ?? null : null));
+  }, [initialPartners]);
+
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
 
   const filteredPartners = partners.filter((p) => {
     const matchesSearch =
@@ -61,7 +80,11 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
   const handleDeletePartner = (id: string) => {
     if (!confirm(copy.deleteConfirm)) return;
     startTransition(async () => {
-      await deleteCorporatePartner(id);
+      const res = await deleteCorporatePartner(id);
+      if (res && !res.ok) {
+        alert(res.error || "Failed to delete account");
+        return;
+      }
       setPartners((prev) => prev.filter((p) => p.id !== id));
       setSelectedPartner(null);
       router.refresh();
@@ -70,9 +93,14 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
 
   const handleUpdatePartner = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Here you can hook up your update server action if available
-    setActiveTabDrawer(null);
-    router.refresh();
+    if (!selectedPartner) return;
+    const formData = new FormData(e.currentTarget);
+    formData.set("id", selectedPartner.id);
+    startTransition(async () => {
+      const res = await updateCorporatePartner(formData);
+      if (res && !res.ok) return;
+      router.refresh();
+    });
   };
 
   return (
@@ -144,7 +172,7 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
                     key={partner.id}
                     onClick={() => {
                       setSelectedPartner(partner);
-                      setActiveTabDrawer(null);
+                      setActiveTabDrawer("edit");
                     }}
                     className="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
                   >
@@ -211,8 +239,8 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
               {/* Drawer Header & Action Buttons */}
               <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-950">{selectedPartner.companyName}</h2>
-                  <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                  <h2 className="text-xl font-bold tracking-tight text-zinc-950">{selectedPartner.companyName}</h2>
+                  <p className="mt-1 text-xs text-zinc-500">
                     {interpolate(copy.bookerLine, { kvk: selectedPartner.kvk, name: selectedPartner.bookerName })}
                   </p>
                 </div>
@@ -227,40 +255,80 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
               {/* Conditional Quick Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap">
                 <button
+                  type="button"
                   onClick={() => setActiveTabDrawer(activeTabDrawer === "edit" ? null : "edit")}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
                     activeTabDrawer === "edit"
-                      ? "bg-black text-white border-black"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
                   }`}
                 >
                   {activeTabDrawer === "edit" ? copy.viewOverview : copy.editProfile}
                 </button>
 
-                {selectedPartner.activeBookings > 0 && (
-                  <button
-                    onClick={() => setActiveTabDrawer("bookings")}
-                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors"
-                  >
-                    {interpolate(copy.viewBookings, { count: selectedPartner.activeBookings })}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTabDrawer("bookings")}
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+                    activeTabDrawer === "bookings"
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
+                  }`}
+                >
+                  {interpolate(copy.viewBookings, { count: selectedPartner.bookings?.length || selectedPartner.activeBookings })}
+                </button>
 
-                {selectedPartner.totalSpend > 0 && (
-                  <button
-                    onClick={() => setActiveTabDrawer("billing")}
-                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors"
-                  >
-                    {copy.billingVat}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTabDrawer("billing")}
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+                    activeTabDrawer === "billing"
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
+                  }`}
+                >
+                  {copy.billingVat}
+                </button>
               </div>
 
               {/* Conditional Sub-views inside the sidebar drawer */}
               {activeTabDrawer === "bookings" ? (
-                <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2 animate-in fade-in">
-                  <h4 className="font-semibold text-xs text-zinc-900">{copy.recentBookings}</h4>
-                  <p className="text-[11px] text-zinc-500">{interpolate(copy.recentBookingsNote, { company: selectedPartner.companyName })}</p>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-950">{copy.recentBookings}</h4>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">{interpolate(copy.recentBookingsNote, { company: selectedPartner.companyName })}</p>
+                    </div>
+                    <Link href={`/admin/corporate/${selectedPartner.id}/bookings`} className="shrink-0 text-[11px] font-medium text-sky-700 hover:underline">
+                      {copy.openFull}
+                    </Link>
+                  </div>
+                  {(selectedPartner.bookings ?? []).length === 0 ? (
+                    <p className="rounded-lg border border-zinc-200 bg-white px-4 py-6 text-center text-xs text-zinc-500">{copy.noBookings}</p>
+                  ) : (
+                    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                      {selectedPartner.bookings.map((booking) => {
+                        const route = [booking.collection, booking.destination].filter(Boolean).join(" → ");
+                        const status = booking.status as RequestStatus;
+                        return (
+                          <li key={booking.id}>
+                            <Link href={`/admin/requests/${booking.id}`} className="block rounded-lg border border-zinc-200 bg-white p-3 no-underline hover:bg-zinc-50">
+                              <span className="flex items-center justify-between gap-3">
+                                <span className="font-mono text-xs font-bold text-sky-700">{booking.reference}</span>
+                                <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${STATUS_STYLE[status] ?? "bg-zinc-100 text-zinc-700 ring-zinc-200"}`}>
+                                  {statuses[status] ?? booking.status}
+                                </span>
+                              </span>
+                              <span className="mt-1.5 block text-xs font-medium text-zinc-950">{route || booking.passengerName}</span>
+                              <span className="mt-0.5 block text-[11px] text-zinc-500">
+                                {[booking.pickupAt ? formatPickup(booking.pickupAt) : null, formatEuro(booking.amount), booking.passengerName].filter(Boolean).join(" · ")}
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
               ) : activeTabDrawer === "billing" ? (
                 <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2 animate-in fade-in">
@@ -268,87 +336,94 @@ export function CorporateDirectoryHub({ initialPartners = [], copy }: { initialP
                   <p className="text-[11px] text-zinc-500">{copy.kvkNumber}: {selectedPartner.kvk}</p>
                 </div>
               ) : activeTabDrawer === "edit" ? (
-                /* --- FULL EDITABLE FORM FOR ALL FIELDS --- */
-                <form onSubmit={handleUpdatePartner} className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-3.5 animate-in fade-in text-xs">
-                  <h4 className="font-bold text-zinc-900 text-sm mb-1">{copy.editDetails}</h4>
-                  
+                <form key={selectedPartner.id} onSubmit={handleUpdatePartner} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-xs">
+                  <h4 className="mb-4 text-sm font-bold text-zinc-950">{copy.editDetails}</h4>
+
                   <div>
-                    <label className="block font-medium text-zinc-700 mb-1">{copy.companyLegalName}</label>
+                    <label className="mb-1.5 block font-medium text-zinc-800">{copy.companyLegalName}</label>
                     <input
                       type="text"
+                      name="companyName"
                       defaultValue={selectedPartner.companyName}
-                      className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                      className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-medium text-zinc-700 mb-1">{copy.colKvk}</label>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.colKvk}</label>
                       <input
                         type="text"
-                        defaultValue={selectedPartner.kvk}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 font-mono text-zinc-900 focus:outline-none"
+                        name="kvk"
+                        defaultValue={selectedPartner.kvk === "—" ? "" : selectedPartner.kvk}
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 font-mono text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-zinc-700 mb-1">{copy.preferredVehicle}</label>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.preferredVehicle}</label>
                       <input
                         type="text"
                         defaultValue={selectedPartner.preferredVehicle}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                        readOnly
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-medium text-zinc-700 mb-1">{copy.bookerName}</label>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.bookerName}</label>
                       <input
                         type="text"
+                        name="bookerName"
                         defaultValue={selectedPartner.bookerName}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-zinc-700 mb-1">{copy.bookerRole}</label>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.bookerRole}</label>
                       <input
                         type="text"
+                        name="bookerRole"
                         defaultValue={selectedPartner.bookerRole}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-medium text-zinc-700 mb-1">{copy.bookerEmail}</label>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.bookerEmail}</label>
                       <input
                         type="email"
+                        name="email"
                         defaultValue={selectedPartner.email}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 focus:outline-none"
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-zinc-700 mb-1">{copy.phone}</label>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.phone}</label>
                       <input
                         type="text"
-                        defaultValue={selectedPartner.phone}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 font-mono text-zinc-900 focus:outline-none"
+                        name="phone"
+                        defaultValue={selectedPartner.phone === "—" ? "" : selectedPartner.phone}
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 font-mono text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-2 flex justify-end gap-2">
+                  <div className="mt-5 flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveTabDrawer(null)}
-                      className="bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-semibold px-3 py-1.5 rounded-lg"
+                      className="rounded-lg bg-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-300"
                     >
                       {copy.cancel}
                     </button>
                     <button
                       type="submit"
-                      className="bg-black hover:bg-zinc-800 text-white font-semibold px-4 py-1.5 rounded-lg"
+                      disabled={isPending}
+                      className="rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
                     >
                       {copy.save}
                     </button>

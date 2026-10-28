@@ -261,6 +261,17 @@ export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
 });
 
 // --- Corporate Partners ---
+export type PartnerBookingSummary = {
+  id: string;
+  reference: string;
+  status: string;
+  collection: string | null;
+  destination: string | null;
+  pickupAt: string | null;
+  amount: number;
+  passengerName: string;
+};
+
 export type CorporatePartnerRow = {
   id: string;
   companyName: string;
@@ -274,7 +285,33 @@ export type CorporatePartnerRow = {
   totalSpend: number;
   activeBookings: number;
   partnershipSince: string;
+  bookings: PartnerBookingSummary[];
 };
+
+const OPEN_BOOKING = ["new", "contacted", "quoted", "confirmed"];
+
+function asBookingSummary(row: {
+  id: string;
+  reference: string;
+  status: string;
+  collection: string | null;
+  destination: string | null;
+  pickupAt: string | null;
+  quotedAmount: string | null;
+  passengerName: string | null;
+  name: string;
+}): PartnerBookingSummary {
+  return {
+    id: row.id,
+    reference: row.reference,
+    status: row.status,
+    collection: row.collection,
+    destination: row.destination,
+    pickupAt: row.pickupAt,
+    amount: Number(row.quotedAmount ?? 0),
+    passengerName: row.passengerName || row.name,
+  };
+}
 
 export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[]> => {
   await requireAdmin();
@@ -286,11 +323,19 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
 
   const quotes = await db
     .select({
+      id: q.id,
       contactId: q.corporateContactId,
+      reference: q.reference,
       amount: q.quotedAmount,
       status: q.status,
       phone: q.phone,
       vehicle: q.vehicle,
+      collection: q.collection,
+      destination: q.destination,
+      pickupAt: q.pickupAt,
+      passengerName: q.passengerName,
+      name: q.name,
+      createdAt: q.createdAt,
     })
     .from(q)
     .where(isNotNull(q.corporateContactId));
@@ -298,11 +343,25 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
   return contacts.map((contact) => {
     const contactQuotes = quotes.filter((quote) => quote.contactId === contact.id);
     const totalSpend = contactQuotes.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
-    const activeBookings = contactQuotes.filter((item) =>
-      ["new", "contacted", "quoted", "confirmed"].includes(item.status)
-    ).length;
+    const activeBookings = contactQuotes.filter((item) => OPEN_BOOKING.includes(item.status)).length;
     const latestPhone = contactQuotes.find((item) => Boolean(item.phone))?.phone ?? "—";
     const preferredVehicle = contactQuotes.find((item) => Boolean(item.vehicle))?.vehicle ?? "Mercedes-Benz EQS";
+    const bookings = contactQuotes
+      .slice()
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((item) =>
+        asBookingSummary({
+          id: item.id,
+          reference: item.reference,
+          status: item.status,
+          collection: item.collection,
+          destination: item.destination,
+          pickupAt: item.pickupAt,
+          quotedAmount: item.amount,
+          passengerName: item.passengerName,
+          name: item.name,
+        }),
+      );
 
     return {
       id: contact.id,
@@ -321,6 +380,7 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
       totalSpend,
       activeBookings,
       partnershipSince: contact.createdAt.getFullYear().toString(),
+      bookings,
     };
   });
 });
@@ -341,7 +401,7 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
 
   const bookings = await db.select().from(q).where(eq(q.corporateContactId, id)).orderBy(desc(q.createdAt));
   const totalSpend = bookings.reduce((sum, b) => sum + Number(b.quotedAmount ?? 0), 0);
-  const activeCount = bookings.filter((b) => ["new", "contacted", "quoted", "confirmed"].includes(b.status)).length;
+  const activeCount = bookings.filter((b) => OPEN_BOOKING.includes(b.status)).length;
   const completedCount = bookings.filter((b) => b.status === "completed").length;
 
   const partner: CorporatePartnerRow = {
@@ -361,6 +421,7 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
     totalSpend,
     activeBookings: activeCount,
     partnershipSince: contact.createdAt.getFullYear().toString(),
+    bookings: bookings.map((b) => asBookingSummary(b)),
   };
 
   return { partner, contact, bookings, totalSpend, activeCount, completedCount };

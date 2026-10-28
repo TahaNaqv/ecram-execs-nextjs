@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq, isNotNull } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
@@ -144,5 +145,8 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   const kind = request.status === "confirmed" ? "confirmed" : request.status === "quoted" && request.quotedAmount ? "quoted" : null;
   if (partner && kind) after(() => emailPartnerBooking({ request, to: partner, kind }));
   else if (values.notifyClient === "on") after(() => emailBookingRecorded(request));
+  revalidatePath("/admin/corporate");
+  revalidatePath("/admin");
+  if (request.corporateContactId) revalidatePath(`/admin/corporate/${request.corporateContactId}`);
   redirect(`/admin/requests/${request.id}`);
 }

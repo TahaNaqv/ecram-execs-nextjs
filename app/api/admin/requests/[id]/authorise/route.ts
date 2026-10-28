@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
@@ -100,6 +101,9 @@ export async function POST(
       console.log(`[AUTHORISE] Saved changes for request ${updated.reference} (Email dispatch skipped as sendMail is false).`);
     }
 
+    revalidatePath("/admin/corporate");
+    revalidatePath("/admin");
+    if (updated.corporateContactId) revalidatePath(`/admin/corporate/${updated.corporateContactId}`);
     return NextResponse.json({ ok: true, request: updated });
   } catch (err: unknown) {
     console.error("[authorise] failed", err);

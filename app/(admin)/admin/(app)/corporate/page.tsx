@@ -23,7 +23,7 @@ async function Description() {
 
 async function CorporateContent() {
   const [{ admin }, partners] = await Promise.all([adminDictionary(), getCorporatePartners()]);
-  return <CorporateDirectoryHub initialPartners={partners} copy={admin.corporate.hub} />;
+  return <CorporateDirectoryHub initialPartners={partners} copy={admin.corporate.hub} statuses={admin.statuses} />;
 }
 
 export default function CorporatePage() {

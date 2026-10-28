@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq, sql } from "drizzle-orm";
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
@@ -148,6 +148,9 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
     // Bookings the team keyed in (source "admin") are not mailed: the team spoke to them, and chose at the time whether to tell them.
     after(() => emailEnquiryStatus({ request: saved, kind: told }));
   }
+  revalidatePath("/admin/corporate");
+  revalidatePath("/admin");
+  if (saved.corporateContactId) revalidatePath(`/admin/corporate/${saved.corporateContactId}`);
   refresh();
   return { ok: true };
 }
