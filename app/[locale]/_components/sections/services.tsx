@@ -6,15 +6,15 @@ export async function Services() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const s = d.servicesSection;
   // Each service is a picture card that unfolds into its details. They book through the form; Corporate Accounts leads to the
-  // Corporate Partner page instead. The pictures are stills from the client's showreel, 2000px wide (public/assets/service-*-v4.jpg).
+  // Corporate Partner page instead. The pictures are stills from the client's showreel, 2000px wide (public/assets/service-*-v4/v5.jpg).
   const quote = { label: d.common.requestQuote, href: "#enquire" };
   const items: PictureItem[] = [
-    { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/service-airport-v4.jpg", focus: "38% 50%", cta: quote },
-    { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-business-v4.jpg", focus: "70% 45%", cta: quote },
-    { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate-v4.jpg", focus: "50% 50%", cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
-    { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private-v4.jpg", focus: "62% 50%", cta: quote },
-    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels-v4.jpg", focus: "72% 40%", cta: quote },
-    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke-v4.jpg", focus: "52% 50%", cta: quote },
+    { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/service-airport-v4.jpg", focus: "38% 50%", brightness: 1.15, cta: quote },
+    { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-business-v5.jpg", focus: "62% 42%", brightness: 1.15, cta: quote },
+    { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate-v5.jpg", focus: "62% 40%", brightness: 1.15, cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
+    { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private-v5.jpg", focus: "52% 62%", brightness: 1.15, cta: quote },
+    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels-v5.jpg", focus: "60% 55%", brightness: 1.15, cta: quote },
+    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke-v5.jpg", focus: "52% 62%", brightness: 1.15, cta: quote },
   ];
   return (
     <section className="border-b border-b-ink-850" id="services">

@@ -10,6 +10,9 @@ const blocks = () => Array.from(document.querySelectorAll<HTMLElement>("main > s
 /** The sticky header covers the top of whatever it sits above, so sections are scrolled to just beneath it. */
 const headerOffset = () => document.querySelector("header")?.getBoundingClientRect().height ?? 0;
 
+/** The WhatsApp button (components/whatsapp-float.tsx) sits in the same corner, so the arrows stay above it whenever it is shown. */
+const hasWhatsApp = Boolean(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER);
+
 /**
  * Floating up/down arrows that move between sections rather than to the very top or bottom.
  * Up from partway through a section returns to that section's start; up from its start goes to
@@ -57,7 +60,7 @@ export function SectionNav({ copy }: { copy: Copy }) {
 
   return (
     <div
-      className={`section-nav cookie-lift fixed right-4 z-50 flex flex-col gap-px transition-[bottom] duration-300 md:right-8 ${atBottom ? "bottom-24 md:bottom-28" : "bottom-4 md:bottom-8"} ${visible ? "is-visible" : ""}`}
+      className={`section-nav cookie-lift fixed right-4 z-50 flex flex-col gap-px transition-[bottom] duration-300 md:right-8 ${atBottom || hasWhatsApp ? "bottom-24 md:bottom-28" : "bottom-4 md:bottom-8"} ${visible ? "is-visible" : ""}`}
       aria-hidden={!visible}
     >
       <button type="button" className={button} onClick={() => go(-1)} disabled={atTop} aria-label={copy.prev} tabIndex={visible ? 0 : -1}>

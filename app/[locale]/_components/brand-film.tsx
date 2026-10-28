@@ -68,7 +68,7 @@ export function BrandFilm({ copy }: { copy: BrandFilmCopy }) {
           onEnded={reset}
         />
         {!playing && (
-          <div className="p-4 gap-[10px] items-start flex flex-col justify-end absolute inset-0 md:p-7 md:items-end md:justify-end md:gap-0 md:flex-row">
+          <div className="keep-navy p-4 gap-[10px] items-start flex flex-col justify-end absolute inset-0 md:p-7 md:items-end md:justify-end md:gap-0 md:flex-row">
             <Image className="object-cover" src={POSTER} alt="" fill sizes="(min-width: 1536px) 1392px, (min-width: 1280px) 1232px, 100vw" />
             {/* Darkens the daylight still to sit with the site and keep the caption and controls legible */}
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--ec-black-rgb),0.45)_0%,rgba(var(--ec-black-rgb),0.35)_45%,rgba(var(--ec-black-rgb),0.85)_100%)]" aria-hidden="true"></div>

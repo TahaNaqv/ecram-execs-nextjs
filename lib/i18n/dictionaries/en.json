@@ -278,7 +278,8 @@
     "experience": "The Experience",
     "fleet": "Fleet",
     "destinations": "Destinations",
-    "corporate": "Corporate"
+    "corporate": "Corporate",
+    "concierge": "Concierge"
   },
   "hero": {
     "imageAlt": "Ecram Execs chauffeur waiting beside an electric Mercedes VLE as an executive leaves a private jet at dusk",
@@ -286,6 +287,7 @@
     "headingEmphasis": "of the Experience",
     "intro": "Experience premium electric chauffeur services across the Netherlands, combining refined comfort, discretion, and effortless travel. From collection to arrival, every journey is tailored around your comfort, with punctuality and exceptional service at the heart of every ride.",
     "corporateLogin": "Corporate Login",
+    "askConcierge": "Ask our concierge",
     "scroll": "SCROLL",
     "stripQuiet": "QUIET · REFINED · ELECTRIC",
     "stripServing": "SERVING THE WHOLE OF THE NETHERLANDS",
@@ -421,6 +423,11 @@
     "faqLabel": "Frequently asked questions",
     "panelTitle": "ECRAM CONCIERGE",
     "panelSubtitle": "Replies instantly · Team on hand 24/7",
+    "launcher": "Ask our concierge",
+    "launcherShort": "Concierge",
+    "launcherAria": "Chat with our concierge",
+    "bubble": "Need help? Ask our concierge.",
+    "bubbleClose": "Dismiss",
     "inputLabel": "Message the concierge",
     "inputPlaceholder": "Ask about a journey…",
     "send": "Send message",

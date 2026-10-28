@@ -189,11 +189,11 @@ test("the home page follows the client's section order and lacks the removed sec
   }
 });
 
-test("the header lists Corporate, The Experience, Destinations, Services in that order", async ({ page }) => {
+test("the header lists Corporate, The Experience, Destinations, Services, Concierge in that order", async ({ page }) => {
   for (const [path, d] of [["/en", en], ["/nl", nl]] as const) {
     await page.goto(path);
     const links = page.getByRole("navigation", { name: d.nav.primaryLabel }).getByRole("link");
-    await expect(links).toHaveText([d.nav.corporate, d.nav.experience, d.nav.destinations, d.nav.services]);
+    await expect(links).toHaveText([d.nav.corporate, d.nav.experience, d.nav.destinations, d.nav.services, d.nav.concierge]);
     // Every link leads to a section that is on the page
     for (const href of await links.evaluateAll((els) => els.map((e) => e.getAttribute("href")))) {
       await expect(page.locator(href!)).toBeAttached();

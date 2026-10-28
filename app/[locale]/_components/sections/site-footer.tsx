@@ -19,7 +19,7 @@ export async function SiteFooter() {
   // Anchors have to carry the locale prefix, or `/` would redirect the visitor out of it.
   const home = localizedPath("/", locale);
   return (
-    <footer className="border-t border-t-ink-850 bg-ink-975">
+    <footer className="keep-navy border-t border-t-ink-850 bg-ink-975">
       <div className="px-5 pt-14 pb-10 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:px-6 md:pt-18 md:pb-10 md:gap-14 2xl:max-w-[1440px]">
         <div className="gap-12 flex flex-wrap justify-between">
           <div className="gap-[10px] items-center flex flex-col max-w-[360px] text-center">

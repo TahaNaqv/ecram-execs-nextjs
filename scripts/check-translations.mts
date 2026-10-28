@@ -17,6 +17,9 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
 const ALLOW_IDENTICAL = new Set([
   // Google's own attribution wording, required as they word it
   "booking.poweredByGoogle",
+  // "Concierge" is the same word in Dutch
+  "nav.concierge",
+  "conciergeSection.launcherShort",
   "booking.summaryRoute",
   "booking.phonePlaceholder",
   "cookieConsent.marketingTitle",

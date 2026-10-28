@@ -15,6 +15,8 @@ export type PictureItem = {
   image: string;
   /** Where the picture is anchored when the card crops it (CSS object-position), so the subject stays in view */
   focus: string;
+  /** Lifts a photograph that reads too dark in its card (CSS brightness: 1 leaves it as it is); its card also gets a lighter shade over the picture */
+  brightness?: number;
   /** A button under the details; without one the card only shows its text */
   cta?: { label: string; href: string };
 };
@@ -61,7 +63,7 @@ export function PictureAccordion({ items, variant }: { items: PictureItem[]; var
           <article
             key={item.key}
             data-open={isOpen}
-            className={`reveal-card group relative isolate flex overflow-hidden bg-ink-950 ${v.card}`}
+            className={`keep-navy reveal-card group relative isolate flex overflow-hidden bg-ink-950 ${v.card}`}
             onKeyDown={(e) => {
               if (e.key === "Escape" && isOpen) {
                 e.stopPropagation();
@@ -75,11 +77,14 @@ export function PictureAccordion({ items, variant }: { items: PictureItem[]; var
               alt=""
               fill
               sizes={v.sizes}
-              style={{ objectPosition: item.focus }}
+              style={{ objectPosition: item.focus, ...(item.brightness && { filter: `brightness(${item.brightness})` }) }}
               className={`-z-20 object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.2,0.7,0.1,1)] ${isOpen ? "scale-110" : "scale-100 group-hover:scale-105"}`}
             />
             {/* Always a little darker towards the heading; much darker while the details are open, so the text reads */}
-            <div className="-z-10 absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--ec-black-rgb),0.05)_0%,rgba(var(--ec-black-rgb),0.35)_45%,rgba(var(--ec-black-rgb),0.88)_100%)]" aria-hidden="true" />
+            <div
+              className={`-z-10 absolute inset-0 ${item.brightness ? "bg-[linear-gradient(180deg,rgba(var(--ec-black-rgb),0)_0%,rgba(var(--ec-black-rgb),0.12)_50%,rgba(var(--ec-black-rgb),0.62)_100%)]" : "bg-[linear-gradient(180deg,rgba(var(--ec-black-rgb),0.05)_0%,rgba(var(--ec-black-rgb),0.35)_45%,rgba(var(--ec-black-rgb),0.88)_100%)]"}`}
+              aria-hidden="true"
+            />
             <div className={`-z-10 absolute inset-0 bg-ink-950/75 transition-opacity duration-700 ${isOpen ? "opacity-100" : "opacity-0"}`} aria-hidden="true" />
 
             <div className={`flex w-full flex-col justify-end ${v.pad}`}>

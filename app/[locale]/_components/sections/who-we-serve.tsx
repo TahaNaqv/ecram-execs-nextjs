@@ -11,9 +11,9 @@ export async function WhoWeServe() {
   const items: PictureItem[] = [
     { key: "executives", title: w.segmentExecutives, text: w.segmentExecutivesText, image: "/assets/serve-executives-v3.jpg", focus: "58% 50%" },
     { key: "corporate", title: w.segmentCorporate, text: w.segmentCorporateText, image: "/assets/serve-corporate-v4.jpg", focus: "60% 50%" },
-    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v4.jpg", focus: "54% 50%" },
+    { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v4.jpg", focus: "54% 50%", brightness: 1.18 },
     { key: "hotels", title: w.segmentHotels, text: w.segmentHotelsText, image: "/assets/serve-hotels-v3.jpg", focus: "42% 50%" },
-    { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%" },
+    { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%", brightness: 1.1 },
     { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-v3.jpg", focus: "30% 50%" },
   ];
   return (
@@ -40,7 +40,7 @@ export async function WhoWeServe() {
       </div>
       <div className="px-5 pt-0 pb-20 my-0 mx-auto gap-8 grid grid-cols-[1fr] max-w-[1280px] md:px-6 md:pt-0 md:pb-30 md:grid-cols-[repeat(2,minmax(0px,1fr))] lg:grid-cols-[repeat(4,minmax(0px,1fr))] 2xl:max-w-[1440px]">
         <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" strokeWidth="1.2" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
             <path d="M4 20L20 4"></path>
           </svg>
@@ -52,7 +52,7 @@ export async function WhoWeServe() {
           </span>
         </div>
         <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" strokeWidth="1.2" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <circle cx="12" cy="12" r="9"></circle>
             <path d="M12 7v5l3 2"></path>
           </svg>
@@ -64,7 +64,7 @@ export async function WhoWeServe() {
           </span>
         </div>
         <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" strokeWidth="1.2" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6L3.3 9.2l6.1-.6z"></path>
           </svg>
           <span className="text-white font-display text-[14px] tracking-[0.32em]">
@@ -75,7 +75,7 @@ export async function WhoWeServe() {
           </span>
         </div>
         <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" strokeWidth="1.2" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <circle cx="11" cy="11" r="6"></circle>
             <path d="M20 20l-4.5-4.5"></path>
           </svg>

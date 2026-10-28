@@ -4,6 +4,7 @@ import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { NavAutoClose } from "./_components/nav-auto-close";
+import { ConciergeLauncher } from "./_components/concierge-launcher";
 import { SectionNav } from "./_components/section-nav";
 import {
   Concierge,
@@ -85,6 +86,7 @@ export default async function HomePage() {
       </main>
       <SiteFooter />
       <NavAutoClose />
+      <ConciergeLauncher copy={{ label: d.conciergeSection.launcher, short: d.conciergeSection.launcherShort, aria: d.conciergeSection.launcherAria, bubble: d.conciergeSection.bubble, bubbleClose: d.conciergeSection.bubbleClose }} />
       <SectionNav copy={{ prev: d.common.sectionPrev, next: d.common.sectionNext }} />
     </div>
   );
