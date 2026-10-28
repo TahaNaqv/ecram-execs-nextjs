@@ -19,7 +19,7 @@ export async function Concierge() {
     <section className="border-b border-b-ink-850">
       <div className="py-12 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-16 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0">
-          <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
+          <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             {d.conciergeSection.eyebrow}
           </span>
           <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.08] md:text-[clamp(36px,4vw,52px)]">
@@ -36,20 +36,20 @@ export async function Concierge() {
             {d.conciergeSection.body2}
           </p>
         </div>
-        <div className="border border-ink-750 flex-[1_1_100%] bg-ink-900 flex flex-col max-w-none min-w-0 xl:flex-[1_1_440px] xl:max-w-[520px]">
-          <div className="py-[18px] px-[22px] border-b border-b-ink-800 items-center flex justify-between">
-            <div className="flex flex-col">
-              <span className="text-white font-display text-[13px] tracking-[0.3em]">
-                {d.conciergeSection.panelTitle}
-              </span>
-              <span className="text-ink-450 text-[12px]">
-                {d.conciergeSection.panelSubtitle}
-              </span>
-            </div>
-            <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
-          </div>
-          <ConciergeChat copy={t} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
-        </div>
+       <div className="border border-ink-600 flex-[1_1_100%] bg-ink-900 flex flex-col max-w-none min-w-0 xl:flex-[1_1_440px] xl:max-w-[520px]">
+  <div className="py-[18px] px-[22px] border-b border-b-ink-600 items-center flex justify-between">
+    <div className="flex flex-col">
+      <span className="text-white font-display text-[13px] tracking-[0.3em]">
+        {d.conciergeSection.panelTitle}
+      </span>
+      <span className="text-ink-450 text-[12px]">
+        {d.conciergeSection.panelSubtitle}
+      </span>
+    </div>
+    <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
+  </div>
+  <ConciergeChat copy={t} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
+</div>
       </div>
     </section>
   );

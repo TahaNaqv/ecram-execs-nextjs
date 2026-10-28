@@ -21,9 +21,9 @@ export async function WhoWeServe() {
       <div className="py-12 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-16 md:px-6 md:gap-20 2xl:max-w-[1440px]">
         {/* Beside the cards the heading stays in view while they are read. The columns sit side by side from 1068px; this starts 20px later because a media query counts a classic scrollbar that the layout does not, and the heading must not pin while the columns are still stacked */}
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0 min-[1088px]:sticky min-[1088px]:top-32 min-[1088px]:self-start">
-          <span className="reveal text-ink-450 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
-            {d.whoWeServe.eyebrow}
-          </span>
+         <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
+          {d.whoWeServe.eyebrow}
+        </span>
           <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.08] md:text-[clamp(36px,4vw,52px)]">
             {d.whoWeServe.heading}
           </h2>

@@ -401,7 +401,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
                 key={idx}
                 type="button"
                 onClick={() => sendMessage(chip.query)}
-                className="px-3.5 py-1.5 rounded-full border border-ink-700 bg-ink-850 text-ink-300 hover:text-white hover:border-ink-500 hover:bg-ink-800 text-xs font-medium transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full border border-ink-700 bg-ink-850 text-ink-300 hover:text-white hover:border-ink-500 hover:bg-ink-850 text-xs font-medium transition-colors cursor-pointer"
               >
                 {chip.label}
               </button>
@@ -456,7 +456,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
       </div>
 
       {/* What happens to the conversation, before anything is typed into it */}
-      <p className="m-0 border-t border-t-ink-800 px-5 py-2 text-[11px] leading-snug text-ink-450">
+      <p className="m-0 border-t border-t-ink-850 px-5 py-2 text-[11px] leading-snug text-ink-450">
         {interpolate(copy.storedNote, { days: keepDays })}{" "}
         <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-white">
           {cardCopy.privacyLink}
@@ -464,7 +464,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
       </p>
 
       {/* Input bar */}
-      <form className="border-t border-t-ink-800 flex bg-ink-950/60" onSubmit={onSubmit}>
+      <form className="border-t border-t-ink-600 flex bg-ink-950/60" onSubmit={onSubmit}>
         <label className="flex-1 flex">
           <span className="overflow-hidden [clip:rect(0px,0px,0px,0px)] h-px absolute w-px">{copy.inputLabel}</span>
           <input
@@ -478,7 +478,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
           />
         </label>
         <button
-          className="border-0 border-l border-l-ink-800 items-center bg-transparent text-white cursor-pointer flex justify-center w-14 hover:bg-ink-800/50 transition-colors disabled:opacity-40"
+          className="border-0 border-l border-l-ink-600 items-center bg-transparent text-white cursor-pointer flex justify-center w-14 hover:bg-ink-800/50 transition-colors disabled:opacity-40"
           type="submit"
           aria-label={copy.send}
           disabled={waiting}
