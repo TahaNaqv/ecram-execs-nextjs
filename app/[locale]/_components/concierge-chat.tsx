@@ -343,7 +343,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
                   className={`py-3 px-4.5 rounded-2xl leading-relaxed text-[14px] ${
                     isGuest
                       ? "bg-white text-ink-950 rounded-tr-xs font-medium shadow-sm"
-                      : "border border-ink-750 bg-ink-850/80 text-ink-150 rounded-tl-xs"
+                      : "border border-ink-500 bg-ink-800 text-ink-50 rounded-tl-xs shadow-sm"
                   }`}
                 >
                   {m.text}
@@ -401,7 +401,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
                 key={idx}
                 type="button"
                 onClick={() => sendMessage(chip.query)}
-                className="px-3.5 py-1.5 rounded-full border border-ink-700 bg-ink-850 text-ink-300 hover:text-white hover:border-ink-500 hover:bg-ink-850 text-xs font-medium transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full border border-ink-400 bg-ink-800 text-ink-100 hover:text-ink-950 hover:border-white hover:bg-white text-xs font-medium transition-colors cursor-pointer"
               >
                 {chip.label}
               </button>
@@ -456,7 +456,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
       </div>
 
       {/* What happens to the conversation, before anything is typed into it */}
-      <p className="m-0 border-t border-t-ink-850 px-5 py-2 text-[11px] leading-snug text-ink-450">
+      <p className="m-0 border-t border-t-ink-700 px-5 py-2 text-[11px] leading-snug text-ink-300">
         {interpolate(copy.storedNote, { days: keepDays })}{" "}
         <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-white">
           {cardCopy.privacyLink}
@@ -464,12 +464,12 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
       </p>
 
       {/* Input bar */}
-      <form className="border-t border-t-ink-600 flex bg-ink-950/60" onSubmit={onSubmit}>
+      <form className="flex items-center gap-2.5 border-t border-t-ink-600 bg-ink-850 p-3" onSubmit={onSubmit}>
         <label className="flex-1 flex">
           <span className="overflow-hidden [clip:rect(0px,0px,0px,0px)] h-px absolute w-px">{copy.inputLabel}</span>
           <input
             ref={field}
-            className="py-0 px-5 border-none flex-1 outline-none bg-transparent text-white text-[15px] min-h-[54px] min-w-0 placeholder:text-ink-500 md:text-[14px]"
+            className="min-h-[48px] min-w-0 flex-1 rounded-full border border-solid border-ink-500 bg-ink-950 px-5 py-0 text-[15px] text-white outline-none transition-colors placeholder:text-ink-400 focus:border-white md:text-[14px]"
             name="message"
             type="text"
             placeholder={copy.inputPlaceholder}
@@ -478,12 +478,12 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
           />
         </label>
         <button
-          className="border-0 border-l border-l-ink-600 items-center bg-transparent text-white cursor-pointer flex justify-center w-14 hover:bg-ink-800/50 transition-colors disabled:opacity-40"
+          className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-white text-ink-950 shadow-md transition-transform hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
           type="submit"
           aria-label={copy.send}
           disabled={waiting}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
         </button>

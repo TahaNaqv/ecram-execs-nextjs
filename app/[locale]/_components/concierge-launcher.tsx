@@ -35,13 +35,18 @@ export function ConciergeLauncher({ copy }: { copy: Copy }) {
     if (!target) return;
     const observer = new IntersectionObserver(([entry]) => {
       setShown(!entry.isIntersecting);
+      // On phones and tablets the corner buttons would sit over the chat's send button while it is on screen: site.css hides them then
+      document.documentElement.toggleAttribute("data-chat-in-view", entry.isIntersecting);
       if (entry.isIntersecting) {
         setBubble(false);
         seen();
       }
     }, { threshold: 0.3 });
     observer.observe(target);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      document.documentElement.removeAttribute("data-chat-in-view");
+    };
   }, []);
 
   useEffect(() => {

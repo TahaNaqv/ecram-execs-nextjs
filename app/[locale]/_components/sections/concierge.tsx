@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { ConciergeChat } from "../concierge-chat";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -36,20 +37,27 @@ export async function Concierge() {
             {d.conciergeSection.body2}
           </p>
         </div>
-       <div id="concierge-chat" className="scroll-mt-28 border border-ink-600 flex-[1_1_100%] bg-ink-900 flex flex-col max-w-none min-w-0 xl:flex-[1_1_440px] xl:max-w-[520px]">
-  <div className="py-[18px] px-[22px] border-b border-b-ink-600 items-center flex justify-between">
-    <div className="flex flex-col">
-      <span className="text-white font-display text-[13px] tracking-[0.3em]">
-        {d.conciergeSection.panelTitle}
-      </span>
-      <span className="text-ink-450 text-[12px]">
-        {d.conciergeSection.panelSubtitle}
-      </span>
-    </div>
-    <span className="live rounded-full bg-ink-150 h-2 w-2"></span>
-  </div>
-  <ConciergeChat copy={t} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
-</div>
+        {/* The frame is a 2px silver line with a soft glow around it, so the chat cannot be missed; the panel inside is a shade lighter than the page */}
+        <div
+          id="concierge-chat"
+          className="scroll-mt-28 flex max-w-none min-w-0 flex-[1_1_100%] flex-col rounded-[26px] bg-[linear-gradient(145deg,rgba(255,255,255,0.95),rgba(143,166,232,0.55)_40%,rgba(255,255,255,0.9))] p-[2px] shadow-[0_0_0_6px_rgba(255,255,255,0.05),0_0_70px_-12px_rgba(120,150,255,0.55),0_30px_60px_-20px_rgba(0,0,0,0.6)] xl:max-w-[540px] xl:flex-[1_1_460px]"
+        >
+          <div className="flex flex-1 flex-col overflow-hidden rounded-3xl bg-ink-900">
+            <div className="flex items-center justify-between gap-4 border-b border-b-ink-600 bg-[linear-gradient(180deg,var(--color-ink-800),var(--color-ink-900))] px-[22px] py-4">
+              <div className="flex items-center gap-3.5">
+                <span className="relative grid size-12 shrink-0 place-items-center rounded-full border border-solid border-ink-400 bg-ink-950">
+                  <Image src="/assets/logo-mark.png" alt="" width={48} height={48} className="size-9" />
+                  <span className="live absolute right-0 bottom-0 size-3 rounded-full border-2 border-solid border-ink-800 bg-[#25D366]" aria-hidden="true"></span>
+                </span>
+                <div className="flex flex-col">
+                  <span className="font-display text-[13px] tracking-[0.3em] text-white">{d.conciergeSection.panelTitle}</span>
+                  <span className="text-[12px] text-ink-300">{d.conciergeSection.panelSubtitle}</span>
+                </div>
+              </div>
+            </div>
+            <ConciergeChat copy={t} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
+          </div>
+        </div>
       </div>
     </section>
   );

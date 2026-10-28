@@ -338,6 +338,17 @@ body:has(dialog[open]) {
   overflow: hidden !important;
 }
 
+/* The WhatsApp button and the scroll arrows step aside while the concierge chat is on screen on a phone or tablet: the chat has its own WhatsApp link
+   and its send button is in the same corner */
+@media (max-width: 1000px) {
+  html[data-chat-in-view] .wa-float,
+  html[data-chat-in-view] .section-nav {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
+}
+
 /* ---------- Base ---------- */
 @layer base {
   body {
