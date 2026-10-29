@@ -230,7 +230,7 @@ test("a vehicle the team switches off is not offered, and the homepage itself do
   try {
     await db`insert into vehicles (id, name, status) values ('audi', 'Audi', 'unavailable') on conflict (id) do update set status = 'unavailable'`;
     // Only keys are shared, nothing about bookings
-    expect(await (await request.get("/api/vehicles/unavailable")).json()).toEqual({ unavailable: ["audi"] });
+    expect(await (await request.get("/api/vehicles/unavailable")).json()).toEqual({ unavailable: ["audi"], busy: [] });
     await page.goto(READY_TRIP);
     await expect(carChoice(page, "Mercedes-Benz VLE 300")).toBeVisible();
     await expect(carChoice(page, "Audi e-tron GT")).toHaveCount(0);

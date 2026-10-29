@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { applyPatch, assess, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
+import { applyPatch, assess, bookedVehicleKeys, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
 import { BOOKING_TOOL, SHOW_CARS_TOOL } from "@/lib/concierge/booking-tool";
 import { faqsFrom } from "@/lib/concierge/faqs";
 import { bookingByChat, fleetNames, siteGuide } from "@/lib/concierge/guide";
@@ -181,7 +181,9 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
     // The booking so far, as the visitor's browser holds it (cleaned: only known fields that fit). The model changes it with
     // its tool; the visitor sends it with the button, so nothing here ever creates a booking.
     let draft = incoming;
-    const unavailable = await unavailableVehicleKeys();
+    const switchedOff = await unavailableVehicleKeys();
+    // What the visitor may not choose: the cars switched off, and the cars a confirmed booking holds at the time they asked for
+    let unavailable: ReadonlySet<string> = new Set([...switchedOff, ...(await bookedVehicleKeys(draft))]);
     // Set when the model asks for the cars to be shown: the keys of the cars the visitor may choose (not the ones switched off)
     let cars: string[] | undefined;
     const state = () => {
@@ -239,27 +241,29 @@ CRITICAL RULES (DO NOT BE DELUSIONAL):
 
       // The model has changed the booking: apply it, and tell it what is still missing or wrong, so it can ask for that
       messages.push({ role: "assistant", content: blocks });
-      messages.push({
-        role: "user",
-        content: calls.map((call) => {
-          if (call.name === SHOW_CARS_TOOL.name) {
-            cars = FLEET.map((v) => v.key).filter((key) => !unavailable.has(key));
-            return {
-              type: "tool_result" as const,
-              tool_use_id: call.id ?? "",
-              content: JSON.stringify({ shown: true, note: "The visitor now sees the cars as a carousel under your reply and chooses there. Do not list them in words.", reply_in: locale === "nl" ? "Dutch" : "English" }),
-            };
-          }
-          const applied = applyPatch(draft, call.input);
-          draft = applied.draft;
-          const a = assess(draft, dict.forms, locale, unavailable);
-          return {
+      // One at a time, in order: each answer depends on the draft as the call before it left it
+      const results = [];
+      for (const call of calls) {
+        if (call.name === SHOW_CARS_TOOL.name) {
+          cars = FLEET.map((v) => v.key).filter((key) => !unavailable.has(key));
+          results.push({
             type: "tool_result" as const,
             tool_use_id: call.id ?? "",
-            content: JSON.stringify({ booking: forModel(draft), missing: a.missing, problems: a.errors, rejected: applied.rejected, ready: a.ready, reply_in: locale === "nl" ? "Dutch" : "English" }),
-          };
-        }),
-      });
+            content: JSON.stringify({ shown: true, note: "The visitor now sees the cars as a carousel under your reply and chooses there. Do not list them in words.", reply_in: locale === "nl" ? "Dutch" : "English" }),
+          });
+          continue;
+        }
+        const applied = applyPatch(draft, call.input);
+        draft = applied.draft;
+        unavailable = new Set([...switchedOff, ...(await bookedVehicleKeys(draft))]);
+        const a = assess(draft, dict.forms, locale, unavailable);
+        results.push({
+          type: "tool_result" as const,
+          tool_use_id: call.id ?? "",
+          content: JSON.stringify({ booking: forModel(draft), missing: a.missing, problems: a.errors, rejected: applied.rejected, ready: a.ready, reply_in: locale === "nl" ? "Dutch" : "English" }),
+        });
+      }
+      messages.push({ role: "user", content: results });
     }
 
     // A refusal, an empty answer, or no answer at all goes to the team (or to the matching question) instead

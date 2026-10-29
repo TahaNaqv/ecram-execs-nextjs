@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 import { after } from "next/server";
 import { emailPartnerBooking, emailEnquiryStatus } from "@/lib/email";
 
@@ -17,7 +20,9 @@ export async function POST(
     const amount = Number(body.amount ?? 0);
     const amountStr = amount > 0 ? amount.toFixed(2) : null;
     const sendMail = Boolean(body.sendMail ?? false);
-    const newStatus = body.status ?? "quoted";
+    const parsedStatus = z.enum(REQUEST_STATUSES).safeParse(body.status ?? "quoted");
+    if (!parsedStatus.success) return NextResponse.json({ error: "Unknown status" }, { status: 400 });
+    const newStatus = parsedStatus.data;
 
     const [current] = await db
       .select()
@@ -29,27 +34,50 @@ export async function POST(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    const [updated] = await db
-      .update(schema.quoteRequests)
-      .set({
-        status: newStatus,
-        quotedAmount: amountStr,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.quoteRequests.id, id))
-      .returning();
+    // Confirming gives the booking its car: refused while another confirmed booking holds that car at that time.
+    // The look and the save happen together under the fleet lock, so two people confirming at once cannot both pass.
+    const result = await db.transaction(async (tx) => {
+      if (newStatus === "confirmed") {
+        await lockFleet(tx);
+        // Read again under the lock: the car may have been changed while this request was on its way
+        const [fresh] = await tx.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
+        if (!fresh) return { missing: true } as const;
+        // A booking that is already confirmed holds its car: saving it again (a new amount, a resent email) is not a new hold
+        const clash = fresh.status === "confirmed" ? null : await clashingReference(tx, fresh);
+        if (clash) return { clash } as const;
+      }
+      const [row] = await tx
+        .update(schema.quoteRequests)
+        .set({
+          status: newStatus,
+          quotedAmount: amountStr,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.quoteRequests.id, id))
+        .returning();
+      if (!row) return { missing: true } as const;
 
-    await db.insert(schema.requestEvents).values({
-      requestId: id,
-      adminId: admin.id,
-      event: "changes",
-      params: {
-        changes: [
-          { kind: "status", from: current.status, to: newStatus },
-          { kind: "quote", from: current.quotedAmount, to: amountStr },
-        ],
-      },
+      await tx.insert(schema.requestEvents).values({
+        requestId: id,
+        adminId: admin.id,
+        event: "changes",
+        params: {
+          changes: [
+            { kind: "status", from: current.status, to: newStatus },
+            { kind: "quote", from: current.quotedAmount, to: amountStr },
+          ],
+        },
+      });
+      return { updated: row } as const;
     });
+    if ("missing" in result) return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    if ("clash" in result) {
+      return NextResponse.json(
+        { error: `That car is already booked at that time (${result.clash}). Give this booking another car first.`, clash: result.clash },
+        { status: 409 },
+      );
+    }
+    const updated = result.updated;
 
     // Only dispatch emails if sendMail flag is explicitly true
     if (sendMail) {

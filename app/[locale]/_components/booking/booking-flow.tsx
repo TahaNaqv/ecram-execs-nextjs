@@ -123,6 +123,32 @@ export function BookingFlow({
   }, [step]);
   const go = setStep;
 
+  // The cars a confirmed booking already holds at this pick-up are not offered. Asked when the car step shows, and again if
+  // the trip changes; the answer is only keys. If it cannot be asked every car is offered, and the team is stopped
+  // from confirming a clash anyway.
+  const [booked, setBooked] = useState<ReadonlySet<string>>(new Set());
+  const asked = step === "car" && trip.at ? `${trip.at}|${trip.mode === "hourly" ? trip.hours : ""}|${trip.mode === "oneway" ? trip.ret : ""}` : "";
+  useEffect(() => {
+    if (!asked) return;
+    const [at, hours, ret] = asked.split("|");
+    const query = new URLSearchParams({ at });
+    if (hours) query.set("hours", hours);
+    if (ret) query.set("returnAt", ret);
+    const controller = new AbortController();
+    fetch(`/api/vehicles/unavailable?${query}`, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { busy?: string[] } | null) => {
+        if (!data?.busy) return;
+        const keys = new Set(data.busy.map((k) => normalizeVehicleKey(k) ?? k));
+        setBooked(keys);
+        // A car chosen earlier that is taken at this time is let go
+        setTrip((current) => (current.vehicle && keys.has(normalizeVehicleKey(current.vehicle) ?? current.vehicle) ? { ...current, vehicle: "" } : current));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [asked]);
+  const offered = vehicles.filter((v) => !booked.has(normalizeVehicleKey(v.key) ?? v.key));
+
   // A server error belongs to a step: go back to it (once per answer from the server)
   const errorKeys = Object.keys(result.fieldErrors);
   const [answered, setAnswered] = useState(result.fieldErrors);
@@ -209,7 +235,8 @@ export function BookingFlow({
         <CarStep
           headingRef={heading}
           trip={trip}
-          vehicles={vehicles}
+          vehicles={offered}
+          bookedCount={vehicles.length - offered.length}
           copy={t}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
@@ -244,10 +271,12 @@ export function BookingFlow({
   );
 }
 
-function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoose, onBack, onNext }: {
+function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onChoose, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   vehicles: OfferedVehicle[];
+  /** Cars left out because a confirmed booking already holds them at this time */
+  bookedCount: number;
   copy: BookingCopy;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
@@ -319,6 +348,7 @@ function CarStep({ headingRef, trip, vehicles, copy: t, error, onDetails, onChoo
       <p className="m-0 mt-2 text-[15px] text-ink-600">
         {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: cars.length, total: cars.length, party })}
       </p>
+      {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
       {error && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
           {error}

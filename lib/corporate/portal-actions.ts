@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartnerActivity } from "@/lib/email";
+import { chosenCarIsBooked, clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -67,6 +68,9 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
     return fail(f.checkHighlighted, { service: f.serviceRequired });
   }
 
+  // The car may have been taken since it was shown: say so, and let the partner choose again
+  if (await chosenCarIsBooked(parsed.data)) return fail(f.carBooked, { vehicle: f.carBooked });
+
   let created: QuoteRequest | undefined;
   try {
     const { ipHash, userAgent } = await visitor();
@@ -123,6 +127,18 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
   let request: QuoteRequest | null = null;
   try {
     request = await db.transaction(async (tx) => {
+      // Accepting confirms the booking, which holds its car. The partner has accepted the team's own offer, so the answer
+      // is never refused: a clash with another confirmed booking is written to the history for the team to settle.
+      let clashWith: string | null = null;
+      if (accept) {
+        await lockFleet(tx);
+        const [pending] = await tx
+          .select()
+          .from(q)
+          .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount)))
+          .limit(1);
+        if (pending) clashWith = await clashingReference(tx, pending);
+      }
       const [row] = await tx
         .update(q)
         .set({ status: accept ? "confirmed" : "cancelled", updatedAt: sql`now()` })
@@ -142,6 +158,7 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
         event: accept ? "partner_accepted" : "partner_declined",
         params: accept ? { amount } : reason ? { reason } : {},
       });
+      if (clashWith) await tx.insert(schema.requestEvents).values({ requestId: row.id, event: "car_clash", params: { clashWith } });
       return row;
     });
 

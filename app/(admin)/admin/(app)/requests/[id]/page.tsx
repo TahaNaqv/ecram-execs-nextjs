@@ -1,6 +1,6 @@
 export const instant = false;
 import Link from "next/link";
-import { vehicleByKey } from "@/lib/fleet/vehicles";
+import { FLEET, normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
@@ -30,6 +30,7 @@ import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_com
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { PartnerCard } from "./partner-card";
+import { AssignVehicle } from "./assign-vehicle";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 
 async function BackLabel() {
@@ -201,6 +202,18 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         {/* Sidebar */}
         <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
           <PartnerCard requestId={r.id} />
+
+          <Card>
+            <CardHeader title={d.admin.schedule.carTitle} icon={<CalendarIcon />} />
+            <AssignVehicle
+              id={r.id}
+              vehicle={r.vehicle === "advise" ? "advise" : (normalizeVehicleKey(r.vehicle) ?? "")}
+              confirmed={r.status === "confirmed"}
+              scheduleHref={r.pickupAt ? `/admin/requests/schedule?date=${r.pickupAt.slice(0, 10)}` : null}
+              cars={FLEET.map((v) => ({ key: v.key, name: v.name }))}
+              copy={d.admin.schedule}
+            />
+          </Card>
 
           <Card>
             <CardHeader title={d.admin.requestDetail.client} />

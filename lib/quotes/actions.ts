@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { linkChatToRequest, SESSION_ID } from "@/lib/concierge/store";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
+import { chosenCarIsBooked } from "@/lib/fleet/availability";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { createQuoteRequest } from "./create";
@@ -63,6 +64,9 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     }
     return fail(t.checkHighlighted, fieldErrors);
   }
+
+  // The car may have been taken since it was shown: say so, and let them choose again
+  if (await chosenCarIsBooked(parsed.data)) return fail(t.carBooked, { vehicle: t.carBooked });
 
   const { ipHash, userAgent } = await visitor();
 

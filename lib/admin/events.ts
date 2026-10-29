@@ -1,3 +1,4 @@
+import { vehicleByKey } from "@/lib/fleet/vehicles";
 import type { RequestStatus } from "@/lib/quotes/constants";
 
 /**
@@ -10,7 +11,9 @@ import type { RequestStatus } from "@/lib/quotes/constants";
 export type RequestEventChange =
   | { kind: "status"; from: RequestStatus; to: RequestStatus }
   | { kind: "quote"; from: string | null; to: string | null }
-  | { kind: "notes" };
+  | { kind: "notes" }
+  /** The car that does the job: a fleet key, "advise" for none in particular, or null when it was left open. */
+  | { kind: "vehicle"; from: string | null; to: string | null };
 
 export type RequestEventParams = {
   /** For `event: "changes"` — several fields can change in one save. */
@@ -27,6 +30,8 @@ export type RequestEventParams = {
   reason?: string;
   /** `invoice_added`: the name of the file as the partner sees it. */
   fileName?: string;
+  /** `car_clash`: the reference of the confirmed booking that already held the car. */
+  clashWith?: string;
 };
 
 export const REQUEST_EVENTS = [
@@ -39,6 +44,7 @@ export const REQUEST_EVENTS = [
   "detached",
   "invoice_added",
   "partner_erased",
+  "car_clash",
 ] as const;
 export type RequestEventKey = (typeof REQUEST_EVENTS)[number];
 
@@ -67,6 +73,10 @@ export type EventLabels = {
   invoiceAdded: string;
   /** The partner's account was deleted; this booking stays for the financial records, stripped of personal details */
   partnerErased: string;
+  /** Interpolates {from} and {to}: the car that does the job */
+  vehicleChanged: string;
+  /** Interpolates {reference}: a partner accepted a quote for a car that another confirmed booking already holds */
+  carClash: string;
   /** Shown for an absent amount */
   none: string;
   statuses: Record<RequestStatus, string>;
@@ -107,6 +117,7 @@ export function renderEvent(
   if (event === "detached") return fill(labels.detached, { partner: params?.partner ?? "" });
   if (event === "invoice_added") return fill(labels.invoiceAdded, { file: params?.fileName ?? "" });
   if (event === "partner_erased") return labels.partnerErased;
+  if (event === "car_clash") return fill(labels.carClash, { reference: params?.clashWith ?? "" });
 
   if (event === "changes") {
     const parts = (params?.changes ?? []).map((change) => {
@@ -119,6 +130,10 @@ export function renderEvent(
       if (change.kind === "quote") {
         const amount = (value: string | null) => (value === null ? labels.none : formatAmount(value));
         return fill(labels.quoteChanged, { from: amount(change.from), to: amount(change.to) });
+      }
+      if (change.kind === "vehicle") {
+        const car = (value: string | null) => (value ? (vehicleByKey(value)?.name ?? value) : labels.none);
+        return fill(labels.vehicleChanged, { from: car(change.from), to: car(change.to) });
       }
       return labels.notesUpdated;
     });

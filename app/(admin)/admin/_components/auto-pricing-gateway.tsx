@@ -96,9 +96,16 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
           ...(selectedStatus === "cancelled" ? { sendCancellationEmail: true } : {})
         })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       console.log("Resend Mail Response:", data);
-      
+
+      // Refused (e.g. the car is already booked at that time): nothing was saved, so the status stays as it was
+      if (!res.ok) {
+        setSelectedStatus(status);
+        setToast(typeof data.error === "string" ? data.error : "Could not save the change.");
+        return;
+      }
+
       setStatus(selectedStatus); // Commit status change
       if (data.warning || data.error) {
         setToast(`Sent with note: Check terminal for Resend logs.`);

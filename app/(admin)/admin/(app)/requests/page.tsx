@@ -40,9 +40,14 @@ async function Heading({ part }: { part: "title" | "description" }) {
 async function NewBookingLink() {
   const { admin } = await adminDictionary();
   return (
-    <Link href="/admin/requests/new" className={`${btn.base} ${btn.primary} ${btn.md}`}>
-      {admin.newBooking.cta}
-    </Link>
+    <>
+      <Link href="/admin/requests/schedule" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+        <CalendarIcon /> {admin.schedule.viewSchedule}
+      </Link>
+      <Link href="/admin/requests/new" className={`${btn.base} ${btn.primary} ${btn.md}`}>
+        {admin.newBooking.cta}
+      </Link>
+    </>
   );
 }
 

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { DUMMY_HASH, verifyPassword } from "@/lib/auth/password";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
+import { clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { emailEnquiryStatus, emailPartnerBooking, type EnquiryEmailKind } from "@/lib/email";
 import { removeFiles } from "@/lib/storage";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
@@ -121,6 +122,12 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   if (changes.length === 0) return { ok: true };
 
   const saved = await db.transaction(async (tx) => {
+    // Confirming holds the booking's car: refused while another confirmed booking holds it at that time
+    if (status === "confirmed" && before.status !== "confirmed") {
+      await lockFleet(tx);
+      const clash = await clashingReference(tx, before);
+      if (clash) return { clash } as const;
+    }
     // Applies only while the status is still the one the form showed (checked again here, atomically)
     const [row] = await tx
       .update(schema.quoteRequests)
@@ -131,6 +138,7 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
     await tx.insert(schema.requestEvents).values({ requestId: id, adminId: admin.id, event: "changes", params: { changes } });
     return row;
   });
+  if (saved && "clash" in saved) return { error: `That car is already booked at that time (${saved.clash}). Give this booking another car first.` };
   if (!saved) return changedMeanwhile;
 
   // A partner is told when their booking is picked up, quoted, confirmed, completed or cancelled: whatever the team changed

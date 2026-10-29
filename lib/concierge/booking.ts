@@ -3,6 +3,7 @@ import { ne } from "drizzle-orm";
 import { tripFields, emptyTrip, MAX_BAGS, type Trip } from "@/app/[locale]/_components/booking/trip";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
+import { busyVehicleKeys } from "@/lib/fleet/availability";
 import { FLEET, VEHICLE_CHOICES, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
@@ -254,6 +255,26 @@ export async function unavailableVehicleKeys(): Promise<ReadonlySet<string>> {
     return new Set(rows.map((r) => normalizeVehicleKey(r.id) ?? r.id));
   } catch (error) {
     console.error("Failed to read vehicle availability:", error);
+    return new Set();
+  }
+}
+
+/**
+ * The cars a confirmed booking already holds at the draft's pick-up (the same rule as the booking form's car step). Nothing
+ * is held until the visitor has said when, and if the bookings cannot be read nothing is hidden: the booking is checked
+ * again when it is sent.
+ */
+export async function bookedVehicleKeys(draft: Draft): Promise<ReadonlySet<string>> {
+  if (!draft.at || !WALL_CLOCK.test(draft.at)) return new Set();
+  try {
+    return await busyVehicleKeys({
+      pickupAt: draft.at,
+      returnAt: draft.mode !== "hourly" && draft.ret && WALL_CLOCK.test(draft.ret) ? draft.ret : null,
+      service: draft.mode === "hourly" ? "hourly" : undefined,
+      durationHours: draft.mode === "hourly" && draft.hours ? draft.hours : null,
+    });
+  } catch (error) {
+    console.error("Failed to read which vehicles are booked:", error);
     return new Set();
   }
 }

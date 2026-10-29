@@ -237,16 +237,19 @@ export const VEHICLE_CHOICES = [...VEHICLE_KEYS, "advise"] as const;
 export type VehicleChoice = (typeof VEHICLE_CHOICES)[number];
 
 
-// The ids a vehicle added by name in the admin's Vehicles page gets (its name as a slug) also resolve to the fleet vehicle
+// The ids a vehicle added by name in the admin's Vehicles page gets (its name as a slug) also resolve to the fleet vehicle.
+// Matched on the slug (letters and digits, one underscore between), so "audi-e-tron-gt" and "audi_e_tron_gt" are the same.
+const slug = (key: string) => key.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const ID_ALIASES: Record<string, VehicleKey> = {
-  "mercedes-benz-vle-300": "mercedes_vle_300",
-  "audi-e-tron-gt": "audi",
+  mercedes_benz_vle_300: "mercedes_vle_300",
   audi_e_tron_gt: "audi",
   audi_etron_gt: "audi",
-  "cadillac-escalade": "cadillac_escalade",
-  "range-rover": "range_rover",
-  "hongqi-ehs9": "hongqi_e_hs9",
-  "hongqi-e-hs9": "hongqi_e_hs9",
+  cadillac_escalade: "cadillac_escalade",
+  cadillac_escalade_iq: "cadillac_escalade",
+  range_rover: "range_rover",
+  range_rover_ev: "range_rover",
+  hongqi_ehs9: "hongqi_e_hs9",
+  hongqi_e_hs9: "hongqi_e_hs9",
 };
 
 export function normalizeVehicleKey(key: string | null | undefined): VehicleKey | undefined {
@@ -254,7 +257,8 @@ export function normalizeVehicleKey(key: string | null | undefined): VehicleKey 
   if ((VEHICLE_KEYS as readonly string[]).includes(key)) {
     return key as VehicleKey;
   }
-  return ID_ALIASES[key];
+  const s = slug(key);
+  return (VEHICLE_KEYS as readonly string[]).includes(s) ? (s as VehicleKey) : ID_ALIASES[s];
 }
 
 export const vehicleByKey = (key: string | null | undefined) => {
