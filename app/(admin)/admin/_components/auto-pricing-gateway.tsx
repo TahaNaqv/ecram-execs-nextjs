@@ -30,9 +30,15 @@ import {
 
 export function AutoPricingGateway({ request, copy, statuses }: { request: QuoteRequest; copy: PricingCopy; statuses: StatusCopy }) {
   const router = useRouter();
+  // Confirmed status stored from the request/backend
   const [status, setStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
     request.status as any
   );
+  // Temporary dropdown choice before confirmation button is clicked
+  const [selectedStatus, setSelectedStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
+    request.status as any
+  );
+  
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
@@ -74,21 +80,24 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const totalTax = btw9 + btw21;
   const grandTotal = baseFare + totalTax;
 
-  // 1. Send Button: Sends email using the CURRENT active status
+  // Notify Client Button: Commits the selected status and dispatches email
   async function handleSend() {
     setLoading(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const res = await fetch(`/api/admin/requests/${request.id}/authorise`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: status, amount: grandTotal, sendMail: true })
+        body: JSON.stringify({ status: selectedStatus, amount: grandTotal, sendMail: true })
       });
       const data = await res.json();
       console.log("Resend Mail Response:", data);
+      
+      setStatus(selectedStatus); // Commit status change
       if (data.warning || data.error) {
         setToast(`Sent with note: Check terminal for Resend logs.`);
       } else {
-        setToast("Quote successfully sent to client via email!");
+        setToast("Quote successfully sent to client via email and status updated!");
       }
       router.refresh();
     } catch (err) {
@@ -100,31 +109,13 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
     }
   }
 
-  // 2. Status Dropdown: Updates status locally & in DB immediately
-  async function handleStatusChange(newStatus: typeof status) {
-    setStatus(newStatus);
-    setLoading(true);
-    try {
-      await fetch(`/api/admin/requests/${request.id}/authorise`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: newStatus, amount: grandTotal, sendMail: false })
-      });
-      setToast(interpolate(copy.statusUpdated, { status: statuses[newStatus] }));
-      router.refresh();
-    } catch {
-      setToast(interpolate(copy.statusUpdatedShort, { status: statuses[newStatus] }));
-    } finally {
-      setLoading(false);
-      setTimeout(() => setToast(null), 3000);
-    }
-  }
-
-  // 3. Save Fare: Updates fare amount and sets status to "quoted"
+  // Save Fare: Updates fare amount and sets status to "quoted"
   async function handleSaveFare() {
     setIsEditing(false);
+    setSelectedStatus("quoted");
     setStatus("quoted");
     setLoading(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setToast("Fare updated and status set to quoted (No email sent).");
     try {
       await fetch(`/api/admin/requests/${request.id}/authorise`, {
@@ -641,11 +632,11 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
             
             {/* Status Dropdown Selector */}
             <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
-             
+              
 
               <select
-                value={status}
-                onChange={(e) => handleStatusChange(e.target.value as typeof status)}
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
                 disabled={loading}
                 className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50 mt-2"
               >
