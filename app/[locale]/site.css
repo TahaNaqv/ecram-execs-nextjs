@@ -173,6 +173,28 @@
   --color-ink-975: #f6f7f9;
 }
 
+/* An empty datetime-local paints dd/mm/yyyy with the input's color. `text-white` is navy inside this surface, so the date vanishes on the blue field. */
+:root[data-theme="navy"] .light-surface input[type="datetime-local"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
+  color-scheme: dark;
+}
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-text,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+:root[data-theme="navy"] .light-surface input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
 :root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) {
   color: #000f4d;
 }

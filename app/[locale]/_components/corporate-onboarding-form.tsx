@@ -46,6 +46,7 @@ type IntroValues = {
   duration: string;
   collection: string;
   destination: string;
+  pickupAt: string;
   passengers: string;
   luggage: string;
   returnStatus: string;
@@ -53,6 +54,20 @@ type IntroValues = {
   stops: StopDraft[];
 };
 const shell = "flex min-w-0 flex-col gap-6 rounded-3xl border border-[rgba(99,145,255,0.3)] bg-[#0b1f4d] p-5 text-[#f4f6fb] shadow-[0_20px_50px_rgba(6,16,43,0.5)] md:p-8";
+
+/** The clock in the Netherlands right now, as a datetime-local value. The browser calendar otherwise opens on the visitor's own clock. */
+function netherlandsPickupDefault() {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .format(new Date())
+    .replace(" ", "T");
+}
 
 function PassengersSuitcasesSelector({
   passengers,
@@ -72,70 +87,70 @@ function PassengersSuitcasesSelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`${cardControl} flex items-center justify-between text-left cursor-pointer text-[#ffffff]`}
+        className={`${cardControl} flex items-center justify-between text-left cursor-pointer !text-[#ffffff]`}
       >
-        <span className="font-medium text-[#ffffff]">
+        <span className="font-medium !text-[#ffffff]">
           {pCount} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
         </span>
-        <span className="text-xs text-[#ffffff]">▼</span>
+        <span className="text-xs !text-[#ffffff]">▼</span>
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 left-0 z-50 w-full bg-[#06122d] border border-[rgba(99,145,255,0.5)] rounded-2xl shadow-2xl p-5 flex flex-col gap-4 text-[#ffffff]">
+        <div className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-[rgba(99,145,255,0.5)] bg-[#06122d] p-5 text-[#ffffff] shadow-2xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="m-0 font-semibold text-sm text-[#ffffff]">Passengers</p>
+              <p className="m-0 text-sm font-semibold text-[#ffffff]">Passengers</p>
               <p className="m-0 text-xs text-[#ffffff]">Including you</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => onChange(String(Math.max(1, pCount - 1)), String(sCount))}
-                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
               >
                 −
               </button>
-              <span className="w-4 text-center font-semibold text-sm text-[#ffffff]">{pCount}</span>
+              <span className="w-4 text-center text-sm font-semibold text-[#ffffff]">{pCount}</span>
               <button
                 type="button"
                 onClick={() => onChange(String(pCount + 1), String(sCount))}
-                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-[rgba(255,255,255,0.15)]">
+          <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.15)] pt-3">
             <div>
-              <p className="m-0 font-semibold text-sm text-[#ffffff]">Suitcases</p>
+              <p className="m-0 text-sm font-semibold text-[#ffffff]">Suitcases</p>
               <p className="m-0 text-xs text-[#ffffff]">Large bags</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => onChange(String(pCount), String(Math.max(0, sCount - 1)))}
-                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
               >
                 −
               </button>
-              <span className="w-4 text-center font-semibold text-sm text-[#ffffff]">{sCount}</span>
+              <span className="w-4 text-center text-sm font-semibold text-[#ffffff]">{sCount}</span>
               <button
                 type="button"
                 onClick={() => onChange(String(pCount), String(Math.min(20, sCount + 1)))}
-                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
               >
                 +
               </button>
             </div>
           </div>
 
-          <p className="m-0 text-[11px] text-[#ffffff] text-center">We use this to suggest the cars that fit.</p>
+          <p className="m-0 text-center text-[11px] text-[#ffffff]">We use this to suggest the cars that fit.</p>
 
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-full border border-[#ffffff] bg-[#0b1f4d] py-2.5 rounded-xl text-xs font-bold tracking-wider text-[#ffffff] uppercase hover:bg-[#16357a] transition-colors cursor-pointer"
+            className="w-full cursor-pointer rounded-xl border border-[#ffffff] bg-[#0b1f4d] py-2.5 text-xs font-bold tracking-wider text-[#ffffff] uppercase transition-colors hover:bg-[#16357a]"
           >
             Done
           </button>
@@ -173,6 +188,7 @@ export function OnboardingForm({
     duration: "",
     collection: "",
     destination: "",
+    pickupAt: "",
     passengers: "1",
     luggage: "0",
     returnStatus: "",
@@ -332,6 +348,23 @@ export function OnboardingForm({
               <input id="c-destination" name="destination" type="text" required maxLength={200} autoComplete="off" placeholder={t.phDestination}
                 {...text("destination")} aria-invalid={!!err.destination} aria-describedby={d("destination")} className={cardControl} />
             </CardField>
+            <CardField idPrefix="c" name="pickupAt" label="Date & Time" error={err.pickupAt}>
+              <input id="c-pickupAt" name="pickupAt" type="datetime-local" required step={60}
+                value={values.pickupAt} onChange={(e) => patch({ pickupAt: e.target.value })}
+                onPointerDown={(event) => {
+                  if (values.pickupAt || event.currentTarget.value) return;
+                  const next = netherlandsPickupDefault();
+                  event.currentTarget.value = next;
+                  patch({ pickupAt: next });
+                }}
+                onFocus={(event) => {
+                  if (values.pickupAt || event.currentTarget.value) return;
+                  const next = netherlandsPickupDefault();
+                  event.currentTarget.value = next;
+                  patch({ pickupAt: next });
+                }}
+                aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={`${cardControl} cursor-pointer !text-[#ffffff] [color-scheme:dark] [&::-webkit-datetime-edit]:!text-[#ffffff] [&::-webkit-datetime-edit-fields-wrapper]:!text-[#ffffff] [&::-webkit-datetime-edit-text]:!text-[#ffffff] [&::-webkit-datetime-edit-month-field]:!text-[#ffffff] [&::-webkit-datetime-edit-day-field]:!text-[#ffffff] [&::-webkit-datetime-edit-year-field]:!text-[#ffffff] [&::-webkit-datetime-edit-hour-field]:!text-[#ffffff] [&::-webkit-datetime-edit-minute-field]:!text-[#ffffff] [&::-webkit-calendar-picker-indicator]:opacity-100`} />
+            </CardField>
             <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage}>
               <input type="hidden" name="passengers" value={values.passengers} />
               <input type="hidden" name="luggage" value={values.luggage} />
@@ -340,7 +373,7 @@ export function OnboardingForm({
                 suitcases={values.luggage}
                 onChange={(passengers, luggage) => patch({ passengers, luggage })}
               />
-              <p id="c-luggage-hint" className="m-0 text-[12px] text-[#d7e4ff] mt-1">{t.luggageHint}</p>
+              <p id="c-luggage-hint" className="m-0 mt-1 text-[12px] text-[#ffffff]">{t.luggageHint}</p>
             </CardField>
             <div className="md:col-span-2">
               <ChoiceGroup idPrefix="c" name="returnStatus" legend={t.labelReturnStatus} value={values.returnStatus}
