@@ -171,11 +171,14 @@ async function QueueCard({ summary, nowMs, locale }: { summary: QueueSummary; no
               <span>{e.colSubmitted}</span>
               <span>{e.colLeft}</span>
             </div>
-            <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0" aria-label={interpolate(e.queueLabel, { name })}>
-              {summary.open.map((r) => (
-                <Row key={r.id} row={r} nowMs={nowMs} targetMs={targetMs} dueSoonMs={dueSoonMs} locale={locale} overdueLabel={e.overdue} timeLeftLabel={e.colLeft} />
-              ))}
-            </ul>
+            {/* Open Enquiries Container with Explicit Scrollbars */}
+            <div className="max-h-[260px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
+              <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5" aria-label={interpolate(e.queueLabel, { name })}>
+                {summary.open.map((r) => (
+                  <Row key={r.id} row={r} nowMs={nowMs} targetMs={targetMs} dueSoonMs={dueSoonMs} locale={locale} overdueLabel={e.overdue} timeLeftLabel={e.colLeft} />
+                ))}
+              </ul>
+            </div>
             {hidden > 0 && (
               <p className="m-0 border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
                 {interpolate(e.more, { count: hidden })} ·{" "}
@@ -195,7 +198,7 @@ async function QueueCard({ summary, nowMs, locale }: { summary: QueueSummary; no
 
 function Row({ row, nowMs, targetMs, dueSoonMs, locale, overdueLabel, timeLeftLabel }: { row: OpenEnquiry; nowMs: number; targetMs: number; dueSoonMs: number; locale: "en" | "nl"; overdueLabel: string; timeLeftLabel: string }) {
   return (
-    <li className="grid grid-cols-1 gap-x-4 gap-y-2 px-5 py-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(9rem,1fr)] md:items-center" data-enquiry={row.reference}>
+    <li className="grid grid-cols-1 gap-x-4 gap-y-2 py-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(9rem,1fr)] md:items-center" data-enquiry={row.reference}>
       <div className="min-w-0">
         <Link href={`/admin/requests/${row.id}`} className="font-mono text-sm font-medium text-sky-700 underline-offset-4 hover:underline">
           {row.reference}
@@ -224,28 +227,31 @@ async function Answered({ answered, nowMs, locale }: { answered: AnsweredEnquiry
       {answered.length === 0 ? (
         <p className="m-0 mt-2 text-xs text-zinc-500">{e.answeredEmpty}</p>
       ) : (
-        <ul className="m-0 mt-2 flex list-none flex-col divide-y divide-zinc-100 p-0">
-          {answered.map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm" data-answered={a.reference}>
-              <span className="min-w-0 truncate">
-                <Link href={`/admin/requests/${a.id}`} className="font-mono text-xs text-sky-700 underline-offset-4 hover:underline">
-                  {a.reference}
-                </Link>{" "}
-                <span className="text-zinc-600">{a.who}</span>
-              </span>
-              <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">
-                {interpolate(e.answeredIn, { time: duration(a.respondedMs - a.createdMs, e.unitHour) })} · {formatRelative(new Date(a.respondedMs), nowMs, locale)}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
-                    a.withinTarget ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-red-50 text-red-700 ring-red-200"
-                  }`}
-                >
-                  {a.withinTarget ? e.onTime : e.late}
+        /* Answered Enquiries Container with Explicit Scrollbars */
+        <div className="max-h-[260px] overflow-y-auto pr-2 mt-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
+          <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0">
+            {answered.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm" data-answered={a.reference}>
+                <span className="min-w-0 truncate">
+                  <Link href={`/admin/requests/${a.id}`} className="font-mono text-xs text-sky-700 underline-offset-4 hover:underline">
+                    {a.reference}
+                  </Link>{" "}
+                  <span className="text-zinc-600">{a.who}</span>
                 </span>
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">
+                  {interpolate(e.answeredIn, { time: duration(a.respondedMs - a.createdMs, e.unitHour) })} · {formatRelative(new Date(a.respondedMs), nowMs, locale)}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
+                      a.withinTarget ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-red-50 text-red-700 ring-red-200"
+                    }`}
+                  >
+                    {a.withinTarget ? e.onTime : e.late}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

@@ -15,13 +15,8 @@ import { siteConfig } from "@/lib/site-config";
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-/** Emails the team about a new quote request. No-op (logged) when no mail provider is configured. */
+/** Emails the team about a new quote request. Logged in full when no mail provider is configured. */
 export async function notifyNewQuote(q: QuoteRequest) {
-  const { EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
-  if (!provider() || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
-    console.info(`[quote] ${q.reference} saved; email alert skipped (no RESEND_API_KEY or SMTP_*, or EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
-    return;
-  }
   const site = process.env.SITE_URL ?? "";
   // Internal alert — deliberately always English (D7); only the service key needs a label.
   const { services, bespokeSection: bespokeLabels } = await getDictionary("en");
@@ -63,18 +58,16 @@ export async function notifyNewQuote(q: QuoteRequest) {
   const html = teamAlert(`New ${bespoke ? "bespoke inquiry" : "quote request"} <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`);
 
   await send("quote", q.reference, "team alert", {
-    from: EMAIL_FROM,
-    to: NOTIFY_EMAIL_TO.split(",").map((s) => s.trim()),
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
     reply_to: q.email,
     subject: `${urgent ? "[URGENT] " : ""}New ${bespoke ? "bespoke inquiry" : "quote request"} ${q.reference} — ${serviceLabel(q.service, services)}${q.pickupAt ? `, ${q.pickupAt.slice(0, 10)}` : ""}`,
     html,
   });
 }
 
-/** Confirms receipt to the client. No-op when no mail provider is configured. */
+/** Confirms receipt to the client. Logged in full when no mail provider is configured. */
 export async function confirmToClient(q: QuoteRequest) {
-  const { EMAIL_FROM } = process.env;
-  if (!provider() || !EMAIL_FROM) return;
   const first = q.name.split(" ")[0];
   const { phone, email } = siteConfig.contact;
   // The confirmation goes out in the language the visitor filled the form in (stored on the row).
@@ -105,7 +98,7 @@ export async function confirmToClient(q: QuoteRequest) {
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   await send("quote", q.reference, "client confirmation", {
-    from: EMAIL_FROM,
+    from: mailFrom(),
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
     subject: interpolate(bespoke ? t.bespokeSubject : t.quoteSubject, { reference: q.reference }),
@@ -113,13 +106,8 @@ export async function confirmToClient(q: QuoteRequest) {
   });
 }
 
-/** Emails the team about a new driver application. No-op (logged) when no mail provider is configured. */
+/** Emails the team about a new driver application. Logged in full when no mail provider is configured. */
 export async function notifyNewApplication(a: DriverApplication) {
-  const { EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
-  if (!provider() || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
-    console.info(`[application] ${a.reference} saved; email alert skipped (no RESEND_API_KEY or SMTP_*, or EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
-    return;
-  }
   const site = process.env.SITE_URL ?? "";
   // Internal alert — deliberately always English (D7).
   const { criteria } = await getDictionary("en");
@@ -140,18 +128,16 @@ export async function notifyNewApplication(a: DriverApplication) {
   ];
   const html = teamAlert(`New driver application <strong>${esc(a.reference)}</strong>`, rows, site && `${site}/admin/drivers/applications/${a.id}`);
   await send("application", a.reference, "team alert", {
-    from: EMAIL_FROM,
-    to: NOTIFY_EMAIL_TO.split(",").map((s) => s.trim()),
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
     reply_to: a.email,
     subject: `New driver application ${a.reference} — ${vehicle ?? a.plate}`,
     html,
   });
 }
 
-/** Confirms receipt to the applicant. No-op when no mail provider is configured. */
+/** Confirms receipt to the applicant. Logged in full when no mail provider is configured. */
 export async function confirmApplication(a: DriverApplication) {
-  const { EMAIL_FROM } = process.env;
-  if (!provider() || !EMAIL_FROM) return;
   const first = a.name.split(" ")[0];
   const { email } = siteConfig.contact;
   const { email: t } = await getDictionary(a.locale);
@@ -171,7 +157,7 @@ export async function confirmApplication(a: DriverApplication) {
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   await send("application", a.reference, "applicant confirmation", {
-    from: EMAIL_FROM,
+    from: mailFrom(),
     to: [a.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
     subject: interpolate(t.applicationSubject, { reference: a.reference }),
@@ -205,11 +191,6 @@ export async function sendVerificationCode({
     console.info(`\n==================================================\n[corporate] [DEV MODE] Verification Code for ${email}: ${code} (purpose: ${purpose})\n==================================================\n`);
   }
 
-  const { EMAIL_FROM } = process.env;
-  if (!provider() || !EMAIL_FROM) {
-    console.warn("[corporate] verification code not sent: no RESEND_API_KEY or SMTP_*, or EMAIL_FROM not set");
-    return isDev;
-  }
   const { email: t } = await getDictionary(locale);
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
@@ -221,7 +202,7 @@ export async function sendVerificationCode({
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   const sent = await send("corporate", email, "verification code", {
-    from: EMAIL_FROM,
+    from: mailFrom(),
     to: [email],
     subject: purpose === "reset" ? t.resetSubject : t.codeSubject,
     html,
@@ -239,8 +220,7 @@ export async function sendVerificationCode({
  * back in if it wasn't them. Best-effort: the change has already happened, so a failure is logged, not shown.
  */
 export async function sendPasswordChanged({ email, name, locale }: { email: string; name: string; locale: QuoteRequest["locale"] }) {
-  const { EMAIL_FROM, SITE_URL } = process.env;
-  if (!provider() || !EMAIL_FROM) return false;
+  const { SITE_URL } = process.env;
   const { email: t } = await getDictionary(locale);
   const link = `${SITE_URL ?? ""}${localizedPath("/corporate-partner/forgot-password", locale)}`;
   const html = `
@@ -251,7 +231,31 @@ export async function sendPasswordChanged({ email, name, locale }: { email: stri
       <p><a href="${esc(link)}">${esc(t.passwordChangedLink)}</a></p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("corporate", email, "password changed", { from: EMAIL_FROM, to: [email], subject: t.passwordChangedSubject, html });
+  return send("corporate", email, "password changed", { from: mailFrom(), to: [email], subject: t.passwordChangedSubject, html });
+}
+
+/** Tells the person their Corporate Partner account was deleted. Best-effort: the account is already gone. */
+export async function sendAccountDeleted({
+  email,
+  name,
+  locale,
+  companyName,
+}: {
+  email: string;
+  name: string;
+  locale: QuoteRequest["locale"];
+  companyName: string | null;
+}) {
+  const { email: t } = await getDictionary(locale);
+  const company = companyName?.trim() || email;
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: name.split(" ")[0] || name }))}</p>
+      <p>${esc(interpolate(t.accountDeletedBody, { company }))}</p>
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("corporate", email, "account deleted", { from: mailFrom(), to: [email], subject: t.accountDeletedSubject, html });
 }
 
 export type PartnerActivity = "accepted" | "declined" | "message" | "change" | "cancel";
@@ -281,11 +285,6 @@ export async function notifyTeamPartnerActivity({
   /** The message, or the reason given when declining */
   body?: string | null;
 }) {
-  const { EMAIL_FROM, NOTIFY_EMAIL_TO } = process.env;
-  if (!provider() || !EMAIL_FROM || !NOTIFY_EMAIL_TO) {
-    console.info(`[portal] ${q.reference} ${kind}: email alert skipped (no mail provider, or EMAIL_FROM / NOTIFY_EMAIL_TO not set)`);
-    return;
-  }
   const site = process.env.SITE_URL ?? "";
   // Within the next day, or started in the last few hours: whatever the partner did, someone has to act on it today
   const soon = isUrgent(q);
@@ -301,8 +300,8 @@ export async function notifyTeamPartnerActivity({
     [kind === "declined" ? "Reason" : "Message", body ?? null],
   ];
   await send("portal", q.reference, `team alert (${kind})`, {
-    from: EMAIL_FROM,
-    to: NOTIFY_EMAIL_TO.split(",").map((e) => e.trim()),
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
     reply_to: partner.email,
     subject: `${soon ? "[URGENT] " : ""}[Partner] ${label} ${q.reference} — ${partner.name}`,
     html: teamAlert(`${esc(label)} on <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`),
@@ -330,8 +329,7 @@ export async function emailPartnerBooking({
   /** The team's reply, for `reply` */
   message?: string | null;
 }) {
-  const { EMAIL_FROM, SITE_URL } = process.env;
-  if (!provider() || !EMAIL_FROM) return false;
+  const { SITE_URL } = process.env;
   const { email: t } = await getDictionary(to.locale);
   const copy: Record<PartnerEmailKind, [string, string]> = {
     contacted: [t.bookingSubjectContacted, t.bookingIntroContacted],
@@ -354,7 +352,7 @@ export async function emailPartnerBooking({
       <p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("portal", q.reference, `partner email (${kind})`, { from: EMAIL_FROM, to: [to.email], subject: interpolate(subject, values), html });
+  return send("portal", q.reference, `partner email (${kind})`, { from: mailFrom(), to: [to.email], subject: interpolate(subject, values), html });
 }
 
 export type EnquiryEmailKind = Exclude<PartnerEmailKind, "reply" | "invoice">;
@@ -366,8 +364,7 @@ export type EnquiryEmailKind = Exclude<PartnerEmailKind, "reply" | "invoice">;
  * the change has already happened, so a failed send is logged, not shown. (Partners with an account get `emailPartnerBooking`.)
  */
 export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteRequest; kind: EnquiryEmailKind }) {
-  const { EMAIL_FROM } = process.env;
-  if (!provider() || !EMAIL_FROM || !q.email) return false;
+  if (!q.email) return false;
   const { phone, email } = siteConfig.contact;
   const d = await getDictionary(q.locale);
   const { email: t, services, quoteForm } = d;
@@ -395,7 +392,7 @@ export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteR
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   return send("quote", q.reference, `enquiry email (${kind})`, {
-    from: EMAIL_FROM,
+    from: mailFrom(),
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
     subject: interpolate(subject, values),
@@ -409,8 +406,7 @@ export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteR
  * to it when it sits in a partner's account. Best-effort: the booking exists already, so a failed send is logged, not shown.
  */
 export async function emailBookingRecorded(q: QuoteRequest) {
-  const { EMAIL_FROM, SITE_URL } = process.env;
-  if (!provider() || !EMAIL_FROM) return false;
+  const { SITE_URL } = process.env;
   const { phone, email } = siteConfig.contact;
   const { email: t, services, quoteForm } = await getDictionary(q.locale);
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
@@ -429,7 +425,7 @@ export async function emailBookingRecorded(q: QuoteRequest) {
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   return send("booking", q.reference, "booking recorded", {
-    from: EMAIL_FROM,
+    from: mailFrom(),
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
     subject: interpolate(t.bookingRecordedSubject, { reference: q.reference }),
@@ -577,10 +573,71 @@ async function sendResend(tag: string, reference: string, kind: string, payload:
   return outcome;
 }
 
+const LOCAL_FROM = "local-dev@localhost";
+
+/** From address for a real send, or a stand-in so a local log still shows who it would have come from. */
+function mailFrom() {
+  return process.env.EMAIL_FROM || LOCAL_FROM;
+}
+
+function mailList(value: string | undefined, fallback: string) {
+  const list = (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length > 0 ? list : [fallback];
+}
+
+function htmlToText(html: string) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Localhost has no SMTP. Print the whole message so it can be checked in the server terminal. */
+function logUnsent(tag: string, reference: string, kind: string, payload: Payload) {
+  console.info(
+    [
+      "",
+      "========== EMAIL (no SMTP / Resend — logged locally) ==========",
+      `tag: ${tag}`,
+      `kind: ${kind}`,
+      `reference: ${reference}`,
+      `from: ${payload.from}`,
+      `to: ${payload.to.join(", ")}`,
+      payload.reply_to ? `reply-to: ${payload.reply_to}` : null,
+      `subject: ${payload.subject}`,
+      "body:",
+      htmlToText(payload.html),
+      "html:",
+      payload.html,
+      "===============================================================",
+      "",
+    ]
+      .filter((line) => line !== null)
+      .join("\n"),
+  );
+}
+
 /** Resolves true only when the provider accepted the message, so a caller that must not leave someone waiting can tell. */
 async function send(tag: string, reference: string, kind: string, payload: Payload): Promise<boolean> {
   const hasSmtp = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
   const activeProvider = provider();
+
+  if (!activeProvider || payload.from === LOCAL_FROM || payload.to.some((to) => to.startsWith("("))) {
+    logUnsent(tag, reference, kind, payload);
+    // A missing mailbox on a real server is a failure. On localhost the log is the delivery, so the flow can continue.
+    return !activeProvider && process.env.NODE_ENV !== "production";
+  }
 
   if (activeProvider === "smtp") {
     return sendSmtp(tag, reference, kind, payload);

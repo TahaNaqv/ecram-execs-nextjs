@@ -1,24 +1,27 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { getPendingChallenge } from "@/lib/corporate/access";
-import { CODE_MINUTES } from "@/lib/corporate/otp";
+import { cookies } from "next/headers";
+import { CODE_MINUTES, CHALLENGE_COOKIE, FLOW_EPOCH_COOKIE } from "@/lib/corporate/otp";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { AccountFlow } from "../../_components/corporate-account-flow";
 import { CorporateShell, PanelSkeleton, corporateMetadata } from "../../_components/corporate-shell";
 
-/** Where the visitor is in the flow comes from the database, never from the cookie alone; a reload resumes at the code step. */
+/** Every visit starts at an empty form. An unfinished sign-up is not restored from the challenge cookie. */
 async function Flow() {
-  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
-  const pending = await getPendingChallenge("signup");
-  
+  const [locale, d, jar] = await Promise.all([currentLocale(), getDict(), cookies()]);
+  // A finished registration stamps a new value, which remounts the form instead of replaying the last action.
+  const epoch = jar.get(FLOW_EPOCH_COOKIE)?.value ?? "0";
+  const staleChallengeId = jar.get(CHALLENGE_COOKIE)?.value ?? "";
+
   return (
     <div className="mx-auto flex w-full max-w-[460px] flex-col gap-6">
       <AccountFlow
+        key={epoch}
         mode="signup"
         locale={locale}
-        initial={pending ? { step: pending.verified ? "password" : "code", email: pending.email } : { step: "request" }}
+        initial={{ step: "request" }}
+        staleChallengeId={staleChallengeId}
         copy={d.corporatePartner}
         minutes={CODE_MINUTES}
         privacyHref={localizedPath("/privacy", locale)}

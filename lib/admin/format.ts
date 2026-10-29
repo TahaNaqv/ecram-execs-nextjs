@@ -53,7 +53,7 @@ export const STATUS_STYLE: Record<RequestStatus, string> = {
   contacted: "bg-sky-50 text-sky-800 ring-sky-200",
   quoted: "bg-amber-50 text-amber-800 ring-amber-200",
   confirmed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  completed: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+  completed: "bg-emerald-50 text-emerald-800 ring-emerald-200", // Updated to green/emerald
   cancelled: "bg-white text-zinc-500 ring-zinc-200",
 };
 
@@ -62,7 +62,7 @@ export const STATUS_DOT: Record<RequestStatus, string> = {
   contacted: "bg-sky-500",
   quoted: "bg-amber-500",
   confirmed: "bg-emerald-500",
-  completed: "bg-zinc-400",
+  completed: "bg-emerald-500", // Updated to green/emerald dot
   cancelled: "bg-zinc-300",
 };
 

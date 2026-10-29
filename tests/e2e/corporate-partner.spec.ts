@@ -122,15 +122,11 @@ test("signing in says the same thing for every failure, and a paused account sta
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
 });
 
-test("a code and a password create an account; the partner can sign out, sign in again, and sees their introductions", async ({ page, context }) => {
+test("a partner can sign out, sign in again, and sees their introductions", async ({ page, context }) => {
   await ownAddress(context);
   const email = newEmail("signup");
-  await holdChallenge(context, await seedChallenge(email, "246810"));
-
-  await page.goto("/en/corporate-partner/signup");
-  // A reload mid-flow lands on the code step, not the start
-  await expect(page.getByRole("heading", { name: t.verifyHeading })).toBeVisible();
-  await finish(page, "246810", PASSWORD);
+  await seedContact(email, PASSWORD);
+  await logIn(page, email, PASSWORD);
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
   await expect(page.getByRole("heading", { name: en.portal.headingBookings, level: 1 })).toBeVisible();
 
@@ -204,8 +200,8 @@ test("a code and a password create an account; the partner can sign out, sign in
 test("the code and the password are separate steps; the password is never sent back to the page", async ({ page, context }) => {
   await ownAddress(context);
   const email = `pw-rules-${Date.now()}@e2e.ecramexecs.test`;
-  await holdChallenge(context, await seedChallenge(email, "111111"));
-  await page.goto("/en/corporate-partner/signup");
+  await holdChallenge(context, await seedChallenge(email, "111111", { purpose: "reset" }));
+  await page.goto("/en/corporate-partner/forgot-password");
 
   // A wrong code stays on the code step, with the attempts left; there is no password box to fill in yet
   await expect(page.locator("#c-password")).toHaveCount(0);
@@ -215,47 +211,60 @@ test("the code and the password are separate steps; the password is never sent b
 
   // The right code opens the password step
   await verify(page, "111111");
-  await expect(page.getByRole("heading", { name: t.passwordHeading })).toBeVisible();
+  await expect(page.getByRole("heading", { name: t.resetPasswordHeading })).toBeVisible();
   await expect(page.getByText(email, { exact: false }).first()).toBeVisible(); // the step says which address the password is for
   await expect(page.locator("#c-code")).toHaveCount(0);
 
-  await choose(page, "short");
+  await choose(page, "short", "short", t.resetCta);
   await expect(page.locator("#c-password-error")).toHaveText(t.passwordTooShort.replace("{min}", "12"));
-  await choose(page, PASSWORD, "something else entirely");
+  await choose(page, PASSWORD, "something else entirely", t.resetCta);
   await expect(page.locator("#c-confirmPassword-error")).toHaveText(t.passwordMismatch);
-  await choose(page, email);
+  await choose(page, email, email, t.resetCta);
   await expect(page.locator("#c-password-error")).toHaveText(t.passwordSameAsEmail);
   // The boxes are empty again after every refusal, and the code is not asked for again
   await expect(page.locator("#c-password")).toHaveValue("");
   await expect(page.locator("#c-confirmPassword")).toHaveValue("");
   await expect(page.locator("#c-code")).toHaveCount(0);
 
-  await choose(page, PASSWORD);
+  await choose(page, PASSWORD, PASSWORD, t.resetCta);
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
 });
 
-test("a reload after the code was right resumes at the password, and one code's proof does not open another's", async ({ page, context }) => {
-  await ownAddress(context);
-  const email = newEmail("resume");
-  const first = await seedChallenge(email, "222222");
-  await holdChallenge(context, first);
+test("an unfinished sign-up is cleared on refresh and when the page is opened again", async ({ page, context }) => {
   await page.goto("/en/corporate-partner/signup");
-  await verify(page, "222222");
-  await expect(page.getByRole("heading", { name: t.passwordHeading })).toBeVisible();
+  await page.fill("#c-email", "kept@e2e.ecramexecs.test");
+  await page.fill("#c-name", "Kept Name");
+  await page.fill("#c-position", "Kept Role");
+  await page.fill("#c-companyName", "Kept BV");
+  await page.fill("#c-kvkNumber", "12345678");
+  await page.fill("#c-phone", "+31612345678");
   await page.reload();
-  await expect(page.getByRole("heading", { name: t.passwordHeading })).toBeVisible();
+  await expect(page.locator("#c-email")).toHaveValue("");
+  await expect(page.locator("#c-name")).toHaveValue("");
+  await expect(page.locator("#c-position")).toHaveValue("");
+  await expect(page.locator("#c-companyName")).toHaveValue("");
+  await expect(page.locator("#c-kvkNumber")).toHaveValue("");
+  await expect(page.locator("#c-phone")).toHaveValue("");
+  await expect(page.locator("#c-code")).toHaveCount(0);
 
-  // The same browser, now holding a different challenge (a new code was sent): its code has not been proved
-  await holdChallenge(context, await seedChallenge(newEmail("other"), "333333"));
-  await page.reload();
-  await expect(page.getByRole("heading", { name: t.verifyHeading })).toBeVisible();
-  await expect(page.locator("#c-password")).toHaveCount(0);
+  await page.fill("#c-email", "kept@e2e.ecramexecs.test");
+  await page.goto("/en/corporate-partner");
+  await page.goto("/en/corporate-partner/signup");
+  await expect(page.locator("#c-email")).toHaveValue("");
+
+  // A code already sent does not lock this visit to that address
+  await holdChallenge(context, await seedChallenge(newEmail("stuck"), "246810"));
+  await page.goto("/en/corporate-partner/signup");
+  await expect(page.locator("#c-email")).toHaveValue("");
+  await expect(page.getByRole("heading", { name: t.verifyHeading })).toHaveCount(0);
+  await expect(page.locator("#c-code")).toHaveCount(0);
+  await expect.poll(async () => (await context.cookies()).some((cookie) => cookie.name === "ee_cp_challenge")).toBe(false);
 });
 
 test("five wrong codes lock the challenge", async ({ page, context }) => {
   await ownAddress(context);
-  await holdChallenge(context, await seedChallenge(newEmail("wrong"), "111111"));
-  await page.goto("/en/corporate-partner/signup");
+  await holdChallenge(context, await seedChallenge(newEmail("wrong"), "111111", { purpose: "reset" }));
+  await page.goto("/en/corporate-partner/forgot-password");
 
   // Wait for each answer before guessing again: the form is replaced after every response
   for (const left of [4, 3, 2, 1]) {
@@ -310,7 +319,7 @@ test("the reset form answers the same for a known and an unknown address, even w
   }
 });
 
-test("signing up with an address that already has an account sets a new password only with the code, and ends other sign-ins", async ({ page, context, browser }) => {
+test("a reset code sets a new password and ends other sign-ins", async ({ page, context, browser }) => {
   await ownAddress(context);
   const email = newEmail("again");
   await seedContact(email, PASSWORD);
@@ -322,10 +331,10 @@ test("signing up with an address that already has an account sets a new password
   await logIn(other, email, PASSWORD);
   await expect(other).toHaveURL(/\/en\/corporate-partner\/account$/);
 
-  // The owner of the address enters a code and a new password
-  await holdChallenge(context, await seedChallenge(email, "864209", { password: PASSWORD }));
-  await page.goto("/en/corporate-partner/signup");
-  await finish(page, "864209", NEW_PASSWORD);
+  // The owner of the address enters a code and a new password. Sign-up no longer resumes that code.
+  await holdChallenge(context, await seedChallenge(email, "864209", { purpose: "reset", password: PASSWORD }));
+  await page.goto("/en/corporate-partner/forgot-password");
+  await finish(page, "864209", NEW_PASSWORD, NEW_PASSWORD, t.resetCta);
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
 
   // The other browser was signed out by the change; the old password no longer opens anything
@@ -362,7 +371,7 @@ test("a signed-in visitor is offered their account, and the entry page still off
   await expect(page.getByRole("link", { name: t.goToAccount })).toBeVisible();
 });
 
-test("the first sign-up links the requests that were made earlier with that address, and only those", async ({ page, context }) => {
+test("opening account creation does not resume a previous address or show earlier requests", async ({ page, context }) => {
   await ownAddress(context);
   const email = newEmail("earlier");
   // Earlier requests: one with this address (typed in capitals, as people do), one with someone else's
@@ -371,8 +380,11 @@ test("the first sign-up links the requests that were made earlier with that addr
   await holdChallenge(context, await seedChallenge(email, "246810"));
 
   await page.goto("/en/corporate-partner/signup");
-  await finish(page, "246810", PASSWORD);
-  await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
-  await expect(page.getByText(mine.reference)).toBeVisible();
+  await expect(page.locator("#c-email")).toHaveValue("");
+  await expect(page.locator("#c-code")).toHaveCount(0);
+  await expect(page.getByText(email, { exact: false })).toHaveCount(0);
+  await expect(page.getByText(mine.reference)).toHaveCount(0);
   await expect(page.getByText(other.reference)).toHaveCount(0);
+  await page.goto("/en/corporate-partner/account");
+  await expect(page).toHaveURL(/\/login(\?.*)?$/);
 });

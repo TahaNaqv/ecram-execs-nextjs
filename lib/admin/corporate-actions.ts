@@ -5,6 +5,7 @@ import { corporateContacts, quoteRequests } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
+import { sendAccountDeleted } from "@/lib/email";
 
 export async function addCorporatePartner(formData: FormData) {
   await requireAdmin();
@@ -61,10 +62,18 @@ export async function deleteCorporatePartner(id: string) {
       .where(eq(corporateContacts.id, id))
       .limit(1);
 
-    if (partner) {
+    if (partner?.email) {
       console.log(`🗑️ Deleting corporate partner account for: ${partner.companyName} (${partner.email})`);
-      // Note: If you have a specific email dispatch API or Resend client in your project, 
-      // you can invoke it here. For now, we log the deletion notification requirement cleanly.
+      try {
+        await sendAccountDeleted({
+          email: partner.email,
+          name: partner.name,
+          locale: partner.locale,
+          companyName: partner.companyName,
+        });
+      } catch (err) {
+        console.error("[corporate] account deletion email failed", err);
+      }
     }
 
     // 2. Delete from database

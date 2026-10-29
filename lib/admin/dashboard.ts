@@ -17,16 +17,27 @@ function amsterdamNow() {
 const minutes = (value: string) => value.replace("T", " ").slice(0, 16);
 
 /**
- * A booking the team still has. The website, the portal and the concierge all save a request as "new"; it only becomes
- * "confirmed" once a quote is accepted. Completed and cancelled are finished, so they are not today's remaining work.
+ * What "today" means for the dashboard: a request whose pick-up or return falls on today's Amsterdam date.
+ * Cancelled requests are left out. The headline count and the Next pick-ups list both use this, so they stay equal.
  */
-const OPEN_STATUSES = ["new", "contacted", "quoted", "confirmed"] as const;
-/** Today's jobs count a trip that already ran as well as one that is still to come. */
-const JOB_STATUSES = [...OPEN_STATUSES, "completed"] as const;
+const TODAY_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed"] as const;
+
+/** A fresh fragment each time: the same sql object must not be embedded twice in one query. */
+const amsterdamClock = () => sql`(now() at time zone 'Europe/Amsterdam')`;
+
+function todayJobsWhere() {
+  return and(
+    inArray(q.status, [...TODAY_STATUSES]),
+    sql`(
+      (${q.pickupAt} is not null and ${q.pickupAt}::date = ${amsterdamClock()}::date)
+      or (${q.returnAt} is not null and ${q.returnAt}::date = ${amsterdamClock()}::date)
+    )`,
+  );
+}
 
 export type DashboardFigures = {
   fleet: { available: number; total: number };
-  /** Bookings with a pick-up or a return today (any status but cancelled), and the time of the next one still to come today */
+  /** Requests with a pick-up or a return today, and the time of the next one still to come today */
   jobs: { today: number; nextAt: string | null };
   /** Partner accounts (a password has been chosen), and those that signed in during the last 30 days */
   partners: { total: number; recent: number };
@@ -47,12 +58,7 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
     db
       .select({ pickupAt: q.pickupAt, returnAt: q.returnAt, status: q.status })
       .from(q)
-      .where(
-        and(
-          inArray(q.status, [...JOB_STATUSES]),
-          sql`(${q.pickupAt}::date = ${NOW}::date or ${q.returnAt}::date = ${NOW}::date)`,
-        ),
-      ),
+      .where(todayJobsWhere()),
     db
       .select({
         total: sql<number>`count(*) filter (where ${contacts.passwordHash} is not null)`.mapWith(Number),
@@ -97,35 +103,32 @@ export type UpcomingPickup = {
 };
 
 /**
- * Bookings still to be done: new, contacted, quoted, or confirmed, with a pick-up or return today or still ahead.
- * A completed booking stays in the Today's jobs count, and stays off this list.
+ * The same requests Today's jobs counts: pick-up or return on today's Amsterdam date, soonest first.
+ * Nothing from another day is included, and no row the count includes is dropped here.
+ * Times are formatted in SQL so the wall clock stored on the row is what the page shows.
  */
-export const upcomingPickups = cache(async (limit = 6): Promise<UpcomingPickup[]> => {
+export const upcomingPickups = cache(async (): Promise<UpcomingPickup[]> => {
   await requireAdmin();
   const rows = await db
-    .select()
+    .select({
+      id: q.id,
+      reference: q.reference,
+      pickupAt: sql<string | null>`to_char(${q.pickupAt}, 'YYYY-MM-DD HH24:MI:SS')`,
+      returnAt: sql<string | null>`to_char(${q.returnAt}, 'YYYY-MM-DD HH24:MI:SS')`,
+      collection: q.collection,
+      destination: q.destination,
+      durationHours: q.durationHours,
+      name: q.name,
+      entity: q.entity,
+      vehicle: q.vehicle,
+    })
     .from(q)
-    .where(
-      and(
-        inArray(q.status, [...OPEN_STATUSES]),
-        sql`(
-          ${q.pickupAt}::date = ${NOW}::date
-          or ${q.returnAt}::date = ${NOW}::date
-          or (
-            ${q.pickupAt} is not null
-            and greatest(${q.pickupAt}, ${q.returnAt}) >= ${NOW}
-          )
-        )`,
-      ),
-    )
-    .orderBy(
-      sql`case when ${q.pickupAt} >= ${NOW} then ${q.pickupAt} else coalesce(${q.returnAt}, ${q.pickupAt}) end`,
-      asc(q.createdAt),
-    )
-    .limit(limit);
+    .where(todayJobsWhere())
+    .orderBy(sql`coalesce(${q.pickupAt}, ${q.returnAt})`, asc(q.createdAt));
   const now = amsterdamNow();
   return rows.flatMap((r) => {
-    const at = r.pickupAt && minutes(r.pickupAt) >= now ? r.pickupAt : (r.returnAt ?? r.pickupAt);
+    const pickup = r.pickupAt ? minutes(r.pickupAt) : null;
+    const at = pickup && pickup >= now ? r.pickupAt! : (r.returnAt ?? r.pickupAt);
     if (!at) return [];
     const isReturn = at === r.returnAt && at !== r.pickupAt;
     return [{

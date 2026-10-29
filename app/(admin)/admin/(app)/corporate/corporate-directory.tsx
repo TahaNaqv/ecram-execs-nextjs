@@ -36,6 +36,7 @@ export function CorporateDirectoryHub({
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [partnerToDelete, setPartnerToDelete] = useState<CorporatePartnerRow | null>(null);
 
   useEffect(() => {
     setPartners(initialPartners);
@@ -78,7 +79,6 @@ export function CorporateDirectoryHub({
   };
 
   const handleDeletePartner = (id: string) => {
-    if (!confirm(copy.deleteConfirm)) return;
     startTransition(async () => {
       const res = await deleteCorporatePartner(id);
       if (res && !res.ok) {
@@ -87,6 +87,7 @@ export function CorporateDirectoryHub({
       }
       setPartners((prev) => prev.filter((p) => p.id !== id));
       setSelectedPartner(null);
+      setPartnerToDelete(null);
       router.refresh();
     });
   };
@@ -473,7 +474,7 @@ export function CorporateDirectoryHub({
             <div className="pt-6 border-t border-zinc-100 flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => handleDeletePartner(selectedPartner.id)}
+                onClick={() => setPartnerToDelete(selectedPartner)}
                 className="text-rose-600 hover:bg-rose-50 font-semibold px-3 py-2 rounded-xl text-xs transition cursor-pointer"
               >
                 {copy.deleteAccount}
@@ -484,6 +485,34 @@ export function CorporateDirectoryHub({
                 className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-4 py-2 rounded-xl text-xs transition cursor-pointer"
               >
                 {copy.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Delete Confirmation Modal with Close (X) Button */}
+      {partnerToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-sm p-4">
+          <div className="bg-white border border-zinc-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
+            <button
+              onClick={() => setPartnerToDelete(null)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
+            >
+              <XIcon size={18} />
+            </button>
+            <h3 className="text-base font-semibold text-zinc-950">Delete Corporate Partner</h3>
+            <p className="text-xs text-zinc-600 pr-6">
+              {copy.deleteConfirm} ({partnerToDelete.companyName})
+            </p>
+            <div className="pt-3 border-t border-zinc-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => handleDeletePartner(partnerToDelete.id)}
+                disabled={isPending}
+                className="bg-rose-600 hover:bg-rose-500 text-white font-semibold px-5 py-2 rounded-xl text-xs cursor-pointer disabled:opacity-50"
+              >
+                {isPending ? "Deleting..." : "Confirm Delete"}
               </button>
             </div>
           </div>

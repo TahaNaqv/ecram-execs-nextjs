@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, type RefObject } from "react";
-import { completeCode, verifyCode } from "@/lib/corporate/account-actions";
+import { abandonSignupChallenge, completeCode, verifyCode } from "@/lib/corporate/account-actions";
 import { requestCode, requestReset, resendCode } from "@/lib/corporate/actions";
 import type { CorporateState } from "@/lib/corporate/state";
 import { PASSWORD_MIN } from "@/lib/corporate/validation";
@@ -35,23 +35,29 @@ type Props = {
   mode: Mode;
   locale: Locale;
   initial: { step: Step; email?: string };
+  /** Challenge cookie present when this sign-up page was rendered. Cleared once, so a refresh starts empty. */
+  staleChallengeId?: string;
   copy: AccountFlowCopy;
   minutes: number;
   privacyHref: string;
   loginHref: string;
 };
 
-export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHref, loginHref }: Props) {
+export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy: t, minutes, privacyHref, loginHref }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(initial.step);
-  const [email, setEmail] = useState(initial.email ?? "");
+  // Sign-up never resumes a previous attempt. Password reset still opens on the step the code is at.
+  const start = mode === "signup" ? { step: "request" as Step, email: "" } : initial;
+  const [step, setStep] = useState<Step>(start.step);
+  const [email, setEmail] = useState(start.email ?? "");
   const [banner, setBanner] = useState<string | undefined>();
   const [flowKey, setFlowKey] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const first = useRef(true);
-  // How far this visit got. A later server render that has no challenge left (the account was just created)
-  // must discard that progress; a refresh that still has a challenge must not.
-  const reached = useRef(STEP_RANK[initial.step]);
+  const wasHidden = useRef(false);
+  const heldChallenge = useRef(staleChallengeId);
+  // How far this visit got. A later server render that has no challenge left (the account was just created,
+  // or a password reset was dropped) must discard that progress. Sign-up always starts again at the first step.
+  const reached = useRef(STEP_RANK[start.step]);
 
   useEffect(() => {
     if (first.current) {
@@ -74,23 +80,54 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
     setFlowKey((n) => n + 1);
   }, [initial.step, initial.email]);
 
-  // Back-forward cache restores the component, action state included, without running the flow again.
+  // The cookie from the render that opened this page. A code asked for afterwards has a different id and is kept.
   useEffect(() => {
+    if (mode !== "signup" || !heldChallenge.current) return;
+    void abandonSignupChallenge(heldChallenge.current);
+  }, [mode]);
+
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  // Back-forward cache restores the component, action state included, without running the flow again.
+  // Next also keeps this page mounted after a client navigation and runs the effect again on the way back.
+  useEffect(() => {
+    const clearSignup = () => {
+      reached.current = 0;
+      setEmail("");
+      setBanner(undefined);
+      setStep("request");
+      setFlowKey((n) => n + 1);
+      void abandonSignupChallenge();
+    };
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
+      if (mode === "signup") {
+        clearSignup();
+        return;
+      }
       setFlowKey((n) => n + 1);
       setBanner(undefined);
-      router.refresh();
+      routerRef.current.refresh();
     };
     window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
-  }, [router]);
+    if (mode === "signup" && wasHidden.current) {
+      wasHidden.current = false;
+      clearSignup();
+    }
+    return () => {
+      if (mode === "signup") wasHidden.current = true;
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [mode]);
 
   const restart = (message?: string) => {
     reached.current = 0;
     setBanner(message);
+    setEmail("");
     setStep("request");
     setFlowKey((n) => n + 1);
+    if (mode === "signup") void abandonSignupChallenge();
     router.refresh();
   };
 
@@ -189,36 +226,36 @@ function RequestForm({
   const err = state.status === "error" ? state.fieldErrors : {};
 
   return (
-    <form key={attempt} action={action} noValidate className="flex flex-col gap-6">
+    <form key={attempt} action={action} noValidate autoComplete={mode === "signup" ? "off" : undefined} className="flex flex-col gap-6">
       <h2 ref={headingRef} tabIndex={-1} className="sr-only">
         {mode === "signup" ? t.stepRequest : t.resetStepRequest}
       </h2>
       {banner && <Status error>{banner}</Status>}
       <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2">
         <Field idPrefix="c" label={t.labelEmail} name="email" error={err.email} className="md:col-span-2">
-          <input id="c-email" name="email" type="email" required maxLength={200} autoComplete="email" placeholder={t.phEmail}
+          <input id="c-email" name="email" type="email" required maxLength={200} autoComplete={mode === "signup" ? "off" : "email"} placeholder={t.phEmail}
             defaultValue={v.email} aria-invalid={!!err.email} aria-describedby={err.email ? "c-email-error" : undefined} className={control} />
         </Field>
         {mode === "signup" && (
           <>
             <Field idPrefix="c" label={t.labelName} name="name" error={err.name}>
-              <input id="c-name" name="name" type="text" required maxLength={120} autoComplete="name" placeholder={t.phName}
+              <input id="c-name" name="name" type="text" required maxLength={120} autoComplete="off" placeholder={t.phName}
                 defaultValue={v.name} aria-invalid={!!err.name} aria-describedby={err.name ? "c-name-error" : undefined} className={control} />
             </Field>
             <Field idPrefix="c" label={t.labelPosition} name="position" error={err.position}>
-              <input id="c-position" name="position" type="text" required maxLength={120} autoComplete="organization-title" placeholder={t.phPosition}
+              <input id="c-position" name="position" type="text" required maxLength={120} autoComplete="off" placeholder={t.phPosition}
                 defaultValue={v.position} aria-invalid={!!err.position} aria-describedby={err.position ? "c-position-error" : undefined} className={control} />
             </Field>
             <Field idPrefix="c" label="Company Legal Name" name="companyName" error={err.companyName}>
-              <input id="c-companyName" name="companyName" type="text" required maxLength={200} placeholder="e.g. Shell B.V."
+              <input id="c-companyName" name="companyName" type="text" required maxLength={200} autoComplete="off" placeholder="e.g. Shell B.V."
                 defaultValue={v.companyName} aria-invalid={!!err.companyName} className={control} />
             </Field>
             <Field idPrefix="c" label="KVK Number" name="kvkNumber" error={err.kvkNumber}>
-              <input id="c-kvkNumber" name="kvkNumber" type="text" required maxLength={30} placeholder="8 digits or reg no."
+              <input id="c-kvkNumber" name="kvkNumber" type="text" required maxLength={30} autoComplete="off" placeholder="8 digits or reg no."
                 defaultValue={v.kvkNumber} aria-invalid={!!err.kvkNumber} className={control} />
             </Field>
             <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className="md:col-span-2">
-              <input id="c-phone" name="phone" type="tel" required maxLength={25} placeholder="+31 20 123 4567"
+              <input id="c-phone" name="phone" type="tel" required maxLength={25} autoComplete="off" placeholder="+31 20 123 4567"
                 defaultValue={v.phone} aria-invalid={!!err.phone} className={control} />
             </Field>
           </>

@@ -20,6 +20,8 @@ export const LOGIN_IP_LIMIT = { max: 20, windowMs: 15 * 60_000 };
 export const RESET_IP_LIMIT = { max: 10, windowMs: 15 * 60_000 };
 
 export const CHALLENGE_COOKIE = "ee_cp_challenge";
+/** Bumped when a registration finishes or the visitor signs out, so the next visit remounts the form. */
+export const FLOW_EPOCH_COOKIE = "ee_cp_flow";
 /** Set once the emailed code has been entered correctly, so choosing the password can be a step of its own. */
 export const VERIFIED_COOKIE = "ee_cp_verified";
 /** The signed-in session. The name is older than accounts: it first held the 24-hour access after a code. */

@@ -18,6 +18,7 @@ import { safeNext } from "./portal";
 import { contactColumns } from "./columns";
 import {
   CHALLENGE_COOKIE,
+  FLOW_EPOCH_COOKIE,
   CODE_MINUTES,
   CONSENT_TEXT_VERSION,
   LOGIN_IP_LIMIT,
@@ -42,6 +43,38 @@ const formLocale = (formData: FormData): Locale => {
  * in the client router cache. The next visit would otherwise replay that result until the browser cache is cleared.
  * Called immediately before redirect(); redirect() throws, so nothing after it runs.
  */
+function stampFlowEpoch(jar: Awaited<ReturnType<typeof cookies>>) {
+  jar.set(FLOW_EPOCH_COOKIE, String(Date.now()), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24,
+  });
+}
+
+/**
+ * Drops an unfinished sign-up so a refresh or a later visit starts from an empty form.
+ * `onlyId` ignores a newer challenge issued after this page was opened (the visitor already asked for a code).
+ * A password-reset challenge is left in place.
+ */
+export async function abandonSignupChallenge(onlyId?: string) {
+  const jar = await cookies();
+  const id = jar.get(CHALLENGE_COOKIE)?.value;
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
+  if (onlyId && id !== onlyId) return;
+
+  const [row] = await db
+    .select({ purpose: schema.corporateChallenges.purpose })
+    .from(schema.corporateChallenges)
+    .where(eq(schema.corporateChallenges.id, id))
+    .limit(1);
+  if (row?.purpose === "reset") return;
+
+  jar.delete(CHALLENGE_COOKIE);
+  jar.delete(VERIFIED_COOKIE);
+}
+
 function revalidateRegistration() {
   revalidatePath("/[locale]/corporate-partner/signup", "page");
   revalidatePath("/[locale]/corporate-partner/forgot-password", "page");
@@ -223,6 +256,7 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
     await startSession(contact.id, { revokeOthers: true });
     jar.delete(CHALLENGE_COOKIE);
     jar.delete(VERIFIED_COOKIE);
+    stampFlowEpoch(jar);
     // Whoever owns the address is told when a password that existed is replaced
     if (before.hadPassword) after(() => sendPasswordChanged({ email: contact.email, name: contact.name, locale }));
   } catch (err) {
@@ -309,6 +343,7 @@ export async function logout(formData: FormData) {
   const jar = await cookies();
   jar.delete(CHALLENGE_COOKIE);
   jar.delete(VERIFIED_COOKIE);
+  stampFlowEpoch(jar);
   try {
     revalidateRegistration();
   } catch (err) {

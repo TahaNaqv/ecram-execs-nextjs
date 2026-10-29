@@ -1,6 +1,7 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { getPendingChallenge } from "@/lib/corporate/access";
-import { CODE_MINUTES } from "@/lib/corporate/otp";
+import { CODE_MINUTES, FLOW_EPOCH_COOKIE } from "@/lib/corporate/otp";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -9,11 +10,13 @@ import { CorporateShell, PanelSkeleton, corporateMetadata } from "../../_compone
 
 /** Where the visitor is in the flow comes from the database, never from the cookie alone; a reload resumes at the code step. */
 async function Flow() {
-  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
+  const [locale, d, jar] = await Promise.all([currentLocale(), getDict(), cookies()]);
   // Signed-in visitors may still reset their password, so unlike sign-up there is no notice here
   const pending = await getPendingChallenge("reset");
+  const epoch = jar.get(FLOW_EPOCH_COOKIE)?.value ?? "0";
   return (
     <AccountFlow
+      key={epoch}
       mode="reset"
       locale={locale}
       initial={pending ? { step: pending.verified ? "password" : "code", email: pending.email } : { step: "request" }}
