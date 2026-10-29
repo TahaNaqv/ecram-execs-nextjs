@@ -80,7 +80,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const totalTax = btw9 + btw21;
   const grandTotal = baseFare + totalTax;
 
-  // Notify Client Button: Commits the selected status and dispatches email
+  // Notify Client Button: Commits the selected status and dispatches email (including on cancel)
   async function handleSend() {
     setLoading(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -88,7 +88,13 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
       const res = await fetch(`/api/admin/requests/${request.id}/authorise`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: selectedStatus, amount: grandTotal, sendMail: true })
+        body: JSON.stringify({ 
+          status: selectedStatus, 
+          amount: grandTotal, 
+          sendMail: true,
+          // Explicitly flag cancellation emails for backend handlers if status is cancelled
+          ...(selectedStatus === "cancelled" ? { sendCancellationEmail: true } : {})
+        })
       });
       const data = await res.json();
       console.log("Resend Mail Response:", data);
@@ -97,7 +103,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
       if (data.warning || data.error) {
         setToast(`Sent with note: Check terminal for Resend logs.`);
       } else {
-        setToast("Quote successfully sent to client via email and status updated!");
+        setToast(selectedStatus === "cancelled" ? "Cancellation email dispatched!" : "Email Dispatched!");
       }
       router.refresh();
     } catch (err) {
@@ -632,8 +638,6 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
             
             {/* Status Dropdown Selector */}
             <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
-              
-
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
