@@ -348,7 +348,7 @@ export function OnboardingForm({
               <input id="c-destination" name="destination" type="text" required maxLength={200} autoComplete="off" placeholder={t.phDestination}
                 {...text("destination")} aria-invalid={!!err.destination} aria-describedby={d("destination")} className={cardControl} />
             </CardField>
-            <CardField idPrefix="c" name="pickupAt" label="Date & Time" error={err.pickupAt}>
+            <CardField idPrefix="c" name="pickupAt" label="Date & Time">
               <input id="c-pickupAt" name="pickupAt" type="datetime-local" required step={60}
                 value={values.pickupAt} onChange={(e) => patch({ pickupAt: e.target.value })}
                 onPointerDown={(event) => {
@@ -363,7 +363,7 @@ export function OnboardingForm({
                   event.currentTarget.value = next;
                   patch({ pickupAt: next });
                 }}
-                aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={`${cardControl} cursor-pointer !text-[#ffffff] [color-scheme:dark] [&::-webkit-datetime-edit]:!text-[#ffffff] [&::-webkit-datetime-edit-fields-wrapper]:!text-[#ffffff] [&::-webkit-datetime-edit-text]:!text-[#ffffff] [&::-webkit-datetime-edit-month-field]:!text-[#ffffff] [&::-webkit-datetime-edit-day-field]:!text-[#ffffff] [&::-webkit-datetime-edit-year-field]:!text-[#ffffff] [&::-webkit-datetime-edit-hour-field]:!text-[#ffffff] [&::-webkit-datetime-edit-minute-field]:!text-[#ffffff] [&::-webkit-calendar-picker-indicator]:opacity-100`} />
+                aria-describedby={d("pickupAt")} className={`${cardControl} cursor-pointer !text-[#ffffff] [color-scheme:dark] [&::-webkit-datetime-edit]:!text-[#ffffff] [&::-webkit-datetime-edit-fields-wrapper]:!text-[#ffffff] [&::-webkit-datetime-edit-text]:!text-[#ffffff] [&::-webkit-datetime-edit-month-field]:!text-[#ffffff] [&::-webkit-datetime-edit-day-field]:!text-[#ffffff] [&::-webkit-datetime-edit-year-field]:!text-[#ffffff] [&::-webkit-datetime-edit-hour-field]:!text-[#ffffff] [&::-webkit-datetime-edit-minute-field]:!text-[#ffffff] [&::-webkit-calendar-picker-indicator]:opacity-100`} />
             </CardField>
             <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage}>
               <input type="hidden" name="passengers" value={values.passengers} />
