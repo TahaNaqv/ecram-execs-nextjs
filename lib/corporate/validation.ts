@@ -11,6 +11,8 @@ export const normalizePassword = (value: string) => value.normalize("NFKC");
 export const CONTACT_METHODS = ["email", "phone", "whatsapp"] as const;
 export const TRIP_TIMES = ["morning", "afternoon", "evening"] as const;
 export const DURATIONS = ["2_4", "2_8", "2_12", "2_24"] as const;
+/** One-way or hourly, matching the two journey kinds in Plan Your Journey. */
+export const RETURN_STATUSES = ["one_way", "hourly"] as const;
 
 export const CORPORATE_VEHICLES = [
   { key: "audi_etron_gt", name: "Audi e-tron GT", fleetKey: "audi" },
@@ -39,6 +41,9 @@ type CorporateMessages = Pick<
   | "companyNumberInvalid"
   | "signatoryRequired"
   | "pointOfCallRequired"
+  | "collectionRequired"
+  | "destinationRequired"
+  | "luggageInvalid"
   | "fieldTooLong"
   | "passwordTooShort"
   | "passwordTooLong"
@@ -103,6 +108,18 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     vehicle: z.enum(CORPORATE_VEHICLE_KEYS, { error: c.chooseOption }),
     tripTime: z.enum(TRIP_TIMES, { error: c.chooseOption }),
     duration: z.enum(DURATIONS, { error: c.chooseOption }),
+    collection: z.string().trim().min(1, c.collectionRequired).max(200, c.fieldTooLong),
+    destination: z.string().trim().min(1, c.destinationRequired).max(200, c.fieldTooLong),
+    luggage: z.string().trim().regex(/^(?:[0-9]|1[0-9]|20)$/, c.luggageInvalid).transform(Number),
+    returnStatus: z.enum(RETURN_STATUSES, { error: c.chooseOption }),
+    stops: z
+      .array(
+        z.object({
+          place: z.string().trim().min(1).max(200, c.fieldTooLong),
+          wait: z.number().int().min(0).max(180),
+        }),
+      )
+      .max(5),
     notes: z.string().trim().max(2000, f.notesTooLong).optional(),
     locale: z.enum(LOCALES).catch("en"),
   }).superRefine(({ phoneCountry, phone }, ctx) => {

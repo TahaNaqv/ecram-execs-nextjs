@@ -20,6 +20,9 @@ type Props = {
   copy: CompanySearchCopy;
   placeholder?: string;
   defaultValue?: string;
+  /** Controlled text. When set, the field follows this value instead of its own state. */
+  value?: string;
+  onValueChange?: (value: string) => void;
   required?: boolean;
   maxLength?: number;
   invalid?: boolean;
@@ -38,9 +41,14 @@ const DEBOUNCE_MS = 250;
  * register doesn't know — or a registry that is down — never blocks anyone. Choosing a suggestion fills the
  * name and reports the KvK number to the form.
  */
-export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = "", required, maxLength = 200, invalid, describedBy, onSelect, variant = "cell" }: Props) {
+export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = "", value: valueProp, onValueChange, required, maxLength = 200, invalid, describedBy, onSelect, variant = "cell" }: Props) {
   const listId = useId();
-  const [value, setValue] = useState(defaultValue);
+  const [uncontrolled, setUncontrolled] = useState(defaultValue);
+  const value = valueProp ?? uncontrolled;
+  const setValue = (next: string) => {
+    if (valueProp === undefined) setUncontrolled(next);
+    onValueChange?.(next);
+  };
   const [items, setItems] = useState<CompanyHit[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -174,8 +182,10 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
         <ul
           id={listId}
           role="listbox"
-          className={`absolute top-full z-20 m-0 max-h-[320px] list-none overflow-y-auto border border-ink-225 bg-white p-0 shadow-lg ${
-            variant === "card" ? "right-0 left-0 mt-1 rounded-md" : "right-[-18px] left-[-18px] mt-3"
+          className={`absolute top-full z-20 m-0 max-h-[320px] list-none overflow-y-auto p-0 shadow-lg ${
+            variant === "card"
+              ? "right-0 left-0 mt-1 rounded-xl border border-[#d5e4ff] bg-[#ffffff] text-[#10224f] shadow-[0_12px_32px_rgba(47,98,255,0.16)]"
+              : "right-[-18px] left-[-18px] mt-3 border border-ink-225 bg-white"
           }`}
         >
           {items.map((hit, i) => (
@@ -193,17 +203,23 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
               className={`flex min-h-[44px] cursor-pointer flex-col justify-center py-2 text-[14px] normal-case tracking-normal ${
                 variant === "card" ? "px-3" : "px-[18px]"
               } ${
-                i === active ? "bg-ink-100 text-ink-950" : "text-ink-800"
+                variant === "card"
+                  ? i === active
+                    ? "bg-[#eef3ff] text-[#10224f]"
+                    : "text-[#10224f]"
+                  : i === active
+                    ? "bg-ink-100 text-ink-950"
+                    : "text-ink-800"
               }`}
             >
               <span className="font-medium">{hit.name}</span>
-              <span className="text-[12px] text-ink-600">
+              <span className={`text-[12px] ${variant === "card" ? "text-[#4d6494]" : "text-ink-600"}`}>
                 KvK {hit.kvk}
                 {hit.city ? ` · ${hit.city}` : ""}
               </span>
             </li>
           ))}
-          <li role="presentation" className={`border-t border-ink-225 py-2 text-[12px] normal-case tracking-normal text-ink-600 ${variant === "card" ? "px-3" : "px-[18px]"}`}>
+          <li role="presentation" className={`border-t py-2 text-[12px] normal-case tracking-normal ${variant === "card" ? "border-[#d5e4ff] px-3 text-[#4d6494]" : "border-ink-225 px-[18px] text-ink-600"}`}>
             {items.length === 0 ? copy.noResults : copy.manualHint}
           </li>
         </ul>

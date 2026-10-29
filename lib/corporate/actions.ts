@@ -8,6 +8,7 @@ import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { withinLimit } from "@/lib/rate-limit";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
+import { readStops } from "@/lib/quotes/stops";
 import { getCorporateContact } from "./access";
 import { contactColumns } from "./columns";
 import { issueCode, ipLimited, minutesAgo } from "./codes";
@@ -176,9 +177,11 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const fields = [
     "company", "companyNumber", "phoneCountry", "phone", "contactMethod", "signatory", "pointOfCall",
-    "vehicle", "tripTime", "duration", "notes", "locale",
+    "vehicle", "tripTime", "duration", "collection", "destination", "luggage", "returnStatus",
+    "notes", "locale",
   ] as const;
   const values: Record<string, string> = Object.fromEntries(fields.map((k) => [k, String(formData.get(k) ?? "")]));
+  const stops = readStops(formData);
   const fail = (message: string, fieldErrors: Partial<Record<OnboardingField, string>> = {}) =>
     ({ status: "error", message, fieldErrors, values }) as const;
 
@@ -188,7 +191,11 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
 
   if (String(formData.get("company_website") ?? "") !== "") return { status: "success", reference: "EE-RECEIVED", name: contact.name };
 
-  const parsed = onboardingSchema(f, c).safeParse({ ...values, notes: values.notes || undefined });
+  const parsed = onboardingSchema(f, c).safeParse({
+    ...values,
+    notes: values.notes || undefined,
+    stops: stops.destinations.map((place, i) => ({ place, wait: stops.destinationWaits[i] ?? 0 })),
+  });
   if (!parsed.success) {
     const fieldErrors: Partial<Record<OnboardingField, string>> = {};
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as OnboardingField] ??= issue.message;
@@ -208,6 +215,9 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
     // The booker's name and email are the verified contact's, never taken from the form
     const chosen = CORPORATE_VEHICLES.find((v) => v.key === input.vehicle)!;
     const label = (word: string) => word.replace(/_/g, " ");
+    const stopLines = input.stops.length
+      ? input.stops.map((stop) => (stop.wait ? `${stop.place} (wait ${stop.wait} min)` : stop.place)).join("; ")
+      : "none";
     // Internal text, read by the dispatch team in the admin: always English, like the team alerts
     const itinerary = [
       "Corporate Partner introduction (KYB)",
@@ -218,6 +228,11 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       `Preferred vehicle: ${chosen.name}`,
       `Majority of trips: ${input.tripTime}`,
       `Average duration needed: ${input.duration.replace("_", "–")} hours`,
+      `Collection: ${input.collection}`,
+      `Drop-off: ${input.destination}`,
+      `Stopovers: ${stopLines}`,
+      `Luggage: ${input.luggage}`,
+      `Journey: ${input.returnStatus === "hourly" ? "hourly" : "one way"}`,
       `Booker position: ${contact.position}`,
     ].join("\n");
 
@@ -232,6 +247,11 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             corporateContactId: contact.id,
             entity: input.company,
             entityKvk: input.companyNumber,
+            collection: input.collection,
+            destination: input.destination,
+            destinations: input.stops.length ? input.stops.map((stop) => stop.place) : null,
+            destinationWaits: input.stops.length ? input.stops.map((stop) => stop.wait) : null,
+            luggage: input.luggage,
             vehicle: chosen.fleetKey,
             itinerary,
             // Where the dispatch manager follows up: the team alert and the admin page both show it

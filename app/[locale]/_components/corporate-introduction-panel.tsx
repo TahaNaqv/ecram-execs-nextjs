@@ -12,9 +12,9 @@ export function IntroductionPanel({ collapsible, summary, children }: { collapsi
   const [folded] = useState(collapsible);
   if (!folded) return <div>{children}</div>;
   return (
-    <details className="border border-ink-225 bg-white">
-      <summary className="cursor-pointer list-none px-5 py-4 text-[12px] font-semibold tracking-[0.22em] text-ink-950 uppercase">{summary}</summary>
-      <div className="border-t border-ink-225 p-5 md:p-8">{children}</div>
+    <details>
+      <summary className="mb-4 cursor-pointer list-none rounded-2xl border border-[#d5e4ff] bg-[#ffffff] px-5 py-4 text-[12px] font-semibold tracking-[0.22em] text-[#10224f] uppercase shadow-[0_8px_24px_rgba(47,98,255,0.1)]">{summary}</summary>
+      <div>{children}</div>
     </details>
   );
 }

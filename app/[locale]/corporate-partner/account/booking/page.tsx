@@ -72,10 +72,6 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
 
       {created === "1" && <p className="m-0 border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-[15px] text-ink-950">{p.createdNotice}</p>}
 
-      <header className="flex flex-wrap items-center gap-4">
-        <h2 className="m-0 font-serif text-[30px] font-normal leading-[1.1] text-ink-950 md:text-[36px]">{interpolate(p.headingBooking, { reference: booking.reference })}</h2>
-        <PortalStatus status={booking.status} labels={p.statuses} />
-      </header>
 
       {waiting && (
         <QuoteResponse

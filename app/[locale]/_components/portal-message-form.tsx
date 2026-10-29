@@ -45,7 +45,7 @@ export function MessageForm({ reference, locale, loginHref, copy: t }: { referen
           placeholder={t.phMessage}
           aria-invalid={!!err.message}
           aria-describedby={err.message ? "m-body-error" : undefined}
-          className="w-full box-border resize-y border border-solid border-ink-225 bg-white p-3 text-[15px] tracking-normal text-ink-950 normal-case"
+          className="w-full box-border resize-y border border-solid border-ink-225 bg-white p-3 text-[15px] tracking-normal text-ink-950 placeholder:text-[#7d93c4] normal-case"
         />
         {err.message && (
           <span id="m-body-error" className="text-[12px] tracking-normal text-error normal-case">

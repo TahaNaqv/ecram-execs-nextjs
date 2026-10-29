@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { refresh, revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -35,6 +36,25 @@ const formLocale = (formData: FormData): Locale => {
   const value = String(formData.get("locale") ?? "");
   return (LOCALES as readonly string[]).includes(value) ? (value as Locale) : "en";
 };
+
+/**
+ * A finished registration redirects away, and Next keeps the page that was left — including its Server Action result —
+ * in the client router cache. The next visit would otherwise replay that result until the browser cache is cleared.
+ * Called immediately before redirect(); redirect() throws, so nothing after it runs.
+ */
+function revalidateRegistration() {
+  revalidatePath("/[locale]/corporate-partner/signup", "page");
+  revalidatePath("/[locale]/corporate-partner/forgot-password", "page");
+  revalidatePath("/[locale]/corporate-partner", "page");
+  revalidatePath("/[locale]/corporate-partner/account", "layout");
+  for (const locale of LOCALES) {
+    revalidatePath(localizedPath("/corporate-partner/signup", locale));
+    revalidatePath(localizedPath("/corporate-partner/forgot-password", locale));
+    revalidatePath(localizedPath("/corporate-partner", locale));
+    revalidatePath(localizedPath("/corporate-partner/account", locale));
+  }
+  refresh();
+}
 
 /**
  * The first of the two last steps of sign-up and of a password reset: the emailed code, on its own. A right code is what
@@ -209,7 +229,14 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
     console.error("[corporate] complete failed", err);
     return fail(c.serverError);
   }
-  // Outside the try: redirect() works by throwing
+  // Outside the try: redirect() works by throwing. Drop the registration screens first, so the next account
+  // is not offered the challenge and the action result that this one just consumed. A cache miss must not
+  // strand someone whose account was already created.
+  try {
+    revalidateRegistration();
+  } catch (err) {
+    console.error("[corporate] revalidate failed", err);
+  }
   redirect(localizedPath("/corporate-partner/account", locale));
 }
 
@@ -279,5 +306,13 @@ export async function login(_prev: CorporateState, formData: FormData): Promise<
 export async function logout(formData: FormData) {
   const locale = formLocale(formData);
   await endSession();
+  const jar = await cookies();
+  jar.delete(CHALLENGE_COOKIE);
+  jar.delete(VERIFIED_COOKIE);
+  try {
+    revalidateRegistration();
+  } catch (err) {
+    console.error("[corporate] revalidate failed", err);
+  }
   redirect(localizedPath("/corporate-partner", locale));
 }

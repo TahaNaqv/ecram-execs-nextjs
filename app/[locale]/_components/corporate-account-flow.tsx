@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, type RefObject } from "react";
 import { completeCode, verifyCode } from "@/lib/corporate/account-actions";
 import { requestCode, requestReset, resendCode } from "@/lib/corporate/actions";
@@ -13,6 +14,8 @@ import { control, Field } from "./form-field";
 
 type Step = "request" | "code" | "password";
 type Mode = "signup" | "reset";
+
+const STEP_RANK: Record<Step, number> = { request: 0, code: 1, password: 2 };
 
 type HeadingRef = {
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -39,11 +42,16 @@ type Props = {
 };
 
 export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHref, loginHref }: Props) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(initial.step);
   const [email, setEmail] = useState(initial.email ?? "");
   const [banner, setBanner] = useState<string | undefined>();
+  const [flowKey, setFlowKey] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const first = useRef(true);
+  // How far this visit got. A later server render that has no challenge left (the account was just created)
+  // must discard that progress; a refresh that still has a challenge must not.
+  const reached = useRef(STEP_RANK[initial.step]);
 
   useEffect(() => {
     if (first.current) {
@@ -52,6 +60,39 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
     }
     heading.current?.focus();
   }, [step]);
+
+  useEffect(() => {
+    reached.current = Math.max(reached.current, STEP_RANK[step]);
+  }, [step]);
+
+  useEffect(() => {
+    if (initial.step !== "request" || reached.current === 0) return;
+    reached.current = 0;
+    setStep("request");
+    setEmail(initial.email ?? "");
+    setBanner(undefined);
+    setFlowKey((n) => n + 1);
+  }, [initial.step, initial.email]);
+
+  // Back-forward cache restores the component, action state included, without running the flow again.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      setFlowKey((n) => n + 1);
+      setBanner(undefined);
+      router.refresh();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [router]);
+
+  const restart = (message?: string) => {
+    reached.current = 0;
+    setBanner(message);
+    setStep("request");
+    setFlowKey((n) => n + 1);
+    router.refresh();
+  };
 
   const steps: [Step, string][] = [
     ["request", mode === "signup" ? t.stepRequest : t.resetStepRequest],
@@ -72,6 +113,7 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
 
       {step === "request" ? (
         <RequestForm
+          key={flowKey}
           mode={mode}
           locale={locale}
           copy={t}
@@ -86,6 +128,7 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
         />
       ) : step === "code" ? (
         <CodeForm
+          key={flowKey}
           mode={mode}
           locale={locale}
           copy={t}
@@ -93,22 +136,17 @@ export function AccountFlow({ mode, locale, initial, copy: t, minutes, privacyHr
           minutes={minutes}
           headingRef={heading}
           onVerified={() => setStep("password")}
-          onRestart={(message?: string) => {
-            setBanner(message);
-            setStep("request");
-          }}
+          onRestart={restart}
         />
       ) : (
         <PasswordForm
+          key={flowKey}
           mode={mode}
           locale={locale}
           copy={t}
           email={email}
           headingRef={heading}
-          onRestart={(message?: string) => {
-            setBanner(message);
-            setStep("request");
-          }}
+          onRestart={restart}
         />
       )}
 
