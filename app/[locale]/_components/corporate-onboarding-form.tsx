@@ -46,12 +46,105 @@ type IntroValues = {
   duration: string;
   collection: string;
   destination: string;
+  passengers: string;
   luggage: string;
   returnStatus: string;
   notes: string;
   stops: StopDraft[];
 };
 const shell = "flex min-w-0 flex-col gap-6 rounded-3xl border border-[rgba(99,145,255,0.3)] bg-[#0b1f4d] p-5 text-[#f4f6fb] shadow-[0_20px_50px_rgba(6,16,43,0.5)] md:p-8";
+
+function PassengersSuitcasesSelector({
+  passengers,
+  suitcases,
+  onChange,
+}: {
+  passengers: string;
+  suitcases: string;
+  onChange: (passengers: string, suitcases: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const pCount = Math.max(1, parseInt(passengers || "1", 10));
+  const sCount = Math.max(0, parseInt(suitcases || "0", 10));
+
+  return (
+    <div className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`${cardControl} flex items-center justify-between text-left cursor-pointer text-[#ffffff]`}
+      >
+        <span className="font-medium text-[#ffffff]">
+          {pCount} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
+        </span>
+        <span className="text-xs text-[#ffffff]">▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-12 left-0 z-50 w-full bg-[#06122d] border border-[rgba(99,145,255,0.5)] rounded-2xl shadow-2xl p-5 flex flex-col gap-4 text-[#ffffff]">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="m-0 font-semibold text-sm text-[#ffffff]">Passengers</p>
+              <p className="m-0 text-xs text-[#ffffff]">Including you</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onChange(String(Math.max(1, pCount - 1)), String(sCount))}
+                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+              >
+                −
+              </button>
+              <span className="w-4 text-center font-semibold text-sm text-[#ffffff]">{pCount}</span>
+              <button
+                type="button"
+                onClick={() => onChange(String(pCount + 1), String(sCount))}
+                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-[rgba(255,255,255,0.15)]">
+            <div>
+              <p className="m-0 font-semibold text-sm text-[#ffffff]">Suitcases</p>
+              <p className="m-0 text-xs text-[#ffffff]">Large bags</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onChange(String(pCount), String(Math.max(0, sCount - 1)))}
+                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+              >
+                −
+              </button>
+              <span className="w-4 text-center font-semibold text-sm text-[#ffffff]">{sCount}</span>
+              <button
+                type="button"
+                onClick={() => onChange(String(pCount), String(Math.min(20, sCount + 1)))}
+                className="size-8 rounded-full border border-[#ffffff] bg-[#0b1f4d] flex items-center justify-center text-[18px] leading-none font-bold text-[#ffffff] hover:bg-[#16357a] cursor-pointer"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <p className="m-0 text-[11px] text-[#ffffff] text-center">We use this to suggest the cars that fit.</p>
+
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="w-full border border-[#ffffff] bg-[#0b1f4d] py-2.5 rounded-xl text-xs font-bold tracking-wider text-[#ffffff] uppercase hover:bg-[#16357a] transition-colors cursor-pointer"
+          >
+            Done
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function OnboardingForm({
   locale,
   copy: t,
@@ -80,6 +173,7 @@ export function OnboardingForm({
     duration: "",
     collection: "",
     destination: "",
+    passengers: "1",
     luggage: "0",
     returnStatus: "",
     notes: "",
@@ -239,10 +333,14 @@ export function OnboardingForm({
                 {...text("destination")} aria-invalid={!!err.destination} aria-describedby={d("destination")} className={cardControl} />
             </CardField>
             <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage}>
-              <input id="c-luggage" name="luggage" type="text" inputMode="numeric" required maxLength={2} placeholder="0"
-                value={values.luggage} onChange={(e) => patch({ luggage: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                aria-invalid={!!err.luggage} aria-describedby={err.luggage ? "c-luggage-error" : "c-luggage-hint"} className={cardControl} />
-              <p id="c-luggage-hint" className="m-0 text-[12px] text-[#d7e4ff]">{t.luggageHint}</p>
+              <input type="hidden" name="passengers" value={values.passengers} />
+              <input type="hidden" name="luggage" value={values.luggage} />
+              <PassengersSuitcasesSelector
+                passengers={values.passengers}
+                suitcases={values.luggage}
+                onChange={(passengers, luggage) => patch({ passengers, luggage })}
+              />
+              <p id="c-luggage-hint" className="m-0 text-[12px] text-[#d7e4ff] mt-1">{t.luggageHint}</p>
             </CardField>
             <div className="md:col-span-2">
               <ChoiceGroup idPrefix="c" name="returnStatus" legend={t.labelReturnStatus} value={values.returnStatus}
