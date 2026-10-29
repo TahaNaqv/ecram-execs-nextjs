@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import type { QuoteRequest } from "@/lib/db/schema";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -28,6 +29,7 @@ import {
 } from "./icons";
 
 export function AutoPricingGateway({ request, copy, statuses }: { request: QuoteRequest; copy: PricingCopy; statuses: StatusCopy }) {
+  const router = useRouter();
   const [status, setStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
     request.status as any
   );
@@ -36,7 +38,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   
-  // Inline editing state for fare, tax rates, and tax descriptions (Bug ID 8 fix)
+  // Inline editing state for fare, tax rates, and tax descriptions
   const [isEditing, setIsEditing] = useState(false);
   const [editedAmount, setEditedAmount] = useState<number | string>(
     request.quotedAmount ? Number(request.quotedAmount) : 0
@@ -52,7 +54,6 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const stopovers = request.destinations ?? [];
   const stopWaits = request.destinationWaits ?? [];
   const pickup = request.pickupAt ? pickupParts(request.pickupAt) : null;
-  const pickupAt = request.pickupAt ? pickupInstant(request.pickupAt) : null;
 
   // Fare calculations with safe number fallback
   const numericSubtotal = typeof editedAmount === "number" ? editedAmount : (Number(editedAmount) || 0);
@@ -73,14 +74,14 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
   const totalTax = btw9 + btw21;
   const grandTotal = baseFare + totalTax;
 
-  // 1. Send Button: Explicitly triggers mail & dispatch with terminal console feedback
+  // 1. Send Button: Sends email using the CURRENT active status
   async function handleSend() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/requests/${request.id}/authorise`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: "quoted", amount: grandTotal, sendMail: true })
+        body: JSON.stringify({ status: status, amount: grandTotal, sendMail: true })
       });
       const data = await res.json();
       console.log("Resend Mail Response:", data);
@@ -89,6 +90,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
       } else {
         setToast("Quote successfully sent to client via email!");
       }
+      router.refresh();
     } catch (err) {
       console.error("Resend Mail Dispatch Error:", err);
       setToast("Error sending email. Check server terminal logs.");
@@ -98,7 +100,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
     }
   }
 
-  // 2. Status Dropdown: Updates status locally & in DB without sending mail
+  // 2. Status Dropdown: Updates status locally & in DB immediately
   async function handleStatusChange(newStatus: typeof status) {
     setStatus(newStatus);
     setLoading(true);
@@ -109,6 +111,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
         body: JSON.stringify({ status: newStatus, amount: grandTotal, sendMail: false })
       });
       setToast(interpolate(copy.statusUpdated, { status: statuses[newStatus] }));
+      router.refresh();
     } catch {
       setToast(interpolate(copy.statusUpdatedShort, { status: statuses[newStatus] }));
     } finally {
@@ -117,7 +120,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
     }
   }
 
-  // 3. Save Fare: Updates fare amount, sets status to "quoted", and saves to DB without sending mail
+  // 3. Save Fare: Updates fare amount and sets status to "quoted"
   async function handleSaveFare() {
     setIsEditing(false);
     setStatus("quoted");
@@ -129,6 +132,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ status: "quoted", amount: grandTotal, sendMail: false }),
       });
+      router.refresh();
     } catch {
       // ignore
     } finally {
@@ -285,7 +289,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
         </div>
       )}
 
-      {/* Branded quote. Portaled to the page root so print can drop the admin chrome and keep this sheet. */}
+      {/* Branded quote modal */}
       {showPdfModal &&
         createPortal(
           <div id="official-quote">
@@ -428,7 +432,6 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
                 <span className="text-zinc-400 text-[11px]">{copy.collection}</span>
               </div>
               
-              {/* Bug ID 10 Fix: Displaying stop-over wait times */}
               {stopovers.map((stop: string, idx: number) => {
                 const waitMins = stopWaits[idx] ?? 0;
                 return (
@@ -453,7 +456,6 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
             </div>
           </div>
 
-          {/* Bug ID 11 Fix: Displaying Luggage and Passenger Details */}
           <div className="bg-white border border-zinc-200 rounded-xl p-4 grid grid-cols-2 gap-3 text-xs shadow-2xs">
             <div>
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
@@ -490,10 +492,10 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
           </div>
         </div>
 
-        {/* Column 2 & 3 Combined: Single Flow Without Gaps */}
+        {/* Column 2 & 3 Combined */}
         <div className="flex flex-col gap-4 md:col-span-1 xl:col-span-2">
           
-          {/* Fare Breakdown Engine with Bug ID 8 Editable Fare Fix */}
+          {/* Fare Breakdown Engine */}
           <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5 flex flex-col gap-4">
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
@@ -570,7 +572,6 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
                   <span className="font-mono text-zinc-900">{formatEuro(baseFare)}</span>
                 </div>
 
-                {/* Fully Editable 9% BTW Rate & Description */}
                 <div className="flex justify-between items-center text-xs text-cyan-700 font-medium">
                   {isEditing ? (
                     <div className="flex items-center gap-1.5 flex-1 mr-4">
@@ -595,7 +596,6 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
                   <span className="font-mono shrink-0">{formatEuro(btw9)}</span>
                 </div>
 
-                {/* Fully Editable 21% BTW Rate & Description */}
                 <div className="flex justify-between items-center text-xs text-blue-700 font-medium">
                   {isEditing ? (
                     <div className="flex items-center gap-1.5 flex-1 mr-4">
@@ -622,13 +622,11 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
               </div>
             </div>
 
-            {/* Total Tax (BTW) placed right above final amount */}
             <div className="bg-zinc-900 text-white rounded-xl p-3.5 flex items-center justify-between shadow-sm">
               <span className="text-xs font-bold tracking-wider uppercase">Total Tax (BTW)</span>
               <span className="text-lg font-bold font-mono text-cyan-400">{formatEuro(totalTax)}</span>
             </div>
 
-            {/* Final Amount Banner */}
             <div className="bg-gradient-to-r from-zinc-900 to-zinc-950 text-white border border-zinc-900 rounded-xl p-3.5 text-center shadow-sm flex items-center justify-between">
               <span className="text-xs text-zinc-400 uppercase tracking-wider">{copy.finalAmount}</span>
               <span className="text-xl font-bold font-mono text-emerald-400">
@@ -643,12 +641,13 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
             
             {/* Status Dropdown Selector */}
             <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
-              <label className="text-[11px] font-medium text-zinc-500 uppercase block">{copy.status}</label>
+             
+
               <select
                 value={status}
                 onChange={(e) => handleStatusChange(e.target.value as typeof status)}
                 disabled={loading}
-                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50"
+                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50 mt-2"
               >
                 {STATUSES.map((value) => (
                   <option key={value} value={value}>{statuses[value]}</option>
