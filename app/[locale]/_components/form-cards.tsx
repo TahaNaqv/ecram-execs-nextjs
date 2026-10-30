@@ -49,7 +49,7 @@ export const cardSubmit =
 
 export function CardGrid({ children, ...rest }: ComponentProps<"div">) {
   return (
-    <div {...rest} className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-5">
+    <div {...rest} className="box-border grid w-full min-w-0 max-w-full grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-5">
       {children}
     </div>
   );
@@ -76,7 +76,7 @@ export function FormCard({
   return (
     <section 
       aria-labelledby={titleId} 
-      className={`flex min-w-0 flex-col gap-5 rounded-2xl border border-solid border-[rgba(99,145,255,0.25)] bg-[#0c1f4d] p-5 shadow-[0_10px_30px_rgba(6,16,43,0.4)] md:p-6 text-[#ffffff] ${wide ? "md:col-span-2" : ""}`}
+      className={`box-border flex w-full min-w-0 max-w-full flex-col gap-5 rounded-2xl border border-solid border-[rgba(99,145,255,0.25)] bg-[#0c1f4d] p-5 shadow-[0_10px_30px_rgba(6,16,43,0.4)] md:p-6 text-[#ffffff] ${wide ? "md:col-span-2" : ""}`}
     >
       <div className="flex items-start gap-3.5">
         <span className="grid size-10 shrink-0 place-items-center rounded-full border border-solid border-[rgba(255,255,255,0.2)] bg-[#17326c] text-[#60a5fa] shadow-[0_0_16px_rgba(47,98,255,0.3)]">
@@ -204,13 +204,13 @@ export function ChoiceGroup({
 }) {
   const controlled = onValueChange !== undefined;
   return (
-    <fieldset aria-describedby={error ? `${idPrefix}-${name}-error` : undefined} className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
-      <legend className="mb-1 p-0 text-[13px] font-semibold tracking-wide text-[#ffffff]">{legend}</legend>
-      <div className="grid grid-cols-2 gap-2">
+    <fieldset aria-describedby={error ? `${idPrefix}-${name}-error` : undefined} className="m-0 box-border flex w-full min-w-0 max-w-full flex-col gap-2 border-0 p-0 [min-inline-size:0]">
+      <legend className="mb-1 max-w-full p-0 text-[13px] font-semibold tracking-wide text-[#ffffff]">{legend}</legend>
+      <div className="box-border grid w-full min-w-0 max-w-full grid-cols-2 gap-2">
         {options.map((o, i) => (
           <label
             key={o.value}
-            className={`flex h-full min-h-12 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa] ${o.wide || (options.length % 2 === 1 && i === options.length - 1) ? "col-span-2" : ""}`}
+            className={`box-border flex h-full min-h-12 w-full min-w-0 max-w-full cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa] ${o.wide || (options.length % 2 === 1 && i === options.length - 1) ? "col-span-2" : ""}`}
           >
             <input
               type="radio"
@@ -261,7 +261,7 @@ export function PhoneField({
   return (
     <CardField idPrefix={idPrefix} name="phone" label={label} error={error}>
       <div
-        className={`flex min-w-0 items-stretch rounded-xl border border-solid bg-[#102a63] transition-[border-color,box-shadow,background-color] duration-200 focus-within:bg-[#133175] focus-within:shadow-[0_0_0_3px_rgba(96,165,250,0.25)] ${error ? "border-[#ffb4ab]" : "border-[rgba(116,161,255,0.35)] hover:border-[#8eb0ff] focus-within:border-[#60a5fa]"}`}
+        className={`box-border flex w-full min-w-0 max-w-full items-stretch rounded-xl border border-solid bg-[#102a63] transition-[border-color,box-shadow,background-color] duration-200 focus-within:bg-[#133175] focus-within:shadow-[0_0_0_3px_rgba(96,165,250,0.25)] ${error ? "border-[#ffb4ab]" : "border-[rgba(116,161,255,0.35)] hover:border-[#8eb0ff] focus-within:border-[#60a5fa]"}`}
       >
         <select
           id={`${idPrefix}-phoneCountry`}
@@ -272,7 +272,7 @@ export function PhoneField({
             onCountryChange(e.target.value);
             onNumberChange(cleanPhoneInput(number, e.target.value));
           }}
-          className="w-[104px] max-w-[40%] shrink-0 cursor-pointer rounded-l-xl border-0 border-r border-solid border-[rgba(116,161,255,0.35)] bg-transparent py-3 pr-1 pl-3 text-[16px] tracking-[0] text-[#ffffff] normal-case outline-none md:text-[15px] [&>option]:bg-[#102a63] [&>option]:text-[#ffffff]"
+          className="box-border w-[104px] max-w-[40%] shrink-0 cursor-pointer rounded-l-xl border-0 border-r border-solid border-[rgba(116,161,255,0.35)] bg-transparent py-3 pr-1 pl-3 text-[16px] tracking-[0] text-[#ffffff] normal-case outline-none md:text-[15px] [&>option]:bg-[#102a63] [&>option]:text-[#ffffff]"
         >
           {COUNTRY_CODES.map(([code, iso]) => (
             <option key={code} value={code}>
@@ -343,7 +343,7 @@ export function CountedTextarea({
 
 export function ActionCard({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-solid border-[rgba(99,145,255,0.25)] bg-[#0c1f4d] p-5 text-center shadow-[0_10px_30px_rgba(6,16,43,0.4)] md:col-span-2 md:p-6 text-[#ffffff]">
+    <div className="box-border flex w-full min-w-0 max-w-full flex-col items-center gap-3 rounded-2xl border border-solid border-[rgba(99,145,255,0.25)] bg-[#0c1f4d] p-5 text-center shadow-[0_10px_30px_rgba(6,16,43,0.4)] md:col-span-2 md:p-6 text-[#ffffff]">
       {children}
     </div>
   );
