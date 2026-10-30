@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "@/app/(admin)/admin/_components/icons";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -27,6 +28,7 @@ export function PartnerBookingsClient({
     status: string;
   }>;
 }) {
+  const router = useRouter();
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
@@ -63,7 +65,14 @@ export function PartnerBookingsClient({
                 </tr>
               ) : (
                 bookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-zinc-50/50 transition-colors">
+                  <tr
+                    key={b.id}
+                    className="cursor-pointer transition-colors hover:bg-zinc-50/50"
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest("a, button")) return;
+                      router.push(`/admin/requests/${b.id}`);
+                    }}
+                  >
                     <td className="px-5 py-3.5">
                       <Link href={`/admin/requests/${b.id}`} className="font-mono font-bold text-sky-700 hover:underline">
                         {b.reference}

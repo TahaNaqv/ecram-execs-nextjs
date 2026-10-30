@@ -198,11 +198,14 @@ async function QueueCard({ summary, nowMs, locale }: { summary: QueueSummary; no
 
 function Row({ row, nowMs, targetMs, dueSoonMs, locale, overdueLabel, timeLeftLabel }: { row: OpenEnquiry; nowMs: number; targetMs: number; dueSoonMs: number; locale: "en" | "nl"; overdueLabel: string; timeLeftLabel: string }) {
   return (
-    <li className="grid grid-cols-1 gap-x-4 gap-y-2 py-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(9rem,1fr)] md:items-center" data-enquiry={row.reference}>
+    <li className="relative grid cursor-pointer grid-cols-1 gap-x-4 gap-y-2 py-4 hover:bg-zinc-50 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(9rem,1fr)] md:items-center" data-enquiry={row.reference}>
+      <Link
+        href={`/admin/requests/${row.id}`}
+        aria-label={`${row.reference}, ${row.who}`}
+        className="absolute inset-0 z-10 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+      />
       <div className="min-w-0">
-        <Link href={`/admin/requests/${row.id}`} className="font-mono text-sm font-medium text-sky-700 underline-offset-4 hover:underline">
-          {row.reference}
-        </Link>
+        <p className="m-0 font-mono text-sm font-medium text-sky-700">{row.reference}</p>
         <p className="m-0 truncate text-sm text-zinc-950">{row.who}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <StatusBadge status={row.status} />
@@ -231,11 +234,14 @@ async function Answered({ answered, nowMs, locale }: { answered: AnsweredEnquiry
         <div className="max-h-[260px] overflow-y-auto pr-2 mt-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
           <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0">
             {answered.map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm" data-answered={a.reference}>
+              <li key={a.id} className="relative flex cursor-pointer items-center justify-between gap-3 py-2 text-sm hover:bg-zinc-50" data-answered={a.reference}>
+                <Link
+                  href={`/admin/requests/${a.id}`}
+                  aria-label={`${a.reference}, ${a.who}`}
+                  className="absolute inset-0 z-10 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+                />
                 <span className="min-w-0 truncate">
-                  <Link href={`/admin/requests/${a.id}`} className="font-mono text-xs text-sky-700 underline-offset-4 hover:underline">
-                    {a.reference}
-                  </Link>{" "}
+                  <span className="font-mono text-xs text-sky-700">{a.reference}</span>{" "}
                   <span className="text-zinc-600">{a.who}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">

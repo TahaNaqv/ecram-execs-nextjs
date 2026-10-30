@@ -19,6 +19,7 @@ import {
   XIcon,
 } from "../../_components/icons";
 import { StatusBadge, UrgentBadge } from "../../_components/status-badge";
+import { ClickableRow } from "./clickable-row";
 import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../../_components/ui";
 
@@ -146,6 +147,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   // Where a journey ends: its destination, or for an hourly booking without one, how long the chauffeur is booked
   const journeyEnd = (r: QuoteRequest) =>
     r.destination ?? (r.durationHours ? interpolate(t.requestDetail.durationValue, { hours: r.durationHours }) : null);
+
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const tabs = [
@@ -270,7 +272,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               const destinationsArray = [...(r.destinations ?? []), journeyEnd(r)].filter(Boolean);
               return (
                 <li key={r.id}>
-                  <Link href={`/admin/requests/${r.id}`} className="flex gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
+                  <Link href={`/admin/requests/${r.id}`} className="flex w-full cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
                     <Avatar name={r.name} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
@@ -334,7 +336,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                     : [r.collection, ...(r.destinations ?? []), journeyEnd(r)].filter(Boolean);
 
                   return (
-                    <tr key={r.id} className="group relative transition-colors hover:bg-zinc-50/80">
+                    <ClickableRow key={r.id} href={`/admin/requests/${r.id}`} className="group relative transition-colors hover:bg-zinc-50/80">
                       <td className="py-3.5 pl-5 pr-3">
                         <div className="flex items-center gap-3">
                           {r.status === "new" && <span aria-label={t.requests.unread} className="absolute left-1.5 size-1.5 rounded-full bg-zinc-950" />}
@@ -342,7 +344,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           <div className="min-w-0">
                             <Link
                               href={`/admin/requests/${r.id}`}
-                              className={`block max-w-44 truncate text-zinc-950 after:absolute after:inset-0 after:content-[''] ${
+                              className={`block max-w-44 truncate text-zinc-950 ${
                                 r.status === "new" ? "font-semibold" : "font-medium"
                               }`}
                             >
@@ -416,7 +418,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         </p>
                         <p className="font-mono text-[11px] text-zinc-400">{r.reference}</p>
                       </td>
-                    </tr>
+                    </ClickableRow>
                   );
                 })}
               </tbody>

@@ -194,7 +194,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
       <p class="k">${esc(copy.itinerary)}</p>
       <p class="v">${esc(collection)} → ${esc(destination)}</p>
       <p>${esc(when)}</p>
-      <p>${esc(vehicleName)}${request.passengers ? ` · ${esc(String(request.passengers))}` : ""}</p>
+      <p>${esc(vehicleName)}${request.passengers != null ? ` · ${esc(String(request.passengers))}` : ""}${request.luggage != null ? ` · ${esc(String(request.luggage))}` : ""}</p>
     </div>
   </div>
   <table>
@@ -338,7 +338,8 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
                     </p>
                     <p className="text-zinc-700">
                       {request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—"}
-                      {request.passengers ? ` · ${request.passengers}` : ""}
+                      {request.passengers != null ? ` · ${request.passengers}` : ""}
+                      {request.luggage != null ? ` · ${request.luggage}` : ""}
                     </p>
                   </div>
                 </div>
@@ -483,7 +484,7 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
                 🧳 Luggage
               </p>
-              <p className="font-semibold text-zinc-900 mt-0.5">{(request as any).luggage ?? "Standard / 2 Bags"}</p>
+              <p className="font-semibold text-zinc-900 mt-0.5">{request.luggage ?? "—"}</p>
             </div>
             <div className="col-span-2 pt-2 border-t border-zinc-100">
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">

@@ -177,7 +177,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const fields = [
     "company", "companyNumber", "phoneCountry", "phone", "contactMethod", "signatory", "pointOfCall",
-    "vehicle", "tripTime", "duration", "collection", "destination", "luggage", "returnStatus",
+    "vehicle", "tripTime", "duration", "collection", "destination", "pickupAt", "passengers", "luggage", "returnStatus",
     "notes", "locale",
   ] as const;
   const values: Record<string, string> = Object.fromEntries(fields.map((k) => [k, String(formData.get(k) ?? "")]));
@@ -230,6 +230,8 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       `Average duration needed: ${input.duration.replace("_", "–")} hours`,
       `Collection: ${input.collection}`,
       `Drop-off: ${input.destination}`,
+      `Pick-up (Netherlands): ${input.pickupAt.replace("T", " ")}`,
+      `Passengers: ${input.passengers}`,
       `Stopovers: ${stopLines}`,
       `Luggage: ${input.luggage}`,
       `Journey: ${input.returnStatus === "hourly" ? "hourly" : "one way"}`,
@@ -251,6 +253,8 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             destination: input.destination,
             destinations: input.stops.length ? input.stops.map((stop) => stop.place) : null,
             destinationWaits: input.stops.length ? input.stops.map((stop) => stop.wait) : null,
+            pickupAt: input.pickupAt,
+            passengers: input.passengers,
             luggage: input.luggage,
             vehicle: chosen.fleetKey,
             itinerary,

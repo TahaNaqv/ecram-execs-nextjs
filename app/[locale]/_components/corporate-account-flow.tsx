@@ -17,6 +17,27 @@ type Mode = "signup" | "reset";
 
 const STEP_RANK: Record<Step, number> = { request: 0, code: 1, password: 2 };
 
+const COUNTRY_CODES = [
+  { code: "+31", label: "+31 (NL)", maxLength: 9, placeholder: "612345678" },
+  { code: "+32", label: "+32 (BE)", maxLength: 9, placeholder: "412345678" },
+  { code: "+44", label: "+44 (UK)", maxLength: 10, placeholder: "7123456789" },
+  { code: "+49", label: "+49 (DE)", maxLength: 11, placeholder: "15123456789" },
+  { code: "+33", label: "+33 (FR)", maxLength: 9, placeholder: "612345678" },
+  { code: "+34", label: "+34 (ES)", maxLength: 9, placeholder: "612345678" },
+  { code: "+39", label: "+39 (IT)", maxLength: 10, placeholder: "3123456789" },
+  { code: "+41", label: "+41 (CH)", maxLength: 9, placeholder: "791234567" },
+  { code: "+43", label: "+43 (AT)", maxLength: 10, placeholder: "6501234567" },
+  { code: "+352", label: "+352 (LU)", maxLength: 9, placeholder: "621123456" },
+  { code: "+92", label: "+92 (PK)", maxLength: 10, placeholder: "3001234567" },
+  { code: "+1", label: "+1 (US/CA)", maxLength: 10, placeholder: "4155552671" },
+  { code: "+61", label: "+61 (AU)", maxLength: 9, placeholder: "412345678" },
+  { code: "+971", label: "+971 (AE)", maxLength: 9, placeholder: "501234567" },
+  { code: "+966", label: "+966 (SA)", maxLength: 9, placeholder: "501234567" },
+  { code: "+91", label: "+91 (IN)", maxLength: 10, placeholder: "9812345678" },
+  { code: "+81", label: "+81 (JP)", maxLength: 10, placeholder: "9012345678" },
+  { code: "+86", label: "+86 (CN)", maxLength: 11, placeholder: "13812345678" },
+];
+
 type HeadingRef = {
   headingRef: RefObject<HTMLHeadingElement | null>;
 };
@@ -35,7 +56,6 @@ type Props = {
   mode: Mode;
   locale: Locale;
   initial: { step: Step; email?: string };
-  /** Challenge cookie present when this sign-up page was rendered. Cleared once, so a refresh starts empty. */
   staleChallengeId?: string;
   copy: AccountFlowCopy;
   minutes: number;
@@ -45,7 +65,6 @@ type Props = {
 
 export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy: t, minutes, privacyHref, loginHref }: Props) {
   const router = useRouter();
-  // Sign-up never resumes a previous attempt. Password reset still opens on the step the code is at.
   const start = mode === "signup" ? { step: "request" as Step, email: "" } : initial;
   const [step, setStep] = useState<Step>(start.step);
   const [email, setEmail] = useState(start.email ?? "");
@@ -55,8 +74,6 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
   const first = useRef(true);
   const wasHidden = useRef(false);
   const heldChallenge = useRef(staleChallengeId);
-  // How far this visit got. A later server render that has no challenge left (the account was just created,
-  // or a password reset was dropped) must discard that progress. Sign-up always starts again at the first step.
   const reached = useRef(STEP_RANK[start.step]);
 
   useEffect(() => {
@@ -80,7 +97,6 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
     setFlowKey((n) => n + 1);
   }, [initial.step, initial.email]);
 
-  // The cookie from the render that opened this page. A code asked for afterwards has a different id and is kept.
   useEffect(() => {
     if (mode !== "signup" || !heldChallenge.current) return;
     void abandonSignupChallenge(heldChallenge.current);
@@ -89,8 +105,6 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
   const routerRef = useRef(router);
   routerRef.current = router;
 
-  // Back-forward cache restores the component, action state included, without running the flow again.
-  // Next also keeps this page mounted after a client navigation and runs the effect again on the way back.
   useEffect(() => {
     const clearSignup = () => {
       reached.current = 0;
@@ -215,6 +229,7 @@ function RequestForm({
   onSent,
 }: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; banner?: string; privacyHref: string; onSent: (email: string) => void }) {
   const [attempt, setAttempt] = useState(0);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
   const send = mode === "signup" ? requestCode : requestReset;
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
     const next = await send(prev, formData);
@@ -251,12 +266,54 @@ function RequestForm({
                 defaultValue={v.companyName} aria-invalid={!!err.companyName} className={control} />
             </Field>
             <Field idPrefix="c" label="KVK Number" name="kvkNumber" error={err.kvkNumber}>
-              <input id="c-kvkNumber" name="kvkNumber" type="text" required maxLength={30} autoComplete="off" placeholder="8 digits or reg no."
-                defaultValue={v.kvkNumber} aria-invalid={!!err.kvkNumber} className={control} />
+              <input 
+                id="c-kvkNumber" 
+                name="kvkNumber" 
+                type="text" 
+                required 
+                maxLength={8} 
+                pattern="[0-9]{8}"
+                inputMode="numeric"
+                autoComplete="off" 
+                placeholder="12345678"
+                title="KVK number must be exactly 8 digits"
+                defaultValue={v.kvkNumber} 
+                aria-invalid={!!err.kvkNumber} 
+                className={`${control} px-3 py-2.5 text-xs sm:text-sm`} 
+              />
             </Field>
             <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className="md:col-span-2">
-              <input id="c-phone" name="phone" type="tel" required maxLength={25} autoComplete="off" placeholder="+31 20 123 4567"
-                defaultValue={v.phone} aria-invalid={!!err.phone} className={control} />
+              <div className="flex w-full items-center bg-transparent">
+                <select 
+                  name="phoneCountryCode" 
+                  aria-label="Country Code"
+                  value={selectedCountry.code}
+                  onChange={(e) => {
+                    const found = COUNTRY_CODES.find(c => c.code === e.target.value);
+                    if (found) setSelectedCountry(found);
+                  }}
+                  className="bg-ink-950 text-white border-r border-ink-225 px-2.5 py-2 focus:outline-none font-mono text-xs shrink-0 cursor-pointer"
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.code} value={c.code} className="bg-ink-950 text-white py-1">
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <input 
+                  id="c-phone" 
+                  name="phone" 
+                  type="tel" 
+                  required 
+                  maxLength={selectedCountry.maxLength} 
+                  inputMode="tel"
+                  autoComplete="off" 
+                  placeholder={selectedCountry.placeholder}
+                  defaultValue={v.phone} 
+                  aria-invalid={!!err.phone} 
+                  className={`${control} rounded-none border-0 px-3 text-xs sm:text-sm`} 
+                />
+              </div>
             </Field>
           </>
         )}

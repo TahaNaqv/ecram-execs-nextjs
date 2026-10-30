@@ -1310,7 +1310,7 @@
       "unavailableMaint": "Unavailable / Maint.",
       "iltCompliance": "ILT Compliance",
       "telemetryTitle": "Executive Fleet Telemetry",
-      "telemetryNote": "Live battery SoC, dispatch availability, and ILT compliance",
+     
       "tabSnapshot": "Live Fleet & Availability",
       "tabReminders": "APK / Insurance",
       "colName": "Name",

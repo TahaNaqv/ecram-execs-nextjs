@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AdminDrawer } from "@/app/(admin)/admin/_components/admin-drawer";
 import { AdminModal } from "@/app/(admin)/admin/_components/admin-modal";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
@@ -11,6 +12,7 @@ type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
 export function PartnerProfileClient({ partner, copy }: { partner: any; copy: HubCopy }) {
   // Manage which drawer or modal is active
+  const router = useRouter();
   const [activeDrawer, setActiveDrawer] = useState<"bookings" | "billing" | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -106,7 +108,11 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {partner.recentBookings.map((b: any) => (
-                  <tr key={b.id} className="hover:bg-zinc-50/50">
+                  <tr
+                    key={b.id}
+                    className="cursor-pointer hover:bg-zinc-50/50"
+                    onClick={() => router.push(`/admin/requests/${b.id}`)}
+                  >
                     <td className="px-4 py-3 font-mono text-sky-700 font-bold">{b.reference}</td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-zinc-900">{b.passengerName}</p>

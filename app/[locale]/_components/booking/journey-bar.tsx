@@ -1,7 +1,7 @@
 "use client";
 
 import Form from "next/form";
-import { Fragment, useId, useState, useEffect, useRef, type FormEvent, type ReactNode } from "react";
+import { Fragment, useId, useState, useEffect, useRef, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
@@ -133,9 +133,15 @@ export function JourneyBar({
   };
 
   const invalid = (field: TripField) => problems.includes(field);
+  const focusCell = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("input, textarea, select, button, a, [role='dialog'], [role='listbox'], label")) return;
+    event.currentTarget.querySelector<HTMLElement>("input:not([type='hidden']), textarea, select, button")?.focus();
+  };
   const cell = (field: TripField | null, children: ReactNode, extra = "") => (
     <div
-      className={`relative flex min-w-0 flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 ${
+      onClick={focusCell}
+      className={`relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 ${
         dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
       } ${field && invalid(field) ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`}
     >
@@ -340,6 +346,7 @@ export function JourneyBar({
               describedBy={describedBy("pickupAt")}
               tone={tone}
               size="md"
+              fillCell
               className={`border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`}
             />
           </>,
@@ -427,6 +434,7 @@ export function JourneyBar({
                   describedBy={describedBy("returnAt")}
                   tone={tone}
                   size="md"
+                  fillCell
                   className={`border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`}
                 />,
                 () => {

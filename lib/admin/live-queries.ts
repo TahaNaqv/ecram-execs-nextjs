@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { cache } from "react";
 import { requireAdmin } from "@/lib/auth/session";
+import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { db, schema } from "@/lib/db";
 
 const { vehicles: v, quoteRequests: q, drivers: d, requestEvents: ev, adminUsers, corporateContacts: c } = schema;
@@ -345,7 +346,8 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
     const totalSpend = contactQuotes.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
     const activeBookings = contactQuotes.filter((item) => OPEN_BOOKING.includes(item.status)).length;
     const latestPhone = contactQuotes.find((item) => Boolean(item.phone))?.phone ?? "—";
-    const preferredVehicle = contactQuotes.find((item) => Boolean(item.vehicle))?.vehicle ?? "Mercedes-Benz EQS";
+    const preferredKey = contactQuotes.find((item) => Boolean(item.vehicle))?.vehicle;
+    const preferredVehicle = preferredKey ? (vehicleByKey(preferredKey)?.name ?? preferredKey) : "—";
     const bookings = contactQuotes
       .slice()
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -412,7 +414,10 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
     bookerRole: contact.position,
     email: contact.email,
     phone: bookings.find((b) => Boolean(b.phone))?.phone ?? "—",
-    preferredVehicle: bookings.find((b) => Boolean(b.vehicle))?.vehicle ?? "Mercedes-Benz EQS",
+    preferredVehicle: (() => {
+      const key = bookings.find((b) => Boolean(b.vehicle))?.vehicle;
+      return key ? (vehicleByKey(key)?.name ?? key) : "—";
+    })(),
     status: (contact.lockedUntil && contact.lockedUntil > new Date()
       ? "Suspended"
       : contact.verifiedAt

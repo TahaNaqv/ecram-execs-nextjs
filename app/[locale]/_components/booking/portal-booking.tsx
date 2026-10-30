@@ -53,8 +53,6 @@ export function PortalBooking({
 }) {
   const [state, action, pending] = useActionState<PortalState, FormData>(createBooking, { status: "idle" });
   const locked = state.status === "locked";
-  // A booking that was sent leaves through the action's redirect, so it is counted when it is sent and taken back if the answer is an
-  // error; the next visit to this panel then starts empty instead of with the old trip (QA round 3, bug 3)
   const [round, setRound] = useState(0);
   useResetAfterBooking(() => setRound((r) => r + 1));
   const send = (data: FormData) => {
@@ -64,36 +62,39 @@ export function PortalBooking({
   useEffect(() => {
     if (state.status === "error" || state.status === "locked") unmarkBookingSent();
   }, [state]);
+
   return (
-    <BookingFlow
-      key={round}
-      variant="portal"
-      locale={locale}
-      copy={copy}
-      dateTimeCopy={dateTimeCopy}
-      messages={messages}
-      fleetDict={fleetDict}
-      vehicleAdvise={vehicleAdvise}
-      vehicles={vehicles}
-      initialTrip={initialTrip}
-      initialStep="journey"
-      result={{
-        pending,
-        message: state.status === "error" || locked ? state.message : null,
-        fieldErrors: state.status === "error" ? state.fieldErrors : NO_ERRORS,
-      }}
-      submit={send}
-      booker={booker}
-      defaultPhone={defaultPhone}
-      defaults={defaults}
-      notice={notice}
-      lockedNotice={
-        locked ? (
-          <Link href={loginHref} className="flex h-[52px] flex-1 items-center justify-center rounded-xl bg-ink-950 px-7 text-[14px] font-semibold text-white no-underline hover:bg-ink-800 sm:flex-none">
-            {loginLabel}
-          </Link>
-        ) : undefined
-      }
-    />
+    <div className="relative w-full max-w-full overflow-visible">
+      <BookingFlow
+        key={round}
+        variant="portal"
+        locale={locale}
+        copy={copy}
+        dateTimeCopy={dateTimeCopy}
+        messages={messages}
+        fleetDict={fleetDict}
+        vehicleAdvise={vehicleAdvise}
+        vehicles={vehicles}
+        initialTrip={initialTrip}
+        initialStep="journey"
+        result={{
+          pending,
+          message: state.status === "error" || locked ? state.message : null,
+          fieldErrors: state.status === "error" ? state.fieldErrors : NO_ERRORS,
+        }}
+        submit={send}
+        booker={booker}
+        defaultPhone={defaultPhone}
+        defaults={defaults}
+        notice={notice}
+        lockedNotice={
+          locked ? (
+            <Link href={loginHref} className="flex h-[52px] flex-1 items-center justify-center rounded-xl bg-ink-950 px-7 text-[14px] font-semibold text-white no-underline hover:bg-ink-800 sm:flex-none">
+              {loginLabel}
+            </Link>
+          ) : undefined
+        }
+      />
+    </div>
   );
 }

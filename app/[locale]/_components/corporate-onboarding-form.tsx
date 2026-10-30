@@ -85,9 +85,12 @@ function PassengersSuitcasesSelector({
   return (
     <div className="relative w-full">
       <button
+        id="c-luggage"
         type="button"
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        className={`${cardControl} flex items-center justify-between text-left cursor-pointer !text-[#ffffff]`}
+        className={`${cardControl} flex w-full cursor-pointer items-center justify-between text-left !text-[#ffffff]`}
       >
         <span className="font-medium !text-[#ffffff]">
           {pCount} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
@@ -96,7 +99,12 @@ function PassengersSuitcasesSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-[rgba(99,145,255,0.5)] bg-[#06122d] p-5 text-[#ffffff] shadow-2xl">
+        <div
+          role="dialog"
+          aria-label="Passengers and suitcases"
+          onClick={(event) => event.stopPropagation()}
+          className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-[rgba(99,145,255,0.5)] bg-[#06122d] p-5 text-[#ffffff] shadow-2xl"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="m-0 text-sm font-semibold text-[#ffffff]">Passengers</p>
@@ -113,7 +121,7 @@ function PassengersSuitcasesSelector({
               <span className="w-4 text-center text-sm font-semibold text-[#ffffff]">{pCount}</span>
               <button
                 type="button"
-                onClick={() => onChange(String(pCount + 1), String(sCount))}
+                onClick={() => onChange(String(Math.min(50, pCount + 1)), String(sCount))}
                 className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
               >
                 +
@@ -348,7 +356,7 @@ export function OnboardingForm({
               <input id="c-destination" name="destination" type="text" required maxLength={200} autoComplete="off" placeholder={t.phDestination}
                 {...text("destination")} aria-invalid={!!err.destination} aria-describedby={d("destination")} className={cardControl} />
             </CardField>
-            <CardField idPrefix="c" name="pickupAt" label="Date & Time">
+            <CardField idPrefix="c" name="pickupAt" label="Date & Time" error={err.pickupAt}>
               <input id="c-pickupAt" name="pickupAt" type="datetime-local" required step={60}
                 value={values.pickupAt} onChange={(e) => patch({ pickupAt: e.target.value })}
                 onPointerDown={(event) => {
@@ -363,9 +371,18 @@ export function OnboardingForm({
                   event.currentTarget.value = next;
                   patch({ pickupAt: next });
                 }}
-                aria-describedby={d("pickupAt")} className={`${cardControl} cursor-pointer !text-[#ffffff] [color-scheme:dark] [&::-webkit-datetime-edit]:!text-[#ffffff] [&::-webkit-datetime-edit-fields-wrapper]:!text-[#ffffff] [&::-webkit-datetime-edit-text]:!text-[#ffffff] [&::-webkit-datetime-edit-month-field]:!text-[#ffffff] [&::-webkit-datetime-edit-day-field]:!text-[#ffffff] [&::-webkit-datetime-edit-year-field]:!text-[#ffffff] [&::-webkit-datetime-edit-hour-field]:!text-[#ffffff] [&::-webkit-datetime-edit-minute-field]:!text-[#ffffff] [&::-webkit-calendar-picker-indicator]:opacity-100`} />
+                onClick={(event) => {
+                  const input = event.currentTarget;
+                  if (typeof input.showPicker !== "function") return;
+                  try {
+                    input.showPicker();
+                  } catch {
+                    // Already open, or this browser only opens the picker from its own indicator.
+                  }
+                }}
+                aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={`${cardControl} cursor-pointer !text-[#ffffff] [color-scheme:dark] [&::-webkit-datetime-edit]:!text-[#ffffff] [&::-webkit-datetime-edit-fields-wrapper]:!text-[#ffffff] [&::-webkit-datetime-edit-text]:!text-[#ffffff] [&::-webkit-datetime-edit-month-field]:!text-[#ffffff] [&::-webkit-datetime-edit-day-field]:!text-[#ffffff] [&::-webkit-datetime-edit-year-field]:!text-[#ffffff] [&::-webkit-datetime-edit-hour-field]:!text-[#ffffff] [&::-webkit-datetime-edit-minute-field]:!text-[#ffffff] [&::-webkit-calendar-picker-indicator]:opacity-100`} />
             </CardField>
-            <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage}>
+            <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage ?? err.passengers}>
               <input type="hidden" name="passengers" value={values.passengers} />
               <input type="hidden" name="luggage" value={values.luggage} />
               <PassengersSuitcasesSelector

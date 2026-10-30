@@ -183,7 +183,9 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-full z-40 ${alignEnd ? "left-[-12px] md:max-lg:right-[-12px] md:max-lg:left-auto" : "left-[-12px]"} m-0 mt-4 w-[min(440px,calc(100vw-32px))] list-none rounded-2xl border border-solid p-2 shadow-2xl ${
+          className={`absolute top-full z-40 m-0 mt-4 box-border max-h-[min(20rem,50vh)] w-full min-w-0 max-w-full overflow-y-auto overscroll-contain ${
+            alignEnd ? "right-0 left-auto" : "left-0"
+          } list-none rounded-2xl border border-solid p-2 shadow-2xl ${
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
           }`}
         >

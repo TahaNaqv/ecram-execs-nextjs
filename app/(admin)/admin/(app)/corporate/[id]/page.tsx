@@ -1,7 +1,9 @@
 export const instant = false;
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { formatPickup } from "@/lib/admin/format";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
+import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { PartnerProfileClient } from "./partner-profile-client";
 
@@ -28,6 +30,7 @@ export default async function CorporatePartnerProfilePage({
     notFound();
   }
 
+  const { admin } = await adminDictionary();
   const { partner: p, contact, bookings, totalSpend } = detail;
   const totalTrips = bookings.length;
   const avgTripValue = totalTrips > 0 ? Math.round(totalSpend / totalTrips) : 0;
@@ -58,15 +61,20 @@ export default async function CorporatePartnerProfilePage({
       route:
         b.collection && b.destination
           ? `${b.collection} → ${b.destination}`
-          : b.collection || "Amsterdam VIP Service",
-      vehicle: b.vehicle || "Mercedes-EQS",
-      pickupDate: b.pickupAt ? new Date(b.pickupAt).toLocaleDateString() : "—",
+          : b.collection || "—",
+      vehicle: b.vehicle ? (vehicleByKey(b.vehicle)?.name ?? b.vehicle) : "—",
+      pickupDate: [
+        b.pickupAt ? formatPickup(b.pickupAt) : "—",
+        b.passengers != null ? `${b.passengers} ${admin.requestDetail.passengers}` : null,
+        b.luggage != null ? `${b.luggage} ${admin.requestDetail.luggage}` : null,
+      ]
+        .filter((part) => part != null)
+        .join(" · "),
       amount: Number(b.quotedAmount ?? 0),
       status: b.status,
     })),
     initialNotes: [],
   };
 
-  const { admin } = await adminDictionary();
   return <PartnerProfileClient partner={mappedPartner} copy={admin.corporate.hub} />;
 }

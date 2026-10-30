@@ -17,13 +17,33 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  
+  // Inline editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    licensePlate: string;
+    batterySoC: number;
+    evRangeKm: number;
+    apkExpiry: string;
+    insuranceExpiry: string;
+    iltPermitStatus: string;
+  }>({
+    name: "",
+    licensePlate: "",
+    batterySoC: 100,
+    evRangeKm: 400,
+    apkExpiry: "",
+    insuranceExpiry: "",
+    iltPermitStatus: "Valid",
+  });
+
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setVehicleList(vehicles);
   }, [vehicles]);
 
-  // Derived stats from real database data
   const available = vehicleList.filter((v) => v.status === "available").length;
   const maintenance = vehicleList.filter((v) => v.status === "maintenance" || v.status === "unavailable").length;
   const total = vehicleList.length;
@@ -57,6 +77,40 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
     });
   };
 
+  const handleStartEdit = (veh: VehicleRow) => {
+    setEditingId(veh.id);
+    setEditForm({
+      name: veh.name ?? "",
+      licensePlate: veh.licensePlate ?? "",
+      batterySoC: veh.batterySoC ?? 100,
+      evRangeKm: veh.evRangeKm ?? 400,
+      apkExpiry: veh.apkExpiry ?? "",
+      insuranceExpiry: veh.insuranceExpiry ?? "",
+      iltPermitStatus: veh.iltPermitStatus ?? "Valid",
+    });
+  };
+
+  const handleSaveEdit = (vehId: string) => {
+    setVehicleList((prev) =>
+      prev.map((v) => (v.id === vehId ? { ...v, ...editForm } : v))
+    );
+    setEditingId(null);
+
+    const formData = new FormData();
+    formData.append("id", vehId);
+    formData.append("name", editForm.name);
+    formData.append("licensePlate", editForm.licensePlate);
+    formData.append("batterySoC", String(editForm.batterySoC));
+    formData.append("evRangeKm", String(editForm.evRangeKm));
+    formData.append("apkExpiry", editForm.apkExpiry);
+    formData.append("insuranceExpiry", editForm.insuranceExpiry);
+    formData.append("iltPermitStatus", editForm.iltPermitStatus);
+
+    startTransition(async () => {
+      router.refresh();
+    });
+  };
+
   const handleDownloadReport = () => {
     setReportStatus(copy.compilingReport);
     const headers =
@@ -78,7 +132,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative w-full">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -102,8 +156,8 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
       )}
 
       {/* Main grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-        <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start w-full">
+        <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden w-full">
           <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.telemetryTitle}</h3>
@@ -125,7 +179,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
           {vehicleList.length === 0 ? (
             <p className="p-8 text-center text-sm text-zinc-400">{copy.emptyFleet}</p>
           ) : activeTab === "snapshot" ? (
-            <div className="overflow-x-auto">
+            <div className="w-full">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                   <tr>
@@ -133,7 +187,6 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                     <th className="px-3 py-3">{copy.colPlate}</th>
                     <th className="px-3 py-3">{copy.colBattery}</th>
                     <th className="px-3 py-3">{copy.colRange}</th>
-                    <th className="px-3 py-3">{copy.colIlt}</th>
                     <th className="px-4 py-3 text-center">{copy.colAvailability}</th>
                     <th className="px-4 py-3 text-right">{copy.colAction}</th>
                   </tr>
@@ -141,25 +194,60 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                 <tbody className="divide-y divide-zinc-100">
                   {vehicleList.map((veh) => {
                     const isAvailable = veh.status === "available";
+                    const isEditing = editingId === veh.id;
                     return (
                       <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-medium text-zinc-950 truncate max-w-[160px]">{veh.name}</td>
-                        <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.licensePlate ?? "—"}</td>
-                        <td className="px-3 py-3.5 font-mono">
-                          <span className={veh.batterySoC < 25 ? "text-rose-600 font-bold" : "text-zinc-900"}>
-                            {veh.batterySoC}%
-                          </span>
+                        <td className="px-4 py-3.5 font-medium text-zinc-950">
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editForm.name}
+                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                              className="w-full max-w-[130px] bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            />
+                          ) : (
+                            veh.name
+                          )}
                         </td>
-                        <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.evRangeKm} km</td>
-                        <td className="px-3 py-3.5">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
-                          >
-                            {veh.iltPermitStatus === "Valid" ? copy.permitValid : veh.iltPermitStatus}
-                          </span>
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editForm.licensePlate}
+                              onChange={(e) => setEditForm({ ...editForm, licensePlate: e.target.value })}
+                              className="w-full max-w-[100px] bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            />
+                          ) : (
+                            veh.licensePlate ?? "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5 font-mono">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={editForm.batterySoC}
+                              onChange={(e) => setEditForm({ ...editForm, batterySoC: Number(e.target.value) })}
+                              className="w-16 bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            />
+                          ) : (
+                            <span className={veh.batterySoC < 25 ? "text-rose-600 font-bold" : "text-zinc-900"}>
+                              {veh.batterySoC}%
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={editForm.evRangeKm}
+                              onChange={(e) => setEditForm({ ...editForm, evRangeKm: Number(e.target.value) })}
+                              className="w-20 bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            />
+                          ) : (
+                            `${veh.evRangeKm} km`
+                          )}
                         </td>
                         
-                        {/* Interactive Optimistic Pretty Toggle Switch */}
                         <td className="px-4 py-3.5 text-center">
                           <button
                             type="button"
@@ -177,16 +265,43 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                           </button>
                         </td>
 
-                        {/* Delete Vehicle Action */}
-                        <td className="px-4 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(veh.id, veh.name)}
-                            className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                            title={copy.deleteVehicle}
-                          >
-                            <TrashIcon size={15} />
-                          </button>
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          {isEditing ? (
+                            <div className="inline-flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(veh.id)}
+                                className="text-emerald-600 font-semibold hover:underline cursor-pointer"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId(null)}
+                                className="text-zinc-500 hover:underline cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(veh)}
+                                className="text-blue-600 font-medium hover:underline cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(veh.id, veh.name)}
+                                className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
+                                title={copy.deleteVehicle}
+                              >
+                                <TrashIcon size={15} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -195,7 +310,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
               </table>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="w-full">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                   <tr>
@@ -207,30 +322,95 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicleList.map((veh) => (
-                    <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
-                      <td className="px-4 py-3.5 font-medium text-zinc-950 truncate max-w-[180px]">{veh.name}</td>
-                      <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.apkExpiry ?? "—"}</td>
-                      <td className="px-3 py-3.5 font-mono text-zinc-700">{veh.insuranceExpiry ?? "—"}</td>
-                      <td className="px-3 py-3.5">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
-                        >
-                          {veh.iltPermitStatus === "Valid" ? copy.permitValid : veh.iltPermitStatus}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(veh.id, veh.name)}
-                          className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                          title={copy.deleteVehicle}
-                        >
-                          <TrashIcon size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {vehicleList.map((veh) => {
+                    const isEditing = editingId === veh.id;
+                    return (
+                      <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
+                        <td className="px-4 py-3.5 font-medium text-zinc-950">{veh.name}</td>
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">
+                          {isEditing ? (
+                            <input
+                              type="date"
+                              value={editForm.apkExpiry}
+                              onChange={(e) => setEditForm({ ...editForm, apkExpiry: e.target.value })}
+                              className="bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            />
+                          ) : (
+                            veh.apkExpiry ?? "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">
+                          {isEditing ? (
+                            <input
+                              type="date"
+                              value={editForm.insuranceExpiry}
+                              onChange={(e) => setEditForm({ ...editForm, insuranceExpiry: e.target.value })}
+                              className="bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            />
+                          ) : (
+                            veh.insuranceExpiry ?? "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5">
+                          {isEditing ? (
+                            <select
+                              value={editForm.iltPermitStatus}
+                              onChange={(e) => setEditForm({ ...editForm, iltPermitStatus: e.target.value })}
+                              className="bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                            >
+                              <option value="Valid">Valid</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Expired">Expired</option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
+                            >
+                              {veh.iltPermitStatus === "Valid" ? copy.permitValid : veh.iltPermitStatus}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          {isEditing ? (
+                            <div className="inline-flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(veh.id)}
+                                className="text-emerald-600 font-semibold hover:underline cursor-pointer"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId(null)}
+                                className="text-zinc-500 hover:underline cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(veh)}
+                                className="text-blue-600 font-medium hover:underline cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(veh.id, veh.name)}
+                                className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
+                                title={copy.deleteVehicle}
+                              >
+                                <TrashIcon size={15} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -326,6 +506,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                 <input
                   type="text"
                   name="licensePlate"
+                  required
                   placeholder={copy.platePlaceholder}
                   className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />

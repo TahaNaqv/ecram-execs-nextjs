@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ComponentProps, type ReactNode } from "react";
+import { useId, type ComponentProps, type MouseEvent, type ReactNode } from "react";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -115,9 +115,30 @@ export function CardField({
   className?: string;
   children: ReactNode;
 }) {
+  const controlId = `${idPrefix}-${htmlFor ?? name}`;
+  const activate = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("input, select, textarea, button, a, [role='dialog']")) return;
+    const control = document.getElementById(controlId);
+    if (!control) return;
+    control.focus();
+    if (control instanceof HTMLInputElement && control.type === "datetime-local") {
+      try {
+        control.showPicker();
+      } catch {
+        // Already open, or this browser only opens the picker from its own indicator.
+      }
+    } else if (control instanceof HTMLButtonElement) {
+      control.click();
+    }
+  };
   return (
-    <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
-      <label htmlFor={`${idPrefix}-${htmlFor ?? name}`} className={hideLabel ? "sr-only" : "text-[13px] font-semibold tracking-wide text-[#ffffff]"}>
+    <div className={`flex min-w-0 cursor-pointer flex-col gap-1.5 ${className}`} onClick={activate}>
+      <label
+        htmlFor={controlId}
+        onClick={(event) => event.preventDefault()}
+        className={hideLabel ? "sr-only" : "cursor-pointer text-[13px] font-semibold tracking-wide text-[#ffffff]"}
+      >
         {label}
       </label>
       {children}
@@ -189,7 +210,7 @@ export function ChoiceGroup({
         {options.map((o, i) => (
           <label
             key={o.value}
-            className={`flex min-h-12 min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa] ${o.wide || (options.length % 2 === 1 && i === options.length - 1) ? "col-span-2" : ""}`}
+            className={`flex h-full min-h-12 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa] ${o.wide || (options.length % 2 === 1 && i === options.length - 1) ? "col-span-2" : ""}`}
           >
             <input
               type="radio"

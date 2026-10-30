@@ -78,6 +78,7 @@ export function DateTimeField({
   tone = "light",
   size = "sm",
   allowTyping = false,
+  fillCell = false,
   onValueChange,
 }: {
   id: string;
@@ -92,6 +93,8 @@ export function DateTimeField({
   size?: "sm" | "md";
   /** Visitors choose in the picker (QA round 3, bug 10); the team's own booking form lets staff key in a date they are told by phone. */
   allowTyping?: boolean;
+  /** Stretch the press area over the whole booking-bar cell, label and padding included. */
+  fillCell?: boolean;
   onValueChange?: (value: string) => void;
 }) {
   const initial = useMemo(() => parseDateTime(defaultValue ?? ""), [defaultValue]);
@@ -218,7 +221,7 @@ export function DateTimeField({
   return (
     <div
       ref={root}
-      className="relative flex items-center justify-between w-full min-w-0 gap-1.5"
+      className={`${fillCell && !open ? "" : "relative"} ${open ? "z-[80]" : ""} flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5`}
       onKeyDown={(e) => {
         if (e.key !== "Escape" || !open) return;
         e.stopPropagation();
@@ -226,6 +229,15 @@ export function DateTimeField({
       }}
     >
       {name && <input type="hidden" name={name} value={value} />}
+      {fillCell && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => (open ? closePicker(false) : openPicker())}
+          className="absolute inset-0 z-[1] cursor-pointer border-0 bg-transparent p-0"
+        />
+      )}
       {/* For visitors a date and time are chosen in the picker, not typed: the box only shows the choice, and opens the picker */}
       <input
         ref={input}
@@ -242,7 +254,7 @@ export function DateTimeField({
         aria-haspopup={allowTyping ? undefined : "dialog"}
         aria-expanded={allowTyping ? undefined : open}
         aria-controls={!allowTyping && open ? dialogId : undefined}
-        className={`${(className || "").replace(/\bp-0\b/, "")} flex-1 min-w-0 ${allowTyping ? "" : "cursor-pointer"} text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} outline-none bg-transparent`}
+        className={`${(className || "").replace(/\bp-0\b/, "")} min-w-0 flex-1 ${allowTyping ? "" : "cursor-pointer"} text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} bg-transparent outline-none`}
         onClick={allowTyping ? undefined : () => (open ? closePicker(false) : openPicker())}
         onKeyDown={(e) => {
           if (allowTyping || open || (e.key !== "Enter" && e.key !== " " && e.key !== "ArrowDown")) return;
@@ -267,7 +279,7 @@ export function DateTimeField({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? closePicker(false) : openPicker())}
-        className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent transition-colors ${
+        className={`relative z-[2] grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent transition-colors ${
           tone === "dark" ? "text-ink-300 hover:bg-white/10 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
         }`}
       >
@@ -279,7 +291,7 @@ export function DateTimeField({
           id={dialogId}
           role="dialog"
           aria-label={copy.dialog}
-          className="absolute top-full left-0 z-50 mt-2 w-[18rem] rounded-2xl border border-solid border-ink-200 bg-white p-4 text-left text-ink-950 normal-case shadow-[0_16px_32px_rgba(0,0,0,0.1)] tracking-normal"
+          className="absolute top-full left-0 z-[60] mt-2 w-[18rem] rounded-2xl border border-solid border-ink-200 bg-white p-4 text-left text-ink-950 normal-case shadow-[0_16px_32px_rgba(0,0,0,0.1)] tracking-normal"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-solid border-ink-100">

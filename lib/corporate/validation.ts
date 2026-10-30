@@ -28,7 +28,15 @@ export const CORPORATE_VEHICLE_KEYS = CORPORATE_VEHICLES.map((v) => v.key) as [
 
 type FormMessages = Pick<
   Dictionary["forms"],
-  "emailInvalid" | "nameRequired" | "nameTooLong" | "phoneInvalid" | "phoneCountryInvalid" | "phoneNumberInvalid" | "kvkInvalid" | "notesTooLong"
+  | "emailInvalid"
+  | "nameRequired"
+  | "nameTooLong"
+  | "phoneInvalid"
+  | "phoneCountryInvalid"
+  | "phoneNumberInvalid"
+  | "kvkInvalid"
+  | "notesTooLong"
+  | "pickupInvalid"
 >;
 type CorporateMessages = Pick<
   Dictionary["corporatePartner"],
@@ -110,6 +118,9 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     duration: z.enum(DURATIONS, { error: c.chooseOption }),
     collection: z.string().trim().min(1, c.collectionRequired).max(200, c.fieldTooLong),
     destination: z.string().trim().min(1, c.destinationRequired).max(200, c.fieldTooLong),
+    // Same wall-clock string the date field submits ("YYYY-MM-DDTHH:mm"), stored as Netherlands time
+    pickupAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, f.pickupInvalid),
+    passengers: z.coerce.number({ error: c.chooseOption }).int().min(1, c.chooseOption).max(50, c.chooseOption),
     luggage: z.string().trim().regex(/^(?:[0-9]|1[0-9]|20)$/, c.luggageInvalid).transform(Number),
     returnStatus: z.enum(RETURN_STATUSES, { error: c.chooseOption }),
     stops: z
