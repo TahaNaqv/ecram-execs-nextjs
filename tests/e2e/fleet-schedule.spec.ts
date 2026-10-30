@@ -139,8 +139,8 @@ test("the day schedule shows a column per car with the confirmed bookings, and t
   await expect(block).toContainText("09:00 – 10:30");
   await expect(page.getByRole("link", { name: new RegExp(loose.reference) })).toBeVisible();
   await expect(page.getByText(t.unassigned, { exact: true })).toBeVisible();
-  // A booking that is only quoted holds nothing, so it is not on the schedule
-  await expect(page.getByRole("link", { name: new RegExp(quoted.reference) })).toHaveCount(0);
+  // A quoted booking does not hold a car, and it is still on the day it was booked for
+  await expect(page.getByRole("link", { name: new RegExp(quoted.reference) })).toBeVisible();
   // Another day has none of them
   await page.getByRole("link", { name: t.nextDay }).click();
   await expect(page.getByRole("link", { name: new RegExp(held.reference) })).toHaveCount(0);

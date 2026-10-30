@@ -3,8 +3,9 @@ import { and, asc, inArray, or, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { carKey } from "@/lib/fleet/availability";
-import { blocksOf, overlaps, wallMinutes, wallText } from "@/lib/fleet/schedule";
+import { blocksOf, overlaps, wallMinutes } from "@/lib/fleet/schedule";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
+import type { RequestStatus } from "@/lib/quotes/constants";
 
 const { vehicles: v, quoteRequests: q } = schema;
 
@@ -13,7 +14,7 @@ export type DayBlock = {
   id: string;
   reference: string;
   leg: "outward" | "return";
-  status: "confirmed" | "completed";
+  status: Exclude<RequestStatus, "cancelled">;
   /** Minutes from midnight at which the trip starts and ends (the car stays held for the buffer after it) */
   start: number;
   tripEnd: number;
@@ -53,14 +54,16 @@ export function shiftDay(date: string, days: number) {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
-/** The cars and the confirmed bookings of one day, as the schedule draws them: a column per car, a block per booking. */
+/** Everything still on the books. A cancelled request is no longer a job for that day. */
+const SHOWN = ["new", "contacted", "quoted", "confirmed", "completed"] as const;
+
+/** The cars and every booking of one day, as the schedule draws them: a column per car, a block per booking. */
 export async function daySchedule(date: string): Promise<DaySchedule> {
   await requireAdmin();
   const dayStart = wallMinutes(`${date}T00:00`)!;
   const dayEnd = dayStart + 24 * 60;
-  // A trip plus its buffer is at most a day, so a booking that starts more than a day before cannot reach into this one
-  const lo = wallText(dayStart - 24 * 60);
-  const hi = wallText(dayEnd);
+  // A trip can start the day before and still be on the road after midnight, so yesterday is read too and then clipped to this day
+  const from = shiftDay(date, -1);
 
   const [cars, rows] = await Promise.all([
     db.select({ id: v.id, name: v.name, status: v.status }).from(v).orderBy(asc(v.name)),
@@ -71,8 +74,9 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         status: q.status,
         vehicle: q.vehicle,
         service: q.service,
-        pickupAt: q.pickupAt,
-        returnAt: q.returnAt,
+        // Wall clock as stored. Reading the timestamp through the driver can shift it off this day.
+        pickupAt: sql<string | null>`to_char(${q.pickupAt}, 'YYYY-MM-DD HH24:MI:SS')`,
+        returnAt: sql<string | null>`to_char(${q.returnAt}, 'YYYY-MM-DD HH24:MI:SS')`,
         durationHours: q.durationHours,
         collection: q.collection,
         destination: q.destination,
@@ -83,8 +87,11 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
       .from(q)
       .where(
         and(
-          inArray(q.status, ["confirmed", "completed"]),
-          or(sql`${q.pickupAt} between ${lo}::timestamp and ${hi}::timestamp`, sql`${q.returnAt} between ${lo}::timestamp and ${hi}::timestamp`),
+          inArray(q.status, [...SHOWN]),
+          or(
+            sql`${q.pickupAt} is not null and ${q.pickupAt}::date between ${from}::date and ${date}::date`,
+            sql`${q.returnAt} is not null and ${q.returnAt}::date between ${from}::date and ${date}::date`,
+          ),
         ),
       ),
   ]);
@@ -106,12 +113,14 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
       column = columns.get(key) ?? { key, name: vehicleByKey(key)?.name ?? key, state: null, blocks: [] };
       columns.set(key, column);
     }
-    const status = row.status as "confirmed" | "completed";
+    const status = row.status as (typeof SHOWN)[number];
     let onThisDay = false;
     for (const block of blocksOf({ ...row, blockMinutes: null })) {
       if (!overlaps(block, { start: dayStart, end: dayEnd })) continue;
       onThisDay = true;
       const outward = block.leg === "outward";
+      // Only a confirmed booking holds the car through the turnaround. The others are shown, and nothing more.
+      const heldUntil = status === "confirmed" ? block.end : block.tripEnd;
       column.blocks.push({
         id: row.id,
         reference: row.reference,
@@ -119,7 +128,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         status,
         start: Math.max(block.start, dayStart) - dayStart,
         tripEnd: Math.min(block.tripEnd, dayEnd) - dayStart,
-        end: Math.min(block.end, dayEnd) - dayStart,
+        end: Math.min(heldUntil, dayEnd) - dayStart,
         clipsStart: block.start < dayStart,
         clipsEnd: block.end > dayEnd,
         // The return journey runs the other way

@@ -7,6 +7,7 @@ import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { amsterdamToday, daySchedule, shiftDay, UNASSIGNED, type DayBlock, type DayColumn } from "@/lib/admin/schedule";
 import { layOut } from "@/lib/fleet/schedule";
+import type { RequestStatus } from "@/lib/quotes/constants";
 import { ChevronLeftIcon, ChevronRightIcon } from "../../../_components/icons";
 import { btn, Card, field, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
 import { ScrollToMorning } from "./scroll-to-morning";
@@ -140,7 +141,7 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
             </div>
 
             {schedule.columns.map((c) => (
-              <Lane key={c.key} column={c} copy={t} />
+              <Lane key={c.key} column={c} copy={t} statuses={admin.statuses} />
             ))}
           </div>
         </ScrollToMorning>
@@ -153,7 +154,23 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
   );
 }
 
-function Lane({ column, copy: t }: { column: DayColumn; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["schedule"] }) {
+const TONE: Record<Exclude<RequestStatus, "cancelled">, string> = {
+  new: "border-zinc-300 bg-white text-zinc-800",
+  contacted: "border-sky-300 bg-sky-50 text-sky-950",
+  quoted: "border-amber-300 bg-amber-50 text-amber-950",
+  confirmed: "border-emerald-400 bg-emerald-50 text-emerald-950",
+  completed: "border-zinc-300 bg-zinc-100 text-zinc-600",
+};
+
+function Lane({
+  column,
+  copy: t,
+  statuses,
+}: {
+  column: DayColumn;
+  copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["schedule"];
+  statuses: Record<RequestStatus, string>;
+}) {
   const off = column.state !== null && column.state !== "available";
   const placed = layOut(column.blocks);
   return (
@@ -165,41 +182,50 @@ function Lane({ column, copy: t }: { column: DayColumn; copy: Awaited<ReturnType
       }}
     >
       {placed.map((b) => (
-        <Block key={`${b.id}-${b.leg}`} block={b} lane={b.lane} lanes={b.lanes} copy={t} />
+        <Block key={`${b.id}-${b.leg}`} block={b} lane={b.lane} lanes={b.lanes} copy={t} statuses={statuses} />
       ))}
     </div>
   );
 }
 
-function Block({ block: b, lane, lanes, copy: t }: { block: DayBlock; lane: number; lanes: number; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["schedule"] }) {
+function Block({
+  block: b,
+  lane,
+  lanes,
+  copy: t,
+  statuses,
+}: {
+  block: DayBlock;
+  lane: number;
+  lanes: number;
+  copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["schedule"];
+  statuses: Record<RequestStatus, string>;
+}) {
   const top = (b.start / 60) * HOUR_PX;
   const height = Math.max(((b.tripEnd - b.start) / 60) * HOUR_PX, 30);
   const bufferHeight = ((b.end - b.tripEnd) / 60) * HOUR_PX;
   const width = 100 / lanes;
-  const done = b.status === "completed";
   const route = [b.from, b.to].filter(Boolean).join(" → ");
   const who = b.entity ? `${b.name} · ${b.entity}` : b.name;
   return (
     <>
       <Link
         href={`/admin/requests/${b.id}`}
-        title={[b.reference, who, route, b.clash ? t.clash : ""].filter(Boolean).join("\n")}
-        className={`absolute z-[1] overflow-hidden rounded-md border px-2 py-1 text-[11px] leading-snug shadow-sm transition-shadow hover:z-[5] hover:shadow-md ${
-          done ? "border-zinc-300 bg-zinc-100 text-zinc-600" : "border-emerald-400 bg-emerald-50 text-emerald-950"
-        } ${b.clash ? "ring-2 ring-red-500" : ""}`}
+        title={[b.reference, who, route, statuses[b.status], b.clash ? t.clash : ""].filter(Boolean).join("\n")}
+        className={`absolute z-[1] overflow-hidden rounded-md border px-2 py-1 text-[11px] leading-snug shadow-sm transition-shadow hover:z-[5] hover:shadow-md ${TONE[b.status]} ${b.clash ? "ring-2 ring-red-500" : ""}`}
         style={{ top, height, left: `calc(${lane * width}% + 3px)`, width: `calc(${width}% - 6px)` }}
       >
         <span className="block font-semibold tabular-nums">
           {b.clipsStart ? "…" : clock(b.start)} – {b.clipsEnd && b.tripEnd >= 24 * 60 ? "…" : clock(b.tripEnd)}
-          {b.leg === "return" && <span className="ml-1 font-medium text-emerald-700">· {t.returnLeg}</span>}
-          {done && <span className="ml-1 font-medium">· {t.completed}</span>}
+          {b.leg === "return" && <span className="ml-1 font-medium opacity-80">· {t.returnLeg}</span>}
+          {b.status !== "confirmed" && <span className="ml-1 font-medium">· {statuses[b.status]}</span>}
         </span>
         {b.clash && <span className="sr-only">{t.clash}</span>}
         <span className="block truncate font-mono">{b.reference}</span>
         <span className="block truncate">{who}</span>
         {route && <span className="block truncate text-[10.5px] opacity-80">{route}</span>}
       </Link>
-      {bufferHeight > 0 && !done && (
+      {bufferHeight > 0 && b.status === "confirmed" && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute rounded-b-md border border-t-0 border-emerald-300/70 bg-[repeating-linear-gradient(45deg,transparent_0,transparent_4px,rgb(167_243_208/0.6)_4px,rgb(167_243_208/0.6)_8px)]"
