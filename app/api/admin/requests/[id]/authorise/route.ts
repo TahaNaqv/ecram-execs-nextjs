@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { routeBlockMinutes } from "@/lib/fleet/route";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 import { after } from "next/server";
 import { emailPartnerBooking, emailEnquiryStatus } from "@/lib/email";
@@ -34,16 +35,24 @@ export async function POST(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
+    // Confirming also fixes how long the car is held: the route's length, asked for here, before the fleet lock is taken
+    // (Google can be slow, and nobody else should wait on it). It is only ever an improvement on the estimate.
+    const confirming = newStatus === "confirmed" && current.status !== "confirmed";
+    const routed = confirming && current.blockMinutes == null ? await routeBlockMinutes(current) : null;
+
     // Confirming gives the booking its car: refused while another confirmed booking holds that car at that time.
     // The look and the save happen together under the fleet lock, so two people confirming at once cannot both pass.
     const result = await db.transaction(async (tx) => {
+      let length: number | null = null;
       if (newStatus === "confirmed") {
         await lockFleet(tx);
         // Read again under the lock: the car may have been changed while this request was on its way
         const [fresh] = await tx.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
         if (!fresh) return { missing: true } as const;
         // A booking that is already confirmed holds its car: saving it again (a new amount, a resent email) is not a new hold
-        const clash = fresh.status === "confirmed" ? null : await clashingReference(tx, fresh);
+        // Someone else (a partner accepting the quote) may have confirmed it meanwhile: then its length is theirs, not this one
+        if (fresh.status !== "confirmed") length = fresh.blockMinutes ?? routed;
+        const clash = fresh.status === "confirmed" ? null : await clashingReference(tx, { ...fresh, blockMinutes: length });
         if (clash) return { clash } as const;
       }
       const [row] = await tx
@@ -52,6 +61,7 @@ export async function POST(
           status: newStatus,
           quotedAmount: amountStr,
           updatedAt: new Date(),
+          ...(length && length !== current.blockMinutes ? { blockMinutes: length } : {}),
         })
         .where(eq(schema.quoteRequests.id, id))
         .returning();

@@ -78,6 +78,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         pickupAt: sql<string | null>`to_char(${q.pickupAt}, 'YYYY-MM-DD HH24:MI:SS')`,
         returnAt: sql<string | null>`to_char(${q.returnAt}, 'YYYY-MM-DD HH24:MI:SS')`,
         durationHours: q.durationHours,
+        blockMinutes: q.blockMinutes,
         collection: q.collection,
         destination: q.destination,
         passengers: q.passengers,
@@ -115,7 +116,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
     }
     const status = row.status as (typeof SHOWN)[number];
     let onThisDay = false;
-    for (const block of blocksOf({ ...row, blockMinutes: null })) {
+    for (const block of blocksOf(row)) {
       if (!overlaps(block, { start: dayStart, end: dayEnd })) continue;
       onThisDay = true;
       const outward = block.leg === "outward";

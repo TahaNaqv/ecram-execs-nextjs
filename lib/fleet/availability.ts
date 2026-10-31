@@ -25,7 +25,7 @@ export function carKey(vehicle: string | null | undefined): string | null {
   return normalizeVehicleKey(vehicle) ?? vehicle;
 }
 
-type ConfirmedRow = { id: string; reference: string; vehicle: string | null; service: string; pickupAt: string | null; returnAt: string | null; durationHours: number | null };
+type ConfirmedRow = { id: string; reference: string; vehicle: string | null; service: string; pickupAt: string | null; returnAt: string | null; durationHours: number | null; blockMinutes: number | null };
 
 /** The confirmed bookings with a particular car whose stretches could touch the given stretches. */
 async function confirmedNear(db: Db, blocks: Block[], excludeId?: string): Promise<ConfirmedRow[]> {
@@ -34,7 +34,7 @@ async function confirmedNear(db: Db, blocks: Block[], excludeId?: string): Promi
   const lo = wallText(Math.min(...blocks.map((b) => b.start)) - 24 * 60);
   const hi = wallText(Math.max(...blocks.map((b) => b.end)));
   return db
-    .select({ id: q.id, reference: q.reference, vehicle: q.vehicle, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours })
+    .select({ id: q.id, reference: q.reference, vehicle: q.vehicle, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes })
     .from(q)
     .where(
       and(
@@ -54,7 +54,7 @@ export async function busyVehicleKeys(window: Window, opts: { excludeId?: string
   for (const row of rows) {
     const key = carKey(row.vehicle);
     if (!key) continue;
-    const theirs = blocksOf({ ...row, status: "confirmed", blockMinutes: null });
+    const theirs = blocksOf({ ...row, status: "confirmed" });
     if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) busy.add(key);
   }
   return busy;
@@ -63,15 +63,15 @@ export async function busyVehicleKeys(window: Window, opts: { excludeId?: string
 /** The reference of the confirmed booking that already holds this car at some point of this trip, or null when it is free. */
 export async function clashingReference(
   tx: Db,
-  booking: { id?: string; vehicle: string | null; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null },
+  booking: { id?: string; vehicle: string | null; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null },
 ): Promise<string | null> {
   const key = carKey(booking.vehicle);
   if (!key || !booking.pickupAt) return null;
-  const mine = blocksOf({ id: booking.id ?? "new", status: "confirmed", service: booking.service, pickupAt: booking.pickupAt, returnAt: booking.returnAt, durationHours: booking.durationHours, blockMinutes: null });
+  const mine = blocksOf({ id: booking.id ?? "new", status: "confirmed", service: booking.service, pickupAt: booking.pickupAt, returnAt: booking.returnAt, durationHours: booking.durationHours, blockMinutes: booking.blockMinutes ?? null });
   const rows = await confirmedNear(tx, mine, booking.id);
   for (const row of rows) {
     if (carKey(row.vehicle) !== key) continue;
-    const theirs = blocksOf({ ...row, status: "confirmed", blockMinutes: null });
+    const theirs = blocksOf({ ...row, status: "confirmed" });
     if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return row.reference;
   }
   return null;

@@ -30,6 +30,7 @@ import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_com
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { PartnerCard } from "./partner-card";
+import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 
@@ -210,6 +211,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
               vehicle={r.vehicle === "advise" ? "advise" : (normalizeVehicleKey(r.vehicle) ?? "")}
               confirmed={r.status === "confirmed"}
               scheduleHref={r.pickupAt ? `/admin/requests/schedule?date=${r.pickupAt.slice(0, 10)}` : null}
+              tripNote={(r.blockMinutes ? d.admin.schedule.tripRoute : d.admin.schedule.tripEstimate).replace(
+                "{minutes}",
+                String(tripMinutes({ service: r.service, durationHours: r.durationHours, blockMinutes: r.blockMinutes })),
+              )}
               cars={FLEET.map((v) => ({ key: v.key, name: v.name }))}
               copy={d.admin.schedule}
             />

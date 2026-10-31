@@ -3,6 +3,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { isUniqueViolation, makeReference } from "@/lib/request-meta";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { routeBlockMinutes } from "@/lib/fleet/route";
 
 /** A booking was saved as confirmed for a car that another confirmed booking already holds at that time. */
 export class CarClashError extends Error {
@@ -19,12 +20,14 @@ type NewEvent = Omit<typeof schema.requestEvents.$inferInsert, "id" | "requestId
  * never exists without its history. The website, the portal and the team's own booking form all save through here.
  *
  * A booking saved as confirmed holds its car, so it is refused (CarClashError) when another confirmed booking already
- * holds that car at that time. The look and the save happen together under the fleet lock.
+ * holds that car at that time. The look and the save happen together under the fleet lock. A confirmed booking also gets
+ * its trip length from the route (asked before the lock is taken, and only ever an improvement on the estimate).
  *
  * References are random, so two can collide; the whole transaction is then retried with a new one (a failed insert
  * cannot be retried inside the transaction it broke). Any other error is thrown for the caller to log and report.
  */
-export async function createQuoteRequest(values: NewQuoteRequest, events: NewEvent[] = [{ event: "received" }]): Promise<QuoteRequest> {
+export async function createQuoteRequest(input: NewQuoteRequest, events: NewEvent[] = [{ event: "received" }]): Promise<QuoteRequest> {
+  const values = input.status === "confirmed" && input.blockMinutes == null ? { ...input, blockMinutes: await routeBlockMinutes(input) } : input;
   for (let attempt = 1; ; attempt++) {
     try {
       return await db.transaction(async (tx) => {
@@ -36,6 +39,7 @@ export async function createQuoteRequest(values: NewQuoteRequest, events: NewEve
             returnAt: values.returnAt ?? null,
             service: values.service,
             durationHours: values.durationHours ?? null,
+            blockMinutes: values.blockMinutes ?? null,
           });
           if (clash) throw new CarClashError(clash);
         }

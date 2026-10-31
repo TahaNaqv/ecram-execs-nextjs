@@ -1476,7 +1476,7 @@
       "clash": "Overlapt een andere bevestigde boeking: geef een van beide een andere auto",
       "completed": "Afgerond",
       "bufferNote": "De gestreepte tijd na een rit is de omlooptijd van de auto (30 minuten), ook bezet.",
-      "legend": "De duur van een rit wordt geschat op basis van de dienst (uurboekingen gebruiken hun uren) totdat het team die instelt.",
+      "legend": "De duur van een rit komt uit de route zodra een boeking is bevestigd (de rit plus tijd om de passagier op te vangen en te laden). Tot die tijd, en als de route niet gevonden wordt, wordt hij geschat op basis van de dienst; uurboekingen gebruiken hun uren.",
       "carTitle": "Auto",
       "carNote": "De auto die deze rit rijdt. Zodra de boeking is bevestigd, is de auto voor deze tijd bezet en kan geen andere boeking hem nemen.",
       "carLabel": "Auto voor deze boeking",
@@ -1487,7 +1487,9 @@
       "carSaved": "Opgeslagen",
       "carHeld": "Bezet in de dagplanning",
       "carSeeSchedule": "Open de dagplanning",
-      "carChoose": "Kies een auto"
+      "carChoose": "Kies een auto",
+      "tripRoute": "Duur van de rit: {minutes} min, volgens de route (plus de omlooptijd erna)",
+      "tripEstimate": "Duur van de rit: circa {minutes} min, geschat op basis van de dienst (de route wordt opgezocht zodra de boeking is bevestigd)"
     }
   },
   "bespokeSection": {

@@ -12,17 +12,20 @@ type Props = {
   vehicle: string;
   confirmed: boolean;
   scheduleHref: string | null;
+  /** How long the trip holds the car, and where that figure comes from (already worded) */
+  tripNote: string;
   cars: { key: string; name: string }[];
   copy: { carNote: string; carLabel: string; carNone: string; carAdvise: string; carSave: string; carSaving: string; carSaved: string; carHeld: string; carSeeSchedule: string };
 };
 
 /** Gives the booking its car. A confirmed booking holds the car on the day schedule; the server refuses a car that is taken. */
-export function AssignVehicle({ id, vehicle, confirmed, scheduleHref, cars, copy }: Props) {
+export function AssignVehicle({ id, vehicle, confirmed, scheduleHref, tripNote, cars, copy }: Props) {
   const [state, action, pending] = useActionState<AssignState, FormData>(assignVehicle, {});
   return (
     <form action={action} className="flex flex-col gap-3 p-5">
       <input type="hidden" name="id" value={id} />
       <p className="m-0 text-[13px] leading-relaxed text-zinc-600">{copy.carNote}</p>
+      <p className="m-0 text-[13px] leading-relaxed text-zinc-600">{tripNote}</p>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="car-for-booking" className={fieldLabel}>
           {copy.carLabel}

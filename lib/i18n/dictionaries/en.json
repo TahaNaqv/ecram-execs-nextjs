@@ -1475,7 +1475,7 @@
       "clash": "Overlaps another confirmed booking: give one of them another car",
       "completed": "Completed",
       "bufferNote": "The striped time after a job is the car's turnaround (30 minutes), also held.",
-      "legend": "Trip lengths are estimated from the service (hourly bookings use their hours) until the team sets them.",
+      "legend": "Trip lengths come from the route when a booking is confirmed (the drive plus time to meet and load). Until then, and when the route cannot be found, they are estimated from the service; hourly bookings use their hours.",
       "carTitle": "Car",
       "carNote": "The car that does this job. Once the booking is confirmed, the car is held for this time and no other booking can take it.",
       "carLabel": "Car for this booking",
@@ -1486,7 +1486,9 @@
       "carSaved": "Saved",
       "carHeld": "Held on the day schedule",
       "carSeeSchedule": "Open the day schedule",
-      "carChoose": "Choose a car"
+      "carChoose": "Choose a car",
+      "tripRoute": "Trip length: {minutes} min, from the route (plus the turnaround after it)",
+      "tripEstimate": "Trip length: about {minutes} min, estimated from the service (the route is looked up when the booking is confirmed)"
     }
   },
   "bespokeSection": {

@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartnerActivity } from "@/lib/email";
 import { chosenCarIsBooked, clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { routeBlockMinutes } from "@/lib/fleet/route";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -124,6 +125,18 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
   const { reference, intent, amount, reason } = input.data;
   const accept = intent === "accept";
 
+  // Accepting confirms the booking, which fixes how long its car is held: the route's length, asked for before the fleet lock
+  // is taken. It is looked up on the booking as it stands now; the one UPDATE below still decides whether the answer applies.
+  let routed: number | null = null;
+  if (accept) {
+    const [open] = await db
+      .select()
+      .from(q)
+      .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount), sql`${q.quotedAmount} = ${amount}::numeric`))
+      .limit(1);
+    if (open && open.blockMinutes == null) routed = await routeBlockMinutes(open);
+  }
+
   let request: QuoteRequest | null = null;
   try {
     request = await db.transaction(async (tx) => {
@@ -137,11 +150,11 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
           .from(q)
           .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount)))
           .limit(1);
-        if (pending) clashWith = await clashingReference(tx, pending);
+        if (pending) clashWith = await clashingReference(tx, { ...pending, blockMinutes: pending.blockMinutes ?? routed });
       }
       const [row] = await tx
         .update(q)
-        .set({ status: accept ? "confirmed" : "cancelled", updatedAt: sql`now()` })
+        .set({ status: accept ? "confirmed" : "cancelled", updatedAt: sql`now()`, ...(accept && routed ? { blockMinutes: routed } : {}) })
         .where(
           and(
             eq(q.reference, reference),
