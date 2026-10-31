@@ -10,6 +10,7 @@ import { layOut } from "@/lib/fleet/schedule";
 import type { RequestStatus } from "@/lib/quotes/constants";
 import { ChevronLeftIcon, ChevronRightIcon } from "../../../_components/icons";
 import { btn, Card, field, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
+import { DayMap } from "./day-map";
 import { ScrollToMorning } from "./scroll-to-morning";
 
 // Allow blocking dynamic rendering under cacheComponents for this route
@@ -146,6 +147,9 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
           </div>
         </ScrollToMorning>
       </Card>
+      <Suspense fallback={<Skeleton className="h-[420px] w-full" />}>
+        <DayMap trips={schedule.trips} locale={who?.locale === "nl" ? "nl" : "en"} copy={t} />
+      </Suspense>
       {schedule.jobs === 0 && <p className="text-sm text-zinc-500">{t.empty}</p>}
       <p className="text-xs text-zinc-500">
         {t.bufferNote} {t.legend}

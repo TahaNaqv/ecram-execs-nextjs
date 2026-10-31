@@ -15,6 +15,10 @@ export type RouteMapLinks = {
   open: string;
 };
 
+/** The browser key for Google's maps (restricted to this site's address, and to the Maps Embed and Maps JavaScript APIs). Read when a page is rendered. */
+export const browserMapKey = (): string | undefined =>
+  process.env.GOOGLE_MAPS_BROWSER_KEY || process.env.GOOGLE_MAPS_EMBED_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || undefined;
+
 /** The Maps Embed API takes up to 20 stops along the way; a booking never has more than a handful. */
 const MAX_WAYPOINTS = 20;
 /** The link that opens Google Maps takes fewer (9 on a computer, 3 on some phones) and breaks the route when given more. */

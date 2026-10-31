@@ -7,22 +7,42 @@ const supabaseOrigin = process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_U
 // Inline styles are used throughout the ported design and Next.js injects inline
 // bootstrap scripts, so 'unsafe-inline' is required; everything else is locked to this origin.
 // When adding a third party (analytics, video embeds, chat), extend the matching directive.
-const csp = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  `connect-src 'self' ${supabaseOrigin}`.trim(),
-  "media-src 'self'",
-  // The route map on an admin booking page is Google's Maps Embed
-  "frame-src https://www.google.com",
-  "frame-ancestors 'none'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "upgrade-insecure-requests",
-].join("; ");
+const BASE_DIRECTIVES: Record<string, string> = {
+  "default-src": "'self'",
+  "script-src": "'self' 'unsafe-inline'",
+  "style-src": "'self' 'unsafe-inline'",
+  "img-src": "'self' data: blob:",
+  "font-src": "'self'",
+  "connect-src": `'self' ${supabaseOrigin}`.trim(),
+  "media-src": "'self'",
+  "frame-ancestors": "'none'",
+  "object-src": "'none'",
+  "base-uri": "'self'",
+  "form-action": "'self'",
+};
+
+/** The policy as one line: the base, with each extra source added to its directive (a directive the base lacks is added whole). */
+const policy = (extra: Record<string, string> = {}) =>
+  [
+    ...Object.keys({ ...BASE_DIRECTIVES, ...extra }).map((name) => `${name} ${[BASE_DIRECTIVES[name], extra[name]].filter(Boolean).join(" ")}`),
+    "upgrade-insecure-requests",
+  ].join("; ");
+
+const csp = policy();
+
+// The admin shows Google's maps: the route on a booking page (an embedded frame) and the day map on the schedule (Maps
+// JavaScript API, which loads its own script, tiles, fonts and a worker; the list is Google's own for it). Only the admin is
+// given this; the public site keeps the strict policy above.
+const GOOGLE = "https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com https://*.ggpht.com";
+const adminCsp = policy({
+  "script-src": `${GOOGLE} blob:`,
+  "style-src": "https://fonts.googleapis.com",
+  "img-src": GOOGLE,
+  "font-src": "https://fonts.gstatic.com",
+  "connect-src": `${GOOGLE} data: blob:`,
+  "frame-src": "https://www.google.com",
+  "worker-src": "blob:",
+});
 
 const securityHeaders = [
   ...(isProd ? [{ key: "Content-Security-Policy", value: csp }] : []),
@@ -59,6 +79,8 @@ const nextConfig: NextConfig = {
       {
         source: "/admin/:path*",
         headers: [
+          // Listed after the rule for every path, so this one replaces the public policy on admin pages
+          ...(isProd ? [{ key: "Content-Security-Policy", value: adminCsp }] : []),
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
           { key: "Cache-Control", value: "private, no-store" },
         ],

@@ -1,10 +1,16 @@
 import { randomInt } from "node:crypto";
+import { execFile } from "node:child_process";
 import http from "node:http";
+import { promisify } from "node:util";
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { MAX_TRIP_MINUTES } from "../../lib/fleet/schedule";
 import { amsterdamInstant, blockMinutesFor, parseDuration } from "../../lib/fleet/trip";
 import { fillAdminLogin } from "./helpers";
+
+const run = promisify(execFile);
+// Google's own example of an encoded route: three points
+const LINE = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
 
 /**
  * A confirmed booking holds its car for the length of the route (Google Routes) plus an allowance, not for a guess.
@@ -81,7 +87,8 @@ test.describe("with a stand-in Routes server", () => {
           res.writeHead(500).end("boom");
           return;
         }
-        res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ routes: [{ duration: `${driveSeconds}s` }] }));
+        const wantsLine = String(req.headers["x-goog-fieldmask"]).includes("polyline");
+        res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ routes: [{ duration: `${driveSeconds}s`, ...(wantsLine ? { polyline: { encodedPolyline: LINE } } : {}) }] }));
       });
     });
     await new Promise<void>((resolve) => server.listen(PORT, "127.0.0.1", resolve));
@@ -97,14 +104,14 @@ test.describe("with a stand-in Routes server", () => {
     await clean();
   });
 
-  type Seed = { status?: string; vehicle?: string; at: string; service?: string; block?: number | null; hours?: number | null; placeIds?: boolean; stops?: string[]; waits?: number[] };
+  type Seed = { status?: string; vehicle?: string; at: string; service?: string; block?: number | null; hours?: number | null; placeIds?: boolean; stops?: string[]; waits?: number[]; from?: string; to?: string };
 
   async function seed(s: Seed) {
     const db = sql();
     try {
       const [row] = await db`
         insert into quote_requests (reference, status, service, collection, destination, destinations, destination_waits, pickup_at, duration_hours, block_minutes, pickup_place_id, destination_place_id, vehicle, name, email, phone, source)
-        values (${makeRef()}, ${s.status ?? "quoted"}, ${s.service ?? "airport_transfer"}, 'Schiphol Airport', 'Hotel Des Indes, The Hague',
+        values (${makeRef()}, ${s.status ?? "quoted"}, ${s.service ?? "airport_transfer"}, ${s.from ?? "Schiphol Airport"}, ${s.to ?? "Hotel Des Indes, The Hague"},
                 ${s.stops ? db.array(s.stops, 1009) : null}, ${s.waits ? db.array(s.waits, 1007) : null}, ${s.at}::text::timestamp, ${s.hours ?? null}, ${s.block ?? null},
                 ${s.placeIds ? "ChIJschiphol00000" : null}, ${null}, ${s.vehicle ?? "audi"}, 'Trip Length', ${EMAIL}, '+31 6 1234 5678', 'admin')
         returning id`;
@@ -204,6 +211,74 @@ test.describe("with a stand-in Routes server", () => {
     expect((await confirm(page, done)).status()).toBe(200);
     expect((await block(done)).block_minutes).toBe(75);
     expect(calls).toHaveLength(0);
+  });
+
+  async function backfill(...args: string[]) {
+    const { stdout } = await run(process.execPath, ["scripts/backfill-trip-lengths.mts", ...args], { env: { ...process.env, DATABASE_URL_DIRECT: process.env.DATABASE_URL } });
+    return stdout;
+  }
+
+  test("the backfill script looks up the bookings confirmed before Google, saves what fits and leaves an overlap alone", async () => {
+    test.slow();
+    driveSeconds = 9000; // 150 minutes of driving and 30 for the airport: three hours
+    // A would run 09:00 to 12:00 (and its turnaround to 12:30), which runs into B at 11:00 in the same car; C has a car of its own
+    const a = await seed({ at: `${DAY}T09:00`, status: "confirmed", vehicle: "audi" });
+    const b = await seed({ at: `${DAY}T11:00`, status: "confirmed", vehicle: "audi" });
+    const c = await seed({ at: `${DAY}T09:00`, status: "confirmed", vehicle: "mercedes_vle" });
+    const hourly = await seed({ at: `${DAY}T14:00`, status: "confirmed", service: "hourly", hours: 3, vehicle: "range_rover" });
+    const known = await seed({ at: `${DAY}T16:00`, status: "confirmed", block: 75, vehicle: "cadillac_escalade" });
+
+    const dry = await backfill();
+    expect(dry).toContain("Dry run");
+    expect(dry).toContain("CLASH");
+    expect(dry).toContain("would save");
+    for (const id of [a, b, c, hourly, known]) expect((await block(id)).block_minutes).toBe(id === known ? 75 : null);
+
+    const done = await backfill("--apply");
+    expect(done).toContain("Saved: 2.");
+    expect((await block(a)).block_minutes).toBeNull(); // left at the estimate, for the team to sort out
+    expect((await block(b)).block_minutes).toBe(180);
+    expect((await block(c)).block_minutes).toBe(180);
+    expect((await block(hourly)).block_minutes).toBeNull(); // not routed
+    expect((await block(known)).block_minutes).toBe(75); // already has a length
+
+    // A second run finds A again (still an overlap now B is longer) and nothing else
+    const again = await backfill("--apply");
+    expect(again).toContain("1 upcoming confirmed booking(s)");
+    expect(again).toContain("Saved: 0.");
+  });
+
+  test("the day map asks Google for each confirmed trip once, and a trip Google could not find is asked about again", async ({ page }) => {
+    test.skip(!process.env.GOOGLE_MAPS_EMBED_KEY, "Set GOOGLE_MAPS_EMBED_KEY (as the site is started) to run the day map tests");
+    test.slow();
+    const from = `Day Map Start ${randomInt(1e6)}`;
+    const id = await seed({ at: `${DAY}T09:00`, status: "confirmed", vehicle: "audi", from, to: "Day Map End" });
+    await seed({ at: `${DAY}T10:00`, status: "quoted", vehicle: "audi", from: `${from} quoted`, to: "Day Map End" });
+    await signIn(page);
+    const violations: string[] = [];
+    page.on("console", (m) => m.text().includes("Content Security Policy") && violations.push(m.text()));
+    const lines = () => calls.filter((c) => c.mask?.includes("polyline")).length;
+
+    // Google cannot answer: the map says so, and nothing is remembered
+    answer = "down";
+    await page.goto(`/admin/requests/schedule?date=${DAY}`);
+    await expect(page.getByText("None of this day's routes could be found.")).toBeVisible();
+    expect(lines()).toBe(1);
+
+    // Google can: the trip is on the map, and only the confirmed one (a quote holds nothing)
+    answer = "ok";
+    await page.goto(`/admin/requests/schedule?date=${DAY}`);
+    const trips = page.getByRole("list").filter({ has: page.getByRole("button", { name: new RegExp(from) }) });
+    await expect(trips.getByRole("button")).toHaveCount(1);
+    await expect(trips.getByRole("link", { name: "Open" })).toHaveAttribute("href", `/admin/requests/${id}`);
+    expect(lines()).toBe(2);
+
+    // Opened again (by anyone), it is not asked for again
+    await page.reload();
+    await expect(trips.getByRole("button")).toHaveCount(1);
+    expect(lines()).toBe(2);
+    // Google's script is let through by the admin's policy
+    expect(violations).toEqual([]);
   });
 
   test("a real length that is longer than the estimate holds the car longer", async ({ page }) => {

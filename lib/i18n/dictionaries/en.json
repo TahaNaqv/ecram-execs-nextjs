@@ -1491,7 +1491,16 @@
       "carSeeSchedule": "Open the day schedule",
       "carChoose": "Choose a car",
       "tripRoute": "Trip length: {minutes} min, from the route (plus the turnaround after it)",
-      "tripEstimate": "Trip length: about {minutes} min, estimated from the service (the route is looked up when the booking is confirmed)"
+      "tripEstimate": "Trip length: about {minutes} min, estimated from the service (the route is looked up when the booking is confirmed)",
+      "mapTitle": "Routes of the day",
+      "mapNote": "Confirmed trips, one colour per car. Pick a trip to see its route; the dot is where it starts and the arrow where it ends.",
+      "mapNoKey": "The map is not set up yet. It needs the Google keys for routes and for the browser map to be on the server.",
+      "mapNoRoutes": "None of this day's routes could be found.",
+      "mapFailed": "Trips whose route could not be found: {count}",
+      "mapFrame": "Map of the day's routes",
+      "mapTrips": "Trips on the map",
+      "mapOpen": "Open",
+      "mapShowAll": "Show all"
     }
   },
   "bespokeSection": {

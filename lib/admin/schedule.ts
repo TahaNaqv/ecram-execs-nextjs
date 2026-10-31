@@ -3,7 +3,9 @@ import { and, asc, inArray, or, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { carKey } from "@/lib/fleet/availability";
+import type { RoutedBooking } from "@/lib/fleet/route";
 import { blocksOf, overlaps, wallMinutes } from "@/lib/fleet/schedule";
+import { ROUTED_SERVICES } from "@/lib/fleet/trip";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import type { RequestStatus } from "@/lib/quotes/constants";
 
@@ -39,7 +41,20 @@ export type DayColumn = {
   blocks: DayBlock[];
 };
 
-export type DaySchedule = { date: string; columns: DayColumn[]; jobs: number; carsAvailable: number; carsTotal: number };
+/** A confirmed trip of the day that has a route to draw, with what Google needs to find it */
+export type DayTrip = {
+  id: string;
+  reference: string;
+  name: string;
+  /** The car's column key (UNASSIGNED when it has none yet) */
+  car: string;
+  carName: string;
+  /** Minutes from midnight at which it starts on this day */
+  start: number;
+  route: RoutedBooking;
+};
+
+export type DaySchedule = { date: string; columns: DayColumn[]; jobs: number; carsAvailable: number; carsTotal: number; trips: DayTrip[] };
 
 export const UNASSIGNED = "unassigned";
 
@@ -81,6 +96,9 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         blockMinutes: q.blockMinutes,
         collection: q.collection,
         destination: q.destination,
+        destinations: q.destinations,
+        pickupPlaceId: q.pickupPlaceId,
+        destinationPlaceId: q.destinationPlaceId,
         passengers: q.passengers,
         name: q.name,
         entity: q.entity,
@@ -107,6 +125,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   const unassigned: DayColumn = { key: UNASSIGNED, name: "", state: null, blocks: [] };
 
   let jobs = 0;
+  const trips: DayTrip[] = [];
   for (const row of rows) {
     const key = carKey(row.vehicle);
     let column = unassigned;
@@ -116,10 +135,14 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
     }
     const status = row.status as (typeof SHOWN)[number];
     let onThisDay = false;
+    let firstStart: number | null = null;
+    let outwardToday = false;
     for (const block of blocksOf(row)) {
       if (!overlaps(block, { start: dayStart, end: dayEnd })) continue;
       onThisDay = true;
+      firstStart = Math.min(firstStart ?? Infinity, Math.max(block.start, dayStart) - dayStart);
       const outward = block.leg === "outward";
+      if (outward) outwardToday = true;
       // Only a confirmed booking holds the car through the turnaround. The others are shown, and nothing more.
       const heldUntil = status === "confirmed" ? block.end : block.tripEnd;
       column.blocks.push({
@@ -142,6 +165,38 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
       });
     }
     if (onThisDay) jobs++;
+    // Only a confirmed trip with somewhere to go is drawn on the day map
+    if (onThisDay && status === "confirmed" && firstStart !== null && ROUTED_SERVICES.has(row.service) && row.collection && row.destination) {
+      // A trip that is only on this day for its return journey runs the other way
+      const back = !outwardToday;
+      trips.push({
+        id: row.id,
+        reference: row.reference,
+        name: row.name,
+        car: column.key,
+        carName: column.name,
+        start: firstStart,
+        route: back
+          ? {
+              service: row.service,
+              collection: row.destination,
+              destination: row.collection,
+              destinations: [...(row.destinations ?? [])].reverse(),
+              pickupAt: row.returnAt,
+              pickupPlaceId: row.destinationPlaceId,
+              destinationPlaceId: row.pickupPlaceId,
+            }
+          : {
+              service: row.service,
+              collection: row.collection,
+              destination: row.destination,
+              destinations: row.destinations,
+              pickupAt: row.pickupAt,
+              pickupPlaceId: row.pickupPlaceId,
+              destinationPlaceId: row.destinationPlaceId,
+            },
+      });
+    }
   }
 
   // Two confirmed bookings in one car at the same time: only old data (from before the schedule) can do this. Mark both.
@@ -156,5 +211,5 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   for (const column of all) column.blocks.sort((a, b) => a.start - b.start);
   unassigned.blocks.sort((a, b) => a.start - b.start);
   const carsAvailable = all.filter((c) => c.state === "available").length;
-  return { date, columns: unassigned.blocks.length > 0 ? [...all, unassigned] : all, jobs, carsAvailable, carsTotal: cars.length };
+  return { date, columns: unassigned.blocks.length > 0 ? [...all, unassigned] : all, jobs, carsAvailable, carsTotal: cars.length, trips };
 }

@@ -1492,7 +1492,16 @@
       "carSeeSchedule": "Open de dagplanning",
       "carChoose": "Kies een auto",
       "tripRoute": "Duur van de rit: {minutes} min, volgens de route (plus de omlooptijd erna)",
-      "tripEstimate": "Duur van de rit: circa {minutes} min, geschat op basis van de dienst (de route wordt opgezocht zodra de boeking is bevestigd)"
+      "tripEstimate": "Duur van de rit: circa {minutes} min, geschat op basis van de dienst (de route wordt opgezocht zodra de boeking is bevestigd)",
+      "mapTitle": "Routes van de dag",
+      "mapNote": "Bevestigde ritten, één kleur per auto. Kies een rit om de route te zien; de stip is het begin en de pijl het einde.",
+      "mapNoKey": "De kaart is nog niet ingesteld. De Google-sleutels voor routes en voor de browserkaart moeten op de server staan.",
+      "mapNoRoutes": "Van deze dag kon geen enkele route worden gevonden.",
+      "mapFailed": "Ritten waarvan de route niet kon worden gevonden: {count}",
+      "mapFrame": "Kaart van de routes van de dag",
+      "mapTrips": "Ritten op de kaart",
+      "mapOpen": "Openen",
+      "mapShowAll": "Alles tonen"
     }
   },
   "bespokeSection": {

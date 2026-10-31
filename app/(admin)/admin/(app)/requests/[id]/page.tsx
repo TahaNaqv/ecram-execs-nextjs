@@ -32,7 +32,7 @@ import { DeleteRecord } from "../../../_components/delete-record";
 import { PartnerCard } from "./partner-card";
 import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
-import { routeMapLinks } from "@/lib/fleet/map";
+import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 
 async function BackLabel() {
@@ -119,7 +119,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const tel = `tel:${r.phone.replace(/\s/g, "")}`;
   const rd = d.admin.requestDetail;
   // The embedded map needs a browser key (restricted to this site and to the Maps Embed API); without one only the link is shown
-  const links = routeMapLinks(r, process.env.GOOGLE_MAPS_EMBED_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+  const links = routeMapLinks(r, browserMapKey());
   const routeMap = links ? { ...links, openLabel: rd.routeOpen, noKey: rd.routeNoKey, frameTitle: rd.routeFrameTitle } : null;
 
   return (

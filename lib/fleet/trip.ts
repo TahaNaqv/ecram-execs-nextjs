@@ -1,4 +1,4 @@
-import { MAX_TRIP_MINUTES, wallMinutes } from "@/lib/fleet/schedule";
+import { MAX_TRIP_MINUTES, wallMinutes } from "./schedule.ts";
 
 /**
  * How long a car is held for a trip once Google has said how long the drive takes. The route is the drive only: the

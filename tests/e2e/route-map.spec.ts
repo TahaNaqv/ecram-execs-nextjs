@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
 import { routeMapLinks } from "../../lib/fleet/map";
+import { decodePolyline } from "../../lib/fleet/polyline";
 import { fillAdminLogin } from "./helpers";
 
 /** A booking's page shows its route on a map, and always a link that opens the same route in Google Maps. */
@@ -56,6 +57,18 @@ test("a route becomes an embedded map and a link, with the stops on the way, and
   // Nowhere to show
   expect(routeMapLinks({ collection: null, destination: "x" }, "k")).toBeNull();
   expect(routeMapLinks({ collection: "  ", destination: "x" }, "k")).toBeNull();
+});
+
+test("Google's encoded route is read into its points", () => {
+  // The example from Google's own description of the format
+  expect(decodePolyline("_p~iF~ps|U_ulLnnqC_mqNvxq`@")).toEqual([
+    { lat: 38.5, lng: -120.2 },
+    { lat: 40.7, lng: -120.95 },
+    { lat: 43.252, lng: -126.453 },
+  ]);
+  expect(decodePolyline("")).toEqual([]);
+  // Text cut off half way is read as far as it goes, and never loops
+  expect(decodePolyline("_p~iF~ps|U_ulL")).toEqual([{ lat: 38.5, lng: -120.2 }]);
 });
 
 test.describe("on the booking page", () => {
