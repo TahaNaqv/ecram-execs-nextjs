@@ -9,9 +9,9 @@ import type { PlaceHit, PlaceKind } from "./types";
  * request for the place they picked. Asking that request for the id alone keeps it on Google's free "IDs only" tier.
  */
 const API = "https://places.googleapis.com/v1";
-// Clients are collected and dropped across the Benelux and its neighbours; suggestions lean there
-const REGIONS = ["nl", "be", "de", "lu", "fr", "gb", "ch", "at", "dk"];
-const BENELUX = { low: { latitude: 49.4, longitude: 2.5 }, high: { latitude: 53.7, longitude: 7.3 } };
+// Suggestions are for places in the Netherlands only, for now: to serve Belgium or Germany again, add "be" or "de" here
+const REGIONS = ["nl"];
+const NETHERLANDS = { low: { latitude: 50.7, longitude: 3.3 }, high: { latitude: 53.6, longitude: 7.3 } };
 
 export const placesEnabled = () => Boolean(process.env.GOOGLE_MAPS_API_KEY);
 
@@ -40,7 +40,7 @@ export async function autocomplete(input: string, sessionToken: string, language
       sessionToken,
       languageCode,
       includedRegionCodes: REGIONS,
-      locationBias: { rectangle: BENELUX },
+      locationBias: { rectangle: NETHERLANDS },
     }),
   });
   if (!res.ok) throw new Error(`Places autocomplete ${res.status}: ${(await res.text()).slice(0, 300)}`);

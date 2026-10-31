@@ -281,6 +281,17 @@ test.describe("with a stand-in Routes server", () => {
     expect(violations).toEqual([]);
   });
 
+  test("the dashboard draws today's confirmed trips on its map", async ({ page }) => {
+    test.skip(!process.env.GOOGLE_MAPS_EMBED_KEY, "Set GOOGLE_MAPS_EMBED_KEY (as the site is started) to run the map tests");
+    test.slow();
+    const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Amsterdam", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    await seed({ at: `${today}T23:00`, status: "confirmed", vehicle: "audi", from: `Dashboard Start ${randomInt(1e6)}`, to: "Dashboard End" });
+    await signIn(page);
+    await page.goto("/admin");
+    await expect(page.getByText("Trips on the map")).toBeVisible();
+    await expect(page.getByText("No confirmed trips with a route today.")).toHaveCount(0);
+  });
+
   test("a real length that is longer than the estimate holds the car longer", async ({ page }) => {
     test.slow();
     // The route took three hours: 09:00 to 12:00, and the turnaround until 12:30. The estimate would have freed the car at 11:00.

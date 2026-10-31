@@ -12,7 +12,8 @@ import { serviceLabel } from "@/lib/quotes/constants";
 import { ActivityIcon, BatteryIcon, BriefcaseIcon, CalendarIcon, CarIcon, EuroIcon, InboxIcon, MapIcon } from "../_components/icons";
 import { StatusBadge } from "../_components/status-badge";
 import { Card, CardHeader, EmptyState, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
-import { LiveMap } from "../_components/live-map";
+import { amsterdamToday, daySchedule } from "@/lib/admin/schedule";
+import { DayMap } from "./requests/schedule/day-map";
 
 export const instant = false;
 
@@ -151,7 +152,7 @@ function Pill({ tone, children }: { tone: "good" | "warn" | "bad" | "muted"; chi
 async function ScheduleMap() {
   const { admin: t, locale } = await dashboardCopy();
   const d = t.dashboard;
-  const [rows, fleet] = await Promise.all([upcomingPickups(), fleetStatus()]);
+  const [rows, fleet, today] = await Promise.all([upcomingPickups(), fleetStatus(), daySchedule(amsterdamToday())]);
   const carName = (raw: string | null) => {
     if (!raw) return null;
     const key = normalizeVehicleKey(raw) ?? raw;
@@ -165,16 +166,21 @@ async function ScheduleMap() {
         description={d.mapLiveDescription}
         icon={<MapIcon size={16} />}
         actions={
-          <div className="flex items-center gap-2">
-            <Pill tone="good">{d.realTime}</Pill>
-            <Link href="/admin/dispatch" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
-              {d.dispatchGrid}
-            </Link>
-          </div>
+          <Link href="/admin/requests/schedule" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
+            {d.dispatchGrid}
+          </Link>
         }
       />
       <div className="p-5">
-        <LiveMap />
+        <div className="-mx-5 -mt-5 mb-5 overflow-hidden rounded-t-xl border-b border-zinc-100">
+          {today.trips.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-zinc-500">{d.mapEmpty}</p>
+          ) : (
+            <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+              <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} />
+            </Suspense>
+          )}
+        </div>
 
         <h3 className="mt-6 text-[13px] font-semibold text-zinc-950">{d.nextTitle}</h3>
         <p className="mt-0.5 text-xs text-zinc-500">{d.nextDescription}</p>

@@ -12,8 +12,6 @@ export const CURATED_PLACES: PlaceHit[] = [
   { id: null, name: "Eindhoven Airport", detail: "Eindhoven", kind: "airport", source: "list" },
   { id: null, name: "Groningen Airport Eelde", detail: "Eelde", kind: "airport", source: "list" },
   { id: null, name: "Maastricht Aachen Airport", detail: "Beek", kind: "airport", source: "list" },
-  { id: null, name: "Brussels Airport", detail: "Zaventem", kind: "airport", source: "list" },
-  { id: null, name: "Düsseldorf Airport", detail: "Düsseldorf", kind: "airport", source: "list" },
   { id: null, name: "Schiphol Airport station", detail: "Schiphol", kind: "station", source: "list" },
   { id: null, name: "Amsterdam Centraal", detail: "Amsterdam", kind: "station", source: "list" },
   { id: null, name: "Den Haag Centraal", detail: "Den Haag", kind: "station", source: "list" },

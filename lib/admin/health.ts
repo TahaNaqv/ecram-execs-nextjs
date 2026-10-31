@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { browserMapKey } from "@/lib/fleet/map";
 import { sql } from "drizzle-orm";
 
 export type HealthKey = "database" | "cdt" | "googleMaps" | "mollie" | "whatsappBusiness";
@@ -24,7 +25,7 @@ export async function systemHealth(): Promise<SystemHealthItem[]> {
   }
 
   // 2. Real Environment & API Key Verification
-  const hasGoogleMaps = Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+  const hasGoogleMaps = Boolean(process.env.GOOGLE_MAPS_API_KEY && browserMapKey());
   const hasMollie = Boolean(process.env.MOLLIE_API_KEY);
   const hasWhatsapp = Boolean(process.env.WHATSAPP_ACCESS_TOKEN);
   const hasCdt = Boolean(process.env.CDT_API_ENDPOINT);

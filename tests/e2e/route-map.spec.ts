@@ -136,4 +136,18 @@ test.describe("on the booking page", () => {
     expect(href.pathname).toBe("/maps/search/");
     expect(href.searchParams.get("query")).toBe("Schiphol Airport");
   });
+
+  test("the dashboard shows today's routes, not an invented live feed", async ({ page }) => {
+    test.slow();
+    await page.goto("/admin/login");
+    await fillAdminLogin(page);
+    await expect(page).toHaveURL(/\/admin(?!\/login)/);
+    await page.goto("/admin");
+    await expect(page.getByText("Today's routes", { exact: true })).toBeVisible();
+    await expect(page.getByText("Next pick-ups")).toBeVisible();
+    // The old panel claimed a real-time GPS feed that did not exist
+    await expect(page.getByText(/Real-Time GPS Feed|Confirmed Dispatch|Soft-match/)).toHaveCount(0);
+    // Its link went to a page that does not exist; it now opens the day schedule
+    await expect(page.getByRole("link", { name: "Day schedule →" })).toHaveAttribute("href", "/admin/requests/schedule");
+  });
 });

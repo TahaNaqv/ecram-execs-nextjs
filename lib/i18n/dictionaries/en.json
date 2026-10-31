@@ -872,16 +872,16 @@
       "svcMollie": "Mollie Payment API",
       "svcWhatsappBusiness": "WhatsApp Business API",
       "healthNote": "Statuses update dynamically based on live database handshakes and environment keys.",
-      "mapLiveTitle": "Live Interactive Schedule Map - Amsterdam & Schiphol",
-      "mapLiveDescription": "Real-time vehicle GPS tracking & corridor dispatch",
-      "realTime": "Real-Time",
-      "dispatchGrid": "Dispatch Grid →",
+      "mapLiveTitle": "Today's routes",
+      "mapLiveDescription": "Confirmed trips of today, drawn on the map by car",
+      "dispatchGrid": "Day schedule →",
       "fleetLiveTitle": "Fleet",
       "manageFleet": "Manage Fleet →",
       "batteryPct": "{percent}% Battery",
       "rangeKm": "{km} km Range",
       "telemetryConnected": "OBD-II & RDW Registry Connected",
-      "telemetryLive": "100% BEV Telemetry Live"
+      "telemetryLive": "100% BEV Telemetry Live",
+      "mapEmpty": "No confirmed trips with a route today."
     },
     "login": {
       "heading": "Welcome back",
