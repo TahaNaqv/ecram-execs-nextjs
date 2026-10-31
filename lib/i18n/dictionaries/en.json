@@ -970,7 +970,10 @@
       "emailAction": "Email",
       "callAction": "Call",
       "receivedRelative": "Received {when}",
-      "viaSource": "via {source}"
+      "viaSource": "via {source}",
+      "routeOpen": "Open in Google Maps",
+      "routeNoKey": "The map is not set up yet. Use the link above to see the route in Google Maps.",
+      "routeFrameTitle": "Map of the booking's route"
     },
     "drivers": {
       "title": "Drivers",

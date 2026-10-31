@@ -32,6 +32,7 @@ import { DeleteRecord } from "../../../_components/delete-record";
 import { PartnerCard } from "./partner-card";
 import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
+import { routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 
 async function BackLabel() {
@@ -117,6 +118,9 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs quotation ${r.reference}`)}`;
   const tel = `tel:${r.phone.replace(/\s/g, "")}`;
   const rd = d.admin.requestDetail;
+  // The embedded map needs a browser key (restricted to this site and to the Maps Embed API); without one only the link is shown
+  const links = routeMapLinks(r, process.env.GOOGLE_MAPS_EMBED_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+  const routeMap = links ? { ...links, openLabel: rd.routeOpen, noKey: rd.routeNoKey, frameTitle: rd.routeFrameTitle } : null;
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -170,7 +174,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
       {/* Auto-Pricing Gateway */}
       <div className="mt-6">
-        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} />
+        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">

@@ -970,7 +970,10 @@
       "emailAction": "E-mail",
       "callAction": "Bellen",
       "receivedRelative": "Ontvangen {when}",
-      "viaSource": "via {source}"
+      "viaSource": "via {source}",
+      "routeOpen": "Openen in Google Maps",
+      "routeNoKey": "De kaart is nog niet ingesteld. Bekijk de route via de link hierboven in Google Maps.",
+      "routeFrameTitle": "Kaart van de route van de boeking"
     },
     "drivers": {
       "title": "Chauffeurs",

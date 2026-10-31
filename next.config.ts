@@ -15,6 +15,8 @@ const csp = [
   "font-src 'self'",
   `connect-src 'self' ${supabaseOrigin}`.trim(),
   "media-src 'self'",
+  // The route map on an admin booking page is Google's Maps Embed
+  "frame-src https://www.google.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

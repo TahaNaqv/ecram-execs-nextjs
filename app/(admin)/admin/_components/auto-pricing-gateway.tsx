@@ -28,7 +28,20 @@ import {
   ChatIcon
 } from "./icons";
 
-export function AutoPricingGateway({ request, copy, statuses }: { request: QuoteRequest; copy: PricingCopy; statuses: StatusCopy }) {
+/** The booking's route as Google's map knows it (see lib/fleet/map.ts), with the words around it */
+export type RouteMapProps = { embed: string | null; open: string; openLabel: string; noKey: string; frameTitle: string };
+
+export function AutoPricingGateway({
+  request,
+  copy,
+  statuses,
+  routeMap,
+}: {
+  request: QuoteRequest;
+  copy: PricingCopy;
+  statuses: StatusCopy;
+  routeMap?: RouteMapProps | null;
+}) {
   const router = useRouter();
   // Confirmed status stored from the request/backend
   const [status, setStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
@@ -414,20 +427,33 @@ export function AutoPricingGateway({ request, copy, statuses }: { request: Quote
         <div className="flex flex-col gap-5 bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">{copy.itinerary}</h3>
-            <span className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded font-mono">{copy.googleMap}</span>
+            {routeMap ? (
+              <a
+                href={routeMap.open}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1 rounded font-mono hover:bg-zinc-100"
+              >
+                {routeMap.openLabel}
+              </a>
+            ) : (
+              <span className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded font-mono">{copy.googleMap}</span>
+            )}
           </div>
 
-          <div className="relative h-48 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-950 flex flex-col items-center justify-center">
-            <svg className="absolute inset-0 w-full h-full opacity-60" xmlns="http://www.w3.org/2000/svg">
-              <path d="M 30,120 Q 90,40 160,80 T 280,60" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
-              <circle cx="30" cy="120" r="5" fill="#10b981" />
-              <circle cx="160" cy="80" r="5" fill="#3b82f6" />
-              <circle cx="280" cy="60" r="5" fill="#ef4444" />
-            </svg>
-            <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded border border-zinc-200 text-xs text-zinc-900 truncate font-medium text-center">
-              {collection} → {destination}
-            </div>
-          </div>
+          {routeMap &&
+            (routeMap.embed ? (
+              <iframe
+                title={routeMap.frameTitle}
+                src={routeMap.embed}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                className="block h-56 w-full rounded-lg border border-zinc-200 bg-zinc-100"
+              />
+            ) : (
+              <p className="rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-4 text-xs text-zinc-500">{routeMap.noKey}</p>
+            ))}
 
           <div>
             <label className="text-xs font-medium text-zinc-500 block mb-2">{copy.waypoints}</label>
