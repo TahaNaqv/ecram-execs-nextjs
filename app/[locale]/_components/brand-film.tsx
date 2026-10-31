@@ -3,13 +3,13 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-// The client's showreel (supplied 20 Oct 2026, 1080p30, 9 Mbps, 59.7 MB), re-encoded to H.264 high profile 1080p30 at about
-// 3 Mbps (CRF 23, capped at 4.5 Mbps), AAC 160 kbps stereo, faststart: 19.6 MB. The poster is the frame at 3.0 s, where the
-// chauffeur greets the passenger beside the ECRAM EXECS van. A new cut needs new filenames: /assets is cached for 7 days.
-// (The earlier cuts, brand-film.mp4 from scripts/build-brand-film.mts and brand-film-v2.mp4, no longer feed this.)
-const SRC = "/assets/brand-film-v3.mp4";
-const POSTER = "/assets/brand-film-poster-v3.jpg";
-const DURATION = 51; // seconds; keep in step with the film (51.13 s)
+// The client's showreel (new cut supplied 31 Oct 2026, 1080p30, 9 Mbps, 57.3 MB), re-encoded to H.264 high profile 1080p30 at
+// about 3.5 Mbps, AAC 160 kbps stereo, faststart: 21.4 MB. The poster is the frame at 3.0 s, where the chauffeur greets the
+// passenger at the airport. A new cut needs new filenames: /assets is cached for 7 days.
+// (The earlier cuts, brand-film.mp4 from scripts/build-brand-film.mts, brand-film-v2.mp4 and brand-film-v3.mp4, no longer feed this.)
+const SRC = "/assets/brand-film-v4.mp4";
+const POSTER = "/assets/brand-film-poster-v4.jpg";
+const DURATION = 50; // seconds; keep in step with the film (49.85 s)
 
 const formatDuration = (seconds: number) => {
   const s = Math.round(seconds);

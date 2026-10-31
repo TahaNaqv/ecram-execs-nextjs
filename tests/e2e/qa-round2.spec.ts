@@ -228,26 +228,27 @@ test("the privacy policy names the processors the site actually uses, in both la
   }
 });
 
-test("the showreel is the client's new cut: served with ranges, 51 seconds long, and it plays from the poster", async ({ page, request }) => {
+test("the showreel is the client's new cut: served with ranges, 50 seconds long, and it plays from the poster", async ({ page, request }) => {
   // The files exist and the video can be fetched in pieces (a browser starts playing before it has all of it)
-  const partial = await request.get("/assets/brand-film-v3.mp4", { headers: { range: "bytes=0-1023" } });
+  const partial = await request.get("/assets/brand-film-v4.mp4", { headers: { range: "bytes=0-1023" } });
   expect([200, 206]).toContain(partial.status());
   expect(partial.headers()["content-type"]).toContain("video/mp4");
-  const poster = await request.get("/assets/brand-film-poster-v3.jpg");
+  const poster = await request.get("/assets/brand-film-poster-v4.jpg");
   expect(poster.status()).toBe(200);
   expect(poster.headers()["content-type"]).toContain("image/jpeg");
-  // The old cut is gone
+  // The old cuts are gone
   expect((await request.get("/assets/brand-film-v2.mp4")).status()).toBe(404);
+  expect((await request.get("/assets/brand-film-v3.mp4")).status()).toBe(404);
 
   await page.goto("/en");
-  const video = page.locator("video[src='/assets/brand-film-v3.mp4']");
-  await expect(video).toHaveAttribute("poster", "/assets/brand-film-poster-v3.jpg");
+  const video = page.locator("video[src='/assets/brand-film-v4.mp4']");
+  await expect(video).toHaveAttribute("poster", "/assets/brand-film-poster-v4.jpg");
   await video.scrollIntoViewIfNeeded();
   // The poster says how long the film is
-  await expect(page.getByText("00:51", { exact: true })).toBeVisible();
+  await expect(page.getByText("00:50", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: en.film.play }).click();
   await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 15_000 }).toBeGreaterThan(0.5);
   const duration = await video.evaluate((el: HTMLVideoElement) => el.duration);
-  expect(duration).toBeGreaterThan(50);
-  expect(duration).toBeLessThan(52);
+  expect(duration).toBeGreaterThan(49);
+  expect(duration).toBeLessThan(51);
 });

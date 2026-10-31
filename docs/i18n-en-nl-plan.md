@@ -609,5 +609,7 @@ land with the public site to avoid a second migration against production data.
       in Amsterdam). Sampled across its length there is no burnt-in copy except the closing end card:
       the logo and the English tagline "THE ART OF EXECUTIVE HOSPITALITY". The site translates that
       tagline in the emails (`email.tagline`), so a Dutch end card would need a Dutch cut from the client.
+      Update 31 Oct 2026: replaced by the client's re-cut, a 50 s `brand-film-v4.mp4`. Same closing end card
+      (logo and English tagline), no other burnt-in copy in the frames sampled across it.
 - [ ] Dutch register on `drive-with-us` — plan assumes **je**. Confirm with the client; a premium
       brand may prefer **u** even for driver recruitment.
