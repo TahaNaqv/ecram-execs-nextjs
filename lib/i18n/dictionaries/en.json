@@ -230,8 +230,8 @@
   "common": {
     "skipToContent": "Skip to content",
     "requestQuote": "Reserve Your Chauffeur",
-    "sectionPrev": "Scroll up one page",
-    "sectionNext": "Scroll down one page",
+    "sectionPrev": "Previous section",
+    "sectionNext": "Next section",
     "callPhone": "Call {phone}"
   },
   "cookieConsent": {
@@ -289,7 +289,7 @@
     "headingBefore": "Every Journey Is Part",
     "headingEmphasis": "of the Experience",
     "intro": "Experience premium electric chauffeur services across the Netherlands, combining refined comfort, discretion, and effortless travel. From collection to arrival, every journey is tailored to your needs, with punctuality and exceptional service at the heart of the ride.",
-    "corporateLogin": "Corporate Login",
+    "corporateLogin": "Corporate Login / Sign Up",
     "askConcierge": "Ask Our Concierge",
     "scroll": "SCROLL",
     "stripQuiet": "QUIET · REFINED · ELECTRIC",

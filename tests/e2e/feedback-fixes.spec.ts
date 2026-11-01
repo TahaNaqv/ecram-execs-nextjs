@@ -201,7 +201,7 @@ test("the header lists Corporate, The Experience, Destinations, Services, Concie
   }
 });
 
-test("the hero's second button is Corporate Login and opens the sign-in page", async ({ page }) => {
+test("the hero's second button is Corporate Login / Sign Up and opens the sign-in page", async ({ page }) => {
   await page.goto("/en");
   const button = page.locator("#top").getByRole("link", { name: en.hero.corporateLogin });
   await expect(button).toBeVisible();

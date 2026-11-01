@@ -4,9 +4,16 @@ import { useEffect, useRef, useState } from "react";
 
 type Copy = { prev: string; next: string };
 
-/** The sticky header covers the top of the page, so a page is what fits beneath it: its last line is the next page's first. */
+/** The sticky header covers the top of the page, so a section is lined up just beneath it. */
 const headerOffset = () => document.querySelector("header")?.getBoundingClientRect().height ?? 0;
-const pageHeight = () => Math.max(200, window.innerHeight - headerOffset());
+/** Where the page is scrolled to when each section (each block of the home page, then the footer) sits right under the header, top to bottom. */
+const sectionStops = () => {
+  const offset = headerOffset();
+  const blocks = [...(document.querySelector("main")?.children ?? []), ...(document.querySelector("footer") ? [document.querySelector("footer")!] : [])];
+  return blocks
+    .filter((block) => block.getBoundingClientRect().height > 0)
+    .map((block) => Math.max(0, Math.round(block.getBoundingClientRect().top + window.scrollY - offset)));
+};
 const farthest = () => Math.max(0, Math.floor(document.documentElement.scrollHeight - window.innerHeight));
 
 /** The WhatsApp button (components/whatsapp-float.tsx) sits in the same corner, so the arrows stay above it whenever it is shown. */
@@ -16,9 +23,9 @@ const DURATION_MS = 520;
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 /**
- * Floating up/down arrows that turn the page: each press scrolls exactly one page (the height of the screen beneath the
- * header), smoothly. Pressing again before it has finished adds another page to where it was going, not to where it has got
- * to, so a quick run of presses lands exactly that many pages on. The scrolling is done here, frame by frame, rather than by
+ * Floating up/down arrows that move a whole section at a time: each press scrolls smoothly to the top of the next (or
+ * previous) section, lined up under the header, however tall the section is. Pressing again before it has finished moves on
+ * from where it was going, not from where it has got to, so a quick run of presses lands exactly that many sections on. The scrolling is done here, frame by frame, rather than by
  * the browser's own smooth scrolling, which runs at a different pace in every browser and drifts when interrupted; touching
  * the page (wheel, finger, keys) stops it at once. Both buttons stay out of the way until the visitor has scrolled.
  */
@@ -85,7 +92,14 @@ export function SectionNav({ copy }: { copy: Copy }) {
     running.current = { frame: requestAnimationFrame(step), to };
   };
 
-  const go = (direction: -1 | 1) => scrollTo((running.current?.to ?? window.scrollY) + direction * pageHeight());
+  const go = (direction: -1 | 1) => {
+    const from = running.current?.to ?? window.scrollY;
+    const stops = sectionStops().map((top) => Math.min(top, farthest()));
+    // A stop within a couple of pixels of where the page is counts as being at it, so the press goes on to the next one
+    const target = direction === 1 ? stops.find((top) => top > from + 2) : [...stops].reverse().find((top) => top < from - 2);
+    if (target !== undefined) scrollTo(target);
+    else scrollTo(direction === 1 ? farthest() : 0);
+  };
 
   const button =
     "flex h-9 w-9 cursor-pointer md:h-12 md:w-12 items-center justify-center border border-ink-700 bg-ink-950/80 text-ink-50 backdrop-blur-sm transition-colors hover:bg-ink-50 hover:text-ink-950 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-ink-950/80 disabled:hover:text-ink-50";

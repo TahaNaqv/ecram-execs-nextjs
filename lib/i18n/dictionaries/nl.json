@@ -230,8 +230,8 @@
   "common": {
     "skipToContent": "Naar de inhoud",
     "requestQuote": "Reserveer uw chauffeur",
-    "sectionPrev": "Een pagina omhoog",
-    "sectionNext": "Een pagina omlaag",
+    "sectionPrev": "Vorige sectie",
+    "sectionNext": "Volgende sectie",
     "callPhone": "Bel {phone}"
   },
   "cookieConsent": {
@@ -289,7 +289,7 @@
     "headingBefore": "Elke rit is deel",
     "headingEmphasis": "van de ervaring",
     "intro": "Beleef premium elektrische chauffeursdiensten in heel Nederland, met verfijnd comfort, discretie en moeiteloos reizen. Van ophalen tot aankomst is elke rit afgestemd op uw wensen, waarbij punctualiteit en uitzonderlijke service centraal staan.",
-    "corporateLogin": "Zakelijk inloggen",
+    "corporateLogin": "Zakelijk inloggen / aanmelden",
     "askConcierge": "Vraag het onze concierge",
     "scroll": "SCROLL",
     "stripQuiet": "STIL · GERAFFINEERD · ELEKTRISCH",
