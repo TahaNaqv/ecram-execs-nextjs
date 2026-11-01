@@ -33,19 +33,19 @@ export async function SiteFooter() {
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.servicesLabel}
               </span>
-              <Link className="navlink" href={`${home}#services`}>
+              <Link className="navlink" href={`${home}#service-airport`}>
                 {d.footer.linkAirport}
               </Link>
-              <Link className="navlink" href={`${home}#services`}>
+              <Link className="navlink" href={`${home}#service-business`}>
                 {d.footer.linkBusiness}
               </Link>
               <Link className="navlink" href={`${home}#corporate`}>
                 {d.footer.linkCorporate}
               </Link>
-              <Link className="navlink" href={`${home}#services`}>
+              <Link className="navlink" href={`${home}#service-private`}>
                 {d.footer.linkPrivate}
               </Link>
-              <Link className="navlink" href={`${home}#enquire`}>
+              <Link className="navlink" href={`${home}#service-bespoke`}>
                 {d.footer.linkBespoke}
               </Link>
               {siteConfig.contact.address && <span>{`${siteConfig.contact.address}, Netherlands`}</span>}

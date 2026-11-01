@@ -230,8 +230,8 @@
   "common": {
     "skipToContent": "Naar de inhoud",
     "requestQuote": "Reserveer uw chauffeur",
-    "sectionPrev": "Vorige sectie",
-    "sectionNext": "Volgende sectie",
+    "sectionPrev": "Een pagina omhoog",
+    "sectionNext": "Een pagina omlaag",
     "callPhone": "Bel {phone}"
   },
   "cookieConsent": {

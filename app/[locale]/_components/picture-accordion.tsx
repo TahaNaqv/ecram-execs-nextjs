@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export type PictureItem = {
   key: string;
@@ -47,11 +47,47 @@ const VARIANTS = {
  * with no measuring; visitors who ask their device to reduce motion get the same change without the animation (site.css).
  * Details that are folded away are `inert`, so they are neither read out nor reachable with the Tab key.
  */
-export function PictureAccordion({ items, variant }: { items: PictureItem[]; variant: keyof typeof VARIANTS }) {
+export function PictureAccordion({ items, variant, anchorPrefix }: { items: PictureItem[]; variant: keyof typeof VARIANTS; anchorPrefix?: string }) {
   const v = VARIANTS[variant];
   const [open, setOpen] = useState<string | null>(null);
   const id = useId();
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+
+  // With an anchor prefix each card can be linked to (#service-airport): the link scrolls to the card, and the card opens
+  useEffect(() => {
+    if (!anchorPrefix) return;
+    const keyOf = (hash: string) => {
+      let id = hash.replace(/^#/, "");
+      try {
+        id = decodeURIComponent(id);
+      } catch {}
+      return items.find((item) => `${anchorPrefix}-${item.key}` === id)?.key ?? null;
+    };
+    const fromAddress = () => {
+      const key = keyOf(window.location.hash);
+      if (key) setOpen(key);
+    };
+    // A link on this same page changes the address without a page load, so the click itself is watched too
+    const onClick = (e: MouseEvent) => {
+      // A link opened in another tab or window does not change this page. (Not `defaultPrevented`: Next's links prevent the
+      // browser's own navigation and do their own, which is exactly the click this has to see.)
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>("a[href*='#']") : null;
+      if (!link || (link.target && link.target !== "_self")) return;
+      const url = new URL(link.href, window.location.href);
+      const key = url.origin === window.location.origin && url.pathname === window.location.pathname ? keyOf(url.hash) : null;
+      if (key) setOpen(key);
+    };
+    fromAddress();
+    window.addEventListener("hashchange", fromAddress);
+    window.addEventListener("popstate", fromAddress);
+    document.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener("hashchange", fromAddress);
+      window.removeEventListener("popstate", fromAddress);
+      document.removeEventListener("click", onClick);
+    };
+  }, [anchorPrefix, items]);
 
   return (
     <div className={`gap-px border border-ink-825 bg-ink-825 grid ${v.grid}`}>
@@ -62,6 +98,7 @@ export function PictureAccordion({ items, variant }: { items: PictureItem[]; var
         return (
           <article
             key={item.key}
+            id={anchorPrefix ? `${anchorPrefix}-${item.key}` : undefined}
             data-open={isOpen}
             className={`keep-navy reveal-card group relative isolate flex overflow-hidden bg-ink-950 ${v.card}`}
             onKeyDown={(e) => {

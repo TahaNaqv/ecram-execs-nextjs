@@ -27,7 +27,7 @@ export async function Services() {
             </h2>
           </div>
         </div>
-        <PictureAccordion items={items} variant="services" />
+        <PictureAccordion items={items} variant="services" anchorPrefix="service" />
       </div>
     </section>
   );

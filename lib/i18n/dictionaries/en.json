@@ -230,8 +230,8 @@
   "common": {
     "skipToContent": "Skip to content",
     "requestQuote": "Reserve Your Chauffeur",
-    "sectionPrev": "Previous section",
-    "sectionNext": "Next section",
+    "sectionPrev": "Scroll up one page",
+    "sectionNext": "Scroll down one page",
     "callPhone": "Call {phone}"
   },
   "cookieConsent": {
@@ -536,7 +536,7 @@
     "step2Title": "Meet the team",
     "step2Text": "We arrange a short introduction and inspect your car and documents in person.",
     "step3Title": "Start driving",
-    "step3Text": "Once approved you join our platform and receive executive journeys across the Netherlands.",
+    "step3Text": "Once approved, you join our platform and receive executive journeys across the Netherlands.",
     "criteriaEyebrow": "THE CRITERIA",
     "criteriaHeading": "What we ask of your car and of you",
     "approvedModels": "APPROVED MODELS",

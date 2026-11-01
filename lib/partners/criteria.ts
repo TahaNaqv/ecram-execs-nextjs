@@ -93,6 +93,8 @@ export const APPROVED_MODELS: ApprovedModel[] = [
   { make: "MERCEDES-BENZ", models: "EQE, EQE SUV, EQS, EQS SUV", match: /^(EQE|EQS)\b/ },
   // VIP van: at least 6 passengers
   { make: "MERCEDES-BENZ", models: "EQV", match: /^EQV\b/, minSeats: 7 },
+  // The EQV's successor, and the VLE 300 is in our own fleet
+  { make: "MERCEDES-BENZ", models: "VLE 300", match: /^VLE\b/, minSeats: 7 },
   { make: "BMW", models: "i5, i7, iX", match: /^(I5|I7|IX)\b/ },
   { make: "AUDI", models: "Q8 e-tron, e-tron GT", match: /^(S?Q8\b.*\bE ?TRON\b|(R?S )?E ?TRON GT\b)/ },
   { make: "PORSCHE", models: "Taycan (incl. Cross and Sport Turismo), Macan Electric", match: /^(TAYCAN|MACAN)\b/ },
