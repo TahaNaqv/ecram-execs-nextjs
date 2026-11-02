@@ -63,6 +63,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true, // <-- Change this from false to true
   partialPrefetching: true,
   poweredByHeader: false,
+  images: {
+    // 75 is Next's default; the brand film's poster is shown almost full width and asks for 90 so its large still keeps its detail
+    qualities: [75, 90],
+  },
   experimental: {
     // Two root layouts (site + admin) need a global 404 for unmatched URLs
     globalNotFound: true,

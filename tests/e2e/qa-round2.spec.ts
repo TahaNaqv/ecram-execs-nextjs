@@ -233,7 +233,7 @@ test("the showreel is the client's new cut: served with ranges, 50 seconds long,
   const partial = await request.get("/assets/brand-film-v4.mp4", { headers: { range: "bytes=0-1023" } });
   expect([200, 206]).toContain(partial.status());
   expect(partial.headers()["content-type"]).toContain("video/mp4");
-  const poster = await request.get("/assets/brand-film-poster-v4.jpg");
+  const poster = await request.get("/assets/brand-film-poster-v5.jpg");
   expect(poster.status()).toBe(200);
   expect(poster.headers()["content-type"]).toContain("image/jpeg");
   // The old cuts are gone
@@ -242,7 +242,7 @@ test("the showreel is the client's new cut: served with ranges, 50 seconds long,
 
   await page.goto("/en");
   const video = page.locator("video[src='/assets/brand-film-v4.mp4']");
-  await expect(video).toHaveAttribute("poster", "/assets/brand-film-poster-v4.jpg");
+  await expect(video).toHaveAttribute("poster", "/assets/brand-film-poster-v5.jpg");
   await video.scrollIntoViewIfNeeded();
   // The poster says how long the film is
   await expect(page.getByText("00:50", { exact: true })).toBeVisible();

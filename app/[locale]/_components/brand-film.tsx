@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from "react";
 
 // The client's showreel (new cut supplied 31 Oct 2026, 1080p30, 9 Mbps, 57.3 MB), re-encoded to H.264 high profile 1080p30 at
 // about 3.5 Mbps, AAC 160 kbps stereo, faststart: 21.4 MB. The poster is the frame at 3.0 s, where the chauffeur greets the
-// passenger at the airport. A new cut needs new filenames: /assets is cached for 7 days.
+// passenger at the airport, taken from the client's original file (not the re-encode, whose blocks showed) with a light
+// sharpen, as a JPEG at quality 92 without chroma subsampling. A new cut needs new filenames: /assets is cached for 7 days.
 // (The earlier cuts, brand-film.mp4 from scripts/build-brand-film.mts, brand-film-v2.mp4 and brand-film-v3.mp4, no longer feed this.)
 const SRC = "/assets/brand-film-v4.mp4";
-const POSTER = "/assets/brand-film-poster-v4.jpg";
+const POSTER = "/assets/brand-film-poster-v5.jpg";
 const DURATION = 50; // seconds; keep in step with the film (49.85 s)
 
 const formatDuration = (seconds: number) => {
@@ -69,7 +70,7 @@ export function BrandFilm({ copy }: { copy: BrandFilmCopy }) {
         />
         {!playing && (
           <div className="keep-navy p-4 gap-[10px] items-start flex flex-col justify-end absolute inset-0 md:p-7 md:items-end md:justify-end md:gap-0 md:flex-row">
-            <Image className="object-cover" src={POSTER} alt="" fill sizes="(min-width: 1536px) 1392px, (min-width: 1280px) 1232px, 100vw" />
+            <Image className="object-cover" src={POSTER} alt="" fill quality={90} sizes="(min-width: 1536px) 1392px, (min-width: 1280px) 1232px, 100vw" />
             {/* Darkens the daylight still to sit with the site and keep the caption and controls legible */}
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--ec-black-rgb),0.45)_0%,rgba(var(--ec-black-rgb),0.35)_45%,rgba(var(--ec-black-rgb),0.85)_100%)]" aria-hidden="true"></div>
             <button className="top-1/2 left-1/2 border border-ink-250 rounded-full items-center bg-[rgba(var(--ec-black-rgb),0.5)] shadow-[0_0_0_6px_rgba(var(--ec-black-rgb),0.35),0_0_32px_8px_rgba(var(--ec-black-rgb),0.55)] text-white cursor-pointer flex h-14 justify-center absolute [transform:translate(-50%,-50%)] w-14 md:h-24 md:w-24" type="button" onClick={start} aria-label={copy.play} title={copy.playTitle}>
