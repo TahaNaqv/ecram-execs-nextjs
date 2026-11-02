@@ -731,6 +731,7 @@
       "title": "Gesprekken",
       "description": "Gesprekken met de concierge van de website. {days} dagen bewaard, of een jaar wanneer ze bij een bevestigde boeking horen.",
       "summary": "{total} gesprekken bewaard, {booked} leidden tot een boekingsaanvraag.",
+      "range": "{from}–{to} van {total}",
       "empty": "Nog geen gesprekken.",
       "emptyNote": "Gesprekken met de concierge verschijnen hier zodra bezoekers hem gebruiken.",
       "messageOne": "1 bericht",

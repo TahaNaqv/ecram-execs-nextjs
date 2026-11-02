@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { interpolate } from "@/lib/i18n/interpolate";
 
 export type GalleryCopy = {
@@ -28,8 +29,12 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
   const [index, setIndex] = useState(0);
   const track = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const faqHold = useRef(0);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const many = images.length > 1;
+
+  useEffect(() => setMounted(true), []);
 
   // Which photo the strip is actually showing, worked out from how far it has scrolled
   const syncFromScroll = () => {
@@ -59,11 +64,52 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
     if (gliding.current === undefined) syncFromScroll();
   };
 
-  const onDialogKey = (e: KeyboardEvent<HTMLDialogElement>) => {
+  const onViewerKey = (e: KeyboardEvent<HTMLDialogElement>) => {
+    // Let Escape close this photo viewer. Stopping it here would keep the key from reaching the dialog.
+    if (e.key === "Escape") return;
+    e.stopPropagation();
     if (!many) return;
     if (e.key === "ArrowLeft") go(index - 1);
     if (e.key === "ArrowRight") go(index + 1);
   };
+
+  // The flag stays up briefly after the photo closes so the same tap cannot land on the FAQ close button.
+  const holdFaq = () => {
+    const token = ++faqHold.current;
+    document.body.setAttribute("data-photo-viewer", "");
+    window.setTimeout(() => {
+      if (token !== faqHold.current || dialog.current?.open) return;
+      document.body.removeAttribute("data-photo-viewer");
+    }, 500);
+  };
+
+  // Closing this photo must not dismiss the FAQ underneath.
+  const closeViewer = (e?: { preventDefault(): void; stopPropagation(): void }) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    holdFaq();
+    const block = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    for (const type of ["click", "pointerup", "pointerdown"] as const) {
+      document.addEventListener(type, block, true);
+    }
+    dialog.current?.close();
+    setOpen(false);
+    window.setTimeout(() => {
+      for (const type of ["click", "pointerup", "pointerdown"] as const) {
+        document.removeEventListener(type, block, true);
+      }
+    }, 500);
+  };
+
+  useEffect(() => {
+    const el = dialog.current;
+    if (!el || !open || el.open) return;
+    document.body.setAttribute("data-photo-viewer", "");
+    el.showModal();
+  }, [open, mounted]);
 
   const status = interpolate(copy.counter, { current: index + 1, total: images.length });
 
@@ -91,10 +137,7 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
 
       <button
         type="button"
-        onClick={() => {
-          setOpen(true);
-          dialog.current?.showModal();
-        }}
+        onClick={() => setOpen(true)}
         aria-label={copy.enlarge}
         title={copy.enlarge}
         className="absolute top-3 right-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/55 text-[#fff] backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-black hover:scale-105 shadow-md"
@@ -121,44 +164,54 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
         {status}
       </span>
 
-      <dialog
-        ref={dialog}
-        onClose={() => setOpen(false)}
-        onKeyDown={onDialogKey}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) dialog.current?.close();
-        }}
-        aria-label={interpolate(copy.lightbox, { name })}
-        className="m-auto max-h-[92vh] w-[min(1400px,96vw)] border-none bg-transparent p-0 text-[#fff] backdrop:bg-black/85"
-      >
-        {open && (
-          <div className="relative aspect-video w-full bg-black">
-            <Image className="object-contain" src={images[index]} alt={alt} fill sizes="96vw" />
-            <button
-              type="button"
-              autoFocus
-              onClick={() => dialog.current?.close()}
-              aria-label={copy.close}
-              title={copy.close}
-              className="absolute top-4 right-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/55 text-[#fff] backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-black hover:scale-105 shadow-md"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
-            {many && (
-              <>
-                <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-4`}>
-                  <Chevron direction="left" />
+      {mounted &&
+        createPortal(
+          <dialog
+            ref={dialog}
+            data-vehicle-lightbox=""
+            onCancel={(e) => e.stopPropagation()}
+            onClose={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              holdFaq();
+            }}
+            onKeyDown={onViewerKey}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeViewer(e);
+            }}
+            aria-label={interpolate(copy.lightbox, { name })}
+            className="m-auto max-h-[92vh] w-[min(1400px,96vw)] border-none bg-transparent p-0 text-[#fff] backdrop:bg-black/85"
+          >
+            {open && (
+              <div className="relative aspect-video w-full bg-black" onClick={(e) => e.stopPropagation()}>
+                <Image className="object-contain" src={images[index]} alt={alt} fill sizes="96vw" />
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={closeViewer}
+                  aria-label={copy.close}
+                  title={copy.close}
+                  className="absolute top-4 right-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/55 text-[#fff] backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-black hover:scale-105 shadow-md"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
                 </button>
-                <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-4`}>
-                  <Chevron direction="right" />
-                </button>
-              </>
+                {many && (
+                  <>
+                    <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-4`}>
+                      <Chevron direction="left" />
+                    </button>
+                    <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-4`}>
+                      <Chevron direction="right" />
+                    </button>
+                  </>
+                )}
+              </div>
             )}
-          </div>
+          </dialog>,
+          document.body,
         )}
-      </dialog>
     </div>
   );
 }

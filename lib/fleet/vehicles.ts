@@ -265,3 +265,26 @@ export const vehicleByKey = (key: string | null | undefined) => {
   const normalized = normalizeVehicleKey(key) ?? key;
   return FLEET.find((v) => v.key === normalized);
 };
+
+/** A rough count of large suitcases from the published boot figure, about 180 litres each. Ranking only. */
+function suitcaseRoom(vehicle: FleetVehicle): number {
+  const litres = Number((vehicle.specs?.luggage?.en.match(/(\d[\d,]*)/)?.[1] ?? "0").replace(/,/g, ""));
+  if (!litres) return vehicle.specs?.passengers ?? 1;
+  return Math.max(1, Math.round(litres / 180));
+}
+
+/**
+ * The car to book when the visitor asks us to choose. It has to be one of the cars still on offer (not switched off,
+ * not already booked), it has to seat the party, and it has to take the suitcases. The smallest that still fits wins,
+ * so two guests are not put in the largest car.
+ */
+export function suggestVehicle(offered: readonly { key: string }[], need: { pax: number; bags: number }): FleetVehicle | undefined {
+  const available = offered.map((v) => vehicleByKey(v.key)).filter((v): v is FleetVehicle => Boolean(v));
+  if (available.length === 0) return undefined;
+  const seats = (v: FleetVehicle) => v.specs?.passengers ?? 0;
+  const seating = available.filter((v) => seats(v) >= need.pax);
+  if (seating.length === 0) return undefined;
+  const roomy = seating.filter((v) => suitcaseRoom(v) >= need.bags);
+  const candidates = roomy.length > 0 ? roomy : [...seating].sort((a, b) => suitcaseRoom(b) - suitcaseRoom(a)).slice(0, 1);
+  return [...candidates].sort((a, b) => seats(a) - seats(b) || suitcaseRoom(b) - suitcaseRoom(a) || FLEET.indexOf(a) - FLEET.indexOf(b))[0];
+}

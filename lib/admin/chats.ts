@@ -7,7 +7,7 @@ import type { ConciergeMessage } from "@/lib/db/schema";
 import { CHAT_BOOKING_STATUSES, RETENTION } from "@/lib/retention";
 
 /** Chats with the website's concierge, for the team to read. They are kept for RETENTION.chatDays days (lib/concierge/store.ts). */
-export const CHAT_LIST_LIMIT = 100;
+export const CHAT_PAGE_SIZE = 10;
 
 export type ChatRow = {
   id: string;
@@ -27,8 +27,12 @@ export type ChatRow = {
 
 type Raw = Omit<ChatRow, "request"> & { request_id: string | null; request_reference: string | null };
 
-export const chatList = cache(async (): Promise<{ nowMs: number; rows: ChatRow[]; total: number; booked: number; days: number }> => {
+export const chatList = cache(async (page = 1): Promise<{ nowMs: number; rows: ChatRow[]; total: number; booked: number; days: number; page: number; pages: number }> => {
   await requireAdmin();
+  const [totals] = Array.from(await db.execute<{ total: number; booked: number }>(sql`select count(*)::int as total, count(request_id)::int as booked from concierge_conversations`));
+  const total = totals?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / CHAT_PAGE_SIZE));
+  const current = Math.min(Math.max(1, Math.floor(page) || 1), pages);
   const rows = Array.from(
     await db.execute<Raw>(sql`
       select c.id, c.locale::text as locale, c.message_count as messages,
@@ -41,14 +45,16 @@ export const chatList = cache(async (): Promise<{ nowMs: number; rows: ChatRow[]
       from concierge_conversations c
       left join quote_requests q on q.id = c.request_id
       order by c.last_message_at desc
-      limit ${CHAT_LIST_LIMIT}`),
+      limit ${CHAT_PAGE_SIZE}
+      offset ${(current - 1) * CHAT_PAGE_SIZE}`),
   );
-  const [totals] = Array.from(await db.execute<{ total: number; booked: number }>(sql`select count(*)::int as total, count(request_id)::int as booked from concierge_conversations`));
   return {
     nowMs: Date.now(),
     days: RETENTION.chatDays,
-    total: totals?.total ?? 0,
+    total,
     booked: totals?.booked ?? 0,
+    page: current,
+    pages,
     rows: rows.map(({ request_id, request_reference, ...chat }) => ({ ...chat, request: request_id && request_reference ? { id: request_id, reference: request_reference } : null })),
   };
 });

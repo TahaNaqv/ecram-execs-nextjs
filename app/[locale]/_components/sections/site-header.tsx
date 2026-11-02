@@ -1,15 +1,16 @@
 import Image from "next/image";
 import { LanguageSwitcher } from "../language-switcher";
-import { getDict } from "@/lib/i18n/get-dictionary";
+import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
+import { localizedPath } from "@/lib/i18n/pathnames";
 
 export async function SiteHeader() {
-  const d = await getDict();
+  const [d, locale] = await Promise.all([getDict(), currentLocale()]);
   return (
     <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
       <div className="py-4 px-4 my-0 mx-auto gap-2 items-center flex flex-wrap justify-between max-w-[1280px] lg:px-6 lg:gap-3 xl:py-[22px] xl:px-6 xl:gap-5 2xl:max-w-[1440px]">
         <input className="nav-toggle" type="checkbox" id="nav-toggle" aria-label={d.nav.menu} aria-controls="primary-nav" />
         {" "}
-        <a className="gap-3 no-underline flex items-center shrink-0" href="#top">
+        <a className="gap-3 no-underline flex items-center shrink-0" href={localizedPath("/", locale)}>
           <Image className="h-10 w-10 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} sizes="48px" priority />
           <span className="gap-[2px] flex flex-col">
           <span className="chrome font-display text-[18px] font-medium tracking-[0.26em] max-[400px]:text-[15px] max-[400px]:tracking-[0.14em] max-[350px]:text-[13px] max-[350px]:tracking-[0.08em] md:text-[22px] md:tracking-[0.32em]">

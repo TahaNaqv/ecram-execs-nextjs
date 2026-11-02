@@ -44,7 +44,7 @@ async function adminSignIn(page: Page) {
   await page.waitForURL((url) => !url.pathname.endsWith("/login"));
 }
 
-test("the bookings are grouped by what the partner has to do, and an introduction is not a booking", async ({ page, context }) => {
+test("the bookings are grouped by what the partner has to do, including an introduction", async ({ page, context }) => {
   const { email, contactId } = await signedInPartner(page, context, "groups");
   const waiting = await seedBooking({ contactId, email, status: "quoted", quotedAmount: "185.50", destination: "Quoted Destination" });
   const open = await seedBooking({ contactId, email, status: "new", destination: "Open Destination" });
@@ -61,7 +61,7 @@ test("the bookings are grouped by what the partner has to do, and an introductio
 
   await page.getByRole("link", { name: new RegExp(`^${p.tabOpen}`) }).click();
   await expect(page.getByText(open.reference)).toBeVisible();
-  await expect(page.getByText(intro.reference)).toHaveCount(0);
+  await expect(page.getByText(intro.reference)).toBeVisible();
 
   await page.getByRole("link", { name: new RegExp(`^${p.tabPast}`) }).click();
   await expect(page.getByText(done.reference)).toBeVisible();

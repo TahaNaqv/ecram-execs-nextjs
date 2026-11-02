@@ -168,7 +168,15 @@ export function JourneyBar({
             {labelText}
           </label>
           {onRemove && (
-            <button type="button" aria-label={removeLabel} onClick={onRemove} className={`-my-1.5 -mr-2 grid size-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent ${removeButton}`}>
+            <button
+              type="button"
+              aria-label={removeLabel}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove();
+              }}
+              className={`relative z-[3] -my-1.5 -mr-2 grid size-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent ${removeButton}`}
+            >
               <CrossIcon />
             </button>
           )}

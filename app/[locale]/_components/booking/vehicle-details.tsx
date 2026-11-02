@@ -54,8 +54,31 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
   return (
     <dialog
       ref={dialog}
-      onClose={onClose}
-      onClick={(e) => e.target === dialog.current && dialog.current?.close()}
+      onCancel={(event) => {
+        if (document.body.hasAttribute("data-photo-viewer")) event.preventDefault();
+      }}
+      onClose={(event) => {
+        if (event.target !== event.currentTarget) return;
+        // Closing the enlarged photo must leave this FAQ open. If the browser closed it anyway, open it again.
+        if (document.body.hasAttribute("data-photo-viewer")) {
+          const node = event.currentTarget;
+          const restore = () => {
+            const photo = document.querySelector("[data-vehicle-lightbox]");
+            if (photo instanceof HTMLDialogElement && photo.open) {
+              photo.addEventListener("close", restore, { once: true });
+              return;
+            }
+            if (node instanceof HTMLDialogElement && !node.open) node.showModal();
+          };
+          queueMicrotask(restore);
+          return;
+        }
+        onClose();
+      }}
+      onClick={(event) => {
+        if (document.body.hasAttribute("data-photo-viewer")) return;
+        if (event.target === dialog.current) dialog.current?.close();
+      }}
       aria-label={vehicle?.name}
       className="m-auto max-h-[calc(100dvh-24px)] w-[min(960px,calc(100vw-24px))] max-w-none overflow-y-auto overscroll-contain rounded-3xl border-0 bg-white p-0 text-ink-950 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
@@ -64,7 +87,11 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
           {/* Close button inside the top-right corner: the dialog scrolls on a small screen, which would clip a button hanging outside it */}
           <button
             type="button"
-            onClick={() => dialog.current?.close()}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (document.body.hasAttribute("data-photo-viewer")) return;
+              dialog.current?.close();
+            }}
             aria-label={closeLabel}
             className="absolute top-3 right-3 z-30 grid size-11 cursor-pointer place-items-center rounded-full bg-white text-ink-700 transition-all hover:bg-ink-100 hover:text-ink-950 shadow-lg border border-ink-200"
           >

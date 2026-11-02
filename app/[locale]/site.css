@@ -195,8 +195,16 @@
   opacity: 1;
 }
 
-:root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) {
-  color: #000f4d;
+/* These notices stay pale (amber, emerald) inside the navy panel, whose type is inverted to near-white.
+   The inversion would wipe the words out, including on hover, so the notice text is pinned dark. */
+:root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50),
+:root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) :where(h1, h2, h3, h4, p, span, strong, a, button, label, li, dt, dd) {
+  color: #10224f !important;
+  -webkit-text-fill-color: #10224f;
+}
+:root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) :where(a, button):hover {
+  color: #10224f !important;
+  -webkit-text-fill-color: #10224f;
 }
 
 /* the blue "NL" plate badge keeps its white letters */

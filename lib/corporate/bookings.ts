@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { cache } from "react";
 import { db, schema } from "@/lib/db";
 import type { RequestEventParams } from "@/lib/admin/events";
@@ -59,9 +59,6 @@ async function owner() {
   return contact;
 }
 
-/** The company introduction is stored as a request too, but it is not a booking: it has its own page. */
-const isBooking = ne(q.source, "website-corporate");
-
 /** A quote is waiting for the partner's answer only when it has an amount: that is what they would be accepting. */
 const waiting = and(eq(q.status, "quoted"), isNotNull(q.quotedAmount))!;
 const tabFilter: Record<PortalTab, SQL> = {
@@ -79,13 +76,13 @@ export async function bookingTabCounts() {
       past: sql<number>`count(*) filter (where ${tabFilter.past})`.mapWith(Number),
     })
     .from(q)
-    .where(and(eq(q.corporateContactId, contact.id), isBooking));
+    .where(eq(q.corporateContactId, contact.id));
   return row as Record<PortalTab, number>;
 }
 
 export async function listBookings(tab: PortalTab, page: number) {
   const contact = await owner();
-  const where = and(eq(q.corporateContactId, contact.id), isBooking, tabFilter[tab]);
+  const where = and(eq(q.corporateContactId, contact.id), tabFilter[tab]);
   // Open work is ordered by when the trip is (undated bespoke programmes last); the past by when it was asked for
   const order = tab === "past" ? [desc(q.createdAt)] : [sql`${q.pickupAt} asc nulls last`, desc(q.createdAt)];
   const [rows, [counted]] = await Promise.all([
@@ -107,7 +104,7 @@ export async function getBooking(reference: string) {
   const [row] = await db
     .select(bookingColumns)
     .from(q)
-    .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id), isBooking))
+    .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id)))
     .limit(1);
   return row ?? null;
 }

@@ -13,6 +13,30 @@ import type { RequestStatus } from "@/lib/quotes/constants";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
+const COUNTRY_CODES = [
+  { code: "+31", label: "NL +31" },
+  { code: "+92", label: "PK +92" },
+  { code: "+32", label: "BE +32" },
+  { code: "+49", label: "DE +49" },
+  { code: "+33", label: "FR +33" },
+  { code: "+44", label: "GB +44" },
+  { code: "+41", label: "CH +41" },
+  { code: "+43", label: "AT +43" },
+  { code: "+34", label: "ES +34" },
+  { code: "+39", label: "IT +39" },
+  { code: "+352", label: "LU +352" },
+  { code: "+351", label: "PT +351" },
+  { code: "+353", label: "IE +353" },
+  { code: "+45", label: "DK +45" },
+  { code: "+46", label: "SE +46" },
+  { code: "+47", label: "NO +47" },
+  { code: "+358", label: "FI +358" },
+  { code: "+354", label: "IS +354" },
+  { code: "+1", label: "US/CA +1" },
+  { code: "+971", label: "AE +971" },
+  { code: "+966", label: "SA +966" },
+];
+
 export function CorporateDirectoryHub({
   initialPartners = [],
   copy,
@@ -65,7 +89,13 @@ export function CorporateDirectoryHub({
   const handleAddPartner = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAddError(null);
-    const formData = new FormData(e.currentTarget);
+    const formElement = e.currentTarget;
+    const formData = new FormData(formElement);
+    
+    // Combine country code and phone number
+    const countryCode = (formData.get("countryCode") as string) || "+31";
+    const rawPhone = (formData.get("phoneRaw") as string) || "";
+    formData.set("phone", `${countryCode} ${rawPhone.trim()}`);
 
     startTransition(async () => {
       const res = await addCorporatePartner(formData);
@@ -95,8 +125,14 @@ export function CorporateDirectoryHub({
   const handleUpdatePartner = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedPartner) return;
-    const formData = new FormData(e.currentTarget);
+    const formElement = e.currentTarget;
+    const formData = new FormData(formElement);
     formData.set("id", selectedPartner.id);
+
+    const countryCode = (formData.get("countryCode") as string) || "+31";
+    const rawPhone = (formData.get("phoneRaw") as string) || "";
+    formData.set("phone", `${countryCode} ${rawPhone.trim()}`);
+
     startTransition(async () => {
       const res = await updateCorporatePartner(formData);
       if (res && !res.ok) return;
@@ -356,6 +392,10 @@ export function CorporateDirectoryHub({
                       <input
                         type="text"
                         name="kvk"
+                        maxLength={8}
+                        minLength={8}
+                        pattern="\d{8}"
+                        title="Chamber of Commerce (KvK) number must be exactly 8 digits"
                         defaultValue={selectedPartner.kvk === "—" ? "" : selectedPartner.kvk}
                         className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 font-mono text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
@@ -403,13 +443,30 @@ export function CorporateDirectoryHub({
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.phone}</label>
-                      <input
-                        type="text"
-                        name="phone"
-                        defaultValue={selectedPartner.phone === "—" ? "" : selectedPartner.phone}
-                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 font-mono text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
-                      />
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.phone} *</label>
+                      <div className="flex h-10 w-full rounded-lg border border-zinc-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-black/5">
+                        <select
+                          name="countryCode"
+                          defaultValue={selectedPartner.phone && selectedPartner.phone.startsWith("+") ? selectedPartner.phone.split(" ")[0] : "+31"}
+                          className="bg-transparent px-2.5 text-xs font-mono text-zinc-700 border-r border-zinc-200 focus:outline-none cursor-pointer max-h-48 overflow-y-auto"
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code} value={c.code}>{c.label}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          name="phoneRaw"
+                          required
+                          placeholder="3349440201"
+                          defaultValue={
+                            selectedPartner.phone && selectedPartner.phone !== "—"
+                              ? selectedPartner.phone.replace(/^\+\d+\s*/, "")
+                              : ""
+                          }
+                          className="w-full bg-transparent px-3 font-mono text-sm text-zinc-900 focus:outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -555,6 +612,10 @@ export function CorporateDirectoryHub({
                   <input
                     name="kvk"
                     type="text"
+                    maxLength={8}
+                    minLength={8}
+                    pattern="\d{8}"
+                    title="Chamber of Commerce (KvK) number must be exactly 8 digits"
                     placeholder={copy.kvkPlaceholder}
                     className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                   />
@@ -592,13 +653,25 @@ export function CorporateDirectoryHub({
                 </div>
               </div>
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">{copy.phoneOptional}</label>
-                <input
-                  name="phone"
-                  type="text"
-                  placeholder={copy.phonePlaceholder}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
-                />
+                <label className="block font-medium text-zinc-700 mb-1">Direct Phone *</label>
+                <div className="flex h-10 w-full rounded-xl border border-zinc-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-black/5">
+                  <select
+                    name="countryCode"
+                    defaultValue="+31"
+                    className="bg-transparent px-2.5 text-xs font-mono text-zinc-700 border-r border-zinc-200 focus:outline-none cursor-pointer max-h-48 overflow-y-auto"
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    name="phoneRaw"
+                    required
+                    placeholder="3349440201"
+                    className="w-full bg-transparent px-3.5 font-mono text-sm text-zinc-900 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">

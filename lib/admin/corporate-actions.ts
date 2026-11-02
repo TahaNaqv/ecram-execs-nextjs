@@ -43,8 +43,20 @@ export async function addCorporatePartner(formData: FormData) {
     console.log(`🎉 Successfully registered corporate partner: ${companyName} (${inserted.id})`);
     revalidatePath("/admin/corporate");
     return { ok: true, id: inserted.id };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error registering corporate partner:", error);
+    
+    // Check for PostgreSQL unique violation error code or constraint message
+    if (error?.code === "23505" || error?.message?.includes("unique constraint") || error?.detail?.includes("already exists")) {
+      if (error?.detail?.includes("email") || error?.message?.includes("email")) {
+        return { ok: false, error: "This email is already registered." };
+      }
+      if (error?.detail?.includes("kvk") || error?.message?.includes("kvk")) {
+        return { ok: false, error: "This KvK number is already registered." };
+      }
+      return { ok: false, error: "This account or email is already registered." };
+    }
+
     return { ok: false, error: "Failed to register partner in database." };
   }
 }
@@ -153,8 +165,13 @@ export async function updateCorporatePartner(formData: FormData) {
     revalidatePath(`/admin/corporate/${id}/edit`);
     revalidatePath("/admin/corporate");
     return { ok: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error updating corporate partner:", error);
+
+    if (error?.code === "23505" || error?.message?.includes("unique constraint")) {
+      return { ok: false, error: "This email or KvK is already registered to another partner." };
+    }
+
     return { ok: false, error: "Failed to update partner." };
   }
 }

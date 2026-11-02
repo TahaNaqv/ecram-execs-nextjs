@@ -46,8 +46,8 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
       )}
 
       {counts.answer > 0 && tab !== "answer" && (
-        <p className="m-0 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-[15px] text-ink-950">
-          <Link href={`${base}?tab=answer`} className="text-ink-950 underline underline-offset-4">
+        <p className="m-0 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-[15px] text-[#10224f]">
+          <Link href={`${base}?tab=answer`} className="text-[#10224f] underline underline-offset-4 hover:text-[#10224f]">
             {interpolate(p.answerBanner, { count: counts.answer })}
           </Link>
         </p>
@@ -79,9 +79,9 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
           {rows.map((r) => {
             const more = r.destinations?.length ?? 0; // stops on the way
             const trip =
-              r.service === "bespoke" || !r.collection || !r.destination
-                ? serviceLabel(r.service, d.services)
-                : `${r.collection} → ${r.destination}${more > 0 ? ` (+${more})` : ""}`;
+              r.collection && r.destination
+                ? `${r.collection} → ${r.destination}${more > 0 ? ` (+${more})` : ""}`
+                : serviceLabel(r.service, d.services);
             return (
               <li key={r.reference} className="bg-white">
                 <Link href={detail(r.reference)} className="grid gap-x-6 gap-y-2 px-5 py-4 text-ink-950 no-underline hover:bg-ink-50 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">

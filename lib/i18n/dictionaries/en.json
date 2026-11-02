@@ -731,6 +731,7 @@
       "title": "Chats",
       "description": "Conversations with the website's concierge. Kept for {days} days, or a year when they belong to a confirmed booking.",
       "summary": "{total} chats kept, {booked} led to a booking request.",
+      "range": "Showing {from}–{to} of {total}",
       "empty": "No chats yet.",
       "emptyNote": "Conversations with the concierge appear here as visitors use it.",
       "messageOne": "1 message",

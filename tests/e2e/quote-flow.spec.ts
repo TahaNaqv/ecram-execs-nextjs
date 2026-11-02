@@ -205,7 +205,8 @@ test("an hourly booking needs no destination, and a return journey reaches the t
   const db = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
   const [row] = await db`select id, service, destination, duration_hours, to_char(return_at, 'HH24:MI') as return_time, vehicle from quote_requests where reference = ${reference}`;
   await db.end();
-  expect(row).toMatchObject({ service: "hourly", destination: null, duration_hours: 4, return_time: "18:30", vehicle: "advise" });
+  // Two guests and two suitcases: the smallest car that is free and seats them, rather than a standing Mercedes
+  expect(row).toMatchObject({ service: "hourly", destination: null, duration_hours: 4, return_time: "18:30", vehicle: "audi" });
 
   await page.goto("/admin/login");
   await fillAdminLogin(page);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
-import { FLEET, normalizeVehicleKey, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { FLEET, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
@@ -242,7 +242,16 @@ export function BookingFlow({
           onDetails={setDetails}
           onChoose={(vehicle) => setTrip((current) => ({ ...current, vehicle }))}
           onBack={() => go("journey")}
-          onNext={() => go("details")}
+          onNext={() => {
+            setTrip((current) => {
+              const selected = vehicleByKey(current.vehicle);
+              const tooSmall = selected !== undefined && current.pax < MAX_PASSENGERS && (selected.specs?.passengers ?? 0) < current.pax;
+              if (selected && current.vehicle !== "advise" && !tooSmall) return current;
+              const pick = suggestVehicle(offered, { pax: current.pax, bags: current.bags });
+              return { ...current, vehicle: pick?.key ?? "advise" };
+            });
+            go("details");
+          }}
         />
       )}
 
@@ -289,7 +298,7 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
     .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
     .filter((v): v is FleetVehicle => Boolean(v))
     .map((v) => ({ vehicle: v, seats: v.specs?.passengers ?? null }))
-    .map((c) => ({ ...c, fits: true }));
+    .map((c) => ({ ...c, fits: large || c.seats === null || c.seats >= trip.pax }));
   const fitting = cars;
   const party = guestsText(t, trip.pax);
   const choose = (key: VehicleChoice) => onChoose(trip.vehicle === key ? "" : key);
@@ -346,7 +355,7 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
         {t.carTitle}
       </h2>
       <p className="m-0 mt-2 text-[15px] text-ink-600">
-        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: cars.length, total: cars.length, party })}
+        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting.filter((c) => c.fits).length, total: cars.length, party })}
       </p>
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
       {error && (
@@ -666,29 +675,32 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
   rows.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
   if (pickupAtAirport(trip) && trip.flight.trim()) rows.push([t.summaryFlight, trip.flight.trim()]);
 
-  const isAdvise = trip.vehicle === "advise";
-  const displayName = chosen?.name ?? (isAdvise ? vehicleAdvise : (FLEET[0]?.name ?? "Mercedes-Benz VLE 300"));
-  const galleryImages = chosen?.images ?? FLEET[0]?.images ?? ["/assets/fleet-interior-v2.jpg"];
-  const seats = chosen?.specs?.passengers ?? FLEET[0]?.specs?.passengers ?? null;
+  const displayName = chosen?.name ?? vehicleAdvise;
+  const galleryImages = chosen?.images ?? [];
+  const seats = chosen?.specs?.passengers ?? null;
 
   return (
     <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.08)] lg:sticky lg:top-6">
       <div className="relative aspect-[16/9.5] w-full bg-ink-900">
         <div className="relative isolate h-full w-full overflow-hidden">
-          <VehicleGallery
-            name={displayName}
-            images={galleryImages}
-            alt={displayName}
-            copy={{
-              label: "Vehicle gallery",
-              prev: "Previous image",
-              next: "Next image",
-              enlarge: "Enlarge image",
-              close: "Close",
-              counter: "{current} of {total}",
-              lightbox: "Lightbox",
-            }}
-          />
+          {galleryImages.length > 0 ? (
+            <VehicleGallery
+              name={displayName}
+              images={galleryImages}
+              alt={displayName}
+              copy={{
+                label: "Vehicle gallery",
+                prev: "Previous image",
+                next: "Next image",
+                enlarge: "Enlarge image",
+                close: "Close",
+                counter: "{current} of {total}",
+                lightbox: "Lightbox",
+              }}
+            />
+          ) : (
+            <div className="grid h-full place-items-center px-6 text-center font-serif text-[22px] text-[#fff]">{displayName}</div>
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-5 p-6 pt-4">

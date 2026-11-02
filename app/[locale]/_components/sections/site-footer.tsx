@@ -29,57 +29,57 @@ export async function SiteFooter() {
             </p>
           </div>
           <div className="flex-[0_1_100%] gap-x-5 grid grid-cols-[1fr_1fr] gap-y-8 md:gap-10 md:flex-[0_1_640px] md:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
-            <nav className="gap-[10px] flex flex-col text-[14px]" aria-label={d.footer.servicesLabel}>
+            <nav className="gap-[10px] flex flex-col items-start text-[14px]" aria-label={d.footer.servicesLabel}>
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.servicesLabel}
               </span>
-              <Link className="navlink" href={`${home}#service-airport`}>
+              <Link className="navlink no-underline" href={`${home}#service-airport`}>
                 {d.footer.linkAirport}
               </Link>
-              <Link className="navlink" href={`${home}#service-business`}>
+              <Link className="navlink no-underline" href={`${home}#service-business`}>
                 {d.footer.linkBusiness}
               </Link>
-              <Link className="navlink" href={`${home}#corporate`}>
+              <Link className="navlink no-underline" href={`${home}#corporate`}>
                 {d.footer.linkCorporate}
               </Link>
-              <Link className="navlink" href={`${home}#service-private`}>
+              <Link className="navlink no-underline" href={`${home}#service-private`}>
                 {d.footer.linkPrivate}
               </Link>
-              <Link className="navlink" href={`${home}#service-bespoke`}>
+              <Link className="navlink no-underline" href={`${home}#service-bespoke`}>
                 {d.footer.linkBespoke}
               </Link>
               {siteConfig.contact.address && <span>{`${siteConfig.contact.address}, Netherlands`}</span>}
-              <Link className="navlink self-start" href={`${home}#enquire`}>
+              <Link className="navlink self-start no-underline" href={`${home}#enquire`}>
                 {d.common.requestQuote}
               </Link>
             </nav>
-            <nav className="gap-[10px] flex flex-col text-[14px]" aria-label={d.footer.companyLabel}>
+            <nav className="gap-[10px] flex flex-col items-start text-[14px]" aria-label={d.footer.companyLabel}>
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.companyLabel}
               </span>
-              <Link className="navlink" href={`${home}#experience`}>
+              <Link className="navlink no-underline" href={`${home}#experience`}>
                 {d.footer.linkExperience}
               </Link>
-              <Link className="navlink" href={`${home}#netherlands`}>
+              <Link className="navlink no-underline" href={`${home}#netherlands`}>
                 {d.footer.linkDestinations}
               </Link>
               
-              <Link className="navlink" href={localizedPath("/drive-with-us", locale)}>
+              <Link className="navlink no-underline" href={localizedPath("/drive-with-us", locale)}>
                 {d.footer.linkDriveWithUs}
               </Link>
               
             </nav>
-            <div className="gap-[10px] col-[1/-1] text-ink-250 flex flex-col text-[14px] md:col-auto">
+            <div className="gap-[10px] col-[1/-1] text-ink-250 flex flex-col items-start text-[14px] md:col-auto">
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.contactLabel}
               </span>
               {siteConfig.contact.phone && (
-                <a className="navlink self-start" href={telHref(siteConfig.contact.phone)}>
+                <a className="navlink self-start no-underline" href={telHref(siteConfig.contact.phone)}>
                   {siteConfig.contact.phone}
                 </a>
               )}
               {siteConfig.contact.email && (
-                <a className="navlink self-start" href={`mailto:${siteConfig.contact.email}`}>
+                <a className="navlink self-start no-underline" href={`mailto:${siteConfig.contact.email}`}>
                   {siteConfig.contact.email}
                 </a>
               )}

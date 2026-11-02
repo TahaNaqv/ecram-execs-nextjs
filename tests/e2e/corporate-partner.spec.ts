@@ -174,9 +174,9 @@ test("a partner can sign out, sign in again, and sees their introductions", asyn
   await expect(page.getByText(/EE-[A-Z0-9]{6}/)).toBeVisible();
   await expect(page.getByText("Orion Holdings B.V.")).toBeVisible();
 
-  // An introduction is not a booking: it is not in the bookings list, and the prompt to send one is gone
+  // The introduction is one of this account's bookings, and the prompt to send one is gone
   await page.goto("/en/corporate-partner/account");
-  await expect(page.getByText(en.portal.emptyOpen)).toBeVisible();
+  await expect(page.getByText(/EE-[A-Z0-9]{6}/)).toBeVisible();
   await expect(page.getByRole("heading", { name: en.portal.introCtaTitle })).toHaveCount(0);
 
   // Sign out: the page closes, and signing back in with the password opens it again
