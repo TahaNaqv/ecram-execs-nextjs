@@ -5,12 +5,14 @@ import { renderPartnerEvent } from "@/lib/admin/events";
 import { bookingInvoicesFor, bookingTimeline, getBooking, MESSAGEABLE } from "@/lib/corporate/bookings";
 import { formatBytes, formatPartnerAmount, formatPickup, formatStamp } from "@/lib/corporate/format";
 import { requirePartner } from "@/lib/corporate/portal";
+import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
+import { RouteMap } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { outlineButton } from "../../../_components/corporate-styles";
 import { MessageForm } from "../../../_components/portal-message-form";
@@ -63,6 +65,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
     { text: booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null), wait: 0 },
   ].filter((s) => s.text);
   const loginHref = localizedPath("/corporate-partner/login", locale);
+  const routeMap = bespoke ? null : routeMapLinks(booking, browserMapKey());
 
   return (
     <div className="flex flex-col gap-10">
@@ -139,6 +142,8 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
           )}
         </dl>
         <p className="m-0 text-[12px] text-ink-600">{p.amsterdamTime}</p>
+        {/* The route on Google's map: only here, once the booking is in, never while it is being made */}
+        {routeMap && <RouteMap map={routeMap} copy={d.booking} />}
         {!bespoke && (
           <Link href={`${localizedPath("/corporate-partner/account/new-booking", locale)}?repeat=${booking.reference}`} className={`${outlineButton} self-start`}>
             {p.repeatCta}

@@ -25,6 +25,7 @@ type Props = {
   vehicles: OfferedVehicle[];
   bookPath: string;
   privacyHref: string;
+  homeHref: string;
 };
 
 /**
@@ -40,7 +41,7 @@ export function PublicBooking(props: Props) {
   return <Run key={`${search}#${round}`} search={search} onAgain={() => setRound((r) => r + 1)} {...props} />;
 }
 
-function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, bookPath, privacyHref }: Props & { search: string; onAgain: () => void }) {
+function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, privacyHref, homeHref }: Props & { search: string; onAgain: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
   const trip = useMemo(() => tripFromParams(new URLSearchParams(search)), [search]);
@@ -63,7 +64,7 @@ function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict,
   }, [state.status]);
 
   if (state.status === "success") {
-    return <BookingDone copy={copy} name={state.name} reference={state.reference} onAgain={() => {
+    return <BookingDone copy={copy} name={state.name} reference={state.reference} map={state.map} onAgain={() => {
           router.push(`/${locale}`); // Redirects back to the main home screen for the current locale
           onAgain();
         }}
@@ -89,6 +90,7 @@ function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict,
       }}
       submit={action}
       privacyHref={privacyHref}
+      cancelHref={homeHref}
     />
   );
 }

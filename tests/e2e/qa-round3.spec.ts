@@ -173,8 +173,8 @@ test("bug 9: Edit on the trip chip goes back to the journey step of the same boo
   await expect(page).toHaveURL(/\/en\/book/);
   await expect(page.getByRole("heading", { name: b.heading })).toBeVisible();
   // The journey is as the visitor left it
-  await expect(shown(page.getByLabel(b.from, { exact: true }))).toHaveValue(/Schiphol/);
-  await expect(shown(page.getByLabel(b.to, { exact: true }))).toHaveValue(/Des Indes/);
+  await expect(shown(page.getByLabel(b.pickupLabel, { exact: true }))).toHaveValue(/Schiphol/);
+  await expect(shown(page.getByLabel(b.dropoffLabel, { exact: true }))).toHaveValue(/Des Indes/);
   await expect(shown(guestsButton(page.locator("main")))).toContainText(`${b.guestMany.replace("{count}", "2")} · ${b.bagOne}`);
 });
 
@@ -186,7 +186,7 @@ test("bug 9 in the portal: Edit stays in the partner's booking panel", async ({ 
   await chooseCar(page, null);
   await page.getByRole("button", { name: new RegExp(b.edit) }).click();
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account\/new-booking/);
-  await expect(shown(page.getByLabel(b.from, { exact: true }))).toHaveValue(/Schiphol/);
+  await expect(shown(page.getByLabel(b.pickupLabel, { exact: true }))).toHaveValue(/Schiphol/);
 });
 
 test("bug 10: the date and time are chosen in the picker; typing changes nothing", async ({ page }) => {
@@ -198,7 +198,7 @@ test("bug 10: the date and time are chosen in the picker; typing changes nothing
   await page.keyboard.type("345345454");
   await expect(field).toHaveValue(before);
   // It opens the picker (press or keyboard), and the picker sets the value
-  await field.click();
+  await field.click({ force: true }); // the press area over the cell (fillCell) takes the click
   const dialog = page.getByRole("dialog", { name: en.dateTimePicker.dialog });
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
@@ -216,7 +216,7 @@ test("bug 11: the booking bar opens on the current date and time in the Netherla
   const field = when(page);
   await expect.poll(async () => Math.abs(boxMinutes(await field.inputValue()) - netherlandsMinutes()), { timeout: 10_000 }).toBeLessThanOrEqual(2);
   // The picker shows that time, not midnight or 01:00
-  await field.click();
+  await field.click({ force: true });
   const dialog = page.getByRole("dialog", { name: en.dateTimePicker.dialog });
   const [, , , , hh, mm] = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/.exec(await field.inputValue())!;
   await expect(dialog.getByLabel(en.dateTimePicker.hour)).toHaveValue(String(Number(hh)));

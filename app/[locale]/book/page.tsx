@@ -59,6 +59,7 @@ export default async function BookPage() {
               vehicles={FLEET_OFFER}
               bookPath={localizedPath("/book", locale)}
               privacyHref={localizedPath("/privacy", locale)}
+              homeHref={localizedPath("/", locale)}
             />
           </Suspense>
         </div>

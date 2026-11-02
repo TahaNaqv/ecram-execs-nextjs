@@ -7,6 +7,7 @@ import type { QuoteRequest } from "@/lib/db/schema";
 import { linkChatToRequest, SESSION_ID } from "@/lib/concierge/store";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { chosenCarIsBooked } from "@/lib/fleet/availability";
+import { browserMapKey, routeMapLinks, type RouteMapLinks } from "@/lib/fleet/map";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { createQuoteRequest } from "./create";
@@ -22,7 +23,7 @@ export type QuoteFormState =
       values: Record<string, string>;
       attempt: number;
     }
-  | { status: "success"; reference: string; name: string };
+  | { status: "success"; reference: string; name: string; map?: RouteMapLinks | null };
 
 const FIELDS = [
   "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
@@ -97,5 +98,6 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   const chat = String(formData.get("chatSession") ?? "");
   after(() => Promise.all([notifyNewQuote(request), confirmToClient(request), SESSION_ID.test(chat) ? linkChatToRequest(chat, request.id) : undefined]));
 
-  return { status: "success", reference: request.reference, name: request.name.split(" ")[0] };
+  // The route is only drawn now that the booking is in: the confirmation shows it, the steps before it never load a map
+  return { status: "success", reference: request.reference, name: request.name.split(" ")[0], map: routeMapLinks(request, browserMapKey()) };
 }

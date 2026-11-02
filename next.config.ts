@@ -15,6 +15,8 @@ const BASE_DIRECTIVES: Record<string, string> = {
   "font-src": "'self'",
   "connect-src": `'self' ${supabaseOrigin}`.trim(),
   "media-src": "'self'",
+  // The booking's route on Google's map, shown on the confirmation once a visitor asks for it (Maps Embed API)
+  "frame-src": "https://www.google.com",
   "frame-ancestors": "'none'",
   "object-src": "'none'",
   "base-uri": "'self'",
@@ -40,7 +42,7 @@ const adminCsp = policy({
   "img-src": GOOGLE,
   "font-src": "https://fonts.gstatic.com",
   "connect-src": `${GOOGLE} data: blob:`,
-  "frame-src": "https://www.google.com",
+  // frame-src for Google's embedded map is in the base policy already
   "worker-src": "blob:",
 });
 

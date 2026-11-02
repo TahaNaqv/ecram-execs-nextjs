@@ -29,13 +29,13 @@ test("the booking flow checks the journey in the bar, then the details on the se
   await fillJourney(page, { from: "Kurhaus, Scheveningen", to: "Hotel Des Indes, The Hague", at: nextYear("14-03", "18:00"), ret: nextYear("14-03", "09:00") });
   await expect(alert).toContainText(en.forms.returnBeforePickup);
 
-  // A complete journey reaches /book; empty details come back from the server, field by field
+  // A complete journey reaches /book; empty details are caught before the review, field by field
   await pickDateTime(page, page.getByLabel(en.booking.returnLabel, { exact: true }), nextYear("15-03", "09:00"));
   await bar(page).getByRole("button", { name: en.booking.continue }).click();
   await expect(page).toHaveURL(/\/en\/book\?/);
   await chooseCar(page, null);
-  await page.getByRole("button", { name: en.booking.submit }).click();
-  await expect(page.getByText("Please enter your name.")).toBeVisible();
+  await page.getByRole("button", { name: en.booking.reviewButton }).click();
+  await expect(page.getByText(en.forms.nameRequired)).toBeVisible();
   await expect(page.getByText(en.forms.emailInvalid)).toBeVisible();
 });
 

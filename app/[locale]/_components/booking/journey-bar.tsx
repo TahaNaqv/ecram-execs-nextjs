@@ -1,6 +1,7 @@
 "use client";
 
 import Form from "next/form";
+import Link from "next/link";
 import { Fragment, useId, useState, useEffect, useRef, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -39,18 +40,27 @@ export function JourneyBar({
   dateTimeCopy,
   messages,
   tone,
+  layout = "bar",
   initial,
   action,
   onDone,
+  onTripChange,
+  cancelHref,
 }: {
   locale: string;
   copy: BookingCopy;
   dateTimeCopy: DateTimeCopy;
   messages: TripMessages;
   tone: "dark" | "light";
+  /** "bar": the hero's row of fields. "stacked": the journey step of /book and the portal, one field under the other */
+  layout?: "bar" | "stacked";
   initial?: Trip;
   action?: string;
   onDone?: (trip: Trip) => void;
+  /** Each change, so the journey step can show the route as it is typed */
+  onTripChange?: (trip: Trip) => void;
+  /** The journey step's Cancel: where it leads */
+  cancelHref?: string;
 }) {
   const uid = useId();
   const ids = { from: `${uid}-from`, to: `${uid}-to`, hours: `${uid}-hours`, at: `${uid}-at`, ret: `${uid}-ret`, guests: `${uid}-guests`, guestsLabel: `${uid}-guests-label`, flight: `${uid}-flight`, error: `${uid}-error` };
@@ -64,6 +74,13 @@ export function JourneyBar({
   useEffect(() => {
     tripRef.current = trip;
   });
+  const tripChange = useRef(onTripChange);
+  useEffect(() => {
+    tripChange.current = onTripChange;
+  });
+  useEffect(() => {
+    tripChange.current?.({ ...trip, ret: returning ? trip.ret : "" });
+  }, [trip, returning]);
   // The time the bar filled in by itself, while the visitor has not chosen another: if they leave the page open for hours and then
   // press Continue, that time is brought up to date instead of being refused as a time that has passed
   const autoAt = useRef("");
@@ -133,22 +150,34 @@ export function JourneyBar({
   };
 
   const invalid = (field: TripField) => problems.includes(field);
+  const stacked = layout === "stacked";
   const focusCell = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (target.closest("input, textarea, select, button, a, [role='dialog'], [role='listbox'], label")) return;
     event.currentTarget.querySelector<HTMLElement>("input:not([type='hidden']), textarea, select, button")?.focus();
   };
+  // A field: in the bar a borderless cell that lights up; on the journey step a bordered box, like the details step's fields
   const cell = (field: TripField | null, children: ReactNode, extra = "") => (
     <div
       onClick={focusCell}
-      className={`relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 ${
-        dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
-      } ${field && invalid(field) ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`}
+      className={
+        stacked
+          ? `relative flex min-w-0 cursor-pointer flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 focus-within:border-ink-950 ${
+              field && invalid(field) ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"
+            } ${extra}`
+          : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 ${
+              dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
+            } ${field && invalid(field) ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`
+      }
     >
       {children}
     </div>
   );
-  const label = dark ? "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-250" : "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600";
+  const label = stacked
+    ? "text-[12px] text-ink-600"
+    : dark
+      ? "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-250"
+      : "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600";
   const describedBy = (field: TripField) => (invalid(field) ? ids.error : undefined);
   const params = action ? tripToParams({ ...trip, ret: returning ? trip.ret : "" }) : null;
   const quiet = dark ? "text-ink-150 hover:bg-white/10 hover:text-white" : "text-ink-800 hover:bg-ink-100 hover:text-ink-950";
@@ -158,6 +187,7 @@ export function JourneyBar({
   const stops = trip.mode === "oneway" ? trip.stops : [];
   const hasExtras = stops.length > 0 || returning || airport;
   const divider = dark ? "border-white/10" : "border-ink-150";
+  const dateClass = `border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`;
 
   const extraCell = (field: TripField | null, labelFor: string, labelText: string, control: ReactNode, onRemove?: () => void, removeLabel?: string) =>
     cell(
@@ -185,6 +215,322 @@ export function JourneyBar({
       </>,
     );
 
+  const modeToggle = (
+    <div role="group" aria-label={t.modeLabel} className={`flex rounded-full p-1 ${dark ? "bg-white/[0.1]" : "bg-ink-100"}`}>
+      {(["oneway", "hourly"] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          aria-pressed={trip.mode === mode}
+          onClick={() => update({ mode, ...(mode === "hourly" ? { to: emptyPlace(), stops: [] } : {}) })}
+          className={`h-[34px] cursor-pointer rounded-full border-0 px-4 text-[13px] ${
+            trip.mode === mode
+              ? dark
+                ? "bg-white font-semibold text-ink-950"
+                : "bg-ink-950 font-semibold text-white"
+              : `bg-transparent font-medium ${dark ? "text-white" : "text-ink-950"}`
+          }`}
+        >
+          {mode === "oneway" ? t.modeOneWay : t.modeHourly}
+        </button>
+      ))}
+    </div>
+  );
+
+  const addButtons = (
+    <div className={`flex flex-wrap items-center gap-1 ${stacked ? "-ml-3" : ""}`}>
+      {canAddStop && (
+        <button
+          type="button"
+          onClick={() => {
+            update({ stops: [...trip.stops, { place: "", wait: 0 }] });
+            const next = trip.stops.length;
+            window.setTimeout(() => document.getElementById(`${uid}-stop-${next}`)?.focus(), 0);
+          }}
+          className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-3 text-[13px] font-semibold ${quiet}`}
+        >
+          <PlusIcon />
+          {t.addStop}
+        </button>
+      )}
+      {!returning && (
+        <button
+          type="button"
+          onClick={() => {
+            setReturning(true);
+            window.setTimeout(() => document.getElementById(ids.ret)?.focus(), 0);
+          }}
+          className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-3 text-[13px] font-semibold ${quiet}`}
+        >
+          <PlusIcon />
+          {t.addReturn}
+        </button>
+      )}
+    </div>
+  );
+
+  const fromCell = cell(
+    "collection",
+    <>
+      <label htmlFor={ids.from} className={label}>
+        {stacked ? t.pickupLabel : t.from}
+      </label>
+      <AddressField
+        id={ids.from}
+        value={trip.from}
+        onChange={(from) => update({ from })}
+        onPicked={() => document.getElementById(trip.mode === "oneway" ? (stops.length > 0 && stacked ? `${uid}-stop-0` : ids.to) : ids.at)?.focus()}
+        placeholder={t.addressPlaceholder}
+        locale={locale}
+        copy={t}
+        tone={tone}
+        invalid={invalid("collection")}
+        describedBy={describedBy("collection")}
+      />
+    </>,
+  );
+
+  const toCell =
+    trip.mode === "oneway"
+      ? cell(
+          "destination",
+          <>
+            {!stacked && (
+              <button
+                type="button"
+                aria-label={t.swap}
+                onClick={() => update({ from: trip.to, to: trip.from })}
+                className={`absolute top-1/2 -left-10 z-20 hidden size-[34px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-solid lg:grid ${
+                  dark ? "border-white/25 bg-[rgb(var(--ec-swap-rgb))] text-white shadow-md" : "border-ink-225 bg-white text-ink-950 shadow-md"
+                }`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M7 4v16M7 4L3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4" />
+                </svg>
+              </button>
+            )}
+            <label htmlFor={ids.to} className={label}>
+              {stacked ? t.dropoffLabel : t.to}
+            </label>
+            <AddressField
+              id={ids.to}
+              value={trip.to}
+              onChange={(to) => update({ to })}
+              onPicked={() => document.getElementById(ids.at)?.focus()}
+              placeholder={t.addressPlaceholder}
+              locale={locale}
+              copy={t}
+              tone={tone}
+              alignEnd={!stacked}
+              invalid={invalid("destination")}
+              describedBy={describedBy("destination")}
+            />
+          </>,
+        )
+      : cell(
+          "durationHours",
+          <>
+            <label htmlFor={ids.hours} className={label}>
+              {t.duration}
+            </label>
+            {/* The select lies over the whole cell, invisible, so a press anywhere in it opens the list; what the visitor sees, arrow included, is drawn under it */}
+            <span className="flex items-center justify-between gap-2" aria-hidden="true">
+              <span className={`truncate text-[16px] font-medium ${trip.hours === "" ? (dark ? "text-ink-400" : "text-ink-475") : dark ? "text-white" : "text-ink-950"}`}>
+                {trip.hours === "" ? t.durationPlaceholder : interpolate(t.hoursOption, { hours: trip.hours })}
+              </span>
+              <span className={dark ? "text-ink-250" : "text-ink-600"}>
+                <ChevronDownIcon />
+              </span>
+            </span>
+            <select
+              id={ids.hours}
+              value={trip.hours === "" ? "" : String(trip.hours)}
+              onChange={(e) => update({ hours: Number(e.target.value) })}
+              aria-invalid={invalid("durationHours")}
+              aria-describedby={describedBy("durationHours")}
+              className="absolute inset-0 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-[16px] opacity-0 outline-none [&>option]:px-4 [&>option]:py-2 [&>option]:text-ink-950"
+            >
+              <option value="" disabled>
+                {t.durationPlaceholder}
+              </option>
+              {HOURLY_DURATIONS.map((h) => (
+                <option key={h} value={h}>
+                  {interpolate(t.hoursOption, { hours: h })}
+                </option>
+              ))}
+            </select>
+          </>,
+          `has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset ${dark ? "has-[select:focus-visible]:ring-white/60" : "has-[select:focus-visible]:ring-ink-950"}`,
+        );
+
+  const whenCell = cell(
+    "pickupAt",
+    <>
+      <label htmlFor={ids.at} className={label}>
+        {stacked ? t.pickupWhen : t.when}
+      </label>
+      <DateTimeField
+        key={`at-${fieldsKey}`}
+        id={ids.at}
+        locale={locale}
+        copy={dateTimeCopy}
+        defaultValue={trip.at}
+        onValueChange={(at) => {
+          if (at !== autoAt.current) autoAt.current = "";
+          update({ at });
+        }}
+        invalid={invalid("pickupAt")}
+        describedBy={describedBy("pickupAt")}
+        tone={tone}
+        size="md"
+        fillCell
+        className={dateClass}
+      />
+    </>,
+  );
+
+  const guestsCell = cell(
+    "guests",
+    <>
+      <span id={ids.guestsLabel} className={label}>
+        {t.guests}
+      </span>
+      <GuestsPicker
+        id={ids.guests}
+        labelledBy={ids.guestsLabel}
+        pax={trip.pax}
+        bags={trip.bags}
+        set={trip.guestsSet}
+        onChange={(g) => update({ ...g, guestsSet: true })}
+        copy={t}
+        tone={tone}
+        describedBy={describedBy("guests")}
+      />
+    </>,
+  );
+
+  // Stops are addresses like the others, so they get the same suggestions (and the same one-session-per-address billing)
+  const stopCells = stops.map((stop, i) => (
+    <Fragment key={i}>
+      {extraCell(
+        null,
+        `${uid}-stop-${i}`,
+        interpolate(t.stopLabel, { number: i + 1 }),
+        <span className="flex items-center gap-3">
+          <AddressField
+            id={`${uid}-stop-${i}`}
+            value={{ text: stop.place, id: null, kind: null }}
+            onChange={(place) => update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, place: place.text } : s)) })}
+            placeholder={t.addressPlaceholder}
+            locale={locale}
+            copy={t}
+            tone={tone}
+          />
+          <select
+            aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
+            value={stop.wait}
+            onChange={(e) => update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, wait: Number(e.target.value) } : s)) })}
+            className={`shrink-0 cursor-pointer border-0 bg-transparent p-0 text-[13px] outline-none ${dark ? "text-ink-200 [&>option]:text-ink-950" : "text-ink-700"}`}
+          >
+            {STOP_WAITS.map((w) => (
+              <option key={w} value={w}>
+                {w === 0 ? t.waitNone : interpolate(t.waitMinutes, { minutes: w })}
+              </option>
+            ))}
+          </select>
+        </span>,
+        () => update({ stops: trip.stops.filter((_, j) => j !== i) }),
+        interpolate(t.removeStop, { number: i + 1 }),
+      )}
+    </Fragment>
+  ));
+
+  const returnCell =
+    returning &&
+    extraCell(
+      "returnAt",
+      ids.ret,
+      t.returnLabel,
+      <DateTimeField
+        key={`ret-${fieldsKey}`}
+        id={ids.ret}
+        locale={locale}
+        copy={dateTimeCopy}
+        defaultValue={trip.ret}
+        onValueChange={(ret) => update({ ret })}
+        invalid={invalid("returnAt")}
+        describedBy={describedBy("returnAt")}
+        tone={tone}
+        size="md"
+        fillCell
+        className={dateClass}
+      />,
+      () => {
+        setReturning(false);
+        update({ ret: "" });
+      },
+      t.removeReturn,
+    );
+
+  const flightCell =
+    airport &&
+    extraCell(
+      "flightNumber",
+      ids.flight,
+      t.flight,
+      <input
+        id={ids.flight}
+        type="text"
+        autoComplete="off"
+        maxLength={12}
+        placeholder={t.flightPlaceholder}
+        value={trip.flight}
+        onChange={(e) => update({ flight: e.target.value.toUpperCase() })}
+        className={input}
+      />,
+    );
+
+  const errorLine = (
+    <p id={ids.error} role="alert" className={`m-0 min-h-5 text-[13px] ${dark ? "text-[#fda29b]" : "text-error"}`}>
+      {problems.length > 0 ? [...new Set(problems.map(message))].filter(Boolean).join(" ") : ""}
+    </p>
+  );
+
+  // The journey step of /book and the portal: one field under the other, in the order the car drives them
+  if (stacked) {
+    return (
+      <form onSubmit={submit} noValidate className="flex w-full flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950 md:p-6">
+          <div className="mb-1">{modeToggle}</div>
+          {fromCell}
+          {stopCells}
+          {toCell}
+          {addButtons}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {whenCell}
+            {guestsCell}
+          </div>
+          {returnCell}
+          {flightCell}
+        </div>
+        {errorLine}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {cancelHref ? (
+            <Link href={cancelHref} className="flex h-[52px] items-center rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 no-underline hover:border-ink-950">
+              {t.cancel}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <button type="submit" className="flex h-[52px] cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800">
+            {t.chooseCar}
+            <ArrowIcon />
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   const body = (
     <>
       {params && [...params.entries()].map(([k, v], i) => <input key={`${k}-${i}`} type="hidden" name={k} value={v} />)}
@@ -194,286 +540,36 @@ export function JourneyBar({
         }`}
       >
         <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-0 border-b border-solid px-1.5 pt-1 pb-2.5 ${divider}`}>
-          <div role="group" aria-label={t.modeLabel} className={`flex rounded-full p-1 ${dark ? "bg-white/[0.1]" : "bg-ink-100"}`}>
-            {(["oneway", "hourly"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={trip.mode === mode}
-                onClick={() => update({ mode, ...(mode === "hourly" ? { to: emptyPlace(), stops: [] } : {}) })}
-                className={`h-[34px] cursor-pointer rounded-full border-0 px-4 text-[13px] ${
-                  trip.mode === mode
-                    ? dark
-                      ? "bg-white font-semibold text-ink-950"
-                      : "bg-ink-950 font-semibold text-white"
-                    : `bg-transparent font-medium ${dark ? "text-white" : "text-ink-950"}`
-                }`}
-              >
-                {mode === "oneway" ? t.modeOneWay : t.modeHourly}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-1">
-            {canAddStop && (
-              <button
-                type="button"
-                onClick={() => {
-                  update({ stops: [...trip.stops, { place: "", wait: 0 }] });
-                  const next = trip.stops.length;
-                  window.setTimeout(() => document.getElementById(`${uid}-stop-${next}`)?.focus(), 0);
-                }}
-                className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-3 text-[13px] font-semibold ${quiet}`}
-              >
-                <PlusIcon />
-                {t.addStop}
-              </button>
-            )}
-            {!returning && (
-              <button
-                type="button"
-                onClick={() => {
-                  setReturning(true);
-                  window.setTimeout(() => document.getElementById(ids.ret)?.focus(), 0);
-                }}
-                className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-3 text-[13px] font-semibold ${quiet}`}
-              >
-                <PlusIcon />
-                {t.addReturn}
-              </button>
-            )}
-          </div>
+          {modeToggle}
+          {addButtons}
         </div>
 
         <div className="relative mt-1.5 grid grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(205px,1.1fr)_minmax(205px,0.95fr)_auto]">
-        {cell(
-          "collection",
-          <>
-            <label htmlFor={ids.from} className={label}>
-              {t.from}
-            </label>
-            <AddressField
-              id={ids.from}
-              value={trip.from}
-              onChange={(from) => update({ from })}
-              onPicked={() => document.getElementById(trip.mode === "oneway" ? ids.to : ids.at)?.focus()}
-              placeholder={t.addressPlaceholder}
-              locale={locale}
-              copy={t}
-              tone={tone}
-              invalid={invalid("collection")}
-              describedBy={describedBy("collection")}
-            />
-          </>,
-        )}
-        {trip.mode === "oneway"
-          ? cell(
-              "destination",
-              <>
-                <button
-                  type="button"
-                  aria-label={t.swap}
-                  onClick={() => update({ from: trip.to, to: trip.from })}
-                  className={`absolute top-1/2 -left-10 z-20 hidden size-[34px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-solid lg:grid ${
-                    dark ? "border-white/25 bg-[rgb(var(--ec-swap-rgb))] text-white shadow-md" : "border-ink-225 bg-white text-ink-950 shadow-md"
-                  }`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M7 4v16M7 4L3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4" />
-                  </svg>
-                </button>
-                <label htmlFor={ids.to} className={label}>
-                  {t.to}
-                </label>
-                <AddressField
-                  id={ids.to}
-                  value={trip.to}
-                  onChange={(to) => update({ to })}
-                  onPicked={() => document.getElementById(ids.at)?.focus()}
-                  placeholder={t.addressPlaceholder}
-                  locale={locale}
-                  copy={t}
-                  tone={tone}
-                  alignEnd
-                  invalid={invalid("destination")}
-                  describedBy={describedBy("destination")}
-                />
-              </>,
-            )
-          : cell(
-              "durationHours",
-              <>
-                <label htmlFor={ids.hours} className={label}>
-                  {t.duration}
-                </label>
-                {/* The select lies over the whole cell, invisible, so a press anywhere in it opens the list; what the visitor sees, arrow included, is drawn under it */}
-                <span className="flex items-center justify-between gap-2" aria-hidden="true">
-                  <span className={`truncate text-[16px] font-medium ${trip.hours === "" ? (dark ? "text-ink-400" : "text-ink-475") : dark ? "text-white" : "text-ink-950"}`}>
-                    {trip.hours === "" ? t.durationPlaceholder : interpolate(t.hoursOption, { hours: trip.hours })}
-                  </span>
-                  <span className={dark ? "text-ink-250" : "text-ink-600"}>
-                    <ChevronDownIcon />
-                  </span>
-                </span>
-                <select
-                  id={ids.hours}
-                  value={trip.hours === "" ? "" : String(trip.hours)}
-                  onChange={(e) => update({ hours: Number(e.target.value) })}
-                  aria-invalid={invalid("durationHours")}
-                  aria-describedby={describedBy("durationHours")}
-                  className="absolute inset-0 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-[16px] opacity-0 outline-none [&>option]:px-4 [&>option]:py-2 [&>option]:text-ink-950"
-                >
-                  <option value="" disabled>
-                    {t.durationPlaceholder}
-                  </option>
-                  {HOURLY_DURATIONS.map((h) => (
-                    <option key={h} value={h}>
-                      {interpolate(t.hoursOption, { hours: h })}
-                    </option>
-                  ))}
-                </select>
-              </>,
-              `has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset ${dark ? "has-[select:focus-visible]:ring-white/60" : "has-[select:focus-visible]:ring-ink-950"}`,
-            )}
-        {cell(
-          "pickupAt",
-          <>
-            <label htmlFor={ids.at} className={label}>
-              {t.when}
-            </label>
-            <DateTimeField
-              key={`at-${fieldsKey}`}
-              id={ids.at}
-              locale={locale}
-              copy={dateTimeCopy}
-              defaultValue={trip.at}
-              onValueChange={(at) => {
-                if (at !== autoAt.current) autoAt.current = "";
-                update({ at });
-              }}
-              invalid={invalid("pickupAt")}
-              describedBy={describedBy("pickupAt")}
-              tone={tone}
-              size="md"
-              fillCell
-              className={`border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`}
-            />
-          </>,
-        )}
-        {cell(
-          "guests",
-          <>
-            <span id={ids.guestsLabel} className={label}>
-              {t.guests}
-            </span>
-            <GuestsPicker
-              id={ids.guests}
-              labelledBy={ids.guestsLabel}
-              pax={trip.pax}
-              bags={trip.bags}
-              set={trip.guestsSet}
-              onChange={(g) => update({ ...g, guestsSet: true })}
-              copy={t}
-              tone={tone}
-              describedBy={describedBy("guests")}
-            />
-          </>,
-        )}
-        <button
-          type="submit"
-          className={`m-1 flex min-h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold md:col-span-2 lg:col-span-1 ${
-            dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
-          }`}
-        >
-          {t.continue}
-          <ArrowIcon />
-        </button>
+          {fromCell}
+          {toCell}
+          {whenCell}
+          {guestsCell}
+          <button
+            type="submit"
+            className={`m-1 flex min-h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold md:col-span-2 lg:col-span-1 ${
+              dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
+            }`}
+          >
+            {t.continue}
+            <ArrowIcon />
+          </button>
         </div>
 
         {hasExtras && (
           <div className={`mt-1.5 grid grid-cols-1 border-0 border-t border-solid pt-1.5 md:grid-cols-2 lg:grid-cols-3 ${divider}`}>
-            {stops.map((stop, i) => (
-              <Fragment key={i}>
-                {extraCell(
-                null,
-                `${uid}-stop-${i}`,
-                interpolate(t.stopLabel, { number: i + 1 }),
-                <span className="flex items-center gap-3">
-                  <input
-                    id={`${uid}-stop-${i}`}
-                    type="text"
-                    autoComplete="off"
-                    maxLength={200}
-                    placeholder={t.addressPlaceholder}
-                    value={stop.place}
-                    onChange={(e) => update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, place: e.target.value } : s)) })}
-                    className={input}
-                  />
-                  <select
-                    aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
-                    value={stop.wait}
-                    onChange={(e) => update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, wait: Number(e.target.value) } : s)) })}
-                    className={`shrink-0 cursor-pointer border-0 bg-transparent p-0 text-[13px] outline-none ${dark ? "text-ink-200 [&>option]:text-ink-950" : "text-ink-700"}`}
-                  >
-                    {STOP_WAITS.map((w) => (
-                      <option key={w} value={w}>
-                        {w === 0 ? t.waitNone : interpolate(t.waitMinutes, { minutes: w })}
-                      </option>
-                    ))}
-                  </select>
-                </span>,
-                  () => update({ stops: trip.stops.filter((_, j) => j !== i) }),
-                  interpolate(t.removeStop, { number: i + 1 }),
-                )}
-              </Fragment>
-            ))}
-            {returning &&
-              extraCell(
-                "returnAt",
-                ids.ret,
-                t.returnLabel,
-                <DateTimeField
-                  key={`ret-${fieldsKey}`}
-                  id={ids.ret}
-                  locale={locale}
-                  copy={dateTimeCopy}
-                  defaultValue={trip.ret}
-                  onValueChange={(ret) => update({ ret })}
-                  invalid={invalid("returnAt")}
-                  describedBy={describedBy("returnAt")}
-                  tone={tone}
-                  size="md"
-                  fillCell
-                  className={`border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`}
-                />,
-                () => {
-                  setReturning(false);
-                  update({ ret: "" });
-                },
-                t.removeReturn,
-              )}
-            {airport &&
-              extraCell(
-                "flightNumber",
-                ids.flight,
-                t.flight,
-                <input
-                  id={ids.flight}
-                  type="text"
-                  autoComplete="off"
-                  maxLength={12}
-                  placeholder={t.flightPlaceholder}
-                  value={trip.flight}
-                  onChange={(e) => update({ flight: e.target.value.toUpperCase() })}
-                  className={input}
-                />,
-              )}
+            {stopCells}
+            {returnCell}
+            {flightCell}
           </div>
         )}
       </div>
 
-      <p id={ids.error} role="alert" className={`m-0 min-h-5 text-[13px] ${dark ? "text-[#fda29b]" : "text-error"}`}>
-        {problems.length > 0 ? [...new Set(problems.map(message))].filter(Boolean).join(" ") : ""}
-      </p>
+      {errorLine}
     </>
   );
 

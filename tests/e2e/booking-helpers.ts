@@ -22,8 +22,13 @@ export type Journey = {
 /** A date next year, so a test never runs into "in the past". */
 export const nextYear = (dayMonth: string, time: string) => `${dayMonth}-${new Date().getFullYear() + 1} ${time}`;
 
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** One of two labels: the hero's bar says "From", the journey step of /book and the portal says "Pickup location". */
+const either = (a: string, b: string) => new RegExp(`^(${esc(a)}|${esc(b)})$`);
+
 /** The booking bar: in the homepage hero (`#enquire`) or as the first step on /book and in the portal. */
-export const bar = (page: Page) => page.locator("form").filter({ has: page.getByRole("button", { name: en.booking.continue }) }).first();
+export const bar = (page: Page) =>
+  page.locator("form").filter({ has: page.getByRole("button", { name: new RegExp(`^(${esc(en.booking.continue)}|${esc(en.booking.chooseCar)})`) }) }).first();
 
 /**
  * Chooses a date and time in the picker the way a visitor does: the box cannot be typed into (QA round 3, bug 10). `at` is
@@ -31,7 +36,9 @@ export const bar = (page: Page) => page.locator("form").filter({ has: page.getBy
  */
 export async function pickDateTime(page: Page, field: Locator, at: string, copy: typeof en.dateTimePicker = en.dateTimePicker) {
   const [, dd, mm, yyyy, hh, min] = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/.exec(at)!;
-  await field.click();
+  // The box is covered by a press area as wide as its cell (fillCell), so a click on the box itself never lands: open it as a keyboard user does
+  await field.focus();
+  await field.press("Enter");
   const dialog = page.getByRole("dialog", { name: copy.dialog });
   const day = dialog.locator(`[data-day="${yyyy}-${mm}-${dd}"]`);
   for (let i = 0; i < 36 && (await day.count()) === 0; i++) await dialog.getByRole("button", { name: copy.nextMonth }).click();
@@ -49,18 +56,20 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
     await root.getByRole("button", { name: t.modeHourly, exact: true }).click();
     await root.getByLabel(t.duration).selectOption(String(j.hours));
   }
-  const from = root.getByLabel(t.from, { exact: true });
+  const from = root.getByLabel(either(t.from, t.pickupLabel));
   await from.fill(j.from);
   await from.press("Escape");
   if (j.to) {
-    const to = root.getByLabel(t.to, { exact: true });
+    const to = root.getByLabel(either(t.to, t.dropoffLabel));
     await to.fill(j.to);
     await to.press("Escape");
   }
-  await pickDateTime(page, root.getByLabel(t.when, { exact: true }), j.at, dt);
+  await pickDateTime(page, root.getByLabel(either(t.when, t.pickupWhen)), j.at, dt);
   for (const [i, stop] of (j.stops ?? []).entries()) {
     await root.getByRole("button", { name: t.addStop }).click();
-    await root.getByLabel(t.stopLabel.replace("{number}", String(i + 1)), { exact: true }).fill(stop.place);
+    const field = root.getByLabel(t.stopLabel.replace("{number}", String(i + 1)), { exact: true });
+    await field.fill(stop.place);
+    await field.press("Escape");
     if (stop.wait) await root.getByLabel(t.stopWaitLabel.replace("{number}", String(i + 1))).selectOption(String(stop.wait));
   }
   if (j.ret) {
@@ -76,7 +85,7 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
     for (let n = 0; n < (j.bags ?? 2); n++) await dialog.getByRole("button", { name: t.moreSuitcases }).click();
     await dialog.getByRole("button", { name: t.done }).click();
   }
-  await root.getByRole("button", { name: t.continue }).click();
+  await root.getByRole("button", { name: new RegExp(`^(${esc(t.continue)}|${esc(t.chooseCar)})`) }).click();
 }
 
 /** The car step's choices (cars and "No preference"): buttons that are pressed when chosen. */
@@ -104,7 +113,7 @@ export async function forgetRecentRequests() {
   await db.end();
 }
 
-/** Step three: who is travelling and how to reach them, then send. */
+/** Step three: who is travelling and how to reach them; then, on the review, agree and send. */
 export async function fillDetails(page: Page, d: Details, t: Copy = en.booking) {
   await expect(page.getByRole("heading", { name: new RegExp(`${t.detailsTitle}|${t.detailsTitlePortal}`.replace(/\?/g, "\\?")) })).toBeVisible();
   if (d.passenger) await page.getByRole("button", { name: t.whoOther }).click();
@@ -119,6 +128,11 @@ export async function fillDetails(page: Page, d: Details, t: Copy = en.booking) 
   if (d.purpose === "private") await page.getByRole("button", { name: t.purposePrivate }).click();
   if (d.notes) await page.getByLabel(t.notes, { exact: true }).fill(d.notes);
   if (d.name !== undefined) await forgetRecentRequests(); // website requests only (the portal has its own limit)
+  await page.getByRole("button", { name: t.reviewButton }).click();
+  // A detail the page itself finds wrong keeps the visitor on this step: the test then looks at the message
+  const review = page.getByRole("heading", { name: t.reviewTitle });
+  if (!(await review.waitFor({ timeout: 5000 }).then(() => true, () => false))) return;
+  await page.getByLabel(new RegExp(`^${esc(t.reviewAgree)}`)).check();
   await page.getByRole("button", { name: t.submit }).click();
 }
 

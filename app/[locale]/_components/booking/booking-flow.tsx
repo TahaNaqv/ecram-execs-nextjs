@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
+import type { RouteMapLinks } from "@/lib/fleet/map";
 import { FLEET, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
@@ -10,12 +11,14 @@ import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
-import { bagsText, guestsText } from "./guests-picker";
+import { bagsText, GuestsPicker, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
 import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, type Trip } from "./trip";
+import { Check, pretty, SeatIcon } from "./parts";
+import { ReviewStep, RouteOutline } from "./review-step";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
-export type BookingStep = "journey" | "car" | "details";
+export type BookingStep = "journey" | "car" | "details" | "review";
 /** What the last submission came back with, the same for the website's action and the portal's. */
 export type BookingResult = {
   pending: boolean;
@@ -34,29 +37,35 @@ export type DetailDefaults = {
 // Fields the server checks, by the step that asks for them: an error sends the visitor back there
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "returnAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
 const CAR_FIELDS = ["vehicle"];
+const DETAILS_FIELDS = ["name", "email", "phone", "phoneCountry", "passengerName", "passengerPhone", "passengerPhoneCountry", "entity", "entityKvk", "notes"];
+
+/** What the visitor typed on the details step, kept while they review (and go back to change it). */
+export type DetailsEntry = { who: "me" | "other"; purpose: "business" | "private"; fields: [string, string][] };
+
+const PASSENGER_FIELDS = ["passengerName", "passengerPhone", "passengerPhoneCountry"];
+const COMPANY_FIELDS = ["entity", "entityKvk"];
+/**
+ * The details that are sent: everything typed is kept (so switching back to "someone else" or "business" finds it again),
+ * but a passenger is only sent when someone else travels, and a company only for business on the website.
+ */
+export function sentFields(entry: DetailsEntry, variant: "public" | "portal"): [string, string][] {
+  return entry.fields.filter(
+    ([k]) => !(entry.who === "me" && PASSENGER_FIELDS.includes(k)) && !((entry.purpose === "private" || variant === "portal") && COMPANY_FIELDS.includes(k)),
+  );
+}
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
     <path d="M15 6l-6 6 6 6" />
   </svg>
 );
-const Check = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-    <path d="M5 12l5 5L19 7" />
-  </svg>
-);
-const SeatIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 21c1-4 4-6 8-6s7 2 8 6" />
+const ArrowRight = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
 
-const pretty = (wallClock: string, locale: string) => {
-  const [d, time] = wallClock.split("T");
-  const [y, m, day] = d.split("-").map(Number);
-  return `${new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, day)))}, ${time}`;
-};
 
 /**
  * The booking flow after the journey: the car, then who is travelling and how to reach them, then one submission of
@@ -80,6 +89,7 @@ export function BookingFlow({
   defaultPhone,
   defaults,
   privacyHref,
+  cancelHref,
   notice,
   lockedNotice,
 }: {
@@ -102,13 +112,18 @@ export function BookingFlow({
   /** Portal "repeat this booking": the details step starts from the earlier booking's notes and passenger */
   defaults?: DetailDefaults;
   privacyHref?: string;
+  /** Where the journey step's Cancel leads */
+  cancelHref?: string;
   /** Shown above the flow, e.g. "Filled in from EE-XXXXXX" in the portal */
   notice?: string;
   /** Portal: the session ran out; a sign-in link in place of the submit button */
   lockedNotice?: ReactNode;
 }) {
   const [trip, setTrip] = useState<Trip>(initialTrip);
+  // The journey as it is being typed, for the outline beside the form; the trip itself changes when the step is done
+  const [draft, setDraft] = useState<Trip>(initialTrip);
   const [step, setStep] = useState<BookingStep>(initialStep);
+  const [entered, setEntered] = useState<DetailsEntry | null>(null);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   // The step whose heading last had the focus. Not the first render, and not when Next shows the page again after Back
@@ -156,11 +171,12 @@ export function BookingFlow({
     setAnswered(result.fieldErrors);
     if (errorKeys.some((k) => JOURNEY_FIELDS.includes(k))) setStep("journey");
     else if (errorKeys.some((k) => CAR_FIELDS.includes(k))) setStep("car");
+    else if (errorKeys.some((k) => DETAILS_FIELDS.includes(k))) setStep("details");
   }
   const journeyErrors = errorKeys.filter((k) => JOURNEY_FIELDS.includes(k)).map((k) => result.fieldErrors[k]);
 
   const chosen = vehicleByKey(trip.vehicle);
-  const steps: [BookingStep, string][] = [["journey", t.stepJourney], ["car", t.stepCar], ["details", t.stepDetails]];
+  const steps: [BookingStep, string][] = [["journey", t.stepJourney], ["car", t.stepCar], ["details", t.stepDetails], ["review", t.stepReview]];
   const stepIndex = steps.findIndex(([s]) => s === step);
 
   const tripLine = [
@@ -178,7 +194,7 @@ export function BookingFlow({
       {notice && <p className="m-0 rounded-xl bg-ink-100 px-4 py-3 text-[14px] text-ink-800">{notice}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        {step !== "journey" ? (
+        {step === "car" || step === "details" ? (
           <button
             type="button"
             // Back to the journey step of this same flow, with the trip as it is: the page the visitor came from (QA round 3, bug 9)
@@ -208,26 +224,33 @@ export function BookingFlow({
 
       {step === "journey" && (
         <section aria-labelledby="booking-journey" className="scroll-mt-6">
-          <h2 id="booking-journey" ref={heading} tabIndex={-1} className="m-0 mb-5 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
+          <h2 id="booking-journey" ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
             {t.heading}
           </h2>
+          <p className="m-0 mt-2 mb-6 text-[15px] text-ink-600">{t.journeyIntro}</p>
           {journeyErrors.length > 0 && (
             <p role="alert" className="m-0 mb-4 rounded-xl bg-[#fef3f2] px-4 py-3 text-[14px] text-error">
               {journeyErrors.join(" ")}
             </p>
           )}
-          <JourneyBar
-            locale={locale}
-            copy={t}
-            dateTimeCopy={dateTimeCopy}
-            messages={messages}
-            tone="light"
-            initial={trip}
-            onDone={(next) => {
-              setTrip(next);
-              go("car");
-            }}
-          />
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <JourneyBar
+              locale={locale}
+              copy={t}
+              dateTimeCopy={dateTimeCopy}
+              messages={messages}
+              tone="light"
+              layout="stacked"
+              initial={trip}
+              cancelHref={cancelHref}
+              onTripChange={setDraft}
+              onDone={(next) => {
+                setTrip(next);
+                go("car");
+              }}
+            />
+            <RouteOutline trip={draft} copy={t} locale={locale} />
+          </div>
         </section>
       )}
 
@@ -241,6 +264,14 @@ export function BookingFlow({
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
           onChoose={(vehicle) => setTrip((current) => ({ ...current, vehicle }))}
+          onParty={(party) =>
+            setTrip((current) => {
+              // A car chosen for a smaller party is let go once it no longer seats everyone
+              const seats = vehicleByKey(current.vehicle)?.specs?.passengers;
+              const fits = seats === undefined || party.pax >= MAX_PASSENGERS || seats >= party.pax;
+              return { ...current, ...party, guestsSet: true, vehicle: fits ? current.vehicle : "" };
+            })
+          }
           onBack={() => go("journey")}
           onNext={() => {
             setTrip((current) => {
@@ -265,13 +296,42 @@ export function BookingFlow({
           chosen={chosen}
           vehicleAdvise={vehicleAdvise}
           result={result}
-          submit={submit}
           booker={booker}
           defaultPhone={defaultPhone}
           defaults={defaults}
           privacyHref={privacyHref}
-          lockedNotice={lockedNotice}
+          entered={entered}
+          messages={messages}
           onBack={() => go("car")}
+          onReview={(entry) => {
+            setEntered(entry);
+            go("review");
+          }}
+        />
+      )}
+
+      {step === "review" && entered && (
+        <ReviewStep
+          headingRef={heading}
+          variant={variant}
+          trip={trip}
+          entered={entered}
+          copy={t}
+          locale={locale}
+          chosen={chosen}
+          vehicleAdvise={vehicleAdvise}
+          result={result}
+          booker={booker}
+          privacyHref={privacyHref}
+          lockedNotice={lockedNotice}
+          onEdit={go}
+          onSend={() => {
+            const data = new FormData();
+            for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
+            for (const [k, v] of tripFields(trip, entered.purpose)) data.append(k, v);
+            data.set("locale", locale);
+            startTransition(() => submit(data));
+          }}
         />
       )}
 
@@ -280,7 +340,7 @@ export function BookingFlow({
   );
 }
 
-function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onChoose, onBack, onNext }: {
+function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onChoose, onParty, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   vehicles: OfferedVehicle[];
@@ -290,9 +350,12 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   error?: string;
   onDetails: (v: FleetVehicle) => void;
   onChoose: (vehicle: VehicleChoice | "") => void;
+  /** The party changed here: the cards that fit change with it */
+  onParty: (party: { pax: number; bags: number }) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
+  const uid = useId();
   const large = trip.pax >= MAX_PASSENGERS;
   const cars = vehicles
     .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
@@ -328,6 +391,21 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
               </span>
             )}
           </span>
+          {/* What pressing the card does, said on the card itself (and read out with it: why a card cannot be chosen) */}
+          <span
+            className={`m-1.5 mt-2 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
+              !c.fits ? "border border-solid border-ink-300 text-ink-600" : selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
+            }`}
+          >
+            {!c.fits ? interpolate(t.carTooSmall, { party }) : selected ? (
+              <>
+                <Check />
+                {t.carSelected}
+              </>
+            ) : (
+              t.carSelect
+            )}
+          </span>
           {selected && (
             <span aria-hidden="true" className="absolute top-[18px] left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white">
               <Check size={15} />
@@ -358,6 +436,12 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
         {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting.filter((c) => c.fits).length, total: cars.length, party })}
       </p>
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
+      <div className="mt-5 flex w-full max-w-[340px] flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5">
+        <span id={`${uid}-party`} className="text-[12px] text-ink-600">
+          {t.guestsDialog}
+        </span>
+        <GuestsPicker id={`${uid}-guests`} labelledBy={`${uid}-party`} pax={trip.pax} bags={trip.bags} set onChange={onParty} copy={t} tone="light" />
+      </div>
       {error && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
           {error}
@@ -412,7 +496,7 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   );
 }
 
-function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, submit, booker, defaultPhone, defaults, privacyHref, lockedNotice, onBack }: {
+function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, onBack, onReview }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
   trip: Trip;
@@ -421,42 +505,46 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   chosen: FleetVehicle | undefined;
   vehicleAdvise: string;
   result: BookingResult;
-  submit: (data: FormData) => void;
   booker?: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
   defaults?: DetailDefaults;
   privacyHref?: string;
-  lockedNotice?: ReactNode;
+  /** What was typed here before the visitor went on to the review: the form starts from it when they come back */
+  entered: DetailsEntry | null;
+  messages: TripMessages;
   onBack: () => void;
+  onReview: (entry: DetailsEntry) => void;
 }) {
   const uid = useId();
-  const [who, setWho] = useState<"me" | "other">(defaults?.passengerName ? "other" : "me");
-  const [purpose, setPurpose] = useState<"business" | "private">("business");
-  const [phoneCountry, setPhoneCountry] = useState(defaultPhone?.country ?? "31");
-  const [passengerCountry, setPassengerCountry] = useState(defaults?.passengerPhone?.country ?? "31");
+  const saved = new Map(entered?.fields);
+  // A value typed earlier, else what the page brought (the portal's "repeat this booking")
+  const typed = (name: string, fallback?: string) => saved.get(name) ?? fallback;
+  const [who, setWho] = useState<"me" | "other">(entered?.who ?? (defaults?.passengerName ? "other" : "me"));
+  const [purpose, setPurpose] = useState<"business" | "private">(entered?.purpose ?? "business");
+  const [phoneCountry, setPhoneCountry] = useState(typed("phoneCountry", defaultPhone?.country) ?? "31");
+  const [passengerCountry, setPassengerCountry] = useState(typed("passengerPhoneCountry", defaults?.passengerPhone?.country) ?? "31");
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors: Record<string, string | undefined> = { ...result.fieldErrors, ...localErrors };
   const portal = variant === "portal";
   const askPurpose = trip.mode === "oneway" && !involvesAirport(trip);
 
+  // Checked here, before the review, so the review only ever shows a booking that can be sent; the server checks again
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const data = new FormData(form);
-    if (who === "other" && !String(data.get("passengerName") ?? "").trim()) {
-      setLocalErrors({ passengerName: t.passengerNameRequired });
-      document.getElementById(`${uid}-passengerName`)?.focus();
+    const data = new FormData(e.currentTarget);
+    const value = (k: string) => String(data.get(k) ?? "").trim();
+    const found: Record<string, string> = {};
+    if (!portal && !value("name")) found.name = messages.nameRequired;
+    if (!portal && !EMAIL.test(value("email"))) found.email = messages.emailInvalid;
+    if (value("phone").replace(/\D/g, "").length < 6) found.phone = messages.phoneNumberInvalid;
+    if (who === "other" && !value("passengerName")) found.passengerName = t.passengerNameRequired;
+    setLocalErrors(found);
+    const first = ["name", "email", "phone", "passengerName"].find((k) => found[k]);
+    if (first) {
+      document.getElementById(`${uid}-${first}`)?.focus();
       return;
     }
-    setLocalErrors({});
-    if (who === "me") {
-      data.delete("passengerName");
-      data.delete("passengerPhone");
-      data.delete("passengerPhoneCountry");
-    }
-    for (const [k, v] of tripFields(trip, purpose)) data.append(k, v);
-    data.set("locale", locale);
-    startTransition(() => submit(data));
+    onReview({ who, purpose, fields: [...data.entries()].map(([k, v]) => [k, String(v)]) });
   };
 
   const field = (name: string, label: string, control: ReactNode, wide = false) => (
@@ -550,15 +638,15 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
               </div>
             ) : (
               <>
-                {field("name", t.yourName, <input {...aria("name")} name="name" type="text" autoComplete="name" maxLength={120} className={input} />, true)}
-                {field("email", t.email, <input {...aria("email")} name="email" type="email" autoComplete="email" maxLength={200} placeholder={t.emailPlaceholder} className={input} />)}
+                {field("name", t.yourName, <input {...aria("name")} name="name" type="text" autoComplete="name" maxLength={120} defaultValue={typed("name")} className={input} />, true)}
+                {field("email", t.email, <input {...aria("email")} name="email" type="email" autoComplete="email" maxLength={200} defaultValue={typed("email")} placeholder={t.emailPlaceholder} className={input} />)}
               </>
             )}
-            {phone("", phoneCountry, setPhoneCountry, t.mobile, defaultPhone?.number)}
+            {phone("", phoneCountry, setPhoneCountry, t.mobile, typed("phone", defaultPhone?.number))}
             {who === "other" && (
               <>
-                {field("passengerName", t.passengerName, <input {...aria("passengerName")} name="passengerName" type="text" autoComplete="off" maxLength={120} defaultValue={defaults?.passengerName} placeholder={t.passengerNamePlaceholder} className={input} />)}
-                {phone("passenger", passengerCountry, setPassengerCountry, t.passengerPhone, defaults?.passengerPhone?.number)}
+                {field("passengerName", t.passengerName, <input {...aria("passengerName")} name="passengerName" type="text" autoComplete="off" maxLength={120} defaultValue={typed("passengerName", defaults?.passengerName)} placeholder={t.passengerNamePlaceholder} className={input} />)}
+                {phone("passenger", passengerCountry, setPassengerCountry, t.passengerPhone, typed("passengerPhone", defaults?.passengerPhone?.number))}
               </>
             )}
           </div>
@@ -595,7 +683,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                   type="text"
                   autoComplete="organization"
                   maxLength={200}
-                  defaultValue={defaults?.entity}
+                  defaultValue={typed("entity", defaults?.entity)}
                   placeholder={locale === "nl" ? "bv. Acme B.V." : "e.g. Acme Corporation"}
                   className={input}
                 />,
@@ -609,7 +697,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                   type="text"
                   autoComplete="off"
                   maxLength={30}
-                  defaultValue={defaults?.entityKvk}
+                  defaultValue={typed("entityKvk", defaults?.entityKvk)}
                   placeholder={locale === "nl" ? "8 cijfers (optioneel)" : "8 digits (optional)"}
                   className={input}
                 />,
@@ -617,7 +705,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             </div>
           )}
 
-          {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} defaultValue={defaults?.notes} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
+          {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} defaultValue={typed("notes", defaults?.notes)} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
 
           {!portal && (
             <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
@@ -643,15 +731,15 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                 <ArrowLeft />
                 {t.back}
               </button>
-              {lockedNotice ?? (
-                <button type="submit" disabled={result.pending} className="h-[52px] flex-1 cursor-pointer rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none">
-                  {result.pending ? t.sending : t.submit}
-                </button>
-              )}
+              <button type="submit" className="flex h-[52px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 sm:flex-none">
+                {t.reviewButton}
+                <ArrowRight />
+              </button>
             </div>
           </div>
+          {/* A send the server turned back lands here: say why, as well as marking the fields */}
           <p aria-live="polite" className="m-0 min-h-5 text-[13px] text-error">
-            {result.message ?? ""}
+            {Object.keys(result.fieldErrors).some((k) => DETAILS_FIELDS.includes(k)) ? (result.message ?? "") : ""}
           </p>
         </form>
 
@@ -739,7 +827,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
 }
 
 /** The thank-you after a website request (the portal goes to the booking's own page instead). */
-export function BookingDone({ copy: t, name, reference, onAgain }: { copy: BookingCopy; name: string; reference: string; onAgain: () => void }) {
+export function BookingDone({ copy: t, name, reference, map, onAgain }: { copy: BookingCopy; name: string; reference: string; map?: RouteMapLinks | null; onAgain: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef(false);
   useEffect(() => {
@@ -760,11 +848,43 @@ export function BookingDone({ copy: t, name, reference, onAgain }: { copy: Booki
         {interpolate(t.doneHeading, { name })}
       </h2>
       <p className="m-0 text-[15px] text-ink-600">{t.doneNote}</p>
+      {map && <RouteMap map={map} copy={t} />}
       <div>
         <button type="button" onClick={onAgain} className="h-[52px] cursor-pointer rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800">
           {t.doneAgain}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The booking's route on Google's map, on the confirmation only: no step before it loads a map. Google's frame sets its own
+ * cookies, so it is only loaded when the visitor asks for it (the site's rule for anything that tracks, lib/consent.ts);
+ * until then, and without a key, the link that opens Google Maps does the same job.
+ */
+export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<BookingCopy, "doneMapTitle" | "doneMapFrame" | "doneMapShow" | "doneMapNote" | "doneMapOpen"> }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950">
+      <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-500 uppercase">{t.doneMapTitle}</span>
+      {shown && map.embed ? (
+        <iframe title={t.doneMapFrame} src={map.embed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="aspect-[16/10] w-full rounded-[12px] border-0" />
+      ) : map.embed ? (
+        <button
+          type="button"
+          onClick={() => setShown(true)}
+          className="grid aspect-[16/10] w-full cursor-pointer place-items-center rounded-[12px] border border-dashed border-ink-300 bg-ink-50 p-6 text-center hover:border-ink-950"
+        >
+          <span className="flex flex-col items-center gap-2">
+            <span className="text-[15px] font-semibold">{t.doneMapShow}</span>
+            <span className="text-[13px] text-ink-600">{t.doneMapNote}</span>
+          </span>
+        </button>
+      ) : null}
+      <a href={map.open} target="_blank" rel="noopener noreferrer" className="self-start text-[14px] font-semibold text-ink-950 underline underline-offset-2">
+        {t.doneMapOpen}
+      </a>
     </div>
   );
 }

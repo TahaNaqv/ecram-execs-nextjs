@@ -93,7 +93,7 @@ test("a partner sees only their own bookings", async ({ page, context, browser }
 
   // Nor can it be repeated: the form opens empty
   await page.goto(`/en/corporate-partner/account/new-booking?repeat=${stranger.reference}`);
-  await expect(page.locator("main").getByLabel(en.booking.from, { exact: true })).toHaveValue("");
+  await expect(page.locator("main").getByLabel(en.booking.pickupLabel, { exact: true })).toHaveValue("");
 
   // The owner can open it
   const ownerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
@@ -303,14 +303,14 @@ test("a new booking from the portal carries the partner's details, and can be re
   await page.getByRole("link", { name: p.repeatCta }).click();
   await expect(page.getByText(p.repeatNote.replace("{reference}", reference))).toBeVisible();
   const journey = page.locator("main");
-  await expect(journey.getByLabel(b.from, { exact: true })).toHaveValue("Schiphol Airport, Arrivals 2");
+  await expect(journey.getByLabel(b.pickupLabel, { exact: true })).toHaveValue("Schiphol Airport, Arrivals 2");
   await expect(journey.getByLabel("Stop 1", { exact: true })).toHaveValue("Rotterdam Centraal");
   await expect(journey.getByLabel(b.stopWaitLabel.replace("{number}", "1"))).toHaveValue("30");
-  await expect(journey.getByLabel(b.when, { exact: true })).not.toHaveValue(nextYear("14-03", "08:30")); // not the earlier date: it starts on the time it is now
+  await expect(journey.getByLabel(b.pickupWhen, { exact: true })).not.toHaveValue(nextYear("14-03", "08:30")); // not the earlier date: it starts on the time it is now
   await expect(journey.getByLabel(b.flight, { exact: true })).toHaveValue("");
   // …and the car and the passenger start from the earlier booking too
-  await pickDateTime(page, journey.getByLabel(b.when, { exact: true }), nextYear("21-03", "08:30"));
-  await journey.getByRole("button", { name: b.continue }).click();
+  await pickDateTime(page, journey.getByLabel(b.pickupWhen, { exact: true }), nextYear("21-03", "08:30"));
+  await journey.getByRole("button", { name: b.chooseCar }).click();
   await expect(carChoice(page, "Mercedes-Benz VLE 300")).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: /^Continue with/ }).click();
   await expect(page.getByRole("button", { name: b.whoOther })).toHaveAttribute("aria-pressed", "true");
@@ -325,7 +325,7 @@ test("the booking flow says what is wrong, and a past time is refused", async ({
   await signedInPartner(page, context, "validate");
   await page.goto("/en/corporate-partner/account/new-booking");
   const journey = page.locator("main");
-  await journey.getByRole("button", { name: en.booking.continue }).click();
+  await journey.getByRole("button", { name: en.booking.chooseCar }).click();
   const alert = journey.getByRole("alert");
   await expect(alert).toContainText(en.forms.collectionRequired);
   await expect(alert).toContainText(en.forms.guestsRequired); // the guests are chosen by the partner; the time starts as the time it is now
@@ -575,7 +575,7 @@ test("the introduction form keeps its pills after an error, and no pill spills o
   for (const width of [390, 440, 768, 1024]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/nl/zakelijke-partner/account/nieuwe-boeking");
-    await expect(page.locator("main").getByLabel(nl.booking.from, { exact: true })).toBeVisible();
+    await expect(page.locator("main").getByLabel(nl.booking.pickupLabel, { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `new booking at ${width}px`).toBeLessThanOrEqual(width);
   }
 });

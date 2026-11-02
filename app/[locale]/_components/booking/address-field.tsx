@@ -7,7 +7,8 @@ import type { Place } from "./trip";
 
 export type AddressCopy = { suggestions: string; poweredByGoogle: string };
 
-const DEBOUNCE_MS = 200;
+// Google is asked once the visitor pauses, not on every letter; all the searches for one address share a billing session (below)
+const DEBOUNCE_MS = 400;
 
 const ICONS: Record<PlaceKind, string> = {
   airport: "M2 16l20-6-2-3-7 2-6-6-2 1 4 7-5 2-2-2-1 1z",
