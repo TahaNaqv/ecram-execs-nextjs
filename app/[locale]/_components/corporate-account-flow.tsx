@@ -234,6 +234,24 @@ function RequestForm({
 }: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; banner?: string; privacyHref: string; onSent: (email: string) => void }) {
   const [attempt, setAttempt] = useState(0);
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
+  const [countryOpen, setCountryOpen] = useState(false);
+  const countryRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!countryOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!countryRef.current?.contains(event.target as Node)) setCountryOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCountryOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [countryOpen]);
   const send = mode === "signup" ? requestCode : requestReset;
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
     const next = await send(prev, formData);
@@ -286,27 +304,46 @@ function RequestForm({
                 className={`${control} px-3 py-2.5 text-xs sm:text-sm`} 
               />
             </Field>
-            <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className="md:col-span-2">
-              <div className="flex w-full min-w-0 items-center bg-transparent">
-                <select 
-                  name="phoneCountryCode" 
+            <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className={`md:col-span-2 ${countryOpen ? "relative z-30" : ""}`}>
+              <div ref={countryRef} className="relative flex w-full min-w-0 items-center bg-transparent">
+                <input type="hidden" name="phoneCountryCode" value={selectedCountry.code} />
+                <button
+                  type="button"
                   aria-label="Country Code"
-                  value={selectedCountry.code}
-                  onChange={(e) => {
-                    const found = COUNTRY_CODES.find(c => c.code === e.target.value);
-                    if (!found) return;
-                    setSelectedCountry(found);
-                    const typed = document.getElementById("c-phone");
-                    if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, found.code);
-                  }}
-                  className="bg-ink-950 text-white border-r border-ink-225 px-2.5 py-2 focus:outline-none font-mono text-xs shrink-0 cursor-pointer"
+                  aria-expanded={countryOpen}
+                  aria-haspopup="listbox"
+                  onClick={() => setCountryOpen((open) => !open)}
+                  className="shrink-0 cursor-pointer border-0 border-r border-solid border-ink-225 bg-ink-950 px-2.5 py-2 font-mono text-xs text-white focus:outline-none"
                 >
-                  {COUNTRY_CODES.map((c) => (
-                    <option key={c.code} value={c.code} className="bg-ink-950 text-white py-1">
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                  {selectedCountry.label}
+                </button>
+                {countryOpen && (
+                  <ul
+                    role="listbox"
+                    aria-label="Country Code"
+                    className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-44 list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400"
+                  >
+                    {COUNTRY_CODES.map((c) => {
+                      const selected = c.code === selectedCountry.code;
+                      return (
+                        <li key={c.code} role="option" aria-selected={selected}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCountry(c);
+                              const typed = document.getElementById("c-phone");
+                              if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, c.code);
+                              setCountryOpen(false);
+                            }}
+                            className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left font-mono text-[13px] text-[#10224f] ${selected ? "bg-[#e7edff] font-semibold" : "bg-transparent hover:bg-[#f2f5ff]"}`}
+                          >
+                            {c.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
                 <input 
                   id="c-phone" 
                   name="phone" 

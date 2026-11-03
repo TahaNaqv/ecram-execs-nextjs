@@ -35,7 +35,7 @@ export type Trip = {
 /** The highest number the form will take. The count is the real number, never "8+". */
 export const MAX_PASSENGERS = 99;
 export const MAX_BAGS = 12;
-/** How many of one model the form will take. The booking total is the same limit. */
+/** How many of one model the form will take. Other models stay available up to the same number. */
 export const MAX_PER_CAR = MAX_CARS;
 export const emptyPlace = (): Place => ({ text: "", id: null, kind: null });
 export const emptyTrip = (): Trip => ({

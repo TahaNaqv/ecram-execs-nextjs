@@ -517,13 +517,8 @@ export function AutoPricingGateway({
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
                 <BriefcaseIcon size={12} /> {copy.vehicle}
               </p>
-              <p className="font-semibold text-zinc-900 mt-0.5 truncate">
-                {(() => {
-                  const count = request.vehicleCount ?? 1;
-                  const named = request.vehicle && request.vehicle !== "advise" ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : null;
-                  if (count > 1) return named ? `${count} × ${named}` : interpolate(copy.convoy, { count });
-                  return named ?? "—";
-                })()}
+              <p className="mt-0.5 font-semibold whitespace-normal text-zinc-900">
+                {convoyTitle(request) ?? (request.vehicle && request.vehicle !== "advise" ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—")}
               </p>
               {(request.vehicleCount ?? 1) > 1 && request.internalNotes?.trim() ? (
                 <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>

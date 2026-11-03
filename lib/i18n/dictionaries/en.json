@@ -1929,7 +1929,7 @@
     "fewerOf": "One fewer {car}",
     "moreOf": "One more {car}",
     "countOf": "Number of {car}",
-    "carsShort": "These cars seat {seats}. You can continue — our team will arrange the remaining seats for {party}. You can also add more cars, up to 3 in total.",
+    "carsShort": "These cars seat {seats}. You can also add more cars, up to 3 in total.",
     "carsShortMax": "These 3 cars seat {seats}. That is the most a booking can include. Our team will arrange the remaining seats for {party}.",
     "carsLimit": "A booking can include up to 3 cars.",
     "continueWithout": "Continue, you choose the car",

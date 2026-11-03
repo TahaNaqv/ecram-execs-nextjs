@@ -287,7 +287,7 @@ export type ConvoyPlan = {
   vehicle: FleetVehicle;
 };
 
-/** A booking holds at most this many cars, whether the visitor picks them or we suggest them. */
+/** How many of one model a visitor can pick, and how many cars a suggested convoy uses. */
 export const MAX_CARS = 3;
 
 /**
@@ -376,7 +376,7 @@ export const LARGEST_CAR_SEATS = Math.max(...FLEET.map((v) => v.specs?.passenger
 
 export type FleetPick = { key: VehicleKey; count: number };
 
-/** Cars a form or a stored quote named, with a quantity of at least one. Anything else is dropped. */
+/** Cars a form or a stored quote named, with a quantity of at least one. Each model is kept up to `MAX_CARS`; a mix of models is kept. */
 export function fleetPicks(raw: unknown): FleetPick[] {
   if (!Array.isArray(raw)) return [];
   const picks: FleetPick[] = [];
@@ -384,8 +384,11 @@ export function fleetPicks(raw: unknown): FleetPick[] {
     if (!item || typeof item !== "object") continue;
     const key = normalizeVehicleKey("key" in item ? String((item as { key: unknown }).key) : "");
     const count = Number("count" in item ? (item as { count: unknown }).count : 0);
-    const room = MAX_CARS - picks.reduce((n, pick) => n + pick.count, 0);
-    if (key && room > 0 && Number.isInteger(count) && count >= 1) picks.push({ key, count: Math.min(count, room) });
+    if (!key || !Number.isInteger(count) || count < 1) continue;
+    const n = Math.min(MAX_CARS, count);
+    const existing = picks.find((pick) => pick.key === key);
+    if (existing) existing.count = Math.min(MAX_CARS, existing.count + n);
+    else if (picks.length < 8) picks.push({ key, count: n });
   }
   return picks;
 }

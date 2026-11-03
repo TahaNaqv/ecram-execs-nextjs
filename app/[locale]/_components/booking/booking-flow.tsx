@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { mapFrameSrc, type RouteMapLinks } from "@/lib/fleet/map";
-import { FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
+import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
@@ -13,7 +13,7 @@ import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { involvesAirport, isTripReady, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
+import { involvesAirport, isTripReady, MAX_PER_CAR, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
@@ -374,8 +374,7 @@ function galleryCopy(t: FleetDictionary): GalleryCopy {
 
 function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
   const next = trip.cars.filter((c) => c.key !== key);
-  const used = next.reduce((n, car) => n + car.count, 0);
-  const n = Math.min(Math.max(0, MAX_CARS - used), Math.max(0, count));
+  const n = Math.min(MAX_PER_CAR, Math.max(0, Math.trunc(count)));
   if (n > 0) next.push({ key, count: n });
   const order = new Map(FLEET.map((v, i) => [v.key, i]));
   next.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
@@ -405,15 +404,12 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   const party = guestsText(t, trip.pax);
   const fitting = cars.filter((c) => c.seats === null || c.seats >= trip.pax).length;
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
-  const chosenSeats = trip.cars.reduce((n, c) => n + (vehicleByKey(c.key)?.specs?.passengers ?? 0) * c.count, 0);
-  const short = trip.cars.length > 0 && chosenSeats < trip.pax;
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
   const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:opacity-40";
 
   const card = (c: (typeof cars)[number]) => {
     const count = trip.cars.find((pick) => pick.key === c.vehicle.key)?.count ?? 0;
     const selected = count > 0;
-    const room = MAX_CARS - (totalCars - count);
     return (
       <li key={c.vehicle.key} className="relative">
         <div
@@ -424,7 +420,6 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
           <button
             type="button"
             aria-pressed={selected}
-            disabled={!selected && totalCars >= MAX_CARS}
             onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
             className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-default"
           >
@@ -463,7 +458,7 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
                 type="number"
                 inputMode="numeric"
                 min={0}
-                max={room}
+                max={MAX_PER_CAR}
                 aria-label={interpolate(t.countOf, { car: c.vehicle.name })}
                 value={count}
                 onChange={(e) => {
@@ -473,7 +468,7 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
                 className="w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-center text-[15px] font-semibold leading-none text-[#10224f] tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </span>
-            <button type="button" aria-label={interpolate(t.moreOf, { car: c.vehicle.name })} disabled={count >= room} onClick={() => onCars(c.vehicle.key, count + 1)} className={qtyButton}>
+            <button type="button" aria-label={interpolate(t.moreOf, { car: c.vehicle.name })} disabled={count >= MAX_PER_CAR} onClick={() => onCars(c.vehicle.key, count + 1)} className={qtyButton}>
               +
             </button>
           </span>
@@ -507,12 +502,6 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
         {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting, total: cars.length, party })}
       </p>
       {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}
-      {short && (
-        <p className="m-0 mt-3 text-[14px] text-ink-600">
-          {interpolate(totalCars >= MAX_CARS ? t.carsShortMax : t.carsShort, { seats: chosenSeats, party })}
-        </p>
-      )}
-      {totalCars >= MAX_CARS && !short && <p className="m-0 mt-3 text-[14px] text-ink-600">{t.carsLimit}</p>}
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
       {error && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
@@ -610,7 +599,7 @@ function CountryCode({ name, label, country, onChange }: { name: string; label: 
         {current[1]} +{current[0]}
       </button>
       {open && (
-        <ul role="listbox" aria-label={label} className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-44 list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl">
+        <ul role="listbox" aria-label={label} className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-44 list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
           {COUNTRY_CODES.map(([code, iso]) => (
             <li key={code} role="option" aria-selected={code === country}>
               <button
@@ -893,7 +882,11 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
 
   const picks = trip.cars.filter((c) => c.count > 0);
   const convoy = convoySentence(t, trip);
-  if (convoy) rows.push([t.reviewVehicle, convoy]);
+  const listed = picks.length > 1 || (picks[0]?.count ?? 0) > 1
+    ? picks.map((p) => `${p.count} × ${vehicleByKey(p.key)?.name ?? p.key}`).join(", ")
+    : null;
+  if (listed) rows.push([t.reviewVehicle, listed]);
+  else if (convoy) rows.push([t.reviewVehicle, convoy]);
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip);
   const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen;
@@ -919,8 +912,18 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
         </div>
       )}
       <div className="flex flex-col gap-5 p-6 pt-4">
-        <div className="flex items-center justify-between gap-3 border-0 border-b border-solid border-ink-150 pb-4">
-          <span className="font-serif text-[22px] leading-tight font-normal">{displayName}</span>
+        <div className="flex items-start justify-between gap-3 border-0 border-b border-solid border-ink-150 pb-4">
+          {listed ? (
+            <span className="flex flex-col gap-1 font-serif text-[22px] leading-tight font-normal">
+              {picks.map((p) => (
+                <span key={p.key}>
+                  {p.count} × {vehicleByKey(p.key)?.name ?? p.key}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span className="font-serif text-[22px] leading-tight font-normal">{displayName}</span>
+          )}
           {seats !== null && (
             <span className="flex items-center gap-1.5 text-[13px] text-ink-700 whitespace-nowrap">
               <SeatIcon />

@@ -238,7 +238,7 @@ export function ApplicationForm({
                   id="a-phone-country"
                   role="listbox"
                   aria-label={t.labelCountry}
-                  className="absolute top-full left-0 z-50 mt-2 box-border max-h-60 w-[140px] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
+                  className="absolute top-full left-0 z-50 mt-2 box-border max-h-60 w-[140px] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400"
                 >
                   {COUNTRY_CODES.map(([code, iso]) => {
                     const selected = code === phoneCountry;
