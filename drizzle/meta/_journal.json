@@ -134,6 +134,13 @@
       "when": 1793442656815,
       "tag": "0018_fuzzy_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793713667635,
+      "tag": "0019_vehicles",
+      "breakpoints": true
     }
   ]
 }
