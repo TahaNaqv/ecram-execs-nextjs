@@ -273,7 +273,7 @@ function DetailSkeleton() {
 }
 const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
 
-/** The rate card's price stored with the request (lib/pricing/rates.ts), line by line, before VAT, then the total with it. */
+/** The rate card's price stored with the request (lib/pricing/rates.ts): each car's hours × rate, then VAT, the service fee and the total. */
 function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"] }) {
   const euro = (cents: number) => formatCents(cents, "en");
   const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
@@ -296,8 +296,8 @@ function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited
               ))}
             </div>
           ))}
-          {line(rd.rateCardFee, euro(price.fee))}
           {line(rd.rateCardVat, euro(price.vat))}
+          {line(rd.rateCardFee, euro(price.fee))}
           {line(rd.rateCardTotal, euro(price.total), true)}
           {!price.exact && <p className="mt-2 text-xs text-amber-700">{rd.rateCardLower}</p>}
         </div>

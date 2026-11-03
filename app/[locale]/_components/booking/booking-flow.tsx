@@ -16,7 +16,7 @@ import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
 import { involvesAirport, isTripReady, MAX_PER_CAR, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
-import { dayLabel, segmentOf, shown } from "./price";
+import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
@@ -388,7 +388,7 @@ function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
 function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
-  /** Whose rates the cards show: the website's (with VAT) or a corporate partner's (before VAT) */
+  /** Whose rates the cards show: the website's standard rates or a corporate partner's */
   segment: Segment;
   locale: Locale;
   vehicles: OfferedVehicle[];
@@ -416,7 +416,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
   const day = trip.at ? dayKind(trip.at) : null;
   const rateOf = (key: string) => {
     const rate = day ? hourlyRate(key, segment, day) : null;
-    return rate === null ? null : interpolate(t.carRate, { price: formatCents(shown(rate, segment), locale) });
+    return rate === null ? null : interpolate(t.carRate, { price: formatCents(rate, locale) });
   };
   const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:opacity-40";
 
@@ -517,7 +517,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
       </p>
       {day && (
         <p className="m-0 mt-2 text-[13px] text-ink-600">
-          {interpolate(segment === "public" ? t.carRatesPublic : t.carRatesCorporate, { day: dayLabel(t, day), fee: formatCents(shown(SERVICE_FEE_CENTS, segment), locale) })}
+          {interpolate(t.carRates, { day: dayLabel(t, day), fee: formatCents(SERVICE_FEE_CENTS, locale) })}
         </p>
       )}
       {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}

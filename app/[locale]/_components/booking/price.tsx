@@ -3,17 +3,15 @@
 import type { ReactNode } from "react";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { carsToPrice } from "@/lib/pricing/booking";
-import { formatCents, priceBooking, withVat, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
+import { formatCents, priceBooking, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingCopy } from "./copy";
 import { pretty } from "./parts";
 import type { Trip } from "./trip";
 
-/** The website shows its prices with VAT (Dutch consumer pricing rules); the portal shows a business's prices before VAT. */
+/** The website's bookings are at the standard rates, the portal's at the corporate rates. */
 export const segmentOf = (variant: "public" | "portal"): Segment => (variant === "portal" ? "corporate" : "public");
-/** An amount as the segment reads it: with VAT for the public, before VAT for a corporate partner. */
-export const shown = (cents: number, segment: Segment) => (segment === "public" ? withVat(cents) : cents);
 
 export const dayLabel = (t: BookingCopy, day: DayKind) => (day === "sunday" ? t.rateSunday : day === "saturday" ? t.rateSaturday : t.rateWeekday);
 
@@ -22,21 +20,17 @@ export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | n
   if (!trip.at) return null;
   const { cars, suggested } = carsToPrice({ vehicles: trip.cars, vehicle: trip.vehicle, passengers: trip.pax, luggage: trip.bags });
   const hourly = trip.mode === "hourly";
-  const stops = trip.stops.filter((s) => s.place.trim());
   const price = priceBooking({
     segment,
     pickupAt: trip.at,
     returnAt: trip.ret || null,
     hours: hourly && trip.hours !== "" ? trip.hours : null,
     driveSeconds: hourly ? null : driveSeconds,
-    waitMinutes: hourly ? 0 : stops.reduce((sum, s) => sum + s.wait, 0),
     cars,
     suggested,
   });
   return price ? { ...price, suggested } : null;
 }
-
-const hoursText = (hours: number, locale: Locale) => new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { maximumFractionDigits: 1 }).format(hours);
 
 /** The price on the review step: each car on each leg, the service fee, VAT and the total, with what the figure rests on. */
 export function PriceBreakdown({
@@ -61,7 +55,6 @@ export function PriceBreakdown({
   if (pending) return <p className="m-0 text-[14px] text-ink-500">{t.pricePending}</p>;
   if (!price) return <p className="m-0 text-[14px] text-ink-700">{t.reviewPriceNote}</p>;
 
-  const publicPrice = segment === "public";
   const row = (key: string, label: ReactNode, value: ReactNode, strong = false) => (
     <div key={key} className={`flex justify-between gap-4 py-2 text-[14px] ${strong ? "border-0 border-t border-solid border-ink-150 pt-3 text-[16px] font-semibold" : ""}`}>
       <dt className={`min-w-0 ${strong ? "" : "text-ink-600"}`}>{label}</dt>
@@ -82,16 +75,15 @@ export function PriceBreakdown({
               `${leg.leg}-${line.key}`,
               <span className="flex flex-col">
                 <span className="text-ink-950">{`${line.count} × ${vehicleByKey(line.key)?.name ?? line.key}`}</span>
-                <span className="text-[12px]">{interpolate(t.priceLineHours, { hours: hoursText(leg.hours, locale), rate: euro(shown(line.rate, segment)) })}</span>
+                <span className="text-[12px]">{interpolate(t.priceLineHours, { hours: leg.hours, rate: euro(line.rate) })}</span>
               </span>,
-              euro(publicPrice ? line.gross : line.amount),
+              euro(line.amount),
             ),
           ),
         ])}
-        {row("fee", t.priceServiceFee, euro(publicPrice ? price.feeGross : price.fee))}
-        {publicPrice ? null : row("vat", t.priceVat, euro(price.vat))}
-        {row("total", publicPrice ? t.priceTotal : t.priceTotalExVat, price.exact ? euro(price.total) : interpolate(t.priceFrom, { price: euro(price.total) }), true)}
-        {publicPrice && row("vat", t.priceVatIncluded, euro(price.vat))}
+        {row("vat", t.priceVat, euro(price.vat))}
+        {row("fee", t.priceServiceFee, euro(price.fee))}
+        {row("total", t.priceTotal, price.exact ? euro(price.total) : interpolate(t.priceFrom, { price: euro(price.total) }), true)}
       </dl>
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12px] leading-snug text-ink-600">
         {notes.map((note) => (

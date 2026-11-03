@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { carsToPrice } from "../../lib/pricing/booking";
 import { billedHours, dayKind, hourlyRate, priceBooking } from "../../lib/pricing/rates";
 
-// The client's rate card (November 2026): per car per hour, before the €12.50 service fee and 9% VAT, at least 2 hours.
-// 2027-06-14 is a Monday, 2027-06-19 a Saturday, 2027-06-20 a Sunday.
+// The client's rate card (November 2026): per car per hour, in whole hours and at least 2; then 9% VAT on the rides,
+// then a €12.50 service fee. 2027-06-14 is a Monday, 2027-06-19 a Saturday, 2027-06-20 a Sunday.
 
 test("the rate card's columns follow the day of the pick-up, in either wall-clock format", () => {
   expect(dayKind("2027-06-14T08:30")).toBe("weekday");
@@ -27,23 +27,23 @@ test("every car has the rate the card gives it", () => {
   expect(hourlyRate("a bicycle", "public", "weekday")).toBeNull();
 });
 
-test("a transfer is billed for its drive and waits, to the half hour, and never under two hours", () => {
-  expect(billedHours({ driveSeconds: 40 * 60 })).toBe(2);
-  expect(billedHours({ driveSeconds: 121 * 60 })).toBe(2.5);
-  expect(billedHours({ driveSeconds: 100 * 60, waitMinutes: 30 })).toBe(2.5);
-  expect(billedHours({ driveSeconds: 150 * 60 })).toBe(2.5);
+test("a transfer is billed in whole hours for its drive, never under two, and waiting is not charged", () => {
+  // A 45-minute ride is two hours
+  expect(billedHours({ driveSeconds: 45 * 60 })).toBe(2);
+  expect(billedHours({ driveSeconds: 120 * 60 })).toBe(2);
+  expect(billedHours({ driveSeconds: 121 * 60 })).toBe(3);
   expect(billedHours({ hours: 5 })).toBe(5);
   // Not timed: nothing to bill on yet
   expect(billedHours({ driveSeconds: null })).toBeNull();
 });
 
-test("a public weekday transfer: rides, service fee and 9% VAT", () => {
+test("a standard weekday ride: hours × rate, then 9% VAT, then the €12.50 service fee", () => {
   const price = priceBooking({ segment: "public", pickupAt: "2027-06-14T08:30", driveSeconds: 45 * 60, cars: [{ key: "audi", count: 1 }] })!;
-  // 2 hours × €84 = €168, + €12.50 = €180.50, + 9% = €196.75 (VAT added per line: €183.12 + €13.63)
+  // 2 hours × €84 = €168, + 9% (€15.12) = €183.12, + €12.50 = €195.62
   expect(price.rides).toBe(16800);
+  expect(price.vat).toBe(1512);
   expect(price.fee).toBe(1250);
-  expect(price.total).toBe(18312 + 1363);
-  expect(price.vat).toBe(price.total - 16800 - 1250);
+  expect(price.total).toBe(19562);
   expect(price.exact).toBe(true);
 });
 
@@ -55,10 +55,12 @@ test("corporate, a mix of cars, and a return on a Sunday priced at Sunday's rate
     driveSeconds: 150 * 60,
     cars: [{ key: "mercedes_vle_300", count: 2 }, { key: "range_rover", count: 1 }],
   })!;
-  expect(price.legs.map((l) => [l.day, l.hours])).toEqual([["saturday", 2.5], ["sunday", 2.5]]);
-  // Saturday: 2 × 2.5 × €97 + 2.5 × €127; Sunday: 2 × 2.5 × €116 + 2.5 × €152
-  expect(price.rides).toBe(48500 + 31750 + 58000 + 38000);
-  expect(price.legs).toHaveLength(2);
+  expect(price.legs.map((l) => [l.day, l.hours])).toEqual([["saturday", 3], ["sunday", 3]]);
+  // Saturday: 2 × 3 × €97 + 3 × €127; Sunday: 2 × 3 × €116 + 3 × €152
+  const rides = 58200 + 38100 + 69600 + 45600;
+  expect(price.rides).toBe(rides);
+  expect(price.vat).toBe(Math.round(rides * 0.09));
+  expect(price.total).toBe(rides + Math.round(rides * 0.09) + 1250);
 });
 
 test("an hourly booking is billed for its hours; an untimed transfer or a suggested car is a 'from' price", () => {

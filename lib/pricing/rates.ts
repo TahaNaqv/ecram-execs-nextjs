@@ -2,13 +2,13 @@ import { normalizeVehicleKey, type VehicleKey } from "../fleet/vehicles.ts";
 
 /**
  * The client's rate card (November 2026), as data. Every booking is billed by the hour per car, at a rate that depends on
- * the car, on whether the booker is a corporate partner, and on the day of the week; at least two hours are billed. The
- * rates are before the service fee and VAT, which are added once to the whole booking.
+ * the car, on whether the booker is a corporate partner, and on the day of the week, in whole hours and at least two. At
+ * the end 9% VAT is added to the rides, then the €12.50 service fee, once per booking.
  *
  * Read by the booking flow in the browser and by the server, which works the price out again when a booking is sent and
  * stores it: nothing here may import server-only code. Amounts are whole euro cents throughout.
  */
-export const RATE_CARD_VERSION = "2026-11";
+export const RATE_CARD_VERSION = "2026-11b";
 
 export type Segment = "corporate" | "public";
 export type DayKind = "weekday" | "saturday" | "sunday";
@@ -34,17 +34,12 @@ const RATES: Record<"first" | "second", Record<Segment, Record<DayKind, number>>
   },
 };
 
-/** The fewest hours a booking is billed for. */
+/** The fewest hours a booking is billed for: a 45-minute ride is billed as two hours. */
 export const MIN_HOURS = 2;
-/** A transfer is billed for its driving time (and waits at stops), rounded up to this many minutes. */
-export const BILLING_STEP_MINUTES = 30;
-/** Added once to every booking, before VAT. */
-export const SERVICE_FEE_CENTS = 1250;
-/** Dutch VAT on passenger transport (the low rate), on the rides and the service fee. */
+/** Dutch VAT on passenger transport (the low rate), on the rides. */
 export const VAT_RATE = 0.09;
-
-/** An amount with VAT added, to the cent. Prices shown to the public include VAT (Dutch consumer pricing rules). */
-export const withVat = (cents: number) => Math.round(cents * (1 + VAT_RATE));
+/** Added once to every booking, after VAT, as the client's rate card works it out. */
+export const SERVICE_FEE_CENTS = 1250;
 
 const WALL_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
 
@@ -63,32 +58,31 @@ export function hourlyRate(key: string, segment: Segment, day: DayKind): number 
 }
 
 /**
- * Hours billed for one leg. An hourly booking is billed for the hours booked. A transfer is billed for the drive Google
- * expects (without traffic) plus the waits at its stops, rounded up to the half hour. Either way at least `MIN_HOURS`.
- * Null when a transfer's drive is not known: the price is then only the minimum, and says so.
+ * Whole hours billed for one leg, at least `MIN_HOURS`. An hourly booking is billed for the hours booked. A transfer is
+ * billed for the drive Google expects (without traffic), rounded up to the hour. Waiting is not charged: a client who
+ * needs the chauffeur to wait books by the hour. Null when a transfer's drive is not known: the price is then only the
+ * minimum, and says so.
  */
-export function billedHours(leg: { hours?: number | null; driveSeconds?: number | null; waitMinutes?: number }): number | null {
-  if (leg.hours && leg.hours > 0) return Math.max(MIN_HOURS, leg.hours);
+export function billedHours(leg: { hours?: number | null; driveSeconds?: number | null }): number | null {
+  if (leg.hours && leg.hours > 0) return Math.max(MIN_HOURS, Math.ceil(leg.hours));
   if (!leg.driveSeconds || !Number.isFinite(leg.driveSeconds) || leg.driveSeconds <= 0) return null;
-  const minutes = leg.driveSeconds / 60 + (leg.waitMinutes ?? 0);
-  const steps = Math.ceil(minutes / BILLING_STEP_MINUTES);
-  return Math.max(MIN_HOURS, (steps * BILLING_STEP_MINUTES) / 60);
+  return Math.max(MIN_HOURS, Math.ceil(leg.driveSeconds / 3600));
 }
 
-/** `rate` and `amount` before VAT; `gross` is `amount` with VAT */
-export type PriceLine = { key: VehicleKey; count: number; rate: number; amount: number; gross: number };
+/** `rate` and `amount` before VAT */
+export type PriceLine = { key: VehicleKey; count: number; rate: number; amount: number };
 export type PriceLeg = { leg: "outward" | "return"; at: string; day: DayKind; hours: number; lines: PriceLine[] };
 export type Price = {
   version: string;
   segment: Segment;
   legs: PriceLeg[];
-  /** The rides before VAT */
+  /** The rides, hours × rate, before VAT */
   rides: number;
-  /** The service fee before VAT, and with it */
-  fee: number;
-  feeGross: number;
+  /** 9% of the rides */
   vat: number;
-  /** What the booking costs, VAT included */
+  /** The service fee, added last */
+  fee: number;
+  /** What the booking costs: rides + VAT + service fee. Paid when booked (website) or invoiced (corporate partners). */
   total: number;
   /**
    * False when the price is a lower bound: the drive could not be timed (so only the minimum hours are counted), or the
@@ -107,8 +101,6 @@ export type PriceInput = {
   hours?: number | null;
   /** A transfer's drive without traffic, from Google; null when it could not be told */
   driveSeconds?: number | null;
-  /** Minutes the chauffeur waits at the stops on the way */
-  waitMinutes?: number;
   /** The cars, with how many of each */
   cars: { key: string; count: number }[];
   /** The cars are our suggestion, not the visitor's choice */
@@ -117,7 +109,7 @@ export type PriceInput = {
 
 /** The price of a booking by the rate card; null when it cannot be priced (no date, or no car the card lists). */
 export function priceBooking(input: PriceInput): Price | null {
-  const timed = billedHours({ hours: input.hours, driveSeconds: input.driveSeconds, waitMinutes: input.waitMinutes });
+  const timed = billedHours({ hours: input.hours, driveSeconds: input.driveSeconds });
   const hours = timed ?? MIN_HOURS;
   const legs: PriceLeg[] = [];
   for (const [leg, at] of [["outward", input.pickupAt], ["return", input.returnAt]] as const) {
@@ -129,20 +121,17 @@ export function priceBooking(input: PriceInput): Price | null {
       const key = normalizeVehicleKey(car.key);
       const rate = key ? hourlyRate(key, input.segment, day) : null;
       if (!key || rate === null || !Number.isInteger(car.count) || car.count < 1) continue;
-      const amount = Math.round(rate * hours * car.count);
-      lines.push({ key, count: car.count, rate, amount, gross: withVat(amount) });
+      lines.push({ key, count: car.count, rate, amount: rate * hours * car.count });
     }
     if (lines.length === 0) return null;
     legs.push({ leg, at, day, hours, lines });
   }
   if (legs.length === 0) return null;
-  const all = legs.flatMap((leg) => leg.lines);
-  const rides = all.reduce((sum, line) => sum + line.amount, 0);
+  const rides = legs.reduce((sum, leg) => sum + leg.lines.reduce((n, line) => n + line.amount, 0), 0);
+  // The client's order: the rides, then 9% VAT on them, then the service fee
+  const vat = Math.round(rides * VAT_RATE);
   const fee = SERVICE_FEE_CENTS;
-  const feeGross = withVat(fee);
-  // VAT is added line by line, so the amounts the public sees (each with VAT) add up to the total exactly
-  const total = all.reduce((sum, line) => sum + line.gross, 0) + feeGross;
-  return { version: RATE_CARD_VERSION, segment: input.segment, legs, rides, fee, feeGross, vat: total - rides - fee, total, exact: timed !== null && !input.suggested };
+  return { version: RATE_CARD_VERSION, segment: input.segment, legs, rides, vat, fee, total: rides + vat + fee, exact: timed !== null && !input.suggested };
 }
 
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */
