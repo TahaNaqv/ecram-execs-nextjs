@@ -3,12 +3,14 @@
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
 import Link from "next/link";
 import { startTransition, useActionState, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { submitOnboarding } from "@/lib/corporate/actions";
 import type { CorporateState } from "@/lib/corporate/state";
 import { CONTACT_METHODS, CORPORATE_VEHICLES, DURATIONS, TRIP_TIMES } from "@/lib/corporate/validation";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
+import { MAX_PASSENGERS } from "./booking/trip";
 import { CompanyCombobox, type CompanySearchCopy } from "./company-combobox";
 import { Honeypot, Status, submitClass } from "./corporate-ui";
 import { ActionCard, cardSubmit, CardField, CardGrid, CardSelect, ChoiceGroup, cardControl, CountedTextarea, FormCard, LockedInput, PhoneField, SendIcon } from "./form-cards";
@@ -55,18 +57,97 @@ type IntroValues = {
 };
 const shell = "flex w-full max-w-full box-border min-w-0 flex-col gap-6 rounded-3xl border border-[rgba(99,145,255,0.3)] bg-[#0b1f4d] p-5 text-[#f4f6fb] shadow-[0_20px_50px_rgba(6,16,43,0.5)] md:p-8";
 
-/** The clock in the Netherlands right now, as a datetime-local value. The browser calendar otherwise opens on the visitor's own clock. */
-function netherlandsPickupDefault() {
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Europe/Amsterdam",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-    .format(new Date())
-    .replace(" ", "T");
+const POPULAR_LOCATIONS = [
+  { name: "Amsterdam Airport Schiphol (AMS)", type: "Airport", city: "Schiphol" },
+  { name: "Rotterdam The Hague Airport (RTM)", type: "Airport", city: "Rotterdam" },
+  { name: "Eindhoven Airport (EIN)", type: "Airport", city: "Eindhoven" },
+  { name: "Amsterdam Central Station", type: "Station", city: "Amsterdam" },
+  { name: "Rotterdam Central Station", type: "Station", city: "Rotterdam" },
+  { name: "The Hague Central Station", type: "Station", city: "The Hague" },
+  { name: "Hotel Des Indes", type: "Hotel", city: "The Hague" },
+  { name: "Conservatorium Hotel", type: "Hotel", city: "Amsterdam" },
+  { name: "Hotel Okura Amsterdam", type: "Hotel", city: "Amsterdam" },
+  { name: "Hilton Amsterdam", type: "Hotel", city: "Amsterdam" },
+  { name: "Marriott Hotel Rotterdam", type: "Hotel", city: "Rotterdam" },
+];
+
+function LocationInput({
+  id,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required,
+  invalid,
+  describedBy,
+}: {
+  id: string;
+  name: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  required?: boolean;
+  invalid?: boolean;
+  describedBy?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filteredLocations = POPULAR_LOCATIONS.filter(
+    (loc) =>
+      loc.name.toLowerCase().includes(value.toLowerCase()) ||
+      loc.city.toLowerCase().includes(value.toLowerCase())
+  );
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <input
+        id={id}
+        name={name}
+        type="text"
+        required={required}
+        maxLength={200}
+        autoComplete="off"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        aria-expanded={isOpen && filteredLocations.length > 0}
+        aria-controls={`${id}-suggestions`}
+        className={cardControl}
+      />
+      {isOpen && value.trim().length > 0 && filteredLocations.length > 0 && (
+        <div
+          id={`${id}-suggestions`}
+          role="listbox"
+          className="absolute top-full left-0 z-50 mt-1.5 box-border flex max-h-60 w-full flex-col gap-1 overflow-y-auto rounded-xl border border-solid border-[#3d5a9a] bg-[#071433] p-1.5 shadow-2xl"
+        >
+          {filteredLocations.map((loc, idx) => (
+            <button
+              key={idx}
+              type="button"
+              role="option"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onChange(loc.name);
+                setIsOpen(false);
+              }}
+              className="m-0 flex w-full cursor-pointer appearance-none flex-col rounded-lg border-0 bg-[#102a63] px-3.5 py-2.5 text-left font-sans text-[#ffffff] shadow-none transition-colors hover:bg-[#1d4ed8]"
+            >
+              <span className="text-sm font-semibold text-[#ffffff]">{loc.name}</span>
+              <span className="text-xs text-[#c5d4f5]">{loc.city} · {loc.type}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PassengersSuitcasesSelector({
@@ -79,7 +160,8 @@ function PassengersSuitcasesSelector({
   onChange: (passengers: string, suitcases: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const pCount = Math.max(1, parseInt(passengers || "1", 10));
+  const pCount = Math.min(MAX_PASSENGERS, Math.max(1, parseInt(passengers || "1", 10)));
+  const pLabel = pCount >= MAX_PASSENGERS ? `${MAX_PASSENGERS}+` : String(pCount);
   const sCount = Math.max(0, parseInt(suitcases || "0", 10));
 
   return (
@@ -90,12 +172,12 @@ function PassengersSuitcasesSelector({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        className={`${cardControl} flex w-full cursor-pointer items-center justify-between text-left !text-[#ffffff]`}
+        className={`${cardControl} flex w-full cursor-pointer items-center justify-between text-left text-zinc-900 bg-white`}
       >
-        <span className="font-medium !text-[#ffffff]">
-          {pCount} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
+        <span className="font-medium text-zinc-900">
+          {pLabel} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
         </span>
-        <span className="text-xs !text-[#ffffff]">▼</span>
+        <span className="text-xs text-zinc-600">▼</span>
       </button>
 
       {isOpen && (
@@ -103,62 +185,63 @@ function PassengersSuitcasesSelector({
           role="dialog"
           aria-label="Passengers and suitcases"
           onClick={(event) => event.stopPropagation()}
-          className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-[rgba(99,145,255,0.5)] bg-[#06122d] p-5 text-[#ffffff] shadow-2xl"
+          className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-2xl"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="m-0 text-sm font-semibold text-[#ffffff]">Passengers</p>
-              <p className="m-0 text-xs text-[#ffffff]">Including you</p>
+              <p className="m-0 text-sm font-semibold text-zinc-900">Passengers</p>
+              <p className="m-0 text-xs text-zinc-500">Including you</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => onChange(String(Math.max(1, pCount - 1)), String(sCount))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100"
               >
                 −
               </button>
-              <span className="w-4 text-center text-sm font-semibold text-[#ffffff]">{pCount}</span>
+              <span className="min-w-6 text-center text-sm font-semibold text-zinc-900 tabular-nums">{pLabel}</span>
               <button
                 type="button"
-                onClick={() => onChange(String(Math.min(50, pCount + 1)), String(sCount))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
+                disabled={pCount >= MAX_PASSENGERS}
+                onClick={() => onChange(String(Math.min(MAX_PASSENGERS, pCount + 1)), String(sCount))}
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100 disabled:cursor-default disabled:opacity-40"
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.15)] pt-3">
+          <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
             <div>
-              <p className="m-0 text-sm font-semibold text-[#ffffff]">Suitcases</p>
-              <p className="m-0 text-xs text-[#ffffff]">Large bags</p>
+              <p className="m-0 text-sm font-semibold text-zinc-900">Suitcases</p>
+              <p className="m-0 text-xs text-zinc-500">Large bags</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => onChange(String(pCount), String(Math.max(0, sCount - 1)))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100"
               >
                 −
               </button>
-              <span className="w-4 text-center text-sm font-semibold text-[#ffffff]">{sCount}</span>
+              <span className="w-4 text-center text-sm font-semibold text-zinc-900">{sCount}</span>
               <button
                 type="button"
                 onClick={() => onChange(String(pCount), String(Math.min(20, sCount + 1)))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-[#ffffff] bg-[#0b1f4d] text-[18px] leading-none font-bold !text-[#ffffff] hover:bg-[#16357a]"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100"
               >
                 +
               </button>
             </div>
           </div>
 
-          <p className="m-0 text-center text-[11px] text-[#ffffff]">We use this to suggest the cars that fit.</p>
+          <p className="m-0 text-center text-[11px] text-zinc-500">We use this to suggest the cars that fit.</p>
 
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-full cursor-pointer rounded-xl border border-[#ffffff] bg-[#0b1f4d] py-2.5 text-xs font-bold tracking-wider text-[#ffffff] uppercase transition-colors hover:bg-[#16357a]"
+            className="w-full cursor-pointer rounded-xl border border-zinc-900 bg-zinc-900 py-2.5 text-xs font-bold tracking-wider text-white uppercase transition-colors hover:bg-zinc-800"
           >
             Done
           </button>
@@ -174,12 +257,14 @@ export function OnboardingForm({
   booker,
   lookup,
   loginHref,
+  dateTimeCopy,
 }: {
   locale: Locale;
   copy: OnboardingCopy;
   booker: { name: string; email: string };
   lookup: { enabled: boolean; copy: CompanySearchCopy };
   loginHref: string;
+  dateTimeCopy: DateTimeCopy;
 }) {
   const [values, setValues] = useState<IntroValues>({
     company: "",
@@ -243,7 +328,7 @@ export function OnboardingForm({
   };
   const err = state.status === "error" ? state.fieldErrors : {};
   const d = (f: string) => (err[f as keyof typeof err] ? `c-${f}-error` : undefined);
-  const text = (name: "signatory" | "pointOfCall" | "collection" | "destination") => ({
+  const text = (name: "signatory" | "pointOfCall") => ({
     value: values[name],
     onChange: (e: ChangeEvent<HTMLInputElement>) => patch({ [name]: e.target.value }),
   });
@@ -340,7 +425,7 @@ export function OnboardingForm({
               </CardSelect>
             </CardField>
             <ChoiceGroup idPrefix="c" name="tripTime" legend={t.labelTripTime} value={values.tripTime}
-              onValueChange={(tripTime) => patch({ tripTime })} error={err.tripTime} required
+              onValueChange={(tripTime) => patch({ tripTime })} error={err.tripTime} required columns={3}
               options={TRIP_TIMES.map((m) => ({ value: m, label: t[`trip_${m}`] }))} />
             <ChoiceGroup idPrefix="c" name="duration" legend={t.labelDuration} value={values.duration}
               onValueChange={(duration) => patch({ duration })} error={err.duration} required
@@ -350,38 +435,43 @@ export function OnboardingForm({
           <FormCard icon="pin" step={5} title={t.cardJourney} hint={t.cardJourneyHint} wide>
             <div className="box-border grid w-full min-w-0 max-w-full grid-cols-1 gap-4 md:grid-cols-2">
               <CardField idPrefix="c" name="collection" label={t.labelCollection} error={err.collection}>
-                <input id="c-collection" name="collection" type="text" required maxLength={200} autoComplete="off" placeholder={t.phCollection}
-                  {...text("collection")} aria-invalid={!!err.collection} aria-describedby={d("collection")} className={cardControl} />
+                <LocationInput
+                  id="c-collection"
+                  name="collection"
+                  placeholder={t.phCollection}
+                  value={values.collection}
+                  onChange={(collection) => patch({ collection })}
+                  required
+                  invalid={!!err.collection}
+                  describedBy={d("collection")}
+                />
               </CardField>
               <CardField idPrefix="c" name="destination" label={t.labelDestination} error={err.destination}>
-                <input id="c-destination" name="destination" type="text" required maxLength={200} autoComplete="off" placeholder={t.phDestination}
-                  {...text("destination")} aria-invalid={!!err.destination} aria-describedby={d("destination")} className={cardControl} />
+                <LocationInput
+                  id="c-destination"
+                  name="destination"
+                  placeholder={t.phDestination}
+                  value={values.destination}
+                  onChange={(destination) => patch({ destination })}
+                  required
+                  invalid={!!err.destination}
+                  describedBy={d("destination")}
+                />
               </CardField>
               <CardField idPrefix="c" name="pickupAt" label="Date & Time" error={err.pickupAt}>
-                <input id="c-pickupAt" name="pickupAt" type="datetime-local" required step={60}
-                  value={values.pickupAt} onChange={(e) => patch({ pickupAt: e.target.value })}
-                  onPointerDown={(event) => {
-                    if (values.pickupAt || event.currentTarget.value) return;
-                    const next = netherlandsPickupDefault();
-                    event.currentTarget.value = next;
-                    patch({ pickupAt: next });
-                  }}
-                  onFocus={(event) => {
-                    if (values.pickupAt || event.currentTarget.value) return;
-                    const next = netherlandsPickupDefault();
-                    event.currentTarget.value = next;
-                    patch({ pickupAt: next });
-                  }}
-                  onClick={(event) => {
-                    const input = event.currentTarget;
-                    if (typeof input.showPicker !== "function") return;
-                    try {
-                      input.showPicker();
-                    } catch {
-                      // Already open, or this browser only opens the picker from its own indicator.
-                    }
-                  }}
-                  aria-invalid={!!err.pickupAt} aria-describedby={d("pickupAt")} className={`${cardControl} cursor-pointer !text-[#ffffff] [color-scheme:dark] [&::-webkit-datetime-edit]:!text-[#ffffff] [&::-webkit-datetime-edit-fields-wrapper]:!text-[#ffffff] [&::-webkit-datetime-edit-text]:!text-[#ffffff] [&::-webkit-datetime-edit-month-field]:!text-[#ffffff] [&::-webkit-datetime-edit-day-field]:!text-[#ffffff] [&::-webkit-datetime-edit-year-field]:!text-[#ffffff] [&::-webkit-datetime-edit-hour-field]:!text-[#ffffff] [&::-webkit-datetime-edit-minute-field]:!text-[#ffffff] [&::-webkit-calendar-picker-indicator]:opacity-100`} />
+                <DateTimeField
+                  id="c-pickupAt"
+                  name="pickupAt"
+                  locale={locale}
+                  copy={dateTimeCopy}
+                  defaultValue={values.pickupAt}
+                  onValueChange={(pickupAt) => patch({ pickupAt })}
+                  invalid={!!err.pickupAt}
+                  describedBy={d("pickupAt")}
+                  tone="dark"
+                  boxClassName="box-border w-full min-w-0 cursor-pointer rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2 text-[#ffffff]"
+                  className="border-0 bg-transparent p-0 text-[16px] text-[#ffffff] placeholder:text-[#8eaee8]"
+                />
               </CardField>
               <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage ?? err.passengers}>
                 <input type="hidden" name="passengers" value={values.passengers} />

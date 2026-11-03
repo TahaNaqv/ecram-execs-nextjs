@@ -496,7 +496,7 @@
   },
   "finalCta": {
     "eyebrow": "AFGESTEMD OP UW RIT",
-    "headingBefore": "Uw reis.",
+    "headingBefore": "Uw reis,",
     "headingEmphasis": "Op uw voorwaarden.",
     "body": "Vertel ons waar u moet zijn en wanneer. Wij regelen elk detail en bieden een naadloze chauffeurservaring, van ophalen tot aankomst."
   },
@@ -627,7 +627,9 @@
     "nextMonth": "Volgende maand",
     "hour": "Uur",
     "minute": "Minuut",
+    "period": "AM of PM",
     "done": "Klaar",
+    "today": "Vandaag",
     "clear": "Wissen",
     "selected": "{date} om {time}"
   },
@@ -1974,7 +1976,7 @@
     "carTooSmall": "Te klein voor {party}",
     "reviewButton": "Boeking controleren",
     "reviewTitle": "Controleer uw boeking",
-    "reviewContact": "Contact en facturering",
+    "reviewContact": "Contactgegevens",
     "reviewRide": "Ritgegevens",
     "reviewVehicle": "Auto",
     "reviewEdit": "{section} wijzigen",

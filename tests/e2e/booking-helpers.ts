@@ -43,8 +43,12 @@ export async function pickDateTime(page: Page, field: Locator, at: string, copy:
   const day = dialog.locator(`[data-day="${yyyy}-${mm}-${dd}"]`);
   for (let i = 0; i < 36 && (await day.count()) === 0; i++) await dialog.getByRole("button", { name: copy.nextMonth }).click();
   await day.click();
-  await dialog.getByLabel(copy.hour).selectOption(String(Number(hh)));
-  await dialog.getByLabel(copy.minute).selectOption(String(Number(min)));
+  const hour = Number(hh);
+  const period = hour >= 12 ? "PM" : "AM";
+  const h12 = String(hour % 12 || 12).padStart(2, "0");
+  await dialog.getByRole("listbox", { name: copy.hour }).getByRole("option", { name: h12, exact: true }).click();
+  await dialog.getByRole("listbox", { name: copy.period }).getByRole("option", { name: period, exact: true }).click();
+  await dialog.getByRole("listbox", { name: copy.minute }).getByRole("option", { name: min, exact: true }).click();
   await dialog.getByRole("button", { name: copy.done }).click();
 }
 
@@ -54,7 +58,8 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
   const dt = t === en.booking ? en.dateTimePicker : nl.dateTimePicker;
   if (j.hours) {
     await root.getByRole("button", { name: t.modeHourly, exact: true }).click();
-    await root.getByLabel(t.duration).selectOption(String(j.hours));
+    await root.getByLabel(t.duration).click();
+    await root.getByRole("option", { name: t.hoursOption.replace("{hours}", String(j.hours)), exact: true }).click();
   }
   const from = root.getByLabel(either(t.from, t.pickupLabel));
   await from.fill(j.from);

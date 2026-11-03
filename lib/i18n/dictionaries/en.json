@@ -496,7 +496,7 @@
   },
   "finalCta": {
     "eyebrow": "TAILORED TO YOUR JOURNEY",
-    "headingBefore": "Your Journey.",
+    "headingBefore": "Your Journey,",
     "headingEmphasis": "Your Terms.",
     "body": "Tell us where you need to be and when. We’ll take care of every detail, delivering a seamless chauffeur experience from collection to arrival."
   },
@@ -627,7 +627,9 @@
     "nextMonth": "Next month",
     "hour": "Hour",
     "minute": "Minute",
+    "period": "AM or PM",
     "done": "Done",
+    "today": "Today",
     "clear": "Clear",
     "selected": "{date} at {time}"
   },
@@ -1973,7 +1975,7 @@
     "carTooSmall": "Too small for {party}",
     "reviewButton": "Review booking",
     "reviewTitle": "Review your booking",
-    "reviewContact": "Contact and billing",
+    "reviewContact": "Contact Details",
     "reviewRide": "Ride details",
     "reviewVehicle": "Vehicle",
     "reviewEdit": "Edit {section}",

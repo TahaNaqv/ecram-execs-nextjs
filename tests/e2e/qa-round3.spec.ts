@@ -18,8 +18,10 @@ const netherlandsMinutes = () => {
   return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) / 60_000;
 };
 const boxMinutes = (text: string) => {
-  const m = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/.exec(text)!;
-  return Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]) / 60_000;
+  const m = /^(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/.exec(text)!;
+  let hour = +m[4];
+  if (m[6]) hour = (hour % 12) + (/^p/i.test(m[6]) ? 12 : 0);
+  return Date.UTC(+m[3], +m[2] - 1, +m[1], hour, +m[5]) / 60_000;
 };
 
 const when = (page: Page) => page.locator("#enquire").getByLabel(b.when, { exact: true });
@@ -104,15 +106,20 @@ test("bug 4: Guests and Duration show a dropdown arrow, and a press anywhere in 
 
   await hero.getByRole("button", { name: b.modeHourly, exact: true }).click();
   const duration = hero.getByLabel(b.duration);
-  const cell = duration.locator("xpath=..");
+  const cell = duration.locator("xpath=ancestor::div[contains(@class,'relative')][1]");
   await expect(cell.locator("svg")).toBeVisible();
-  // The list covers the whole field, so any press in it opens the list; its choices are the hours the team offers
+  // The control covers the whole field, so any press in it opens the list under the field
   const [box, cellBox] = [await duration.boundingBox(), await cell.boundingBox()];
   expect(Math.abs(box!.width - cellBox!.width)).toBeLessThan(2);
   expect(Math.abs(box!.height - cellBox!.height)).toBeLessThan(2);
-  const options = await duration.locator("option:not([disabled])").allTextContents();
+  await duration.click();
+  const list = hero.getByRole("listbox", { name: b.duration });
+  await expect(list).toBeVisible();
+  const options = await list.getByRole("option").allTextContents();
   expect(options).toEqual(HOURLY_DURATIONS.map((h) => en.booking.hoursOption.replace("{hours}", String(h))));
-  await duration.selectOption("4");
+  const listBox = (await list.boundingBox())!;
+  expect(listBox.y).toBeGreaterThanOrEqual(box!.y + box!.height - 2);
+  await list.getByRole("option", { name: en.booking.hoursOption.replace("{hours}", "4"), exact: true }).click();
   await expect(cell).toContainText(en.booking.hoursOption.replace("{hours}", "4"));
 });
 
@@ -208,7 +215,7 @@ test("bug 10: the date and time are chosen in the picker; typing changes nothing
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: en.dateTimePicker.done }).click();
   await pickDateTime(page, field, nextYear("14-03", "08:30"));
-  await expect(field).toHaveValue(nextYear("14-03", "08:30"));
+  await expect(field).toHaveValue(nextYear("14-03", "8:30 AM"));
 });
 
 test("bug 11: the booking bar opens on the current date and time in the Netherlands, and the picker's lists start there", async ({ page }) => {
@@ -218,9 +225,10 @@ test("bug 11: the booking bar opens on the current date and time in the Netherla
   // The picker shows that time, not midnight or 01:00
   await field.click({ force: true });
   const dialog = page.getByRole("dialog", { name: en.dateTimePicker.dialog });
-  const [, , , , hh, mm] = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/.exec(await field.inputValue())!;
-  await expect(dialog.getByLabel(en.dateTimePicker.hour)).toHaveValue(String(Number(hh)));
-  await expect(dialog.getByLabel(en.dateTimePicker.minute)).toHaveValue(String(Number(mm)));
+  const shown = /^(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2}) ([AP]M)$/.exec(await field.inputValue())!;
+  await expect(dialog.getByRole("listbox", { name: en.dateTimePicker.hour }).locator("[aria-selected=true]")).toHaveText(shown[4].padStart(2, "0"));
+  await expect(dialog.getByRole("listbox", { name: en.dateTimePicker.minute }).locator("[aria-selected=true]")).toHaveText(shown[5]);
+  await expect(dialog.getByRole("listbox", { name: en.dateTimePicker.period }).locator("[aria-selected=true]")).toHaveText(shown[6].toLowerCase());
   await page.keyboard.press("Escape");
 });
 

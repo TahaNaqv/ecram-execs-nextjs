@@ -49,7 +49,7 @@ export const cardSubmit =
 
 export function CardGrid({ children, ...rest }: ComponentProps<"div">) {
   return (
-    <div {...rest} className="box-border grid w-full min-w-0 max-w-full grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-5">
+    <div {...rest} className="box-border grid w-full min-w-0 max-w-full grid-cols-1 items-stretch gap-4 md:grid-cols-2 md:gap-5">
       {children}
     </div>
   );
@@ -76,7 +76,7 @@ export function FormCard({
   return (
     <section 
       aria-labelledby={titleId} 
-      className={`box-border flex w-full min-w-0 max-w-full flex-col gap-5 rounded-2xl border border-solid border-[rgba(99,145,255,0.25)] bg-[#0c1f4d] p-5 shadow-[0_10px_30px_rgba(6,16,43,0.4)] md:p-6 text-[#ffffff] ${wide ? "md:col-span-2" : ""}`}
+      className={`box-border flex h-full w-full min-w-0 max-w-full flex-col gap-5 rounded-2xl border border-solid border-[rgba(99,145,255,0.25)] bg-[#0c1f4d] p-5 shadow-[0_10px_30px_rgba(6,16,43,0.4)] md:p-6 text-[#ffffff] ${wide ? "md:col-span-2" : ""}`}
     >
       <div className="flex items-start gap-3.5">
         <span className="grid size-10 shrink-0 place-items-center rounded-full border border-solid border-[rgba(255,255,255,0.2)] bg-[#17326c] text-[#60a5fa] shadow-[0_0_16px_rgba(47,98,255,0.3)]">
@@ -128,6 +128,8 @@ export function CardField({
       } catch {
         // Already open, or this browser only opens the picker from its own indicator.
       }
+    } else if (control.getAttribute("aria-haspopup") === "dialog") {
+      control.click();
     } else if (control instanceof HTMLButtonElement) {
       control.click();
     }
@@ -190,6 +192,7 @@ export function ChoiceGroup({
   defaultValue,
   error,
   required,
+  columns = 2,
 }: {
   idPrefix: string;
   name: string;
@@ -201,16 +204,20 @@ export function ChoiceGroup({
   size?: "short" | "long";
   error?: string;
   required?: boolean;
+  /** 3 puts every option on one row, including a trailing Evening. */
+  columns?: 2 | 3;
 }) {
   const controlled = onValueChange !== undefined;
+  // Three choices sit on one row. A leftover choice stays the same width as the others, instead of stretching under them.
+  const equalColumns = columns === 3 || options.length === 3 ? 3 : 2;
   return (
     <fieldset aria-describedby={error ? `${idPrefix}-${name}-error` : undefined} className="m-0 box-border flex w-full min-w-0 max-w-full flex-col gap-2 border-0 p-0 [min-inline-size:0]">
       <legend className="mb-1 max-w-full p-0 text-[13px] font-semibold tracking-wide text-[#ffffff]">{legend}</legend>
-      <div className="box-border grid w-full min-w-0 max-w-full grid-cols-2 gap-2">
-        {options.map((o, i) => (
+      <div className={`box-border grid w-full min-w-0 max-w-full gap-2 ${equalColumns === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+        {options.map((o) => (
           <label
             key={o.value}
-            className={`box-border flex h-full min-h-12 w-full min-w-0 max-w-full cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa] ${o.wide || (options.length % 2 === 1 && i === options.length - 1) ? "col-span-2" : ""}`}
+            className="box-border flex h-full min-h-12 w-full min-w-0 max-w-full cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa]"
           >
             <input
               type="radio"

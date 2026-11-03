@@ -173,6 +173,19 @@
   --color-ink-975: #f6f7f9;
 }
 
+/* Business / Private sit on a navy card. The swapped white becomes that same navy, so an unselected button vanishes.
+   These stay a pale outline, and the chosen one a white pill with dark type. */
+:root[data-theme="navy"] .light-surface .purpose-choice {
+  background: transparent !important;
+  color: #ffffff !important;
+  border-color: #c5d4ff !important;
+}
+:root[data-theme="navy"] .light-surface .purpose-choice[aria-pressed="true"] {
+  background: #ffffff !important;
+  color: #10224f !important;
+  border-color: #ffffff !important;
+}
+
 /* An empty datetime-local paints dd/mm/yyyy with the input's color. `text-white` is navy inside this surface, so the date vanishes on the blue field. */
 :root[data-theme="navy"] .light-surface input[type="datetime-local"] {
   color: #ffffff !important;

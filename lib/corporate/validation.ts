@@ -3,6 +3,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Dictionary } from "@/lib/i18n/types";
 import { phoneLengthOk } from "@/lib/phone";
+import { MAX_PASSENGERS } from "@/app/[locale]/_components/booking/trip";
 
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 128;
@@ -120,7 +121,7 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     destination: z.string().trim().min(1, c.destinationRequired).max(200, c.fieldTooLong),
     // Same wall-clock string the date field submits ("YYYY-MM-DDTHH:mm"), stored as Netherlands time
     pickupAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, f.pickupInvalid),
-    passengers: z.coerce.number({ error: c.chooseOption }).int().min(1, c.chooseOption).max(50, c.chooseOption),
+    passengers: z.coerce.number({ error: c.chooseOption }).int().min(1, c.chooseOption).max(MAX_PASSENGERS, c.chooseOption),
     luggage: z.string().trim().regex(/^(?:[0-9]|1[0-9]|20)$/, c.luggageInvalid).transform(Number),
     returnStatus: z.enum(RETURN_STATUSES, { error: c.chooseOption }),
     stops: z

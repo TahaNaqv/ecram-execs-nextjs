@@ -77,14 +77,20 @@ test("W10: the time lists open on the time it is now in the Netherlands, in ever
   await page.goto("/en");
   await page.locator("#enquire").getByRole("button", { name: d.open }).click();
   const dialog = page.getByRole("dialog", { name: d.dialog });
-  const shown = async () => Number(await dialog.getByLabel(d.hour).inputValue()) * 60 + Number(await dialog.getByLabel(d.minute).inputValue());
+  const shown = async () => {
+    const h12 = Number(await dialog.getByRole("listbox", { name: d.hour }).locator("[aria-selected=true]").getAttribute("data-value"));
+    const minute = Number(await dialog.getByRole("listbox", { name: d.minute }).locator("[aria-selected=true]").getAttribute("data-value"));
+    const period = (await dialog.getByRole("listbox", { name: d.period }).locator("[aria-selected=true]").getAttribute("data-value")) ?? "";
+    return ((h12 % 12) + (/^pm$/i.test(period) ? 12 : 0)) * 60 + minute;
+  };
   const near = (minutes: number) => Math.min(Math.abs(minutes - amsterdamNow()), 1440 - Math.abs(minutes - amsterdamNow()));
   expect(near(await shown())).toBeLessThanOrEqual(2);
 
   // Picking a day keeps that time, and Clear goes back to the current time
   await dialog.locator("button[data-day]:not(:disabled)").last().click();
   expect(near(await shown())).toBeLessThanOrEqual(2);
-  await dialog.getByLabel(d.hour).selectOption("23");
+  await dialog.getByRole("listbox", { name: d.hour }).getByRole("option", { name: "11", exact: true }).click();
+  await dialog.getByRole("listbox", { name: d.period }).getByRole("option", { name: "PM", exact: true }).click();
   await dialog.getByRole("button", { name: d.clear }).click();
   expect(near(await shown())).toBeLessThanOrEqual(2);
 });
@@ -101,12 +107,13 @@ test("W10: reopening the picker after choosing a day never changes the time the 
   const dialog = page.getByRole("dialog", { name: d.dialog });
   await dialog.locator("button[data-day]:not(:disabled)").last().click();
   await dialog.getByRole("button", { name: d.done }).click();
-  const shownTime = (await field.inputValue()).slice(-5);
+  const shownText = await field.inputValue();
+  const shownHidden = await hidden.inputValue();
   await page.clock.setFixedTime(start + 5 * 60_000); // five minutes later
   await page.locator("#enquire").getByRole("button", { name: d.open }).click();
   await dialog.getByRole("button", { name: d.done }).click();
-  await expect(hidden).toHaveValue(new RegExp(`T${shownTime}$`));
-  await expect(field).toHaveValue(new RegExp(`${shownTime}$`));
+  await expect(hidden).toHaveValue(shownHidden);
+  await expect(field).toHaveValue(shownText);
 });
 
 test("W13: a phone box takes digits only, stops at the country's limit, and copes with a pasted +31", async ({ page }) => {

@@ -27,6 +27,7 @@ export function PlaceIcon({ kind, size = 18 }: { kind: PlaceKind; size?: number 
 
 /** A picked suggestion as the text the chauffeur reads: the name, then the street and town Google gives. */
 const placeText = (hit: PlaceHit) => (hit.source === "google" && hit.detail ? `${hit.name}, ${hit.detail}` : hit.name);
+const fullAddress = (hit: PlaceHit) => (hit.detail ? `${hit.name}, ${hit.detail}` : hit.name);
 
 /**
  * An address with suggestions as the visitor types (ARIA 1.2 combobox with a list popup), from /api/places: our own
@@ -184,7 +185,7 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-full z-40 m-0 mt-4 box-border max-h-[min(20rem,50vh)] w-full min-w-0 max-w-full overflow-y-auto overscroll-contain ${
+          className={`absolute top-full z-40 m-0 mt-4 box-border max-h-[min(24rem,60vh)] w-max min-w-full max-w-[min(28rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain ${
             alignEnd ? "right-0 left-auto" : "left-0"
           } list-none rounded-2xl border border-solid p-2 shadow-2xl ${
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
@@ -196,25 +197,31 @@ export function AddressField({
               id={`${listId}-${i}`}
               role="option"
               aria-selected={i === active}
+              title={fullAddress(hit)}
               // mousedown, not click: the input's blur would close the list before a click lands
               onMouseDown={(e) => {
                 e.preventDefault();
                 pick(hit);
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex min-h-[48px] cursor-pointer items-center gap-3.5 rounded-[10px] px-3 py-2 ${
+              className={`flex min-h-[64px] cursor-pointer items-center gap-3.5 rounded-[12px] px-3.5 py-3 ${
                 i === active ? (dark ? "bg-white/10" : "bg-ink-100") : ""
               }`}
             >
-              <span className={`grid size-9 shrink-0 place-items-center rounded-[10px] ${dark ? "bg-white/10" : "bg-ink-100"}`}>
-                <PlaceIcon kind={hit.kind} />
+              <span className={`grid size-11 shrink-0 place-items-center rounded-[12px] ${dark ? "bg-white/10" : "bg-ink-100"}`}>
+                <PlaceIcon kind={hit.kind} size={20} />
               </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[14px] font-semibold">{hit.name}</span>
-                {hit.detail && <span className={`truncate text-[12px] ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-[16px] leading-snug font-semibold">{hit.name}</span>
+                {hit.detail && <span className={`text-[13px] leading-snug ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
               </span>
             </li>
           ))}
+          {active >= 0 && items[active] && (
+            <li role="presentation" className={`mx-1 mt-1 border-0 border-t border-solid px-3 pt-2.5 pb-1.5 text-[14px] leading-snug ${dark ? "border-white/15 text-white" : "border-ink-150 text-ink-950"}`}>
+              {fullAddress(items[active])}
+            </li>
+          )}
           {google && (
             <li role="presentation" className={`px-3 pt-2 pb-1 text-right text-[11px] ${dark ? "text-ink-400" : "text-ink-600"}`}>
               {copy.poweredByGoogle}

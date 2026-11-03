@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { FleetVehicle } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -253,9 +252,9 @@ export function ReviewStep({
             <span>
               {t.reviewAgree}{" "}
               {privacyHref ? (
-                <Link href={privacyHref} className="text-ink-950 underline underline-offset-2">
+                <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
                   {t.privacyLink.toLowerCase()}
-                </Link>
+                </a>
               ) : (
                 t.privacyLink.toLowerCase()
               )}

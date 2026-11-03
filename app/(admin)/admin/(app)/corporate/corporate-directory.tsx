@@ -52,6 +52,10 @@ export function CorporateDirectoryHub({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   
+  // Pagination State (10 records per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  
   // Selected partner for the right-side profile sidebar drawer
   const [selectedPartner, setSelectedPartner] = useState<CorporatePartnerRow | null>(null);
   
@@ -80,6 +84,10 @@ export function CorporateDirectoryHub({
     const matchesStatus = statusFilter === "All" || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredPartners.length / pageSize) || 1;
+  const paginatedPartners = filteredPartners.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const totalActive = partners.filter((p) => p.status === "Active").length;
   const totalPending = partners.filter((p) => p.status === "Pending 2FA").length;
@@ -154,7 +162,10 @@ export function CorporateDirectoryHub({
               type="text"
               placeholder={copy.searchPlaceholder}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to page 1 on search
+              }}
               className="w-full bg-white border border-zinc-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
             />
           </div>
@@ -162,7 +173,10 @@ export function CorporateDirectoryHub({
           <div className="flex items-center gap-3">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1); // Reset to page 1 on filter change
+              }}
               className="bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-xs font-medium text-zinc-700 focus:outline-none cursor-pointer"
             >
               <option value="All">{copy.statusAll}</option>
@@ -183,7 +197,7 @@ export function CorporateDirectoryHub({
 
         {/* Table */}
         <div className="overflow-x-auto w-full">
-          {filteredPartners.length === 0 ? (
+          {paginatedPartners.length === 0 ? (
             <div className="p-12 text-center text-xs text-zinc-500">
               <div className="grid size-12 place-items-center rounded-2xl bg-zinc-100 mx-auto mb-3 text-zinc-400">
                 <BriefcaseIcon size={20} />
@@ -204,7 +218,7 @@ export function CorporateDirectoryHub({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {filteredPartners.map((partner) => (
+                {paginatedPartners.map((partner) => (
                   <tr
                     key={partner.id}
                     onClick={() => {
@@ -259,8 +273,34 @@ export function CorporateDirectoryHub({
         {/* Bottom Pagination & Summary Bar */}
         <div className="p-4 sm:px-6 border-t border-zinc-100 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-4 text-xs text-zinc-600">
           <div>
-            {interpolate(copy.showing, { shown: filteredPartners.length, total: partners.length })}
+            {interpolate(copy.showing, { shown: paginatedPartners.length, total: filteredPartners.length })}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white font-medium text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-40 cursor-pointer"
+              >
+                Previous
+              </button>
+              <span className="font-mono text-[11px]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white font-medium text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-40 cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-6 font-mono text-[11px]">
             <div>{copy.activeCount} <span className="font-bold text-emerald-700">{totalActive}</span></div>
             <div>{copy.pendingCount} <span className="font-bold text-amber-700">{totalPending}</span></div>

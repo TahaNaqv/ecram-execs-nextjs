@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import type { RouteMapLinks } from "@/lib/fleet/map";
@@ -11,9 +11,9 @@ import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
-import { bagsText, GuestsPicker, guestsText } from "./guests-picker";
+import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, type Trip } from "./trip";
+import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
 import { ReviewStep, RouteOutline } from "./review-step";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
@@ -122,9 +122,12 @@ export function BookingFlow({
   const [trip, setTrip] = useState<Trip>(initialTrip);
   // The journey as it is being typed, for the outline beside the form; the trip itself changes when the step is done
   const [draft, setDraft] = useState<Trip>(initialTrip);
+  // Bumps when Edit is pressed so the journey form mounts again from the trip as it is now
+  const [journeyEdit, setJourneyEdit] = useState(0);
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [entered, setEntered] = useState<DetailsEntry | null>(null);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
+  const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
   // The step whose heading last had the focus. Not the first render, and not when Next shows the page again after Back
   // (it re-runs effects on pages it kept): only a real change of step moves the focus and the scroll
@@ -178,6 +181,21 @@ export function BookingFlow({
   const chosen = vehicleByKey(trip.vehicle);
   const steps: [BookingStep, string][] = [["journey", t.stepJourney], ["car", t.stepCar], ["details", t.stepDetails], ["review", t.stepReview]];
   const stepIndex = steps.findIndex(([s]) => s === step);
+  // The book page's own journey step. The review step uses it so the contact details already typed stay on the page.
+  const showJourney = () => {
+    setDraft(trip);
+    setJourneyEdit((n) => n + 1);
+    go("journey");
+  };
+  // Website: Edit and Back return to the homepage bar, with this trip in the URL so the fields are filled.
+  const editJourney = () => {
+    if (variant === "public" && cancelHref) {
+      const q = tripToParams(trip).toString();
+      router.push(q ? `${cancelHref}?${q}#enquire` : `${cancelHref}#enquire`);
+      return;
+    }
+    showJourney();
+  };
 
   const tripLine = [
     trip.mode === "hourly"
@@ -185,6 +203,7 @@ export function BookingFlow({
       : [shortPlace(trip.from), ...trip.stops.filter((s) => s.place).map(() => "…"), shortPlace(trip.to)].join(" → "),
     trip.at ? pretty(trip.at, locale) : "",
     guestsText(t, trip.pax),
+    bagsText(t, trip.bags),
   ]
     .filter(Boolean)
     .join("  ·  ");
@@ -197,8 +216,7 @@ export function BookingFlow({
         {step === "car" || step === "details" ? (
           <button
             type="button"
-            // Back to the journey step of this same flow, with the trip as it is: the page the visitor came from (QA round 3, bug 9)
-            onClick={() => go("journey")}
+            onClick={editJourney}
             className="flex min-h-12 max-w-full cursor-pointer items-center gap-3 rounded-full border border-solid border-ink-225 bg-white py-1.5 pr-1.5 pl-5 text-left text-[14px] font-medium text-ink-950 hover:border-ink-950"
           >
             <span className="min-w-0 truncate">{tripLine}</span>
@@ -235,6 +253,7 @@ export function BookingFlow({
           )}
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
             <JourneyBar
+              key={journeyEdit}
               locale={locale}
               copy={t}
               dateTimeCopy={dateTimeCopy}
@@ -264,15 +283,7 @@ export function BookingFlow({
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
           onChoose={(vehicle) => setTrip((current) => ({ ...current, vehicle }))}
-          onParty={(party) =>
-            setTrip((current) => {
-              // A car chosen for a smaller party is let go once it no longer seats everyone
-              const seats = vehicleByKey(current.vehicle)?.specs?.passengers;
-              const fits = seats === undefined || party.pax >= MAX_PASSENGERS || seats >= party.pax;
-              return { ...current, ...party, guestsSet: true, vehicle: fits ? current.vehicle : "" };
-            })
-          }
-          onBack={() => go("journey")}
+          onBack={editJourney}
           onNext={() => {
             setTrip((current) => {
               const selected = vehicleByKey(current.vehicle);
@@ -324,7 +335,7 @@ export function BookingFlow({
           booker={booker}
           privacyHref={privacyHref}
           lockedNotice={lockedNotice}
-          onEdit={go}
+          onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
           onSend={() => {
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
@@ -340,7 +351,7 @@ export function BookingFlow({
   );
 }
 
-function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onChoose, onParty, onBack, onNext }: {
+function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onChoose, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   vehicles: OfferedVehicle[];
@@ -350,12 +361,9 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   error?: string;
   onDetails: (v: FleetVehicle) => void;
   onChoose: (vehicle: VehicleChoice | "") => void;
-  /** The party changed here: the cards that fit change with it */
-  onParty: (party: { pax: number; bags: number }) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const uid = useId();
   const large = trip.pax >= MAX_PASSENGERS;
   const cars = vehicles
     .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
@@ -436,12 +444,6 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
         {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting.filter((c) => c.fits).length, total: cars.length, party })}
       </p>
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
-      <div className="mt-5 flex w-full max-w-[340px] flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5">
-        <span id={`${uid}-party`} className="text-[12px] text-ink-600">
-          {t.guestsDialog}
-        </span>
-        <GuestsPicker id={`${uid}-guests`} labelledBy={`${uid}-party`} pax={trip.pax} bags={trip.bags} set onChange={onParty} copy={t} tone="light" />
-      </div>
       {error && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
           {error}
@@ -496,6 +498,63 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   );
 }
 
+/** Calling-code list drawn by us. The browser's own menu paints pale type on white inside the navy page, so the codes disappear. */
+function CountryCode({ name, label, country, onChange }: { name: string; label: string; country: string; onChange: (country: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const current = COUNTRY_CODES.find(([code]) => code === country) ?? COUNTRY_CODES[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={root} className="relative shrink-0">
+      <input type="hidden" name={name} value={country} />
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((value) => !value)}
+        className="flex cursor-pointer items-center gap-1 border-0 border-r border-solid border-ink-225 bg-transparent p-0 pr-2 text-[16px] font-medium text-ink-950"
+      >
+        {current[1]} +{current[0]}
+      </button>
+      {open && (
+        <ul role="listbox" aria-label={label} className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-44 list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl">
+          {COUNTRY_CODES.map(([code, iso]) => (
+            <li key={code} role="option" aria-selected={code === country}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(code);
+                  setOpen(false);
+                }}
+                className={`flex w-full cursor-pointer items-center rounded-lg border-0 px-3 py-2 text-left text-[14px] text-[#10224f] ${code === country ? "bg-[#e7edff] font-semibold" : "bg-transparent hover:bg-[#f2f5ff]"}`}
+              >
+                {iso} +{code}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, onBack, onReview }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
@@ -526,7 +585,6 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors: Record<string, string | undefined> = { ...result.fieldErrors, ...localErrors };
   const portal = variant === "portal";
-  const askPurpose = trip.mode === "oneway" && !involvesAirport(trip);
 
   // Checked here, before the review, so the review only ever shows a booking that can be sent; the server checks again
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -569,23 +627,16 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
       number,
       label,
       <span className="flex items-center gap-2.5">
-        <select
+        <CountryCode
           name={code}
-          aria-label={t.phoneCountry}
-          value={country}
-          onChange={(e) => {
-            setCountry(e.target.value);
+          label={t.phoneCountry}
+          country={country}
+          onChange={(next) => {
+            setCountry(next);
             const typed = document.getElementById(`${uid}-${number}`);
-            if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
+            if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, next);
           }}
-          className="shrink-0 cursor-pointer border-0 border-r border-solid border-ink-225 bg-transparent p-0 pr-2 text-[16px] font-medium text-ink-950 outline-none"
-        >
-          {COUNTRY_CODES.map(([c, iso]) => (
-            <option key={c} value={c}>
-              {iso} +{c}
-            </option>
-          ))}
-        </select>
+        />
         <input
           {...aria(number)}
           name={number}
@@ -651,26 +702,26 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             )}
           </div>
 
-          {askPurpose && (
-            <div>
-              <p id={`${uid}-purpose`} className="m-0 mb-2.5 text-[13px] font-semibold">
-                {t.purposeLabel}
-              </p>
-              <div role="group" aria-labelledby={`${uid}-purpose`} className="flex flex-wrap gap-2">
-                {(["business", "private"] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    aria-pressed={purpose === p}
-                    onClick={() => setPurpose(p)}
-                    className={`h-11 cursor-pointer rounded-xl border border-solid bg-white px-[18px] text-[14px] text-ink-950 ${purpose === p ? "border-ink-950 font-semibold shadow-[0_0_0_0.5px_#0a0a0b]" : "border-ink-225 font-medium"}`}
-                  >
-                    {p === "business" ? t.purposeBusiness : t.purposePrivate}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <p id={`${uid}-purpose`} className="m-0 mb-2.5 text-[13px] font-semibold">
+              {t.purposeLabel}
+            </p>
+            <div role="group" aria-labelledby={`${uid}-purpose`} className="flex flex-wrap gap-2">
+              {(["business", "private"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={purpose === p}
+                  onClick={() => setPurpose(p)}
+                  className={`purpose-choice h-11 cursor-pointer rounded-xl border border-solid bg-white px-[18px] text-[14px] text-ink-950 ${
+                    purpose === p ? "border-ink-950 font-semibold" : "border-ink-225 font-medium"
+                  }`}
+                >
+                  {p === "business" ? t.purposeBusiness : t.purposePrivate}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           {purpose === "business" && !portal && (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -719,9 +770,9 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                 <>
                   {t.privacyNote}{" "}
                   {privacyHref && (
-                    <Link href={privacyHref} className="text-ink-950 underline underline-offset-2">
+                    <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
                       {t.privacyLink}
-                    </Link>
+                    </a>
                   )}
                 </>
               )}
@@ -869,12 +920,12 @@ export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<Book
     <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950">
       <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-500 uppercase">{t.doneMapTitle}</span>
       {shown && map.embed ? (
-        <iframe title={t.doneMapFrame} src={map.embed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="aspect-[16/10] w-full rounded-[12px] border-0" />
+        <iframe title={t.doneMapFrame} src={map.embed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-[400px] max-h-[400px] w-full rounded-[12px] border-0" />
       ) : map.embed ? (
         <button
           type="button"
           onClick={() => setShown(true)}
-          className="grid aspect-[16/10] w-full cursor-pointer place-items-center rounded-[12px] border border-dashed border-ink-300 bg-ink-50 p-6 text-center hover:border-ink-950"
+          className="grid h-[400px] max-h-[400px] w-full cursor-pointer place-items-center rounded-[12px] border border-dashed border-ink-300 bg-ink-50 p-6 text-center hover:border-ink-950"
         >
           <span className="flex flex-col items-center gap-2">
             <span className="text-[15px] font-semibold">{t.doneMapShow}</span>

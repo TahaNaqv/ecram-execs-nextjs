@@ -25,6 +25,7 @@ async function Introduction() {
       booker={{ name: contact.name, email: contact.email }}
       lookup={{ enabled: companyLookupEnabled(), copy: d.companySearch }}
       loginHref={localizedPath("/corporate-partner/login", locale)}
+      dateTimeCopy={d.dateTimePicker}
     />
   );
 

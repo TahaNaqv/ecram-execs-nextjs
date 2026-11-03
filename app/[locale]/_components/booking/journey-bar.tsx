@@ -2,6 +2,7 @@
 
 import Form from "next/form";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Fragment, useId, useState, useEffect, useRef, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -11,7 +12,7 @@ import { AddressField } from "./address-field";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { GuestsPicker } from "./guests-picker";
 import { useResetAfterBooking } from "./sent";
-import { emptyPlace, emptyTrip, pickupAtAirport, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
+import { emptyPlace, emptyTrip, pickupAtAirport, tripFromParams, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
 
 const PlusIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -33,6 +34,19 @@ const ArrowIcon = () => (
     <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
+
+const BOOKING_QUERY = ["from", "to", "at", "mode", "stop", "hours", "ret", "pax"];
+
+/**
+ * The homepage bar. A trip in the URL (Edit on the car step) fills the fields. With no trip in the URL the bar keeps
+ * what the visitor typed, including when the browser comes back from /book.
+ */
+export function HeroJourneyBar(props: Omit<Parameters<typeof JourneyBar>[0], "initial" | "layout" | "onDone" | "onTripChange" | "cancelHref">) {
+  const search = useSearchParams();
+  const query = search.toString();
+  const seeded = BOOKING_QUERY.some((key) => search.has(key)) ? tripFromParams(search) : undefined;
+  return <JourneyBar key={seeded ? query : "hero"} initial={seeded} {...props} />;
+}
 
 export function JourneyBar({
   locale,
@@ -67,6 +81,8 @@ export function JourneyBar({
   const [trip, setTrip] = useState<Trip>(initial ?? emptyTrip());
   const [problems, setProblems] = useState<TripField[]>([]);
   const [returning, setReturning] = useState(Boolean(initial?.ret));
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const hoursRef = useRef<HTMLDivElement>(null);
   
   // The date fields hold their own text, so they start again (with a new key) whenever the bar sets a date itself
   const [fieldsKey, setFieldsKey] = useState(0);
@@ -87,6 +103,22 @@ export function JourneyBar({
 
   // The page is prerendered, so the time it is now in the Netherlands is read when it is shown: the bar starts with it (QA round 3,
   // bug 11). Runs again when Next shows the page again after Back, and then only fills in a date that is missing.
+  useEffect(() => {
+    if (!hoursOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!hoursRef.current?.contains(event.target as Node)) setHoursOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setHoursOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [hoursOpen]);
+
   useEffect(() => {
     if (tripRef.current.at) return;
     const now = netherlandsNow();
@@ -330,37 +362,60 @@ export function JourneyBar({
       : cell(
           "durationHours",
           <>
-            <label htmlFor={ids.hours} className={label}>
+            <label htmlFor={ids.hours} className={`${label} pointer-events-none`}>
               {t.duration}
             </label>
-            {/* The select lies over the whole cell, invisible, so a press anywhere in it opens the list; what the visitor sees, arrow included, is drawn under it */}
-            <span className="flex items-center justify-between gap-2" aria-hidden="true">
-              <span className={`truncate text-[16px] font-medium ${trip.hours === "" ? (dark ? "text-ink-400" : "text-ink-475") : dark ? "text-white" : "text-ink-950"}`}>
-                {trip.hours === "" ? t.durationPlaceholder : interpolate(t.hoursOption, { hours: trip.hours })}
+            <div ref={hoursRef}>
+              <span className="flex items-center justify-between gap-2" aria-hidden="true">
+                <span className={`truncate text-[16px] font-medium ${trip.hours === "" ? (dark ? "text-ink-400" : "text-ink-475") : dark ? "text-white" : "text-ink-950"}`}>
+                  {trip.hours === "" ? t.durationPlaceholder : interpolate(t.hoursOption, { hours: trip.hours })}
+                </span>
+                <span className={dark ? "text-ink-250" : "text-ink-600"}>
+                  <ChevronDownIcon open={hoursOpen} />
+                </span>
               </span>
-              <span className={dark ? "text-ink-250" : "text-ink-600"}>
-                <ChevronDownIcon />
-              </span>
-            </span>
-            <select
-              id={ids.hours}
-              value={trip.hours === "" ? "" : String(trip.hours)}
-              onChange={(e) => update({ hours: Number(e.target.value) })}
-              aria-invalid={invalid("durationHours")}
-              aria-describedby={describedBy("durationHours")}
-              className="absolute inset-0 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-[16px] opacity-0 outline-none [&>option]:px-4 [&>option]:py-2 [&>option]:text-ink-950"
-            >
-              <option value="" disabled>
-                {t.durationPlaceholder}
-              </option>
-              {HOURLY_DURATIONS.map((h) => (
-                <option key={h} value={h}>
-                  {interpolate(t.hoursOption, { hours: h })}
-                </option>
-              ))}
-            </select>
+              <button
+                type="button"
+                id={ids.hours}
+                aria-haspopup="listbox"
+                aria-expanded={hoursOpen}
+                aria-controls={hoursOpen ? `${ids.hours}-list` : undefined}
+                aria-invalid={invalid("durationHours")}
+                aria-describedby={describedBy("durationHours")}
+                onClick={() => setHoursOpen((open) => !open)}
+                className="absolute inset-0 z-[1] cursor-pointer border-0 bg-transparent p-0"
+              />
+              {hoursOpen && (
+                <ul
+                  id={`${ids.hours}-list`}
+                  role="listbox"
+                  aria-label={t.duration}
+                  className="absolute top-full left-0 z-50 mt-2 box-border max-h-60 w-full overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
+                >
+                  {HOURLY_DURATIONS.map((h) => {
+                    const selected = trip.hours === h;
+                    return (
+                      <li key={h}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => {
+                            update({ hours: h });
+                            setHoursOpen(false);
+                          }}
+                          className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left text-[15px] text-[#10224f] ${selected ? "bg-[#e8eeff] font-semibold" : "bg-[#ffffff] hover:bg-[#f4f7ff]"}`}
+                        >
+                          {interpolate(t.hoursOption, { hours: h })}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </>,
-          `has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset ${dark ? "has-[select:focus-visible]:ring-white/60" : "has-[select:focus-visible]:ring-ink-950"}`,
+          `${hoursOpen ? "z-30" : ""} has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-inset ${dark ? "has-[button:focus-visible]:ring-white/60" : "has-[button:focus-visible]:ring-ink-950"}`,
         );
 
   const whenCell = cell(

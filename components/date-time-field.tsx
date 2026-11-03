@@ -3,7 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 export type DateTimeCopy = Record<
-  "placeholder" | "open" | "dialog" | "prevMonth" | "nextMonth" | "hour" | "minute" | "done" | "clear" | "selected",
+  "placeholder" | "open" | "dialog" | "prevMonth" | "nextMonth" | "hour" | "minute" | "period" | "done" | "today" | "clear" | "selected",
   string
 >;
 
@@ -39,17 +39,27 @@ const nowInNetherlands = (): { day: Day; time: Time } => {
   return { day: { y: get("year"), m: get("month"), d: get("day") }, time: { h: get("hour"), min: get("minute") } };
 };
 
-const display = (day: Day, time: Time) => `${pad(day.d)}-${pad(day.m)}-${pad(day.y, 4)} ${pad(time.h)}:${pad(time.min)}`;
+const to12 = (h: number) => ({ h12: h % 12 || 12, period: h >= 12 ? "PM" : "AM" });
+const display = (day: Day, time: Time) => {
+  const { h12, period } = to12(time.h);
+  return `${pad(day.d)}-${pad(day.m)}-${pad(day.y, 4)} ${h12}:${pad(time.min)} ${period}`;
+};
 const iso = (day: Day, time: Time) => `${dayKey(day)}T${pad(time.h)}:${pad(time.min)}`;
 
 export function parseDateTime(text: string): { day: Day; time: Time } | null {
   const t = text.trim();
-  let y: number, m: number, d: number, h: number, min: number;
-  const a = /^(\d{4})-(\d{1,2})-(\d{1,2})[T ]+(\d{1,2})[:.](\d{2})$/.exec(t);
-  const b = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})[ T,]+(\d{1,2})[:.](\d{2})$/.exec(t);
-  if (a) [y, m, d, h, min] = [+a[1], +a[2], +a[3], +a[4], +a[5]];
-  else if (b) [d, m, y, h, min] = [+b[1], +b[2], +b[3], +b[4], +b[5]];
-  else return null;
+  let y: number, m: number, d: number, h: number, min: number, period: string;
+  const a = /^(\d{4})-(\d{1,2})-(\d{1,2})[T ]+(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?$/.exec(t);
+  const b = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})[ T,]+(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?$/.exec(t);
+  if (a) {
+    y = +a[1]; m = +a[2]; d = +a[3]; h = +a[4]; min = +a[5]; period = a[6] ?? "";
+  } else if (b) {
+    d = +b[1]; m = +b[2]; y = +b[3]; h = +b[4]; min = +b[5]; period = b[6] ?? "";
+  } else return null;
+  if (period) {
+    if (h < 1 || h > 12) return null;
+    h = (h % 12) + (/^p/i.test(period) ? 12 : 0);
+  }
   if (y < 1000 || m < 1 || m > 12 || d < 1 || d > daysIn(y, m) || h > 23 || min > 59) return null;
   return { day: { y, m, d }, time: { h, min } };
 }
@@ -60,9 +70,9 @@ const CalendarIcon = () => (
     <path d="M3.5 10h17M8 3v4M16 3v4" />
   </svg>
 );
-const Chevron = ({ dir }: { dir: "left" | "right" }) => (
+const Chevron = ({ dir }: { dir: "up" | "down" }) => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d={dir === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
+    <path d={dir === "up" ? "M6 14l6-6 6 6" : "M6 10l6 6 6-6"} />
   </svg>
 );
 
@@ -75,6 +85,7 @@ export function DateTimeField({
   invalid,
   describedBy,
   className,
+  boxClassName,
   tone = "light",
   size = "sm",
   allowTyping = false,
@@ -89,6 +100,8 @@ export function DateTimeField({
   invalid?: boolean;
   describedBy?: string;
   className?: string;
+  /** Extra classes on the field itself, for a boxed control such as the introduction form. */
+  boxClassName?: string;
   tone?: "light" | "dark";
   size?: "sm" | "md";
   /** Visitors choose in the picker (QA round 3, bug 10); the team's own booking form lets staff key in a date they are told by phone. */
@@ -127,10 +140,10 @@ export function DateTimeField({
     report.current?.(value);
   }, [value]);
 
-  const months = useMemo(() => new Intl.DateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC" }), [locale]);
+  const months = useMemo(() => new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }), [locale]);
   const weekdays = useMemo(() => {
-    const f = new Intl.DateTimeFormat(locale, { weekday: "narrow", timeZone: "UTC" });
-    return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2024, 0, 1 + i))));
+    const f = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" });
+    return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2024, 0, 1 + i))).slice(0, 2));
   }, [locale]);
   const longDate = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }), [locale]);
 
@@ -172,7 +185,12 @@ export function DateTimeField({
     if (!open) return;
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     root.current?.querySelector('[role="dialog"]')?.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
-  }, [open]);
+    root.current?.querySelectorAll<HTMLElement>('[role="dialog"] [data-time-part][aria-selected="true"]').forEach((el) => {
+      const scroller = el.parentElement;
+      if (!scroller) return;
+      scroller.scrollTop = el.offsetTop - scroller.clientHeight / 2 + el.offsetHeight / 2;
+    });
+  }, [open, time.h, time.min]);
 
   // Keyboard users land on the highlighted day, and arrow keys move it
   useEffect(() => {
@@ -212,16 +230,38 @@ export function DateTimeField({
   const cells: (number | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: daysIn(view.y, view.m) }, (_, i) => i + 1)];
   while (cells.length % 7) cells.push(null);
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
-  const minutes = [...new Set([...Array.from({ length: 12 }, (_, i) => i * 5), time.min])].sort((a, b) => a - b);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
   const canGoBack = !today || before({ y: today.y, m: today.m, d: 1 }, { ...view, d: 1 });
+  const period = time.h >= 12 ? "PM" : "AM";
+  const hour12 = time.h % 12 || 12;
+  const setHour12 = (h12: number) => {
+    timeChosen.current = true;
+    commit(day, { ...time, h: (h12 % 12) + (period === "PM" ? 12 : 0) });
+  };
+  const setPeriod = (next: "AM" | "PM") => {
+    timeChosen.current = true;
+    commit(day, { ...time, h: (time.h % 12) + (next === "PM" ? 12 : 0) });
+  };
+  const applyToday = () => {
+    const now = nowInNetherlands();
+    timeChosen.current = true;
+    commit(now.day, now.time);
+    setToday(now.day);
+    setView({ y: now.day.y, m: now.day.m });
+    setActive(now.day);
+  };
 
-  const selectStyle = "h-9 rounded-lg border border-solid border-ink-200 bg-ink-50 px-3 text-xs font-semibold text-ink-950 outline-none focus:border-ink-950 focus:bg-white";
-  const navBtn = "grid size-7 cursor-pointer place-items-center rounded-lg border border-solid border-ink-150 bg-white text-ink-700 hover:bg-ink-100 disabled:opacity-20";
+  const navBtn = "grid size-7 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20";
+  const column = "h-[232px] min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:#5f6368_transparent] [scrollbar-width:thin]";
+  const optionCls = (selected: boolean) =>
+    `block w-full cursor-pointer rounded-md border-0 px-0 py-1.5 text-center text-[13px] font-medium tabular-nums ${
+      selected ? "bg-[#a8c7fa] text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
+    }`;
 
   return (
     <div
       ref={root}
-      className={`${fillCell && !open ? "" : "relative"} ${open ? "z-[80]" : ""} flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5`}
+      className={`${fillCell && !open ? "" : "relative"} ${open ? "z-[80]" : ""} flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5 ${boxClassName ?? ""}`}
       onKeyDown={(e) => {
         if (e.key !== "Escape" || !open) return;
         e.stopPropagation();
@@ -291,88 +331,115 @@ export function DateTimeField({
           id={dialogId}
           role="dialog"
           aria-label={copy.dialog}
-          className="absolute top-full left-0 z-[60] mt-2 w-[18rem] rounded-2xl border border-solid border-ink-200 bg-white p-4 text-left text-ink-950 normal-case shadow-[0_16px_32px_rgba(0,0,0,0.1)] tracking-normal"
+          className="absolute top-full left-0 z-[60] mt-2 w-[min(28rem,calc(100vw-1.5rem))] rounded-lg border border-solid border-[#3c4043] bg-[#292a2d] p-3 text-left text-[#e8eaed] normal-case shadow-[0_16px_40px_rgba(0,0,0,0.45)] tracking-normal"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-solid border-ink-100">
-            <button type="button" aria-label={copy.prevMonth} disabled={!canGoBack} onClick={() => setView((v) => addMonths(v.y, v.m, -1))} className={navBtn}>
-              <Chevron dir="left" />
-            </button>
-            <span aria-live="polite" className="text-[13px] font-semibold tracking-wide capitalize text-ink-950">
-              {months.format(new Date(Date.UTC(view.y, view.m - 1, 1)))}
-            </span>
-            <button type="button" aria-label={copy.nextMonth} onClick={() => setView((v) => addMonths(v.y, v.m, 1))} className={navBtn}>
-              <Chevron dir="right" />
-            </button>
-          </div>
-
-          {/* Grid */}
-          <table role="grid" className="w-full border-collapse text-center mt-3" onKeyDown={onGridKey}>
-            <thead>
-              <tr>
-                {weekdays.map((w, index) => (
-                  <th key={index} scope="col" className="pb-2 text-[10px] font-bold text-ink-400 uppercase">
-                    {w}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {weeks.map((week, i) => (
-                <tr key={i}>
-                  {week.map((n, j) => {
-                    if (n === null) return <td key={j} />;
-                    const cell: Day = { y: view.y, m: view.m, d: n };
-                    const past = !!today && before(cell, today);
-                    const chosen = sameDay(cell, day);
-                    return (
-                      <td key={j} className="p-1">
-                        <button
-                          type="button"
-                          data-day={dayKey(cell)}
-                          disabled={past}
-                          aria-pressed={chosen}
-                          aria-label={longDate.format(new Date(Date.UTC(cell.y, cell.m - 1, cell.d)))}
-                          tabIndex={sameDay(cell, active) ? 0 : -1}
-                          onClick={() => {
-                            setActive(cell);
-                            commit(cell, time);
-                          }}
-                          className={`grid size-7 w-full cursor-pointer place-items-center rounded-lg border-0 text-xs font-medium tabular-nums transition-all disabled:cursor-not-allowed disabled:text-ink-200 ${
-                            chosen 
-                              ? "bg-ink-950 font-bold text-white shadow-sm" 
-                              : "bg-transparent text-ink-800 hover:bg-ink-100"
-                          } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-ink-400" : ""}`}
-                        >
-                          {n}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Time Picker Compact Row with proper padding */}
-          <div className="mt-3.5 flex items-center justify-between border-t border-solid border-ink-100 pt-3.5 px-0.5">
-            <div className="flex items-center gap-2">
-              <select aria-label={copy.hour} value={time.h} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, h: Number(e.target.value) }); }} className={selectStyle}>
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>
-                    {pad(h)} {copy.hour}
-                  </option>
-                ))}
-              </select>
-              <span className="text-xs font-bold text-ink-400 px-0.5">:</span>
-              <select aria-label={copy.minute} value={time.min} onChange={(e) => { timeChosen.current = true; commit(day, { ...time, min: Number(e.target.value) }); }} className={selectStyle}>
-                {minutes.map((m) => (
-                  <option key={m} value={m}>
-                    {pad(m)} {copy.minute}
-                  </option>
-                ))}
-              </select>
+          <div className="flex items-stretch gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2 pb-2">
+                <span aria-live="polite" className="text-[14px] font-medium text-[#e8eaed]">
+                  {months.format(new Date(Date.UTC(view.y, view.m - 1, 1)))}
+                </span>
+                <span className="flex items-center gap-0.5">
+                  <button type="button" aria-label={copy.prevMonth} disabled={!canGoBack} onClick={() => setView((v) => addMonths(v.y, v.m, -1))} className={navBtn}>
+                    <Chevron dir="up" />
+                  </button>
+                  <button type="button" aria-label={copy.nextMonth} onClick={() => setView((v) => addMonths(v.y, v.m, 1))} className={navBtn}>
+                    <Chevron dir="down" />
+                  </button>
+                </span>
+              </div>
+              <table role="grid" className="w-full border-collapse text-center" onKeyDown={onGridKey}>
+                <thead>
+                  <tr>
+                    {weekdays.map((w, index) => (
+                      <th key={index} scope="col" className="pb-1 text-[11px] font-medium text-[#9aa0a6]">
+                        {w}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeks.map((week, i) => (
+                    <tr key={i}>
+                      {week.map((n, j) => {
+                        if (n === null) return <td key={j} />;
+                        const cell: Day = { y: view.y, m: view.m, d: n };
+                        const past = !!today && before(cell, today);
+                        const chosen = sameDay(cell, day);
+                        return (
+                          <td key={j} className="p-0.5">
+                            <button
+                              type="button"
+                              data-day={dayKey(cell)}
+                              disabled={past}
+                              aria-pressed={chosen}
+                              aria-label={longDate.format(new Date(Date.UTC(cell.y, cell.m - 1, cell.d)))}
+                              tabIndex={sameDay(cell, active) ? 0 : -1}
+                              onClick={() => {
+                                setActive(cell);
+                                commit(cell, time);
+                              }}
+                              className={`grid size-8 w-full cursor-pointer place-items-center rounded-md border-0 text-[13px] tabular-nums disabled:cursor-not-allowed disabled:text-[#5f6368] ${
+                                chosen ? "bg-[#a8c7fa] font-semibold text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
+                              } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-[#8ab4f8]" : ""}`}
+                            >
+                              {n}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            <div className="flex w-[148px] shrink-0 gap-1 border-0 border-l border-solid border-[#3c4043] pl-2">
+              <div role="listbox" aria-label={copy.hour} className={column}>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const h12 = i + 1;
+                  const selected = hour12 === h12;
+                  return (
+                    <button key={h12} type="button" role="option" data-time-part="hour" data-value={h12} aria-selected={selected} onClick={() => setHour12(h12)} className={optionCls(selected)}>
+                      {pad(h12)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div role="listbox" aria-label={copy.minute} className={column}>
+                {minutes.map((m) => {
+                  const selected = time.min === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      role="option"
+                      data-time-part="minute"
+                      data-value={m}
+                      aria-selected={selected}
+                      onClick={() => {
+                        timeChosen.current = true;
+                        commit(day, { ...time, min: m });
+                      }}
+                      className={optionCls(selected)}
+                    >
+                      {pad(m)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div role="listbox" aria-label={copy.period} className={column}>
+                {(["AM", "PM"] as const).map((p) => {
+                  const selected = period === p;
+                  return (
+                    <button key={p} type="button" role="option" data-time-part="period" data-value={p} aria-selected={selected} onClick={() => setPeriod(p)} className={optionCls(selected)}>
+                      {p.toLowerCase()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between border-0 border-t border-solid border-[#3c4043] pt-2">
             <button
               type="button"
               onClick={() => {
@@ -380,17 +447,18 @@ export function DateTimeField({
                 commit(null, nowInNetherlands().time);
                 setActive(today);
               }}
-              className="cursor-pointer border-0 bg-transparent text-[11px] font-medium text-ink-500 underline hover:text-ink-950 px-1"
+              className="cursor-pointer border-0 bg-transparent px-1 text-[13px] font-medium text-[#8ab4f8] hover:underline"
             >
               {copy.clear}
             </button>
+            <button type="button" onClick={applyToday} className="cursor-pointer border-0 bg-transparent px-1 text-[13px] font-medium text-[#8ab4f8] hover:underline">
+              {copy.today}
+            </button>
           </div>
-
-          {/* Done Button */}
           <button
             type="button"
             onClick={() => closePicker(true)}
-            className="mt-3.5 h-9 w-full cursor-pointer rounded-xl border-0 bg-ink-950 text-xs font-semibold tracking-wider text-white uppercase transition-all hover:bg-ink-800 shadow-sm"
+            className="mt-2 h-9 w-full cursor-pointer rounded-md border-0 bg-[#a8c7fa] text-[13px] font-semibold text-[#202124] hover:bg-[#8ab4f8]"
           >
             {copy.done}
           </button>

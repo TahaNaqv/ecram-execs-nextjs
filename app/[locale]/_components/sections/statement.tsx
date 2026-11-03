@@ -15,7 +15,7 @@ export async function Statement() {
           </em>
           {" "}{d.statement.after}
         </p>
-        <div className="bg-ink-450 h-px w-16"></div>
+        
       </div>
     </section>
   );
