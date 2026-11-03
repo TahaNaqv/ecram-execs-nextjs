@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
-import { routeMapLinks } from "../../lib/fleet/map";
+import { mapFrameSrc, routeMapLinks } from "../../lib/fleet/map";
 import { decodePolyline } from "../../lib/fleet/polyline";
 import { fillAdminLogin } from "./helpers";
 
@@ -38,10 +38,19 @@ test("a route becomes an embedded map and a link, with the stops on the way, and
   expect(open.searchParams.get("waypoints")).toBe("Utrecht Centraal");
   expect(open.searchParams.get("travelmode")).toBe("driving");
 
-  // No key: nothing to embed, and the link is still there
+  // No key: the Embed API address is empty, and the page still has a frame for the same route
   expect(routeMapLinks(trip)!.embed).toBeNull();
   expect(routeMapLinks(trip, "")!.embed).toBeNull();
   expect(routeMapLinks(trip)!.open).toContain("google.com/maps/dir/");
+  const plain = new URL(mapFrameSrc(routeMapLinks(trip)!));
+  expect(plain.origin + plain.pathname).toBe("https://www.google.com/maps");
+  expect(plain.searchParams.get("output")).toBe("embed");
+  expect(plain.searchParams.get("saddr")).toBe("Schiphol Airport");
+  expect(plain.searchParams.get("daddr")).toBe("Utrecht Centraal to:Hotel Des Indes, The Hague");
+  expect(mapFrameSrc(withKey)).toBe(withKey.embed);
+  const hourlyPlain = new URL(mapFrameSrc(routeMapLinks({ collection: "Schiphol Airport", destination: null })!));
+  expect(hourlyPlain.searchParams.get("q")).toBe("Schiphol Airport");
+  expect(hourlyPlain.searchParams.get("output")).toBe("embed");
 
   // Several stops are joined with a bar; addresses with special characters are encoded, not broken
   const many = new URL(routeMapLinks({ collection: "A & B", destination: "C", destinations: ["D", "E"] }, "k")!.embed!);

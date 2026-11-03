@@ -61,3 +61,19 @@ export function routeMapLinks(b: MapBooking, embedKey?: string | null): RouteMap
     })}`,
   };
 }
+
+/**
+ * The address for the map frame on a booking page. With a browser key this is the Maps Embed API. Without one, the same
+ * route is still drawn by Google's map (no key), so the page shows a map rather than only a link.
+ */
+export function mapFrameSrc(map: RouteMapLinks): string {
+  if (map.embed) return map.embed;
+  const url = new URL(map.open);
+  const query = url.searchParams.get("query");
+  if (query) return `https://www.google.com/maps?${new URLSearchParams({ q: query, z: "14", output: "embed" })}`;
+  const origin = url.searchParams.get("origin") ?? "";
+  const destination = url.searchParams.get("destination") ?? "";
+  const via = url.searchParams.get("waypoints");
+  const daddr = [...(via ? via.split("|").filter(Boolean) : []), destination].filter(Boolean).join(" to:");
+  return `https://www.google.com/maps?${new URLSearchParams({ saddr: origin, daddr, output: "embed" })}`;
+}

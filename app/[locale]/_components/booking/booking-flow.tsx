@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
-import type { RouteMapLinks } from "@/lib/fleet/map";
+import { mapFrameSrc, type RouteMapLinks } from "@/lib/fleet/map";
 import { FLEET, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
@@ -910,32 +910,16 @@ export function BookingDone({ copy: t, name, reference, map, onAgain }: { copy: 
 }
 
 /**
- * The booking's route on Google's map, on the confirmation only: no step before it loads a map. Google's frame sets its own
- * cookies, so it is only loaded when the visitor asks for it (the site's rule for anything that tracks, lib/consent.ts);
- * until then, and without a key, the link that opens Google Maps does the same job.
+ * The booking's route on Google's map, on the confirmation only: no step before it loads a map. A short frame, shown
+ * straight away. With no browser key the frame still draws the route; the page does not fall back to a text link.
  */
-export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<BookingCopy, "doneMapTitle" | "doneMapFrame" | "doneMapShow" | "doneMapNote" | "doneMapOpen"> }) {
-  const [shown, setShown] = useState(false);
+export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<BookingCopy, "doneMapTitle" | "doneMapFrame"> }) {
   return (
     <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950">
       <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-500 uppercase">{t.doneMapTitle}</span>
-      {shown && map.embed ? (
-        <iframe title={t.doneMapFrame} src={map.embed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-[400px] max-h-[400px] w-full rounded-[12px] border-0" />
-      ) : map.embed ? (
-        <button
-          type="button"
-          onClick={() => setShown(true)}
-          className="grid h-[400px] max-h-[400px] w-full cursor-pointer place-items-center rounded-[12px] border border-dashed border-ink-300 bg-ink-50 p-6 text-center hover:border-ink-950"
-        >
-          <span className="flex flex-col items-center gap-2">
-            <span className="text-[15px] font-semibold">{t.doneMapShow}</span>
-            <span className="text-[13px] text-ink-600">{t.doneMapNote}</span>
-          </span>
-        </button>
-      ) : null}
-      <a href={map.open} target="_blank" rel="noopener noreferrer" className="self-start text-[14px] font-semibold text-ink-950 underline underline-offset-2">
-        {t.doneMapOpen}
-      </a>
+      <div className="h-[280px] max-h-[280px] w-full overflow-hidden rounded-[12px]">
+        <iframe title={t.doneMapFrame} src={mapFrameSrc(map)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-full w-full border-0" />
+      </div>
     </div>
   );
 }
