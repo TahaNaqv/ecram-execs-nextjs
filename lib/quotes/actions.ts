@@ -11,6 +11,7 @@ import { allocationFor } from "@/lib/fleet/vehicles";
 import { browserMapKey, routeMapLinks, type RouteMapLinks } from "@/lib/fleet/map";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
+import { priceForRequest } from "@/lib/pricing/quote";
 import { createQuoteRequest } from "./create";
 import { readStops } from "./stops";
 import { quoteSchema, type QuoteField } from "./validation";
@@ -24,7 +25,7 @@ export type QuoteFormState =
       values: Record<string, string>;
       attempt: number;
     }
-  | { status: "success"; reference: string; name: string; map?: RouteMapLinks | null };
+  | { status: "success"; reference: string; name: string; map?: RouteMapLinks | null; price?: { total: number; exact: boolean } | null };
 
 const FIELDS = [
   "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
@@ -84,11 +85,14 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   let request: QuoteRequest;
   try {
     const fleet = allocationFor(parsed.data);
+    const stops = { destinations: destinations.length > 0 ? destinations : null, destinationWaits: destinations.length > 0 ? destinationWaits : null };
+    // The website's rates: a corporate partner books (at the corporate rates) from the portal
+    const priceEstimate = await priceForRequest({ ...parsed.data, ...stops }, "public");
     request = await createQuoteRequest({
       ...parsed.data,
       ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
-      destinations: destinations.length > 0 ? destinations : null,
-      destinationWaits: destinations.length > 0 ? destinationWaits : null,
+      ...stops,
+      priceEstimate,
       vehicleCount: fleet.vehicleCount,
       vehicles: fleet.vehicles,
       internalNotes: fleet.internalNotes,
@@ -105,5 +109,11 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   after(() => Promise.all([notifyNewQuote(request), confirmToClient(request), SESSION_ID.test(chat) ? linkChatToRequest(chat, request.id) : undefined]));
 
   // The route is only drawn now that the booking is in: the confirmation shows it, the steps before it never load a map
-  return { status: "success", reference: request.reference, name: request.name.split(" ")[0], map: routeMapLinks(request, browserMapKey()) };
+  return {
+    status: "success",
+    reference: request.reference,
+    name: request.name.split(" ")[0],
+    map: routeMapLinks(request, browserMapKey()),
+    price: request.priceEstimate ? { total: request.priceEstimate.total, exact: request.priceEstimate.exact } : null,
+  };
 }

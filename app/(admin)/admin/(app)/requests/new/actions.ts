@@ -13,6 +13,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { CarClashError, createQuoteRequest } from "@/lib/quotes/create";
+import { priceForRequest } from "@/lib/pricing/quote";
 import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
@@ -104,18 +105,25 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
     .filter((s) => s.place)
     .slice(0, MAX_STOPS);
 
+  const trip = {
+    service: input.service,
+    collection: input.collection,
+    destination: input.destination,
+    destinations: stops.length > 0 ? stops.map((s) => s.place) : null,
+    destinationWaits: stops.length > 0 ? stops.map((s) => s.wait) : null,
+    pickupAt: input.pickupAt,
+    passengers: input.passengers,
+    vehicle: input.vehicle,
+  };
+  // A booking for a partner is at the corporate rates
+  const priceEstimate = await priceForRequest(trip, partner ? "corporate" : "public");
+
   let request: QuoteRequest;
   try {
     request = await createQuoteRequest(
       {
-        service: input.service,
-        collection: input.collection,
-        destination: input.destination,
-        destinations: stops.length > 0 ? stops.map((s) => s.place) : null,
-        destinationWaits: stops.length > 0 ? stops.map((s) => s.wait) : null,
-        pickupAt: input.pickupAt,
-        passengers: input.passengers,
-        vehicle: input.vehicle,
+        ...trip,
+        priceEstimate,
         name,
         email,
         phone: input.phone,

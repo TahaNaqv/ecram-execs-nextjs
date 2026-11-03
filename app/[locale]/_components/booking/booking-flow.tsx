@@ -8,6 +8,7 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
+import { dayKind, formatCents, hourlyRate, SERVICE_FEE_CENTS, type Segment } from "@/lib/pricing/rates";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
@@ -15,6 +16,7 @@ import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
 import { involvesAirport, isTripReady, MAX_PER_CAR, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
+import { dayLabel, segmentOf, shown } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
@@ -282,6 +284,8 @@ export function BookingFlow({
         <CarStep
           headingRef={heading}
           trip={trip}
+          segment={segmentOf(variant)}
+          locale={locale}
           vehicles={offered}
           bookedCount={vehicles.length - offered.length}
           copy={t}
@@ -381,9 +385,12 @@ function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
   return { ...trip, cars: next, vehicle: next[0]?.key ?? "" };
 }
 
-function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
+function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
+  /** Whose rates the cards show: the website's (with VAT) or a corporate partner's (before VAT) */
+  segment: Segment;
+  locale: Locale;
   vehicles: OfferedVehicle[];
   /** Cars left out because a confirmed booking already holds them at this time */
   bookedCount: number;
@@ -405,6 +412,12 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   const fitting = cars.filter((c) => c.seats === null || c.seats >= trip.pax).length;
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
+  // The rate card's column for the day of the pick-up
+  const day = trip.at ? dayKind(trip.at) : null;
+  const rateOf = (key: string) => {
+    const rate = day ? hourlyRate(key, segment, day) : null;
+    return rate === null ? null : interpolate(t.carRate, { price: formatCents(shown(rate, segment), locale) });
+  };
   const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:opacity-40";
 
   const card = (c: (typeof cars)[number]) => {
@@ -434,6 +447,7 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
                 </span>
               )}
             </span>
+            {rateOf(c.vehicle.key) && <span className="px-1.5 pb-1 text-[14px] font-medium text-ink-700 tabular-nums">{rateOf(c.vehicle.key)}</span>}
             <span
               className={`m-1.5 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
                 selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
@@ -501,6 +515,11 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
       <p className="m-0 mt-2 text-[15px] text-ink-600">
         {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting, total: cars.length, party })}
       </p>
+      {day && (
+        <p className="m-0 mt-2 text-[13px] text-ink-600">
+          {interpolate(segment === "public" ? t.carRatesPublic : t.carRatesCorporate, { day: dayLabel(t, day), fee: formatCents(shown(SERVICE_FEE_CENTS, segment), locale) })}
+        </p>
+      )}
       {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
       {error && (
@@ -957,7 +976,16 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
 }
 
 /** The thank-you after a website request (the portal goes to the booking's own page instead). */
-export function BookingDone({ copy: t, name, reference, map, onAgain }: { copy: BookingCopy; name: string; reference: string; map?: RouteMapLinks | null; onAgain: () => void }) {
+export function BookingDone({ copy: t, locale, name, reference, map, price, onAgain }: {
+  copy: BookingCopy;
+  locale: Locale;
+  name: string;
+  reference: string;
+  map?: RouteMapLinks | null;
+  /** The price the server worked out and stored with the request, VAT included */
+  price?: { total: number; exact: boolean } | null;
+  onAgain: () => void;
+}) {
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef(false);
   useEffect(() => {
@@ -978,6 +1006,11 @@ export function BookingDone({ copy: t, name, reference, map, onAgain }: { copy: 
         {interpolate(t.doneHeading, { name })}
       </h2>
       <p className="m-0 text-[15px] text-ink-600">{t.doneNote}</p>
+      {price && (
+        <p className="m-0 text-[15px] text-ink-950">
+          {interpolate(t.doneEstimate, { price: price.exact ? formatCents(price.total, locale) : interpolate(t.priceFrom, { price: formatCents(price.total, locale) }) })}
+        </p>
+      )}
       {map && <RouteMap map={map} copy={t} />}
       <div>
         <button type="button" onClick={onAgain} className="h-[52px] cursor-pointer rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800">

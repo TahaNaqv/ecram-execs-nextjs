@@ -12,6 +12,7 @@ import { chosenCarIsBooked, clashingReference, lockFleet } from "@/lib/fleet/ava
 import { allocationFor } from "@/lib/fleet/vehicles";
 import { routeBlockMinutes } from "@/lib/fleet/route";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
+import { priceForRequest } from "@/lib/pricing/quote";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { visitor } from "@/lib/request-meta";
@@ -83,11 +84,12 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
     if (recent >= BOOKING_LIMIT.max) return fail(f.quoteRateLimited);
 
     const fleet = allocationFor(parsed.data);
+    const route = { destinations: stops.length > 0 ? stops : null, destinationWaits: stops.length > 0 ? destinationWaits : null };
     const request = await createQuoteRequest({
       ...parsed.data,
       ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
-      destinations: stops.length > 0 ? stops : null,
-      destinationWaits: stops.length > 0 ? destinationWaits : null,
+      ...route,
+      priceEstimate: await priceForRequest({ ...parsed.data, ...route }, "corporate"),
       vehicleCount: fleet.vehicleCount,
       vehicles: fleet.vehicles,
       internalNotes: fleet.internalNotes,

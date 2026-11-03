@@ -47,7 +47,8 @@ export async function pickDateTime(page: Page, field: Locator, at: string, copy:
   const period = hour >= 12 ? "PM" : "AM";
   const h12 = String(hour % 12 || 12).padStart(2, "0");
   await dialog.getByRole("listbox", { name: copy.hour }).getByRole("option", { name: h12, exact: true }).click();
-  await dialog.getByRole("listbox", { name: copy.period }).getByRole("option", { name: period, exact: true }).click();
+  // Shown as "am"/"pm" since the picker's restyle: match either case
+  await dialog.getByRole("listbox", { name: copy.period }).getByRole("option", { name: new RegExp(`^${period}$`, "i") }).click();
   await dialog.getByRole("listbox", { name: copy.minute }).getByRole("option", { name: min, exact: true }).click();
   await dialog.getByRole("button", { name: copy.done }).click();
 }

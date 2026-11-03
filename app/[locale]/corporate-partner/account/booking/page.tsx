@@ -12,6 +12,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
+import { formatCents } from "@/lib/pricing/rates";
 import { RouteMap } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { outlineButton } from "../../../_components/corporate-styles";
@@ -132,6 +133,15 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
             <Fact label={d.quoteForm.labelVehicle}>{convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Fact>
           )}
           {booking.quotedAmount && <Fact label={p.labelQuote}>{formatPartnerAmount(booking.quotedAmount, locale)}</Fact>}
+          {/* Until the team sends its quote, the rate card's price for the booking as it was made */}
+          {!booking.quotedAmount && booking.priceEstimate && (
+            <Fact label={d.booking.priceEstimateLabel}>
+              {interpolate(d.booking.priceEstimateValue, {
+                net: (booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `) + formatCents(booking.priceEstimate.total - booking.priceEstimate.vat, locale),
+                total: formatCents(booking.priceEstimate.total, locale),
+              })}
+            </Fact>
+          )}
           <Fact label={p.labelReceived}>{formatStamp(booking.createdAt, locale)}</Fact>
           {booking.notes && (
             <div className="md:col-span-2">

@@ -36,6 +36,7 @@ const bookingColumns = {
   destinationWaits: q.destinationWaits,
   pickupAt: q.pickupAt,
   returnAt: q.returnAt,
+  priceEstimate: q.priceEstimate,
   durationHours: q.durationHours,
   passengers: q.passengers,
   luggage: q.luggage,

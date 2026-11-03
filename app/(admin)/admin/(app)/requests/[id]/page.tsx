@@ -34,6 +34,7 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
+import { formatCents, type Price } from "@/lib/pricing/rates";
 
 async function BackLabel() {
   const { admin } = await adminDictionary();
@@ -172,6 +173,13 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         <Pipeline status={r.status} />
       </div>
 
+      {/* The rate card's price, as the booker saw it */}
+      {!isBespoke(r) && (
+        <div className="mt-6">
+          <RateCardPrice price={r.priceEstimate} copy={rd} />
+        </div>
+      )}
+
       {/* Auto-Pricing Gateway */}
       <div className="mt-6">
         <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap} />
@@ -261,5 +269,39 @@ function DetailSkeleton() {
       </div>
       <Skeleton className="mt-8 h-6 w-full" />
     </div>
+  );
+}
+const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
+
+/** The rate card's price stored with the request (lib/pricing/rates.ts), line by line, before VAT, then the total with it. */
+function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"] }) {
+  const euro = (cents: number) => formatCents(cents, "en");
+  const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
+  const line = (label: React.ReactNode, value: string, strong = false) => (
+    <div className={`flex justify-between gap-4 py-1.5 text-[13px] ${strong ? "mt-1 border-t border-zinc-100 pt-2.5 font-semibold text-zinc-950" : "text-zinc-600"}`}>
+      <span className="min-w-0">{label}</span>
+      <span className="shrink-0 font-mono tabular-nums">{value}</span>
+    </div>
+  );
+  return (
+    <Card>
+      <CardHeader title={rd.rateCardTitle} description={price ? `${price.segment === "corporate" ? rd.rateCardCorporate : rd.rateCardPublic} · ${rd.rateCardNote}` : rd.rateCardNone} />
+      {price && (
+        <div className="px-5 py-4">
+          {price.legs.map((leg) => (
+            <div key={leg.leg} className="pb-2">
+              <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">{interpolate(leg.leg === "return" ? rd.rateCardReturn : rd.rateCardOutward, { day: days[leg.day] })}</p>
+              {leg.lines.map((l) => (
+                <div key={l.key}>{line(interpolate(rd.rateCardLine, { count: l.count, car: vehicleByKey(l.key)?.name ?? l.key, hours: leg.hours, rate: euro(l.rate) }), euro(l.amount))}</div>
+              ))}
+            </div>
+          ))}
+          {line(rd.rateCardFee, euro(price.fee))}
+          {line(rd.rateCardVat, euro(price.vat))}
+          {line(rd.rateCardTotal, euro(price.total), true)}
+          {!price.exact && <p className="mt-2 text-xs text-amber-700">{rd.rateCardLower}</p>}
+        </div>
+      )}
+    </Card>
   );
 }

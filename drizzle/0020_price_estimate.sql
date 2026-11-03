@@ -1,0 +1,1 @@
+ALTER TABLE "quote_requests" ADD COLUMN "price_estimate" jsonb;

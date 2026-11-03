@@ -11,6 +11,7 @@ import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { isUrgent } from "@/lib/quotes/urgency";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
+import { formatCents, type Price } from "@/lib/pricing/rates";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -52,6 +53,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Phone", q.phone],
     ["Travelling (booked by the contact above)", [q.passengerName, q.passengerPhone].filter(Boolean).join(" · ") || null],
     ["Notes", q.notes],
+    ["Rate-card price", q.priceEstimate && teamPrice(q.priceEstimate)],
     ["Source", q.corporateContactId ? "Verified Corporate Partner" : null],
     ["KvK / company number", q.entityKvk],
   ];
@@ -64,6 +66,12 @@ export async function notifyNewQuote(q: QuoteRequest) {
     subject: `${urgent ? "[URGENT] " : ""}New ${bespoke ? "bespoke inquiry" : "quote request"} ${q.reference} — ${serviceLabel(q.service, services)}${q.pickupAt ? `, ${q.pickupAt.slice(0, 10)}` : ""}`,
     html,
   });
+}
+
+/** "€ 228.90 incl. VAT (€ 210.00 excl.), public rates, 2 h, from": the rate card's price for the team, always in English. */
+function teamPrice(p: Price) {
+  const hours = p.legs.map((leg) => `${leg.hours} h ${leg.day}`).join(" + ");
+  return `${formatCents(p.total, "en")} incl. VAT (${formatCents(p.total - p.vat, "en")} excl.), ${p.segment} rates, ${hours}${p.exact ? "" : ", a lower bound (drive not timed, or car not chosen)"}`;
 }
 
 /** Confirms receipt to the client. Logged in full when no mail provider is configured. */
@@ -85,6 +93,9 @@ export async function confirmToClient(q: QuoteRequest) {
         ...destinationRows(q, t, row),
         row(t.fieldDateTime, (q.pickupAt ?? "").slice(0, 16).replace("T", " ")),
         ...extraRows(q, t, row),
+        q.priceEstimate
+          ? row(t.fieldPrice, interpolate(q.priceEstimate.exact ? t.priceValue : t.priceValueFrom, { price: formatCents(q.priceEstimate.total, q.locale) }))
+          : "",
       ];
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">

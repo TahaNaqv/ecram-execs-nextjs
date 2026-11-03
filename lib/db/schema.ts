@@ -18,6 +18,7 @@ import { REQUEST_STATUSES, SERVICES } from "@/lib/quotes/constants";
 import { APPLICATION_STATUSES, type ApplicationDocument } from "@/lib/partners/criteria";
 import { LOCALES } from "@/lib/i18n/config";
 import type { RequestEventParams } from "@/lib/admin/events";
+import type { Price } from "@/lib/pricing/rates";
 
 export { REQUEST_STATUSES, SERVICES, type RequestStatus, type Service } from "@/lib/quotes/constants";
 export { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/partners/criteria";
@@ -68,6 +69,9 @@ export const quoteRequests = pgTable(
     notes: text("notes"),
     locale: contentLocale("locale").notNull().default("en"),
     quotedAmount: numeric("quoted_amount", { precision: 10, scale: 2 }),
+    // The rate-card price worked out when the request came in (lib/pricing/rates.ts), with its breakdown. A guide for the team,
+    // who still send the quote (quotedAmount); null for a request the card cannot price, or one made before prices existed.
+    priceEstimate: jsonb("price_estimate").$type<Price>(),
     internalNotes: text("internal_notes"),
     source: text("source").notNull().default("website"),
     ipHash: text("ip_hash"),

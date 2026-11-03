@@ -10,6 +10,7 @@ import { Check, pretty, SeatIcon } from "./parts";
 import type { BookingCopy } from "./copy";
 import { bagsText, guestsText } from "./guests-picker";
 import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
+import { PriceBreakdown, segmentOf, tripPrice } from "./price";
 
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -258,6 +259,9 @@ export function ReviewStep({
   const photos = (lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
   const seats = label ? null : (lead?.specs?.passengers ?? null);
 
+  const segment = segmentOf(variant);
+  const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null);
+
   const card = (title: string, children: ReactNode) => (
     <section aria-label={title} className="flex h-full min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
       <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
@@ -377,7 +381,10 @@ export function ReviewStep({
               )}
             </div>
             {convoy && <p className="m-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
-            {rows([[t.reviewPrice, <span key="price" className="text-ink-700">{t.reviewPriceNote}</span>]])}
+            <section aria-label={t.reviewPrice} className="flex flex-col gap-1 border-0 border-t border-solid border-ink-150 pt-4">
+              <h4 className="m-0 text-[15px] font-semibold">{t.reviewPrice}</h4>
+              <PriceBreakdown price={price} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} segment={segment} copy={t} locale={locale} />
+            </section>
           </>,
         )}
       </div>
