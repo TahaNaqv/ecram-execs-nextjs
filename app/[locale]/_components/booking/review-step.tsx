@@ -10,7 +10,7 @@ import { Check, pretty, SeatIcon } from "./parts";
 import type { BookingCopy } from "./copy";
 import { bagsText, guestsText } from "./guests-picker";
 import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
-import { PriceBreakdown, segmentOf, tripPrice } from "./price";
+import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
 
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -146,11 +146,15 @@ export function convoyPlan(trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered
 }
 
 /** "121.5 km · 1 h 25 m" from Google's answer, in the visitor's language. */
+/** "1 h 25 m" or "45 m" in the visitor's language. */
+function minutesText(minutes: number, t: BookingCopy) {
+  const total = Math.max(1, Math.round(minutes));
+  return total >= 60 ? interpolate(t.reviewHoursMinutes, { hours: Math.floor(total / 60), minutes: total % 60 }) : interpolate(t.reviewMinutes, { minutes: total });
+}
+
 function distanceText(est: { meters: number; seconds: number }, t: BookingCopy, locale: Locale) {
   const km = new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { maximumFractionDigits: 1 }).format(est.meters / 1000);
-  const total = Math.max(1, Math.round(est.seconds / 60));
-  const time = total >= 60 ? interpolate(t.reviewHoursMinutes, { hours: Math.floor(total / 60), minutes: total % 60 }) : interpolate(t.reviewMinutes, { minutes: total });
-  return interpolate(t.reviewDistanceValue, { km, time });
+  return interpolate(t.reviewDistanceValue, { km, time: minutesText(est.seconds / 60, t) });
 }
 
 /**
@@ -236,6 +240,11 @@ export function ReviewStep({
   ride.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
   if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
   if (routed && estimate) ride.push([t.reviewDistance, estimate === "pending" ? <span className="text-ink-500">{t.reviewDistancePending}</span> : distanceText(estimate, t, locale)]);
+  // The drive and the waits together: the time the price is worked out on
+  const waits = tripWaitMinutes(trip);
+  if (routed && estimate && estimate !== "pending" && waits > 0) {
+    ride.push([t.reviewTotalTime, interpolate(t.reviewTotalTimeValue, { time: minutesText(estimate.seconds / 60 + waits, t), wait: minutesText(waits, t) })]);
+  }
 
   const picks = trip.cars.filter((c) => c.count > 0);
   const plan = convoyPlan(trip);

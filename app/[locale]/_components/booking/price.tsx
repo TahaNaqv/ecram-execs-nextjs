@@ -15,6 +15,9 @@ export const segmentOf = (variant: "public" | "portal"): Segment => (variant ===
 
 export const dayLabel = (t: BookingCopy, day: DayKind) => (day === "sunday" ? t.rateSunday : day === "saturday" ? t.rateSaturday : t.rateWeekday);
 
+/** Minutes the chauffeur waits at the trip's stops (a stop left blank is not sent, nor is its wait). */
+export const tripWaitMinutes = (trip: Trip) => (trip.mode === "hourly" ? 0 : trip.stops.filter((s) => s.place.trim()).reduce((sum, s) => sum + s.wait, 0));
+
 /** The trip's price by the rate card, as the server will work it out (lib/pricing/quote.ts), from the drive time the review fetched. */
 export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | null): (Price & { suggested: boolean }) | null {
   if (!trip.at) return null;
@@ -25,6 +28,7 @@ export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | n
     pickupAt: trip.at,
     hours: hourly && trip.hours !== "" ? trip.hours : null,
     driveSeconds: hourly ? null : driveSeconds,
+    waitMinutes: hourly ? 0 : tripWaitMinutes(trip),
     cars,
     suggested,
   });

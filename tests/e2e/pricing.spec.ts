@@ -27,14 +27,27 @@ test("every car has the rate the card gives it", () => {
   expect(hourlyRate("a bicycle", "public", "weekday")).toBeNull();
 });
 
-test("a transfer is billed in whole hours for its drive, never under two, and waiting is not charged", () => {
+test("a transfer is billed in whole hours for its drive and its waits, never under two", () => {
   // A 45-minute ride is two hours
   expect(billedHours({ driveSeconds: 45 * 60 })).toBe(2);
   expect(billedHours({ driveSeconds: 120 * 60 })).toBe(2);
   expect(billedHours({ driveSeconds: 121 * 60 })).toBe(3);
+  // Waiting at a stop is time on the clock: a 1 h 1 m drive with a 90-minute wait is 2 h 31 m, so three hours
+  expect(billedHours({ driveSeconds: 61 * 60, waitMinutes: 90 })).toBe(3);
+  expect(billedHours({ driveSeconds: 30 * 60, waitMinutes: 30 })).toBe(2);
   expect(billedHours({ hours: 5 })).toBe(5);
   // Not timed: nothing to bill on yet
-  expect(billedHours({ driveSeconds: null })).toBeNull();
+  expect(billedHours({ driveSeconds: null, waitMinutes: 90 })).toBeNull();
+});
+
+test("the waits are in the price, and an untimed ride still counts them as a lower bound", () => {
+  // Schiphol → The Hague (90-minute wait) → Rotterdam airport in an Escalade on a weekday, the case the client reported
+  const timed = priceBooking({ segment: "public", pickupAt: "2026-11-12T20:09", driveSeconds: 61 * 60, waitMinutes: 90, cars: [{ key: "cadillac_escalade", count: 1 }] })!;
+  expect(timed.legs[0].hours).toBe(3);
+  expect(timed.rides).toBe(3 * 11700);
+  const untimed = priceBooking({ segment: "public", pickupAt: "2026-11-12T20:09", driveSeconds: null, waitMinutes: 150, cars: [{ key: "cadillac_escalade", count: 1 }] })!;
+  expect(untimed.legs[0].hours).toBe(3);
+  expect(untimed.exact).toBe(false);
 });
 
 test("a standard weekday ride: hours × rate, 9% VAT, then the €12.50 service fee with its 21% VAT", () => {

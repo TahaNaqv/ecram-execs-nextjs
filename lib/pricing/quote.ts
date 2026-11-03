@@ -10,6 +10,7 @@ type Priced = {
   collection?: string | null;
   destination?: string | null;
   destinations?: string[] | null;
+  destinationWaits?: number[] | null;
   pickupAt?: string | null;
   returnAt?: string | null;
   durationHours?: number | null;
@@ -38,6 +39,8 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
         () => null,
       );
     }
+    // Each stop's wait, as the form sent them with the stops (blank stops are dropped with their waits)
+    const waitMinutes = hourly ? 0 : (b.destinationWaits ?? []).slice(0, stops.length).reduce((sum, w) => sum + (Number.isFinite(w) && w > 0 ? w : 0), 0);
     const { cars, suggested } = carsToPrice(b);
     return priceBooking({
       segment,
@@ -45,6 +48,7 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
       returnAt: b.returnAt,
       hours: hourly ? b.durationHours : null,
       driveSeconds,
+      waitMinutes,
       cars,
       suggested,
     });

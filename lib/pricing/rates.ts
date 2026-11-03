@@ -8,7 +8,7 @@ import { normalizeVehicleKey, type VehicleKey } from "../fleet/vehicles.ts";
  * Read by the booking flow in the browser and by the server, which works the price out again when a booking is sent and
  * stores it: nothing here may import server-only code. Amounts are whole euro cents throughout.
  */
-export const RATE_CARD_VERSION = "2026-11c";
+export const RATE_CARD_VERSION = "2026-11d";
 
 export type Segment = "corporate" | "public";
 export type DayKind = "weekday" | "saturday" | "sunday";
@@ -61,14 +61,13 @@ export function hourlyRate(key: string, segment: Segment, day: DayKind): number 
 
 /**
  * Whole hours billed for one leg, at least `MIN_HOURS`. An hourly booking is billed for the hours booked. A transfer is
- * billed for the drive Google expects (without traffic), rounded up to the hour. Waiting is not charged: a client who
- * needs the chauffeur to wait books by the hour. Null when a transfer's drive is not known: the price is then only the
- * minimum, and says so.
+ * billed for the drive Google expects (without traffic) plus the chauffeur's waits at the stops, rounded up to the hour:
+ * waiting is time on the clock, with no charge of its own. Null when a transfer's drive is not known.
  */
-export function billedHours(leg: { hours?: number | null; driveSeconds?: number | null }): number | null {
+export function billedHours(leg: { hours?: number | null; driveSeconds?: number | null; waitMinutes?: number }): number | null {
   if (leg.hours && leg.hours > 0) return Math.max(MIN_HOURS, Math.ceil(leg.hours));
   if (!leg.driveSeconds || !Number.isFinite(leg.driveSeconds) || leg.driveSeconds <= 0) return null;
-  return Math.max(MIN_HOURS, Math.ceil(leg.driveSeconds / 3600));
+  return Math.max(MIN_HOURS, Math.ceil((leg.driveSeconds / 60 + (leg.waitMinutes ?? 0)) / 60));
 }
 
 /** `rate` and `amount` before VAT */
@@ -105,6 +104,8 @@ export type PriceInput = {
   hours?: number | null;
   /** A transfer's drive without traffic, from Google; null when it could not be told */
   driveSeconds?: number | null;
+  /** Minutes the chauffeur waits at the stops on the way, billed as part of the hours */
+  waitMinutes?: number;
   /** The cars, with how many of each */
   cars: { key: string; count: number }[];
   /** The cars are our suggestion, not the visitor's choice */
@@ -113,8 +114,9 @@ export type PriceInput = {
 
 /** The price of a booking by the rate card; null when it cannot be priced (no date, or no car the card lists). */
 export function priceBooking(input: PriceInput): Price | null {
-  const timed = billedHours({ hours: input.hours, driveSeconds: input.driveSeconds });
-  const hours = timed ?? MIN_HOURS;
+  const timed = billedHours({ hours: input.hours, driveSeconds: input.driveSeconds, waitMinutes: input.waitMinutes });
+  // Not timed: the least it can be, the waits alone (and never under the minimum)
+  const hours = timed ?? Math.max(MIN_HOURS, Math.ceil((input.waitMinutes ?? 0) / 60));
   const legs: PriceLeg[] = [];
   for (const [leg, at] of [["outward", input.pickupAt], ["return", input.returnAt]] as const) {
     if (!at) continue;
