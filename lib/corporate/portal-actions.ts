@@ -36,7 +36,8 @@ const BOOKING_LIMIT = { max: 10, minutes: 60 };
 const MESSAGE_LIMIT = { max: 20, minutes: 60 };
 
 const FIELDS = [
-  "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
+  // No "returnAt": the client takes no return journeys, so one sent anyway is not read
+  "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry", "passengerPhone",
   "vehicle", "vehicles", "notes", "locale",
 ] as const;

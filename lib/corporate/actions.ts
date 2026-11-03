@@ -179,7 +179,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const fields = [
     "company", "companyNumber", "phoneCountry", "phone", "contactMethod", "signatory", "pointOfCall",
     "vehicle", "tripTime", "duration", "collection", "destination", "pickupAt", "passengers", "luggage", "returnStatus",
-    "returnAt", "notes", "locale",
+    "notes", "locale",
   ] as const;
   const values: Record<string, string> = Object.fromEntries(fields.map((k) => [k, String(formData.get(k) ?? "")]));
   const stops = readStops(formData);
@@ -195,8 +195,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const parsed = onboardingSchema(f, c).safeParse({
     ...values,
     notes: values.notes || undefined,
-    // Absent unless the return field is on the form. An empty value is a return they started and did not finish.
-    ...(formData.has("returnAt") ? { returnAt: values.returnAt } : {}),
+    // No return journey: the client does not take them, so one sent anyway is not read
     stops: stops.destinations.map((place, i) => ({ place, wait: stops.destinationWaits[i] ?? 0 })),
   });
   if (!parsed.success) {

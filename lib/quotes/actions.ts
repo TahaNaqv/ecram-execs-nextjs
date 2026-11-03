@@ -28,7 +28,8 @@ export type QuoteFormState =
   | { status: "success"; reference: string; name: string; map?: RouteMapLinks | null; price?: { total: number; exact: boolean } | null };
 
 const FIELDS = [
-  "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
+  // No "returnAt": the client takes no return journeys, so one sent anyway is not read
+  "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "name", "email", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry",
   "passengerPhone", "vehicle", "vehicles", "notes", "locale", "entity", "entityKvk",
 ] as const;

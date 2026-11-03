@@ -12,7 +12,6 @@ export type Journey = {
   hours?: number;
   /** "dd-mm-yyyy hh:mm" as a visitor types it */
   at: string;
-  ret?: string;
   stops?: { place: string; wait?: number }[];
   flight?: string;
   pax?: number;
@@ -77,10 +76,6 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
     await field.fill(stop.place);
     await field.press("Escape");
     if (stop.wait) await root.getByLabel(t.stopWaitLabel.replace("{number}", String(i + 1))).selectOption(String(stop.wait));
-  }
-  if (j.ret) {
-    await root.getByRole("button", { name: t.addReturn }).click();
-    await pickDateTime(page, root.getByLabel(t.returnLabel, { exact: true }), j.ret, dt);
   }
   if (j.flight) await root.getByLabel(t.flight, { exact: true }).fill(j.flight);
   // The guests are always chosen by the visitor (the bar starts with a prompt, QA round 3, bug 7); the dialog opens on one guest and no bags

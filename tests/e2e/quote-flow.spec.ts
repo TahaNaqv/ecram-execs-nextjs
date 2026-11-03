@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { fillAdminLogin } from "./helpers";
-import { bar, chooseCar, confirmedReference, fillDetails, fillJourney, nextYear, pickDateTime } from "./booking-helpers";
+import { bar, chooseCar, confirmedReference, fillDetails, fillJourney, nextYear } from "./booking-helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 
@@ -25,14 +25,13 @@ test("the booking flow checks the journey in the bar, then the details on the se
   await expect(alert).toContainText(en.forms.guestsRequired); // the guests are chosen by the visitor; the time starts as the time it is now
   await expect(page).toHaveURL(/\/en$/);
 
-  // A return journey before the pick-up is caught before anything is sent
-  await fillJourney(page, { from: "Kurhaus, Scheveningen", to: "Hotel Des Indes, The Hague", at: nextYear("14-03", "18:00"), ret: nextYear("14-03", "09:00") });
-  await expect(alert).toContainText(en.forms.returnBeforePickup);
+  // The client takes no return journeys, so the bar never offers one
+  await expect(bar(page).getByRole("button", { name: en.booking.addReturn })).toHaveCount(0);
 
   // A complete journey reaches /book; empty details are caught before the review, field by field
-  await pickDateTime(page, page.getByLabel(en.booking.returnLabel, { exact: true }), nextYear("15-03", "09:00"));
-  await bar(page).getByRole("button", { name: en.booking.continue }).click();
+  await fillJourney(page, { from: "Kurhaus, Scheveningen", to: "Hotel Des Indes, The Hague", at: nextYear("14-03", "18:00") });
   await expect(page).toHaveURL(/\/en\/book\?/);
+  await expect(page.getByRole("button", { name: en.booking.addReturn })).toHaveCount(0);
   await chooseCar(page, null);
   await page.getByRole("button", { name: en.booking.reviewButton }).click();
   await expect(page.getByText(en.forms.nameRequired)).toBeVisible();
@@ -193,25 +192,24 @@ test("a stopover carries its waiting time to the team", async ({ page }) => {
   await expect(page.getByText(/^Waiting \d+ min$/)).toHaveCount(1);
 });
 
-test("an hourly booking needs no destination, and a return journey reaches the team", async ({ page }) => {
+test("an hourly booking needs no destination", async ({ page }) => {
   const email = `client-hourly-${Date.now()}@e2e.ecramexecs.test`;
   await page.goto("/en");
-  await fillJourney(page, { from: "Kurhaus, Scheveningen", hours: 4, at: nextYear("20-05", "10:00"), ret: nextYear("20-05", "18:30") });
+  await fillJourney(page, { from: "Kurhaus, Scheveningen", hours: 4, at: nextYear("20-05", "10:00") });
   await expect(page.getByRole("button", { name: /4 hours, as directed/ })).toBeVisible();
   await chooseCar(page, "advise");
   await fillDetails(page, { name: "Uma Hourly", email, phone: "6 1234 5678" });
   const reference = await confirmedReference(page, "Thank you, Uma");
 
   const db = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
-  const [row] = await db`select id, service, destination, duration_hours, to_char(return_at, 'HH24:MI') as return_time, vehicle from quote_requests where reference = ${reference}`;
+  const [row] = await db`select id, service, destination, duration_hours, return_at, vehicle from quote_requests where reference = ${reference}`;
   await db.end();
   // Two guests and two suitcases: the smallest car that is free and seats them, rather than a standing Mercedes
-  expect(row).toMatchObject({ service: "hourly", destination: null, duration_hours: 4, return_time: "18:30", vehicle: "audi" });
+  expect(row).toMatchObject({ service: "hourly", destination: null, duration_hours: 4, return_at: null, vehicle: "audi" });
 
   await page.goto("/admin/login");
   await fillAdminLogin(page);
   await page.waitForURL((url) => !url.pathname.endsWith("/login"));
   await page.goto(`/admin/requests/${row.id}`);
   await expect(page.getByText("4 hours, as directed").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText(en.admin.requestDetail.returnJourney).filter({ visible: true })).toBeVisible();
 });

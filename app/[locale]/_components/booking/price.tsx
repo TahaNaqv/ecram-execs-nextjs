@@ -23,7 +23,6 @@ export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | n
   const price = priceBooking({
     segment,
     pickupAt: trip.at,
-    returnAt: trip.ret || null,
     hours: hourly && trip.hours !== "" ? trip.hours : null,
     driveSeconds: hourly ? null : driveSeconds,
     cars,
@@ -38,7 +37,6 @@ export function PriceBreakdown({
   pending,
   hourly,
   timed,
-  segment,
   copy: t,
   locale,
 }: {
@@ -47,7 +45,6 @@ export function PriceBreakdown({
   hourly: boolean;
   /** Whether Google timed the drive (a transfer's hours rest on it) */
   timed: boolean;
-  segment: Segment;
   copy: BookingCopy;
   locale: Locale;
 }) {

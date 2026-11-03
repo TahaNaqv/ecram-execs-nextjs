@@ -151,7 +151,7 @@ test("an hourly booking needs hours, not a destination; phone numbers are split 
   expect(toolResult(model.calls[1]).problems).toHaveProperty("phone");
 });
 
-test("stops, a return journey, a flight, someone else travelling and a note all reach the form's fields", async ({ playwright, baseURL }) => {
+test("stops, a flight, someone else travelling and a note all reach the form's fields; a return journey does not", async ({ playwright, baseURL }) => {
   const at = tomorrow();
   const ret = `${amsterdamNow(48 * 60).slice(0, 10)}T17:30`;
   model.script.push(
@@ -170,14 +170,16 @@ test("stops, a return journey, a flight, someone else travelling and a note all 
   expect(r.ready).toBe(true);
   expect(field(r.form, "destinations")).toEqual(["Utrecht Centraal", "Hotel Des Indes, The Hague"]);
   expect(field(r.form, "destinationWaits")).toEqual(["30", "15"]);
-  expect(field(r.form, "returnAt")).toEqual([ret]);
+  // The client takes no return journeys: one the model passes is dropped, and the model is told why
+  expect(field(r.form, "returnAt")).toEqual([]);
+  expect(toolResult(model.calls[1]).rejected).toEqual([expect.stringMatching(/^ret \(return journeys are not offered/)]);
   expect(field(r.form, "flightNumber")).toEqual(["KL 1002".toLowerCase()]); // the form's own action turns it into capitals
   expect(field(r.form, "luggage")).toEqual(["6"]);
   expect(field(r.form, "passengerName")).toEqual(["Mr Okafor"]);
   expect(field(r.form, "passengerPhoneCountry")).toEqual(["44"]);
   expect(field(r.form, "passengerPhone")).toEqual(["7911123456"]);
   expect(field(r.form, "notes")).toEqual(["Child seat please"]);
-  expect(r.summary).toMatchObject({ flight: "kl 1002", returning: expect.stringContaining("17:30"), passengerName: "Mr Okafor", passengerPhone: "+44 7911123456" });
+  expect(r.summary).toMatchObject({ flight: "kl 1002", returning: null, passengerName: "Mr Okafor", passengerPhone: "+44 7911123456" });
 });
 
 test("what a place is decides the kind of trip and the flight field; a place the model does not call an airport is not one", async ({ playwright, baseURL }) => {

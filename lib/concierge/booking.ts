@@ -78,7 +78,8 @@ const CLEAN: { [K in DraftKey]-?: (v: unknown) => Draft[K] | undefined } = {
     return h !== undefined && (HOURLY_DURATIONS as readonly number[]).includes(h) ? h : undefined;
   },
   at: (v) => (typeof v === "string" && WALL_CLOCK.test(v.trim()) ? v.trim() : undefined),
-  ret: (v) => (typeof v === "string" && WALL_CLOCK.test(v.trim()) ? v.trim() : undefined),
+  // Never kept (see applyPatch): the client takes no return journeys
+  ret: () => undefined,
   passengers: whole(1, 50),
   bags: whole(0, MAX_BAGS),
   flight: text(12),
@@ -126,6 +127,11 @@ export function applyPatch(draft: Draft, patch: unknown): { draft: Draft; reject
       delete next[key];
       continue;
     }
+    // The client takes no return journeys: say why, so the model tells the visitor instead of trying again
+    if (key === "ret") {
+      rejected.push("ret (return journeys are not offered: tell the visitor each ride is booked on its own)");
+      continue;
+    }
     const value = CLEAN[key as DraftKey](raw);
     if (value === undefined) rejected.push(key);
     else next[key] = value;
@@ -158,7 +164,6 @@ const FIELD_OF: Record<string, DraftKey> = {
   collection: "from",
   destination: "to",
   pickupAt: "at",
-  returnAt: "ret",
   durationHours: "hours",
   passengers: "passengers",
   luggage: "bags",
@@ -183,7 +188,6 @@ export function tripOf(draft: Draft): Trip {
   trip.stops = trip.mode === "oneway" ? (draft.stops ?? []) : [];
   trip.hours = trip.mode === "hourly" ? (draft.hours ?? "") : "";
   trip.at = draft.at ?? "";
-  trip.ret = draft.ret ?? "";
   trip.pax = draft.passengers ?? 1;
   trip.bags = draft.bags ?? 0;
   trip.guestsSet = draft.passengers !== undefined;
@@ -271,7 +275,7 @@ export async function bookedVehicleKeys(draft: Draft): Promise<ReadonlySet<strin
   try {
     return await busyVehicleKeys({
       pickupAt: draft.at,
-      returnAt: draft.mode !== "hourly" && draft.ret && WALL_CLOCK.test(draft.ret) ? draft.ret : null,
+      returnAt: null,
       service: draft.mode === "hourly" ? "hourly" : undefined,
       durationHours: draft.mode === "hourly" && draft.hours ? draft.hours : null,
     });
@@ -351,7 +355,7 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
       stops: mode === "oneway" ? (draft.stops ?? []) : [],
       hours: mode === "hourly" ? draft.hours! : null,
       when: whenLabel(draft.at!, locale),
-      returning: draft.ret ? whenLabel(draft.ret, locale) : null,
+      returning: null,
       passengers: draft.passengers!,
       bags: draft.bags ?? 0,
       car,

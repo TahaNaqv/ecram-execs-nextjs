@@ -37,7 +37,7 @@ export type DetailDefaults = {
 };
 
 // Fields the server checks, by the step that asks for them: an error sends the visitor back there
-const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "returnAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
+const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
 const CAR_FIELDS = ["vehicle"];
 const DETAILS_FIELDS = ["name", "email", "phone", "phoneCountry", "passengerName", "passengerPhone", "passengerPhoneCountry", "entity", "entityKvk", "notes"];
 
@@ -147,13 +147,12 @@ export function BookingFlow({
   // the trip changes; the answer is only keys. If it cannot be asked every car is offered, and the team is stopped
   // from confirming a clash anyway.
   const [booked, setBooked] = useState<ReadonlySet<string>>(new Set());
-  const asked = step === "car" && trip.at ? `${trip.at}|${trip.mode === "hourly" ? trip.hours : ""}|${trip.mode === "oneway" ? trip.ret : ""}` : "";
+  const asked = step === "car" && trip.at ? `${trip.at}|${trip.mode === "hourly" ? trip.hours : ""}` : "";
   useEffect(() => {
     if (!asked) return;
-    const [at, hours, ret] = asked.split("|");
+    const [at, hours] = asked.split("|");
     const query = new URLSearchParams({ at });
     if (hours) query.set("hours", hours);
-    if (ret) query.set("returnAt", ret);
     const controller = new AbortController();
     fetch(`/api/vehicles/unavailable?${query}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
@@ -895,7 +894,6 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
     [t.summaryRoute, route.map((r, i) => <span key={i} className="block">{i > 0 ? `→ ${r}` : r}</span>)],
     [t.summaryWhen, trip.at ? pretty(trip.at, locale) : ""],
   ];
-  if (trip.ret) rows.push([t.summaryReturn, pretty(trip.ret, locale)]);
   rows.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
   if (pickupAtAirport(trip) && trip.flight.trim()) rows.push([t.summaryFlight, trip.flight.trim()]);
 

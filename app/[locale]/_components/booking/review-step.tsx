@@ -67,12 +67,6 @@ export function RouteOutline({ trip, copy: t, locale }: { trip: Trip; copy: Book
               <dd className="m-0">{pretty(trip.at, locale)}</dd>
             </>
           )}
-          {trip.ret && (
-            <>
-              <dt className="text-ink-500">{t.summaryReturn}</dt>
-              <dd className="m-0">{pretty(trip.ret, locale)}</dd>
-            </>
-          )}
           {trip.guestsSet && (
             <>
               <dt className="text-ink-500">{t.summaryParty}</dt>
@@ -239,7 +233,6 @@ export function ReviewStep({
   const ride: [string, ReactNode][] = waypoints(trip, t).map((w) => [w.label, w.place]);
   if (trip.mode === "hourly" && trip.hours !== "") ride.push([t.duration, interpolate(t.asDirected, { hours: trip.hours })]);
   if (trip.at) ride.push([t.summaryWhen, pretty(trip.at, locale)]);
-  if (trip.ret) ride.push([t.summaryReturn, pretty(trip.ret, locale)]);
   ride.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
   if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
   if (routed && estimate) ride.push([t.reviewDistance, estimate === "pending" ? <span className="text-ink-500">{t.reviewDistancePending}</span> : distanceText(estimate, t, locale)]);
@@ -383,7 +376,7 @@ export function ReviewStep({
             {convoy && <p className="m-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
             <section aria-label={t.reviewPrice} className="flex flex-col gap-1 border-0 border-t border-solid border-ink-150 pt-4">
               <h4 className="m-0 text-[15px] font-semibold">{t.reviewPrice}</h4>
-              <PriceBreakdown price={price} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} segment={segment} copy={t} locale={locale} />
+              <PriceBreakdown price={price} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
             </section>
           </>,
         )}

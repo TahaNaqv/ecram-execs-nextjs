@@ -35,7 +35,7 @@ const ArrowIcon = () => (
   </svg>
 );
 
-const BOOKING_QUERY = ["from", "to", "at", "mode", "stop", "hours", "ret", "pax"];
+const BOOKING_QUERY = ["from", "to", "at", "mode", "stop", "hours", "pax"];
 
 /**
  * The homepage bar. A trip in the URL (Edit on the car step) fills the fields. With no trip in the URL the bar keeps
@@ -77,10 +77,9 @@ export function JourneyBar({
   cancelHref?: string;
 }) {
   const uid = useId();
-  const ids = { from: `${uid}-from`, to: `${uid}-to`, hours: `${uid}-hours`, at: `${uid}-at`, ret: `${uid}-ret`, guests: `${uid}-guests`, guestsLabel: `${uid}-guests-label`, flight: `${uid}-flight`, error: `${uid}-error` };
+  const ids = { from: `${uid}-from`, to: `${uid}-to`, hours: `${uid}-hours`, at: `${uid}-at`, guests: `${uid}-guests`, guestsLabel: `${uid}-guests-label`, flight: `${uid}-flight`, error: `${uid}-error` };
   const [trip, setTrip] = useState<Trip>(initial ?? emptyTrip());
   const [problems, setProblems] = useState<TripField[]>([]);
-  const [returning, setReturning] = useState(Boolean(initial?.ret));
   const [hoursOpen, setHoursOpen] = useState(false);
   const [waitOpen, setWaitOpen] = useState<number | null>(null);
   const hoursRef = useRef<HTMLDivElement>(null);
@@ -97,8 +96,8 @@ export function JourneyBar({
     tripChange.current = onTripChange;
   });
   useEffect(() => {
-    tripChange.current?.({ ...trip, ret: returning ? trip.ret : "" });
-  }, [trip, returning]);
+    tripChange.current?.(trip);
+  }, [trip]);
   // The time the bar filled in by itself, while the visitor has not chosen another: if they leave the page open for hours and then
   // press Continue, that time is brought up to date instead of being refused as a time that has passed
   const autoAt = useRef("");
@@ -151,7 +150,6 @@ export function JourneyBar({
     const now = netherlandsNow();
     autoAt.current = now;
     setTrip({ ...emptyTrip(), at: now });
-    setReturning(false);
     setProblems([]);
     setFieldsKey((k) => k + 1);
   });
@@ -168,14 +166,13 @@ export function JourneyBar({
       collection: messages.collectionRequired,
       destination: messages.destinationRequired,
       pickupAt: !trip.at ? messages.pickupInvalid : trip.at < netherlandsNow() ? messages.pickupPast : messages.pickupTooFar,
-      returnAt: messages.returnBeforePickup,
       durationHours: messages.checkHighlighted,
       guests: messages.guestsRequired,
       flightNumber: messages.flightInvalid,
     })[field];
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
-    let current: Trip = { ...trip, ret: returning ? trip.ret : "" };
+    let current: Trip = trip;
     if (autoAt.current && trip.at === autoAt.current && tripProblems(current, netherlandsNow()).includes("pickupAt")) {
       const fresh = netherlandsNow();
       current = { ...current, at: fresh };
@@ -190,7 +187,7 @@ export function JourneyBar({
     setProblems(found);
     if (found.length > 0) {
       e.preventDefault();
-      document.getElementById({ collection: ids.from, destination: ids.to, pickupAt: ids.at, returnAt: ids.ret, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]])?.focus();
+      document.getElementById({ collection: ids.from, destination: ids.to, pickupAt: ids.at, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]])?.focus();
       return;
     }
     if (onDone) {
@@ -229,13 +226,13 @@ export function JourneyBar({
       ? "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-250"
       : "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600";
   const describedBy = (field: TripField) => (invalid(field) ? ids.error : undefined);
-  const params = action ? tripToParams({ ...trip, ret: returning ? trip.ret : "" }) : null;
+  const params = action ? tripToParams(trip) : null;
   const quiet = dark ? "text-ink-150 hover:bg-white/10 hover:text-white" : "text-ink-800 hover:bg-ink-100 hover:text-ink-950";
   const removeButton = dark ? "text-ink-300 hover:bg-white/10 hover:text-white" : "text-ink-600 hover:bg-ink-100 hover:text-ink-950";
   const input = `w-full min-w-0 border-0 bg-transparent p-0 font-sans text-[16px] font-medium outline-none ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`;
   const canAddStop = trip.mode === "oneway" && trip.stops.length < MAX_STOPS;
   const stops = trip.mode === "oneway" ? trip.stops : [];
-  const hasExtras = stops.length > 0 || returning || airport;
+  const hasExtras = stops.length > 0 || airport;
   const divider = dark ? "border-white/10" : "border-ink-150";
   const dateClass = `border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`;
 
@@ -302,19 +299,6 @@ export function JourneyBar({
         >
           <PlusIcon />
           {t.addStop}
-        </button>
-      )}
-      {!returning && (
-        <button
-          type="button"
-          onClick={() => {
-            setReturning(true);
-            window.setTimeout(() => document.getElementById(ids.ret)?.focus(), 0);
-          }}
-          className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-3 text-[13px] font-semibold ${quiet}`}
-        >
-          <PlusIcon />
-          {t.addReturn}
         </button>
       )}
     </div>
@@ -549,33 +533,6 @@ export function JourneyBar({
     </Fragment>
   ));
 
-  const returnCell =
-    returning &&
-    extraCell(
-      "returnAt",
-      ids.ret,
-      t.returnLabel,
-      <DateTimeField
-        key={`ret-${fieldsKey}`}
-        id={ids.ret}
-        locale={locale}
-        copy={dateTimeCopy}
-        defaultValue={trip.ret}
-        onValueChange={(ret) => update({ ret })}
-        invalid={invalid("returnAt")}
-        describedBy={describedBy("returnAt")}
-        tone={tone}
-        size="md"
-        fillCell
-        className={dateClass}
-      />,
-      () => {
-        setReturning(false);
-        update({ ret: "" });
-      },
-      t.removeReturn,
-    );
-
   const flightCell =
     airport &&
     extraCell(
@@ -614,7 +571,6 @@ export function JourneyBar({
             {whenCell}
             {guestsCell}
           </div>
-          {returnCell}
           {flightCell}
         </div>
         {errorLine}
@@ -667,7 +623,6 @@ export function JourneyBar({
         {hasExtras && (
           <div className={`mt-1.5 grid grid-cols-1 border-0 border-t border-solid pt-1.5 md:grid-cols-2 lg:grid-cols-3 ${divider}`}>
             {stopCells}
-            {returnCell}
             {flightCell}
           </div>
         )}
