@@ -20,6 +20,11 @@ const ALLOW_IDENTICAL = new Set([
   // Units and placeholders only: "121,5 km · 1 u 25 min" in Dutch comes from the values put into them
   "booking.reviewDistanceValue",
   "booking.reviewMinutes",
+  // "BTW / VAT" names the tax in both languages on purpose, so the label reads the same in each
+  "booking.priceVat",
+  "booking.priceEstimateValue",
+  "email.priceValue",
+  "admin.requestDetail.rateCardVat",
   // "Concierge" is the same word in Dutch
   "nav.concierge",
   "conciergeSection.launcherShort",
