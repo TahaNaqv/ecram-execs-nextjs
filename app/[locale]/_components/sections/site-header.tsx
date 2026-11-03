@@ -40,7 +40,7 @@ export async function SiteHeader() {
           <a className="navlink" href="#services">
             {d.nav.services}
           </a>
-          <a className="navlink" href="#concierge">
+          <a className="navlink" href="#concierge-chat">
             {d.nav.concierge}
           </a>
         </nav>

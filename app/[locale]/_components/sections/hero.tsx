@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { HeroJourneyBar, JourneyBar } from "../booking/journey-bar";
+import { AskConciergeLink } from "../concierge-launcher";
 
 export async function Hero() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
@@ -67,15 +68,12 @@ export async function Hero() {
           </svg>
           <span className="transition-colors group-hover:text-ink-950">{d.hero.corporateLogin}</span>
         </Link>
-<a
-    className="rise d4 group inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white bg-white px-6 text-[11px] tracking-[0.24em] text-ink-950 uppercase no-underline transition-colors hover:bg-transparent hover:text-white"
-    href="#concierge"
-  >
+<AskConciergeLink className="rise d4 group inline-flex min-h-[44px] items-center justify-center gap-3 rounded-full border border-solid border-white bg-white px-6 text-[11px] tracking-[0.24em] text-ink-950 uppercase no-underline transition-colors hover:bg-transparent hover:text-white">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
       <path d="M4 5h16v11H9l-5 4z"></path>
     </svg>
     <span>{d.hero.askConcierge}</span>
-  </a>
+  </AskConciergeLink>
 </div>
       </div>
       <div className="rise d4 pb-7 gap-3 items-center hidden flex-col relative md:flex">

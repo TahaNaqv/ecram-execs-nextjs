@@ -25,6 +25,7 @@ export type OnboardingCopy = Record<
   | "duration_2_8" | "duration_2_12" | "duration_2_24"
   | "labelCollection" | "phCollection" | "labelDestination" | "phDestination"
   | "labelLuggage" | "luggageHint" | "labelReturnStatus" | "return_one_way" | "return_hourly"
+  | "addReturn" | "returnLabel" | "removeReturn"
   | "labelStops" | "addStop" | "stopLabel" | "stopWaitLabel" | "waitNone" | "waitMinutes" | "removeStop"
   | "labelNotes" | "phNotes" | "submit" | "submitting"
   | "successLabel" | "successHeading" | "successNote" | "loginLink",
@@ -52,6 +53,8 @@ type IntroValues = {
   passengers: string;
   luggage: string;
   returnStatus: string;
+  returning: boolean;
+  returnAt: string;
   notes: string;
   stops: StopDraft[];
 };
@@ -172,9 +175,9 @@ function PassengersSuitcasesSelector({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        className={`${cardControl} flex w-full cursor-pointer items-center justify-between text-left text-zinc-900 bg-white`}
+        className={`${cardControl} flex w-full cursor-pointer items-center justify-between gap-2 text-left text-[#ffffff]`}
       >
-        <span className="font-medium text-zinc-900">
+        <span className="min-w-0 flex-1 whitespace-normal font-medium leading-normal text-[#ffffff]">
           {pLabel} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
         </span>
         <span className="text-xs text-zinc-600">▼</span>
@@ -285,6 +288,8 @@ export function OnboardingForm({
     passengers: "1",
     luggage: "0",
     returnStatus: "",
+    returning: false,
+    returnAt: "",
     notes: "",
     stops: [],
   });
@@ -490,6 +495,48 @@ export function OnboardingForm({
                     { value: "one_way", label: t.return_one_way ?? "One-Way" },
                     { value: "hourly", label: t.return_hourly ?? "Hourly" }
                   ]} />
+              </div>
+              <div className="md:col-span-2">
+                {values.returning ? (
+                  <div className="flex min-w-0 items-end gap-3">
+                    <div className="min-w-0 flex-1">
+                      <CardField idPrefix="c" name="returnAt" label={t.returnLabel} error={err.returnAt}>
+                        <DateTimeField
+                          id="c-returnAt"
+                          name="returnAt"
+                          locale={locale}
+                          copy={dateTimeCopy}
+                          defaultValue={values.returnAt}
+                          onValueChange={(returnAt) => patch({ returnAt })}
+                          invalid={!!err.returnAt}
+                          describedBy={d("returnAt")}
+                          tone="dark"
+                          boxClassName="box-border w-full min-w-0 cursor-pointer rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2 text-[#ffffff]"
+                          className="border-0 bg-transparent p-0 text-[16px] text-[#ffffff] placeholder:text-[#8eaee8]"
+                        />
+                      </CardField>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={t.removeReturn}
+                      onClick={() => patch({ returning: false, returnAt: "" })}
+                      className="mb-1 grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-[rgba(255,255,255,0.4)] bg-transparent text-[18px] leading-none text-[#ffffff] transition-colors hover:bg-white/10"
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      patch({ returning: true });
+                      window.setTimeout(() => document.getElementById("c-returnAt")?.focus(), 0);
+                    }}
+                    className="inline-flex h-11 w-fit max-w-full cursor-pointer items-center rounded-xl border border-[rgba(255,255,255,0.4)] bg-transparent px-4 text-[13px] font-semibold text-[#ffffff] transition-colors hover:bg-white/10"
+                  >
+                    {t.addReturn}
+                  </button>
+                )}
               </div>
               <div className="flex min-w-0 flex-col gap-3 md:col-span-2 mt-6">
                 <p className="m-0 text-[13px] font-semibold tracking-wide text-[#f4f7ff]">{t.labelStops}</p>

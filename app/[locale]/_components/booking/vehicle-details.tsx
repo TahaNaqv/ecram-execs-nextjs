@@ -84,7 +84,7 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
     >
       {vehicle && (
         <div className="relative flex flex-col gap-8 p-6 md:flex-row md:p-10">
-          {/* Close button inside the top-right corner: the dialog scrolls on a small screen, which would clip a button hanging outside it */}
+          {/* Close sits in the card padding, clear of the photo and the card's rounded corner. */}
           <button
             type="button"
             onClick={(event) => {
@@ -93,15 +93,15 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
               dialog.current?.close();
             }}
             aria-label={closeLabel}
-            className="absolute top-3 right-3 z-30 grid size-11 cursor-pointer place-items-center rounded-full bg-white text-ink-700 transition-all hover:bg-ink-100 hover:text-ink-950 shadow-lg border border-ink-200"
+            className="absolute top-3 right-3 z-30 grid size-8 cursor-pointer place-items-center rounded-full border border-solid border-[#d5dbe8] bg-[#ffffff] text-[#10224f] shadow-md transition-colors hover:bg-[#e8eeff]"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
 
-          {/* Left Column: Image Gallery & Title */}
-          <div className="w-full shrink-0 md:w-[380px] pt-2">
+          {/* Left Column: Image Gallery & Title. The extra top space keeps the photo below the close button on a phone. */}
+          <div className="w-full shrink-0 pt-8 md:w-[380px] md:pt-0">
             <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl shadow-md">
               <VehicleGallery
                 name={vehicle.name}
@@ -122,7 +122,7 @@ export function VehicleDetails({ vehicle, onClose, fleetDict: t, locale, closeLa
           </div>
 
           {/* Right Column: Individual padded and rounded card borders with smaller fonts */}
-          <div className="flex min-w-0 flex-1 flex-col gap-3 justify-center">
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 md:pt-2">
             {questionsFor(vehicle, t, locale).map(([question, answer]) => (
               <details key={question} name="vehicle-questions" className="group rounded-xl border border-solid border-ink-225 bg-white p-3.5 transition-all hover:border-ink-400">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[13.5px] font-medium text-ink-900 transition-colors hover:text-ink-950 [&::-webkit-details-marker]:hidden">

@@ -219,6 +219,12 @@
   color: #10224f !important;
   -webkit-text-fill-color: #10224f;
 }
+/* Accept sits on the same pale card, whose rule above would paint its letters navy. This button keeps white type on the theme blue. */
+:root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) button.quote-accept,
+:root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) button.quote-accept:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
+}
 
 /* the blue "NL" plate badge keeps its white letters */
 :root[data-theme="navy"] .light-surface .bg-\[\#1d3f8f\] {

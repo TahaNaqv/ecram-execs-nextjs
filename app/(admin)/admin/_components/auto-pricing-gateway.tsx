@@ -413,7 +413,7 @@ export function AutoPricingGateway({
             <span className="inline-block size-2 rounded-full bg-emerald-600 animate-pulse" />
             {copy.heading}
           </h2>
-          <p className="text-xs text-zinc-500 mt-0.5">{copy.headingNote}</p>
+         
         </div>
         <div className="text-xs font-mono text-zinc-600 bg-white border border-zinc-200 px-3 py-1.5 rounded-lg shadow-2xs">
           {formatTimestamp(request.createdAt)}
@@ -520,6 +520,12 @@ export function AutoPricingGateway({
                 {request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—"}
               </p>
             </div>
+            {request.notes?.trim() ? (
+              <div className="col-span-2 pt-2 border-t border-zinc-100">
+                <p className="text-[10px] uppercase font-semibold text-zinc-400">{copy.note}</p>
+                <p className="mt-0.5 font-medium whitespace-pre-wrap text-zinc-900">{request.notes.trim()}</p>
+              </div>
+            ) : null}
           </div>
         </div>
 

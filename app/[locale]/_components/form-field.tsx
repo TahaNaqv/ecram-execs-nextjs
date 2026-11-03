@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 // Inputs use 16px on phones so iOS doesn't zoom in on focus
 export const control =
-  "w-full min-w-0 border-none bg-transparent p-0 text-[16px] tracking-[0] text-ink-950 normal-case outline-none placeholder:text-ink-420 md:text-[15px]";
+  "box-border w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-normal tracking-[0] text-ink-950 normal-case outline-none placeholder:text-ink-420 md:text-[15px]";
 
 /** A labelled cell of the light enquiry forms, with its validation message beneath the control. */
 export function Field({

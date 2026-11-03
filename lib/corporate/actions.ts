@@ -178,7 +178,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const fields = [
     "company", "companyNumber", "phoneCountry", "phone", "contactMethod", "signatory", "pointOfCall",
     "vehicle", "tripTime", "duration", "collection", "destination", "pickupAt", "passengers", "luggage", "returnStatus",
-    "notes", "locale",
+    "returnAt", "notes", "locale",
   ] as const;
   const values: Record<string, string> = Object.fromEntries(fields.map((k) => [k, String(formData.get(k) ?? "")]));
   const stops = readStops(formData);
@@ -194,6 +194,8 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const parsed = onboardingSchema(f, c).safeParse({
     ...values,
     notes: values.notes || undefined,
+    // Absent unless the return field is on the form. An empty value is a return they started and did not finish.
+    ...(formData.has("returnAt") ? { returnAt: values.returnAt } : {}),
     stops: stops.destinations.map((place, i) => ({ place, wait: stops.destinationWaits[i] ?? 0 })),
   });
   if (!parsed.success) {
@@ -235,6 +237,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       `Stopovers: ${stopLines}`,
       `Luggage: ${input.luggage}`,
       `Journey: ${input.returnStatus === "hourly" ? "hourly" : "one way"}`,
+      ...(input.returnAt ? [`Return (Netherlands): ${input.returnAt.replace("T", " ")}`] : []),
       `Booker position: ${contact.position}`,
     ].join("\n");
 
@@ -254,6 +257,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             destinations: input.stops.length ? input.stops.map((stop) => stop.place) : null,
             destinationWaits: input.stops.length ? input.stops.map((stop) => stop.wait) : null,
             pickupAt: input.pickupAt,
+            returnAt: input.returnAt ?? null,
             passengers: input.passengers,
             luggage: input.luggage,
             vehicle: chosen.fleetKey,

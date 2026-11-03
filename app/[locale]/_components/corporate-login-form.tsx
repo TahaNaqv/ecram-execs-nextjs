@@ -85,7 +85,7 @@ export function LoginForm({
         <input type="hidden" name="locale" value={locale} />
         {next && <input type="hidden" name="next" value={next} />}
         <Honeypot />
-        <button type="submit" disabled={pending} className={submitFullClass}>
+        <button type="submit" disabled={pending} className={`${submitFullClass} box-border shrink-0 overflow-visible border border-solid border-[#1d4ed8] leading-normal`}>
           {pending ? t.loggingIn : t.loginCta}
         </button>
         <Status compact error={state.status === "error"}>{state.status === "error" ? state.message : undefined}</Status>

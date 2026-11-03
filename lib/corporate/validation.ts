@@ -38,6 +38,8 @@ type FormMessages = Pick<
   | "kvkInvalid"
   | "notesTooLong"
   | "pickupInvalid"
+  | "returnInvalid"
+  | "returnBeforePickup"
 >;
 type CorporateMessages = Pick<
   Dictionary["corporatePartner"],
@@ -124,6 +126,8 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     passengers: z.coerce.number({ error: c.chooseOption }).int().min(1, c.chooseOption).max(MAX_PASSENGERS, c.chooseOption),
     luggage: z.string().trim().regex(/^(?:[0-9]|1[0-9]|20)$/, c.luggageInvalid).transform(Number),
     returnStatus: z.enum(RETURN_STATUSES, { error: c.chooseOption }),
+    // Present only when the booker opened "Add a return journey". Empty means they opened it and did not choose a time.
+    returnAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, f.returnInvalid).optional(),
     stops: z
       .array(
         z.object({
@@ -134,8 +138,9 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
       .max(5),
     notes: z.string().trim().max(2000, f.notesTooLong).optional(),
     locale: z.enum(LOCALES).catch("en"),
-  }).superRefine(({ phoneCountry, phone }, ctx) => {
-    if (!phoneLengthOk(phoneCountry, phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: f.phoneNumberInvalid });
+  }).superRefine((v, ctx) => {
+    if (!phoneLengthOk(v.phoneCountry, v.phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: f.phoneNumberInvalid });
+    if (v.returnAt && v.returnAt <= v.pickupAt) ctx.addIssue({ code: "custom", path: ["returnAt"], message: f.returnBeforePickup });
   }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 
 export type RequestField = keyof z.input<ReturnType<typeof requestSchema>>;

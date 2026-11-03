@@ -6,7 +6,7 @@ import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { interpolate } from "@/lib/i18n/interpolate";
 
 export const cardControl =
-  "box-border block w-full min-w-0 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-3 font-sans text-[16px] text-[#ffffff] font-medium outline-none transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-[#8eaee8] hover:border-[#8eb0ff] focus:border-[#60a5fa] focus:bg-[#133175] focus:shadow-[0_0_0_3px_rgba(96,165,250,0.25)] aria-[invalid=true]:border-[#ffb4ab] aria-[invalid=true]:shadow-[0_0_0_3px_rgba(255,180,171,0.16)] md:text-[15px] [&>option]:bg-[#102a63] [&>option]:text-[#ffffff]";
+  "box-border block w-full min-w-0 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-3 font-sans text-[16px] leading-normal text-[#ffffff] font-medium outline-none transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-[#8eaee8] hover:border-[#8eb0ff] focus:border-[#60a5fa] focus:bg-[#133175] focus:shadow-[0_0_0_3px_rgba(96,165,250,0.25)] aria-[invalid=true]:border-[#ffb4ab] aria-[invalid=true]:shadow-[0_0_0_3px_rgba(255,180,171,0.16)] md:text-[15px] [&>option]:bg-[#102a63] [&>option]:text-[#ffffff]";
 
 const ICONS = {
   building: <path d="M4 21V4h10v17M14 9h6v12M2 21h20M8 8h2M8 12h2M8 16h2M17 13h1M17 17h1" />,
@@ -213,11 +213,11 @@ export function ChoiceGroup({
   return (
     <fieldset aria-describedby={error ? `${idPrefix}-${name}-error` : undefined} className="m-0 box-border flex w-full min-w-0 max-w-full flex-col gap-2 border-0 p-0 [min-inline-size:0]">
       <legend className="mb-1 max-w-full p-0 text-[13px] font-semibold tracking-wide text-[#ffffff]">{legend}</legend>
-      <div className={`box-border grid w-full min-w-0 max-w-full gap-2 ${equalColumns === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+      <div className={`box-border grid w-full min-w-0 max-w-full gap-2 ${equalColumns === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 min-[420px]:grid-cols-2"}`}>
         {options.map((o) => (
           <label
             key={o.value}
-            className="box-border flex h-full min-h-12 w-full min-w-0 max-w-full cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3.5 py-2.5 text-[14px] text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa]"
+            className="box-border flex h-full min-h-12 w-full min-w-0 max-w-full cursor-pointer items-center gap-2.5 rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] px-3 py-2.5 text-[14px] leading-normal text-[#ffffff] transition-[border-color,background-color,box-shadow,color] duration-200 hover:border-[#60a5fa] hover:bg-[#133175] hover:shadow-[0_0_16px_rgba(96,165,250,0.16)] has-[:checked]:border-[#60a5fa] has-[:checked]:bg-[#163882] has-[:checked]:text-[#ffffff] has-[:checked]:shadow-[0_0_18px_rgba(96,165,250,0.28)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#60a5fa] sm:px-3.5"
           >
             <input
               type="radio"
@@ -231,7 +231,7 @@ export function ChoiceGroup({
               style={{ accentColor: "#ffffff" }}
               className="m-0 size-[17px] shrink-0 cursor-pointer bg-transparent text-white"
             />
-            <span className="min-w-0 [overflow-wrap:anywhere]">{o.label}</span>
+            <span className="min-w-0 whitespace-normal leading-snug">{o.label}</span>
           </label>
         ))}
       </div>

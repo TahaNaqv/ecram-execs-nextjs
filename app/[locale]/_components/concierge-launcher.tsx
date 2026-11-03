@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type Copy = { label: string; short: string; aria: string; bubble: string; bubbleClose: string };
 
@@ -13,6 +13,26 @@ const SEEN_KEY = "ecram-concierge-bubble";
  * It steps aside while the chat itself is on screen. Pressing it scrolls to the chat and puts the cursor in the message box.
  * A few seconds in, a small "need help?" bubble appears above it once per visit; it goes away when dismissed, when the button is used, or when the chat comes into view.
  */
+/** Opens the concierge chat on this page. The hero and the menu used to land on the section heading, which on a phone is only the introduction. */
+export function AskConciergeLink({ className, children }: { className: string; children: ReactNode }) {
+  return (
+    <a
+      className={className}
+      href="#concierge-chat"
+      onClick={(event) => {
+        const target = document.getElementById("concierge-chat");
+        if (!target) return;
+        event.preventDefault();
+        const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        target.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+        window.setTimeout(() => target.querySelector<HTMLElement>("textarea, input")?.focus({ preventScroll: true }), calm ? 50 : 700);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
 export function ConciergeLauncher({ copy }: { copy: Copy }) {
   const [shown, setShown] = useState(true);
   const [bubble, setBubble] = useState(false);

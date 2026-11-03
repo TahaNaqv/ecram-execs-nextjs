@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 
 export type DateTimeCopy = Record<
   "placeholder" | "open" | "dialog" | "prevMonth" | "nextMonth" | "hour" | "minute" | "period" | "done" | "today" | "clear" | "selected",
@@ -125,6 +126,9 @@ export function DateTimeField({
   const input = useRef<HTMLInputElement>(null);
   const focusGrid = useRef(false);
   const dialogId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
   // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
   useLayoutEffect(() => () => setOpen(false), []);
 
@@ -174,29 +178,49 @@ export function DateTimeField({
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+    if (root.current?.contains(target) || dialogRef.current?.contains(target)) return;
+    setOpen(false);
     };
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
+  // A phone has no room to hang the calendar off the field: it is centred on the screen instead.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const sync = () => {
+      const phone = window.matchMedia("(max-width: 639px)").matches;
+      setNarrow(phone);
+      const box = input.current?.getBoundingClientRect();
+      if (!phone && box) setAnchor({ top: box.bottom + 8, left: Math.max(8, Math.min(box.left, window.innerWidth - Math.min(448, window.innerWidth - 16))) });
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+    };
+  }, [open]);
+
   // Opening near the bottom of the screen would hide the time and Done: bring the whole calendar into view
   useEffect(() => {
-    if (!open) return;
+    if (!open || narrow) return;
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    root.current?.querySelector('[role="dialog"]')?.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
-    root.current?.querySelectorAll<HTMLElement>('[role="dialog"] [data-time-part][aria-selected="true"]').forEach((el) => {
+    dialogRef.current?.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
+    dialogRef.current?.querySelectorAll<HTMLElement>('[data-time-part][aria-selected="true"]').forEach((el) => {
       const scroller = el.parentElement;
       if (!scroller) return;
       scroller.scrollTop = el.offsetTop - scroller.clientHeight / 2 + el.offsetHeight / 2;
     });
-  }, [open, time.h, time.min]);
+  }, [open, narrow, time.h, time.min]);
 
   // Keyboard users land on the highlighted day, and arrow keys move it
   useEffect(() => {
     if (!open || !active || !focusGrid.current) return;
     focusGrid.current = false;
-    root.current?.querySelector<HTMLButtonElement>(`[data-day="${dayKey(active)}"]`)?.focus();
+    dialogRef.current?.querySelector<HTMLButtonElement>(`[data-day="${dayKey(active)}"]`)?.focus();
   }, [open, active, view]);
 
   const moveTo = (target: Day) => {
@@ -252,7 +276,7 @@ export function DateTimeField({
   };
 
   const navBtn = "grid size-7 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20";
-  const column = "h-[232px] min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:#5f6368_transparent] [scrollbar-width:thin]";
+  const column = `${narrow ? "h-full" : "h-[232px]"} min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:#5f6368_transparent] [scrollbar-width:thin]`;
   const optionCls = (selected: boolean) =>
     `block w-full cursor-pointer rounded-md border-0 px-0 py-1.5 text-center text-[13px] font-medium tabular-nums ${
       selected ? "bg-[#a8c7fa] text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
@@ -294,7 +318,7 @@ export function DateTimeField({
         aria-haspopup={allowTyping ? undefined : "dialog"}
         aria-expanded={allowTyping ? undefined : open}
         aria-controls={!allowTyping && open ? dialogId : undefined}
-        className={`${(className || "").replace(/\bp-0\b/, "")} min-w-0 flex-1 ${allowTyping ? "" : "cursor-pointer"} text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} bg-transparent outline-none`}
+        className={`${(className || "").replace(/\bp-0\b/, "")} min-w-0 flex-1 leading-normal ${allowTyping ? "" : "cursor-pointer"} text-[16px] ${size === "md" ? "" : "md:text-[13.5px]"} bg-transparent outline-none`}
         onClick={allowTyping ? undefined : () => (open ? closePicker(false) : openPicker())}
         onKeyDown={(e) => {
           if (allowTyping || open || (e.key !== "Enter" && e.key !== " " && e.key !== "ArrowDown")) return;
@@ -326,15 +350,20 @@ export function DateTimeField({
         <CalendarIcon />
       </button>
 
-      {open && (
-        <div
-          id={dialogId}
-          role="dialog"
-          aria-label={copy.dialog}
-          className="absolute top-full left-0 z-[60] mt-2 w-[min(28rem,calc(100vw-1.5rem))] rounded-lg border border-solid border-[#3c4043] bg-[#292a2d] p-3 text-left text-[#e8eaed] normal-case shadow-[0_16px_40px_rgba(0,0,0,0.45)] tracking-normal"
-        >
-          <div className="flex items-stretch gap-3">
-            <div className="min-w-0 flex-1">
+      {open &&
+        createPortal(
+          <>
+            {narrow && <div className="fixed inset-0 z-[80] bg-[#06122e]/55" onMouseDown={() => closePicker(false)} />}
+            <div
+              ref={dialogRef}
+              id={dialogId}
+              role="dialog"
+              aria-label={copy.dialog}
+              style={narrow ? undefined : { top: anchor?.top ?? 0, left: anchor?.left ?? 8 }}
+              className={`${narrow ? "fixed top-1/2 left-1/2 z-[90] max-h-[calc(100svh-2rem)] w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto" : "fixed z-[90] w-[min(28rem,calc(100vw-1.5rem))]"} rounded-lg border border-solid border-[#3c4043] bg-[#292a2d] p-3 text-left text-[#e8eaed] normal-case shadow-[0_16px_40px_rgba(0,0,0,0.45)] tracking-normal [color-scheme:light]`}
+            >
+              <div className={`flex gap-3 ${narrow ? "flex-col" : "items-stretch"}`}>
+                    <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2 pb-2">
                 <span aria-live="polite" className="text-[14px] font-medium text-[#e8eaed]">
                   {months.format(new Date(Date.UTC(view.y, view.m - 1, 1)))}
@@ -393,7 +422,7 @@ export function DateTimeField({
                 </tbody>
               </table>
             </div>
-            <div className="flex w-[148px] shrink-0 gap-1 border-0 border-l border-solid border-[#3c4043] pl-2">
+            <div className={`flex shrink-0 gap-1 border-0 border-solid border-[#3c4043] ${narrow ? "h-[132px] w-full border-t pt-2" : "w-[148px] border-l pl-2"}`}>
               <div role="listbox" aria-label={copy.hour} className={column}>
                 {Array.from({ length: 12 }, (_, i) => {
                   const h12 = i + 1;
@@ -462,8 +491,10 @@ export function DateTimeField({
           >
             {copy.done}
           </button>
-        </div>
-      )}
+            </div>
+          </>,
+          document.body,
+        )}
     </div>
   );
 }
