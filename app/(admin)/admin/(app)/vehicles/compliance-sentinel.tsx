@@ -471,7 +471,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
       {/* Add Vehicle Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white border border-zinc-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+          <div className="relative box-border w-full min-w-0 max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
@@ -483,13 +483,13 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                const data = new FormData(e.currentTarget);
                 startTransition(async () => {
-                  await addVehicle(new FormData(e.currentTarget));
-                  setIsAddModalOpen(false);
-                  router.refresh();
+                  const result = await addVehicle(data);
+                  if (result.ok) setIsAddModalOpen(false);
                 });
               }}
-              className="space-y-3 text-xs"
+              className="min-w-0 space-y-3 text-xs"
             >
               <div>
                 <label className="block font-medium text-zinc-700 mb-1">{copy.labelModel}</label>
@@ -498,30 +498,30 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                   name="name"
                   required
                   placeholder={copy.modelPlaceholder}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block font-medium text-zinc-700 mb-1">{copy.labelPlate}</label>
                 <input
                   type="text"
                   name="licensePlate"
                   required
                   placeholder={copy.platePlaceholder}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block font-medium text-zinc-700 mb-1">{copy.labelColor}</label>
                 <input
                   type="text"
                   name="color"
                   placeholder={copy.colorPlaceholder}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-apk-expiry">
                     {copy.colApk}
                   </label>
@@ -529,10 +529,10 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                     id="vehicle-apk-expiry"
                     type="date"
                     name="apkExpiry"
-                    className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                    className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-insurance-expiry">
                     {copy.colInsurance}
                   </label>
@@ -540,7 +540,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                     id="vehicle-insurance-expiry"
                     type="date"
                     name="insuranceExpiry"
-                    className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                    className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                   />
                 </div>
               </div>
@@ -568,7 +568,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
       {/* Schedule Service Modal */}
       {isServiceModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white border border-zinc-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+          <div className="relative box-border w-full min-w-0 max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <button
               onClick={() => setIsServiceModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
@@ -592,7 +592,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                 <input
                   type="date"
                   defaultValue={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none"
+                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none"
                 />
               </div>
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">

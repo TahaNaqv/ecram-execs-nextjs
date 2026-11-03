@@ -232,7 +232,7 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
       {/* Add Driver Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white border border-zinc-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+          <div className="relative box-border w-full min-w-0 max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
@@ -242,6 +242,7 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
             <h3 className="text-base font-semibold text-zinc-950 mb-1">{t.registerTitle}</h3>
             <p className="text-xs text-zinc-500 mb-4">{t.registerNote}</p>
             <AddDriverForm
+              onRegistered={() => setIsAddModalOpen(false)}
               copy={{
                 driverName: dict.common.driverName,
                 phone: dict.common.phone,

@@ -82,7 +82,12 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
   const date = validDay(sp.date) ? sp.date : today;
   const [{ admin }, schedule, who] = await Promise.all([adminDictionary(), daySchedule(date), getAdmin()]);
   const t = admin.schedule;
-  const heading = new Intl.DateTimeFormat(who?.locale === "nl" ? "nl-NL" : "en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00:00Z`));
+  const locale = who?.locale === "nl" ? "nl-NL" : "en-GB";
+  const onToday = date === today;
+  const heading = new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00:00Z`));
+  const dayLabel = onToday
+    ? t.today
+    : new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`));
   const first = schedule.columns.flatMap((c) => c.blocks).reduce<number | null>((min, b) => (min === null || b.start < min ? b.start : min), null);
   const link = (day: string) => `/admin/requests/schedule?date=${day}`;
   const cols = `4rem repeat(${schedule.columns.length}, minmax(11.5rem, 1fr))`;
@@ -102,8 +107,14 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
           <Link href={link(shiftDay(date, -1))} aria-label={t.previousDay} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <ChevronLeftIcon />
           </Link>
-          <Link href={link(today)} aria-current={date === today ? "date" : undefined} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
-            {t.today}
+          <Link
+            href={link(today)}
+            aria-current={onToday ? "date" : undefined}
+            aria-label={onToday ? t.today : interpolate(t.jumpToToday, { day: heading })}
+            title={onToday ? undefined : interpolate(t.jumpToToday, { day: heading })}
+            className={`${btn.base} ${btn.secondary} ${btn.md}`}
+          >
+            {dayLabel}
           </Link>
           <Link href={link(shiftDay(date, 1))} aria-label={t.nextDay} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <ChevronRightIcon />

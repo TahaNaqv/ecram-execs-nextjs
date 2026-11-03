@@ -96,14 +96,22 @@ export function BespokeForm({
           )}
         </Field>
         <Field idPrefix="b" label={t.labelEmail} name="email" error={err.email}>
-          <input id="b-email" name="email" type="email" placeholder={t.phEmail} required maxLength={200}
+          <input id="b-email" name="email" type="text" inputMode="email" spellCheck={false} placeholder={t.phEmail} required maxLength={200}
             autoComplete="email" defaultValue={v.email} aria-invalid={!!err.email}
             aria-describedby={describedBy("email")} className={control} />
         </Field>
         <Field idPrefix="b" label={t.labelPhone} name="phone" error={err.phone}>
-          <input id="b-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={24}
+          <input id="b-phone" name="phone" type="text" inputMode="numeric" spellCheck={false} placeholder={t.phPhone} required maxLength={16}
             autoComplete="tel" defaultValue={v.phone} aria-invalid={!!err.phone}
-            aria-describedby={describedBy("phone")} className={control} />
+            aria-describedby={describedBy("phone")}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              const plus = el.value.trim().startsWith("+");
+              const digits = el.value.replace(/\D/g, "").slice(0, 15);
+              const next = plus ? `+${digits}` : digits;
+              if (el.value !== next) el.value = next;
+            }}
+            className={control} />
         </Field>
         <Field idPrefix="b" label={t.labelDelegation} name="passengers" error={err.passengers}>
           <input id="b-passengers" name="passengers" type="number" inputMode="numeric" min={1} max={500}

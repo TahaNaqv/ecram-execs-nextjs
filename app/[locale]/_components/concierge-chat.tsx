@@ -31,6 +31,10 @@ type Copy = {
   bookSend: string;
   bookSending: string;
   bookChange: string;
+  /** The concierge's own line after "Change something", so the visitor knows to type the change. */
+  bookChangePrompt: string;
+  /** Placeholder in the message box while that change is being written. */
+  bookChangeHint: string;
   bookSent: string;
   bookFailed: string;
   carChoose: string;
@@ -142,6 +146,8 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [ready, setReady] = useState<ReadyBooking | null>(null);
   const [sending, setSending] = useState(false);
+  // "Change something" leaves the card up and asks, in the thread, what to change
+  const [revising, setRevising] = useState(false);
   // Whether this tab's saved conversation has been looked at yet, and whether saving is paused (after a booking was sent,
   // the details it held are not kept)
   const [loaded, setLoaded] = useState(false);
@@ -207,6 +213,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
     if (!trimmed || waiting) return;
 
     paused.current = false;
+    setRevising(false);
     const guestMessage: Message = { from: "guest", text: trimmed };
     const nextMessages = [...messages, guestMessage];
     setMessages(nextMessages);
@@ -267,7 +274,26 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
     setMessages([{ from: "agent", text: copy.welcome || "Good day. I am the Ecram Execs Concierge. How may I assist with your journey or travel arrangements today?" }]);
     setDraft({});
     setReady(null);
+    setRevising(false);
     field.current?.focus();
+  }
+
+  /**
+   * The card stays, with the request as it is, and the visitor says what to change in the message box. The next message
+   * goes to the concierge with the draft, which is how a detail is updated. Focusing alone is easy to miss: the box is
+   * usually already focused from the reply that showed the card.
+   */
+  function changeBooking() {
+    setRevising(true);
+    setMessages((prev) => {
+      const last = prev.at(-1);
+      if (last?.from === "agent" && last.text === copy.bookChangePrompt) return prev;
+      return [...prev, { from: "agent", text: copy.bookChangePrompt }];
+    });
+    const input = field.current;
+    if (!input) return;
+    input.focus();
+    input.scrollIntoView({ block: "nearest" });
   }
 
   /** The visitor picks a car in the carousel: it goes into the draft and is said in the chat as their own words. */
@@ -433,7 +459,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
               </button>
               <button
                 type="button"
-                onClick={() => field.current?.focus()}
+                onClick={changeBooking}
                 disabled={sending}
                 className="cursor-pointer rounded-xl border border-ink-600 bg-transparent px-4 py-2 text-[13px] font-medium text-ink-200 transition-colors hover:border-ink-400 hover:text-white disabled:opacity-50"
               >
@@ -472,7 +498,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
             className="min-h-[48px] min-w-0 flex-1 rounded-full border border-solid border-ink-500 bg-ink-950 px-5 py-0 text-[15px] text-white outline-none transition-colors placeholder:text-ink-400 focus:border-white md:text-[14px]"
             name="message"
             type="text"
-            placeholder={copy.inputPlaceholder}
+            placeholder={revising ? copy.bookChangeHint : copy.inputPlaceholder}
             maxLength={500}
             autoComplete="off"
           />

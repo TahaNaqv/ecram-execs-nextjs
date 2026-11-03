@@ -1,7 +1,7 @@
 "use client";
 
 import { ScrollIntoViewOnMount } from "./scroll-into-view-on-mount";
-import { startTransition, useActionState, useState, type FormEvent, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { checkApplication, submitApplication, type ApplicationFormState } from "@/lib/partners/actions";
 import { DECLARATIONS, DOCUMENT_TYPES, DOCUMENTS, MAX_DOCUMENT_BYTES } from "@/lib/partners/criteria";
 import type { FormField } from "@/lib/partners/validation";
@@ -89,7 +89,27 @@ export function ApplicationForm({
   const [stage, setStage] = useState<Stage>("checking");
   const [plate, setPlate] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("31");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const countryRef = useRef<HTMLDivElement>(null);
   const t = copy.page;
+  const countryLabel = COUNTRY_CODES.find(([code]) => code === phoneCountry);
+  const countryText = countryLabel ? `${countryLabel[1]} +${countryLabel[0]}` : `+${phoneCountry}`;
+
+  useEffect(() => {
+    if (!countryOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!countryRef.current?.contains(event.target as Node)) setCountryOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCountryOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [countryOpen]);
   const stageText: Record<Stage, string> = {
     checking: t.stageChecking,
     uploading: t.stageUploading,
@@ -190,37 +210,69 @@ export function ApplicationForm({
             aria-describedby={describedBy("name")} className={control} />
         </Field>
         <Field label={t.labelEmail} name="email" error={err.email}>
-          <input id="a-email" name="email" type="email" placeholder={t.phEmail} required maxLength={200}
+          <input id="a-email" name="email" type="text" inputMode="email" spellCheck={false} placeholder={t.phEmail} required maxLength={200}
             autoComplete="email" aria-invalid={!!err.email}
             aria-describedby={describedBy("email")} className={control} />
         </Field>
-        <Field label={t.labelPhone} name="phone" error={err.phone ?? err.phoneCountry}>
-          <span className="flex items-center gap-2">
-            <select
-              name="phoneCountry"
-              aria-label={t.labelCountry}
-              value={phoneCountry}
-              onChange={(e) => {
-                setPhoneCountry(e.target.value);
-                // A country with shorter numbers than the last one: cut what was typed down to the new limit
-                const typed = document.getElementById("a-phone");
-                if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, e.target.value);
-              }}
-              className="w-[92px] shrink-0 cursor-pointer border-0 border-r border-solid border-ink-225 bg-transparent py-0 pr-1 pl-0 text-[16px] tracking-[0] text-ink-950 normal-case outline-none md:text-[15px]"
-            >
-              {COUNTRY_CODES.map(([code, iso]) => (
-                <option key={code} value={code}>
-                  {iso} +{code}
-                </option>
-              ))}
-            </select>
-            <input id="a-phone" name="phone" type="tel" placeholder={t.phPhone} required maxLength={PASTE_MAX}
+        <Field label={t.labelPhone} name="phone" error={err.phone ?? err.phoneCountry} className={countryOpen ? "relative z-30" : ""}>
+          <span className="flex min-w-0 items-center gap-2">
+            <div ref={countryRef} className="relative shrink-0">
+              <input type="hidden" name="phoneCountry" value={phoneCountry} />
+              <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={countryOpen}
+                aria-controls={countryOpen ? "a-phone-country" : undefined}
+                aria-label={t.labelCountry}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setCountryOpen((open) => !open);
+                }}
+                className="flex w-[92px] cursor-pointer items-center border-0 border-r border-solid border-[#c5d4ff] bg-transparent py-0 pr-1 pl-0 text-left text-[16px] tracking-[0] text-[#ffffff] normal-case outline-none md:text-[15px]"
+              >
+                {countryText}
+              </button>
+              {countryOpen && (
+                <ul
+                  id="a-phone-country"
+                  role="listbox"
+                  aria-label={t.labelCountry}
+                  className="absolute top-full left-0 z-50 mt-2 box-border max-h-60 w-[140px] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
+                >
+                  {COUNTRY_CODES.map(([code, iso]) => {
+                    const selected = code === phoneCountry;
+                    return (
+                      <li key={code}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setPhoneCountry(code);
+                            const typed = document.getElementById("a-phone");
+                            if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, code);
+                            setCountryOpen(false);
+                          }}
+                          className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left text-[14px] text-[#10224f] ${selected ? "bg-[#e8eeff] font-semibold" : "bg-[#ffffff] hover:bg-[#f4f7ff]"}`}
+                        >
+                          {iso} +{code}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <input id="a-phone" name="phone" type="text" placeholder={t.phPhone} required maxLength={PASTE_MAX}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
                 target.value = cleanPhoneInput(target.value, phoneCountry);
               }}
-              autoComplete="tel-national" inputMode="tel" aria-invalid={!!(err.phone ?? err.phoneCountry)}
-              aria-describedby={describedBy("phone")} className={control} />
+              autoComplete="tel-national" inputMode="numeric" pattern="[0-9]*" aria-invalid={!!(err.phone ?? err.phoneCountry)}
+              aria-describedby={describedBy("phone")} className={`${control} flex-1`} />
           </span>
         </Field>
         <Field label={t.labelKvk} name="kvk" error={err.kvk}>

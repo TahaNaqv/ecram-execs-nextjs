@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { fleetPicks, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { blocksOf, overlaps, wallText, windowBlocks, type Block, type Window } from "@/lib/fleet/schedule";
 
 type Db = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -82,12 +82,15 @@ export async function clashingReference(
  * car step showed it). Only a particular car can be taken. If the bookings cannot be read the visitor is not stopped:
  * what is asked is only a request, and a confirmation is checked on its own.
  */
-export async function chosenCarIsBooked(trip: { vehicle?: string | null; pickupAt?: string | null; returnAt?: string | null; service: string; durationHours?: number | null }): Promise<boolean> {
-  const key = carKey(trip.vehicle);
-  if (!key || !trip.pickupAt) return false;
+export async function chosenCarIsBooked(trip: { vehicle?: string | null; vehicles?: unknown; pickupAt?: string | null; returnAt?: string | null; service: string; durationHours?: number | null }): Promise<boolean> {
+  const keys = new Set<string>(fleetPicks(trip.vehicles).map((p) => p.key));
+  const single = carKey(trip.vehicle);
+  if (keys.size === 0 && single) keys.add(single);
+  if (keys.size === 0 || !trip.pickupAt) return false;
   try {
     const busy = await busyVehicleKeys({ pickupAt: trip.pickupAt, returnAt: trip.returnAt ?? null, service: trip.service, durationHours: trip.durationHours ?? null });
-    return busy.has(key);
+    for (const key of keys) if (busy.has(key)) return true;
+    return false;
   } catch (error) {
     console.error("Failed to read which vehicles are booked:", error);
     return false;

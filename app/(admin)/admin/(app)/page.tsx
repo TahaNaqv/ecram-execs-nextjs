@@ -122,7 +122,7 @@ async function Figures() {
         hint={`${d.jobsHint} · ${jobs.nextAt ? interpolate(d.jobsNext, { time: jobs.nextAt }) : d.jobsNone}`}
         icon={<CalendarIcon />}
       />
-      <StatCard label={d.partnersLabel} value={partners.total} hint={interpolate(d.partnersHint, { count: partners.recent })} icon={<BriefcaseIcon />} />
+      <StatCard label={d.partnersLabel} value={partners.total} hint={d.partnersHint} icon={<BriefcaseIcon />} />
       <StatCard
         label={d.revenueLabel}
         value={formatEuro(revenue.amount)}
@@ -187,7 +187,7 @@ async function ScheduleMap() {
         {rows.length === 0 ? (
           <p className="mt-4 text-sm text-zinc-500">{d.nextEmpty}</p>
         ) : (
-          <ul className="m-0 mt-3 flex list-none flex-col divide-y divide-zinc-100 p-0">
+          <ul className="m-0 mt-3 flex list-none flex-col divide-y divide-zinc-100 p-0 max-h-[280px] overflow-y-auto pr-1">
             {rows.map((r) => {
               const when = pickupParts(r.at, locale);
               const journey = r.to ? [r.from, r.to].filter(Boolean).join(" → ") : [r.from, r.durationHours ? interpolate(t.requestDetail.durationValue, { hours: r.durationHours }) : null].filter(Boolean).join(" · ");

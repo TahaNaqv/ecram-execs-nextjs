@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { fontVariables } from "@/lib/fonts";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { CaretScroll } from "@/components/caret-scroll";
 import "./admin.css";
 
 export const metadata: Metadata = {
@@ -26,7 +27,10 @@ export default async function AdminRootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        <CaretScroll />
+        {children}
+      </body>
     </html>
   );
 }

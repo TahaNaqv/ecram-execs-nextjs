@@ -70,9 +70,15 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
     position: z.string().trim().min(1, c.positionRequired).max(120, c.positionTooLong),
     companyName: z.string().trim().min(1, c.companyRequired).max(200, c.companyTooLong),
     kvkNumber: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9 .\-/]{2,24}$/, c.companyNumberInvalid),
-    phone: z.string().trim().regex(/^[0-9 ()\-.+]{5,25}$/, f.phoneNumberInvalid),
+    phoneCountryCode: z.string().trim().min(1).default("+31"),
+    phone: z.string().trim(),
     marketingConsent: z.preprocess((v) => v === "on", z.boolean()),
     locale: z.enum(LOCALES).catch("en"),
+  }).superRefine((v, ctx) => {
+    const digits = v.phone.replace(/\D/g, "");
+    if (!/^\d{8,15}$/.test(digits) || !phoneLengthOk(v.phoneCountryCode, digits)) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: f.phoneNumberInvalid });
+    }
   });
 
 export const resetRequestSchema = (f: FormMessages) => z.object({ email: email(f.emailInvalid), locale: z.enum(LOCALES).catch("en") });

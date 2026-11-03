@@ -414,6 +414,17 @@ body:has(dialog[open]) {
     font-family: inherit;
   }
 
+  /* Long emails and phone numbers scroll inside the box. Do not set overflow here: that stops the caret following the arrow keys. */
+  input[type="email"],
+  input[type="tel"],
+  input[inputmode="email"],
+  input[inputmode="tel"],
+  input[inputmode="numeric"] {
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: clip;
+  }
+
   html,
   body {
     overflow-x: clip;

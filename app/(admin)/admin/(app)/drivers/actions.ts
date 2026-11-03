@@ -5,17 +5,23 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
+import { digitsOnly, phoneLengthOk } from "@/lib/phone";
 
 const { drivers, driverShifts } = schema;
 
-const addSchema = z.object({
-  name: z.string().trim().min(1, "Enter the driver's name.").max(120),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .transform((v) => (v === "" ? null : v)),
-});
+const addSchema = z
+  .object({
+    name: z.string().trim().min(1, "Enter the driver's name.").max(120),
+    phoneCountry: z.string().trim().min(1).default("31"),
+    phone: z.string().trim(),
+  })
+  .superRefine((v, ctx) => {
+    const digits = digitsOnly(v.phone);
+    if (!/^\d{8,15}$/.test(digits) || !phoneLengthOk(v.phoneCountry, digits)) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "Enter a phone number with 8 to 15 digits." });
+    }
+  })
+  .transform((v) => ({ name: v.name, phone: digitsOnly(v.phone) }));
 
 export type AddDriverState = { ok?: boolean; error?: string };
 

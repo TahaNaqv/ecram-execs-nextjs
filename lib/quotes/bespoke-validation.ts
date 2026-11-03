@@ -35,6 +35,9 @@ export const bespokeSchema = (t: BespokeMessages) =>
     itinerary: z.string().trim().min(1, t.itineraryRequired).max(4000, t.itineraryTooLong),
     // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
     locale: z.enum(LOCALES).catch("en"),
+  }).superRefine((v, ctx) => {
+    const digits = v.phone.replace(/\D/g, "");
+    if (digits.length < 8 || digits.length > 15) ctx.addIssue({ code: "custom", path: ["phone"], message: t.phoneInvalid });
   });
 
 export type BespokeInput = z.infer<ReturnType<typeof bespokeSchema>>;

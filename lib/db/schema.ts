@@ -57,6 +57,10 @@ export const quoteRequests = pgTable(
     itinerary: text("itinerary"),
     contactPreference: text("contact_preference"),
     vehicle: text("vehicle"),
+    // How many of `vehicle` the party needs. 1 for a normal booking; 2 or more when the party does not fit in one car.
+    vehicleCount: integer("vehicle_count").notNull().default(1),
+    // The cars the visitor chose, each with a quantity. Null when they asked us to choose, or for a booking stored before this column.
+    vehicles: jsonb("vehicles").$type<{ key: string; count: number }[]>(),
     corporateContactId: uuid("corporate_contact_id").references(() => corporateContacts.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     email: text("email").notNull(),

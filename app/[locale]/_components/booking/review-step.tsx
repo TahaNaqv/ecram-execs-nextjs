@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState, type ReactNode } from "react";
-import type { FleetVehicle } from "@/lib/fleet/vehicles";
+import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, vehicleByKey, type ConvoyPlan, type FleetVehicle } from "@/lib/fleet/vehicles";
+import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingResult, BookingStep, DetailsEntry } from "./booking-flow";
@@ -77,10 +78,76 @@ export function RouteOutline({ trip, copy: t, locale }: { trip: Trip; copy: Book
               <dd className="m-0">{`${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`}</dd>
             </>
           )}
+          {trip.guestsSet && convoySentence(t, trip) && (
+            <>
+              <dt className="text-ink-500">{t.reviewVehicle}</dt>
+              <dd className="m-0">{convoySentence(t, trip)}</dd>
+            </>
+          )}
         </dl>
       )}
     </aside>
   );
+}
+
+const chosenPicks = (trip: Pick<Trip, "cars">) => trip.cars.filter((c) => c.count > 0);
+
+const lineFor = (t: BookingCopy, picks: { key: string; count: number }[]) =>
+  picks.map((p) => interpolate(t.convoyCars, { count: p.count, car: vehicleByKey(p.key)?.name ?? p.key })).join(", ");
+
+/** Cars to draw when more than one is in play: the visitor's mix, or the tight fit we suggest. Empty for a single car. */
+export function previewCars(trip: Pick<Trip, "pax" | "cars">, offered: readonly { key: string }[] = FLEET): { key: string; name: string; images: string[]; count: number }[] {
+  const manual = chosenPicks(trip);
+  const source = manual.length > 1 || (manual[0]?.count ?? 0) > 1 ? manual : manual.length === 0 ? (fitConvoy(offered, trip.pax) ?? []) : [];
+  return source.flatMap((pick) => {
+    const vehicle = vehicleByKey(pick.key);
+    return vehicle ? [{ key: vehicle.key, name: vehicle.name, images: vehicle.images.slice(0, MAX_GALLERY_IMAGES), count: pick.count }] : [];
+  });
+}
+
+/** Every photo of each chosen model, stacked as its own full-width card with arrows. */
+export function CarMixPreview({ cars, copy }: { cars: { key: string; name: string; images: string[]; count: number }[]; copy: GalleryCopy }) {
+  if (cars.length === 0) return null;
+  return (
+    <ul className="m-0 flex w-full list-none flex-col gap-4 p-0">
+      {cars.map((car) => (
+        <li key={car.key} className="box-border flex w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-[12px] border border-solid border-[#d7deee] bg-[#ffffff]">
+          <div className="flex items-center px-3 py-2.5">
+            <span className="truncate text-[13px] leading-none font-semibold text-[#10224f]">
+              {car.count} × {car.name}
+            </span>
+          </div>
+          <div className="relative aspect-video w-full overflow-hidden bg-[#081b62]">
+            <VehicleGallery key={car.images.join("|")} name={car.name} images={car.images} alt={car.name} copy={copy} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** "2 × Audi e-tron GT" or "1 × Audi e-tron GT, 1 × Cadillac Escalade IQ". Null for one single car. */
+export function selectionLabel(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): string | null {
+  const picks = chosenPicks(trip);
+  if (picks.length > 1 || (picks[0] && picks[0].count > 1)) return lineFor(t, picks);
+  if (picks.length === 1) return null;
+  const plan = fitConvoy(offered, trip.pax);
+  return plan ? lineFor(t, plan) : null;
+}
+
+/** The sentence shown when more than one car is chosen, or when the party does not fit in one and none was chosen. */
+export function convoySentence(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): string | null {
+  const label = selectionLabel(t, trip, offered);
+  if (!label) return null;
+  return interpolate(t.convoyLine, { cars: label, party: guestsText(t, trip.pax) });
+}
+
+export function convoyPlan(trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): ConvoyPlan | undefined {
+  if (chosenPicks(trip).length > 0) return undefined;
+  const plan = fitConvoy(offered, trip.pax);
+  const lead = plan ? vehicleByKey(plan[0]?.key) : undefined;
+  if (!plan || !lead || plan.length !== 1) return undefined;
+  return { count: plan[0].count, vehicle: lead };
 }
 
 /** "121.5 km · 1 h 25 m" from Google's answer, in the visitor's language. */
@@ -108,6 +175,7 @@ export function ReviewStep({
   booker,
   privacyHref,
   lockedNotice,
+  gallery,
   onEdit,
   onSend,
 }: {
@@ -123,6 +191,7 @@ export function ReviewStep({
   booker?: { name: string; email: string; companyName?: string | null };
   privacyHref?: string;
   lockedNotice?: ReactNode;
+  gallery: GalleryCopy;
   onEdit: (step: BookingStep) => void;
   onSend: () => void;
 }) {
@@ -174,22 +243,20 @@ export function ReviewStep({
   if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
   if (routed && estimate) ride.push([t.reviewDistance, estimate === "pending" ? <span className="text-ink-500">{t.reviewDistancePending}</span> : distanceText(estimate, t, locale)]);
 
-  const name = chosen?.name ?? vehicleAdvise;
-  const seats = chosen?.specs?.passengers ?? null;
+  const picks = trip.cars.filter((c) => c.count > 0);
+  const plan = convoyPlan(trip);
+  const convoy = convoySentence(t, trip);
+  if (convoy) ride.push([t.reviewVehicle, convoy]);
+  const label = selectionLabel(t, trip);
+  const mix = previewCars(trip);
+  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? chosen;
+  const name = label ?? lead?.name ?? vehicleAdvise;
+  const photos = (lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
+  const seats = label ? null : (lead?.specs?.passengers ?? null);
 
-  const card = (title: string, step: BookingStep, children: ReactNode) => (
+  const card = (title: string, children: ReactNode) => (
     <section aria-label={title} className="flex min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
-        <button
-          type="button"
-          onClick={() => onEdit(step)}
-          aria-label={interpolate(t.reviewEdit, { section: title })}
-          className="cursor-pointer rounded-full border-0 bg-transparent px-2 py-1 text-[11px] font-semibold tracking-[0.16em] text-ink-600 uppercase hover:bg-ink-100 hover:text-ink-950"
-        >
-          {t.edit}
-        </button>
-      </div>
+      <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
       {children}
     </section>
   );
@@ -210,15 +277,17 @@ export function ReviewStep({
         {t.reviewTitle}
       </h2>
       <div className="grid items-start gap-5 lg:grid-cols-3">
-        {card(t.reviewContact, "details", rows(contact))}
-        {card(t.reviewRide, "journey", rows(ride))}
+        {card(t.reviewContact, rows(contact))}
+        {card(t.reviewRide, rows(ride))}
         {card(
           t.reviewVehicle,
-          "car",
           <>
-            {chosen?.images[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public, as on the car step
-              <img src={chosen.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[12px] object-cover" />
+            {mix.length > 0 ? (
+              <CarMixPreview cars={mix} copy={gallery} />
+            ) : photos.length > 0 ? (
+              <div className="relative aspect-[16/9.5] w-full overflow-hidden rounded-[12px]">
+                <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} />
+              </div>
             ) : null}
             <div className="flex items-center justify-between gap-3">
               <span className="font-serif text-[22px] leading-tight">{name}</span>
@@ -229,6 +298,7 @@ export function ReviewStep({
                 </span>
               )}
             </div>
+            {convoy && <p className="m-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
             {rows([[t.reviewPrice, <span key="price" className="text-ink-700">{t.reviewPriceNote}</span>]])}
           </>,
         )}

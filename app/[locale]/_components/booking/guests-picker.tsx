@@ -1,27 +1,43 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { LARGEST_CAR_SEATS } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { BookingCopy } from "./copy";
 import { MAX_BAGS, MAX_PASSENGERS } from "./trip";
 
 export const guestsText = (t: BookingCopy, pax: number) =>
-  pax === 1 ? t.guestOne : interpolate(t.guestMany, { count: pax >= MAX_PASSENGERS ? `${MAX_PASSENGERS}+` : pax });
+  pax === 1 ? t.guestOne : interpolate(t.guestMany, { count: pax });
 export const bagsText = (t: BookingCopy, bags: number) => (bags === 0 ? t.bagNone : bags === 1 ? t.bagOne : interpolate(t.bagMany, { count: bags }));
 
-function Stepper({ value, label, min, max, less, more, onChange, display }: {
-  value: number; label: string; min: number; max: number; less: string; more: string; onChange: (n: number) => void; display?: string;
+function Stepper({ value, label, min, max, less, more, onChange }: {
+  value: number; label: string; min: number; max: number; less: string; more: string; onChange: (n: number) => void;
 }) {
   const button =
-    "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-ink-250 bg-white text-[18px] leading-none text-ink-950 hover:border-ink-950 disabled:cursor-default disabled:border-ink-150 disabled:text-ink-300";
+    "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:border-[#e4e8f2] disabled:text-[#b7c0d4]";
   return (
     <span className="flex items-center gap-2.5">
       <button type="button" aria-label={less} disabled={value <= min} onClick={() => onChange(value - 1)} className={button}>
         −
       </button>
-      <output aria-label={label} aria-live="polite" className="w-6 text-center text-[15px] font-semibold tabular-nums">
-        {display ?? value}
-      </output>
+      <span className="box-border inline-flex h-9 w-12 shrink-0 items-center justify-center rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] [color-scheme:light]">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={min}
+          max={max}
+          aria-label={label}
+          value={value}
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === "") return;
+            const n = Number(raw);
+            if (!Number.isInteger(n)) return;
+            onChange(Math.min(max, Math.max(min, n)));
+          }}
+          className="w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-center text-[15px] font-semibold leading-none text-[#10224f] tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+      </span>
       <button type="button" aria-label={more} disabled={value >= max} onClick={() => onChange(value + 1)} className={button}>
         +
       </button>
@@ -127,7 +143,6 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
                 max={MAX_PASSENGERS}
                 less={t.fewerPassengers}
                 more={t.morePassengers}
-                display={pax >= MAX_PASSENGERS ? `${MAX_PASSENGERS}+` : undefined}
                 onChange={(n) => onChange({ pax: n, bags })}
               />
             </div>
@@ -138,7 +153,7 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
               </span>
               <Stepper value={bags} label={t.suitcases} min={0} max={MAX_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: n })} />
             </div>
-            <p className="m-0 mt-1 text-[11.5px] text-ink-600">{pax >= MAX_PASSENGERS ? t.partyLarge : t.partyHint}</p>
+            <p className="m-0 mt-1 text-[11.5px] text-ink-600">{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
             <button
               type="button"
               onClick={done}

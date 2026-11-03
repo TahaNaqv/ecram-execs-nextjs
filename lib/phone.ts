@@ -1,8 +1,7 @@
 /**
  * How long a phone number may be. The country code is chosen separately, so these count only the digits typed after it,
  * including the 0 many people still put in front (the UK's 07911 123456 and Pakistan's 0300 1234567 are 11 digits; a
- * Dutch mobile is 9 without the 0 and 10 with it). Countries not listed here get the general range: the shortest real
- * numbers are about 6 digits and the international standard (E.164) allows 15 in all, of which the country code is part.
+ * Dutch mobile is 9 without the 0 and 10 with it). Countries not listed here take 8 to 15 digits.
  * Shared by the forms (to stop typing at the limit) and by the server (to check what arrives).
  */
 export function phoneDigitLimits(countryCode: string): { min: number; max: number } {
@@ -15,7 +14,7 @@ export function phoneDigitLimits(countryCode: string): { min: number; max: numbe
     case "92": // Pakistan
       return { min: 9, max: 11 };
     default:
-      return { min: 6, max: 15 };
+      return { min: 8, max: 15 };
   }
 }
 
@@ -43,7 +42,8 @@ export function cleanPhoneInput(raw: string, countryCode: string): string {
   let digits = digitsOnly(trimmed);
   if (/^(\+|00)/.test(trimmed)) {
     digits = digitsOnly(trimmed.replace(/^(\+|00)/, ""));
-    if (!digits.startsWith(code)) return trimmed;
+    // Another country's number is left readable, but letters never stay in the box.
+    if (!digits.startsWith(code)) return trimmed.replace(/[^\d+\s().-]/g, "");
     digits = digits.slice(code.length);
   } else if (digits.length > max && digits.startsWith(code)) {
     const rest = digits.slice(code.length);

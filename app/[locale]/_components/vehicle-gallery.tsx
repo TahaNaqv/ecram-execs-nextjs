@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { interpolate } from "@/lib/i18n/interpolate";
 
@@ -45,19 +45,22 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
   const gliding = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(gliding.current), []);
 
-  const go = (to: number) => {
+  const go = (to: number, event?: { preventDefault(): void; stopPropagation(): void }) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (images.length === 0) return;
     const next = (to + images.length) % images.length;
     setIndex(next);
     const el = track.current;
-    if (el) {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.clearTimeout(gliding.current);
-      gliding.current = window.setTimeout(() => {
-        gliding.current = undefined;
-        syncFromScroll();
-      }, reduce ? 50 : 900);
-      el.scrollTo({ left: next * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
-    }
+    const slide = el?.children.item(next) as HTMLElement | null;
+    if (!el || !slide) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.clearTimeout(gliding.current);
+    gliding.current = window.setTimeout(() => {
+      gliding.current = undefined;
+      syncFromScroll();
+    }, reduce ? 50 : 700);
+    el.scrollTo({ left: slide.offsetLeft, behavior: reduce ? "auto" : "smooth" });
   };
 
   const onScroll = () => {
@@ -120,10 +123,10 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
       <div
         ref={track}
         onScroll={onScroll}
-        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full w-full min-w-0 snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {images.map((src, i) => (
-          <div key={src} className="relative h-full w-full shrink-0 snap-center" aria-hidden={i !== index}>
+          <div key={src} className="relative h-full min-w-0 shrink-0 grow-0 basis-full snap-center" aria-hidden={i !== index}>
             <Image
               className="block h-full w-full object-cover object-center"
               src={src}
@@ -149,10 +152,10 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
 
       {many && (
         <>
-          <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-3`}>
+          <button type="button" onClick={(event) => go(index - 1, event)} aria-label={copy.prev} className={`${arrowButton} left-3`}>
             <Chevron direction="left" />
           </button>
-          <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-3`}>
+          <button type="button" onClick={(event) => go(index + 1, event)} aria-label={copy.next} className={`${arrowButton} right-3`}>
             <Chevron direction="right" />
           </button>
           <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[10px] tracking-[0.2em] text-[#fff] backdrop-blur-md shadow-sm" aria-hidden="true">
@@ -199,10 +202,10 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
                 </button>
                 {many && (
                   <>
-                    <button type="button" onClick={() => go(index - 1)} aria-label={copy.prev} className={`${arrowButton} left-4`}>
+                    <button type="button" onClick={(event) => go(index - 1, event)} aria-label={copy.prev} className={`${arrowButton} left-4`}>
                       <Chevron direction="left" />
                     </button>
-                    <button type="button" onClick={() => go(index + 1)} aria-label={copy.next} className={`${arrowButton} right-4`}>
+                    <button type="button" onClick={(event) => go(index + 1, event)} aria-label={copy.next} className={`${arrowButton} right-4`}>
                       <Chevron direction="right" />
                     </button>
                   </>

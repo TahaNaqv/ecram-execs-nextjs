@@ -20,7 +20,9 @@ export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }
         <input
           id="login-email"
           name="email"
-          type="email"
+          type="text"
+          inputMode="email"
+          spellCheck={false}
           autoComplete="username"
           autoFocus
           required

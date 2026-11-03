@@ -82,7 +82,9 @@ export function JourneyBar({
   const [problems, setProblems] = useState<TripField[]>([]);
   const [returning, setReturning] = useState(Boolean(initial?.ret));
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [waitOpen, setWaitOpen] = useState<number | null>(null);
   const hoursRef = useRef<HTMLDivElement>(null);
+  const waitRef = useRef<HTMLDivElement>(null);
   
   // The date fields hold their own text, so they start again (with a new key) whenever the bar sets a date itself
   const [fieldsKey, setFieldsKey] = useState(0);
@@ -118,6 +120,22 @@ export function JourneyBar({
       document.removeEventListener("keydown", onKey);
     };
   }, [hoursOpen]);
+
+  useEffect(() => {
+    if (waitOpen === null) return;
+    const close = (event: PointerEvent) => {
+      if (!waitRef.current?.contains(event.target as Node)) setWaitOpen(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setWaitOpen(null);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [waitOpen]);
 
   useEffect(() => {
     if (tripRef.current.at) return;
@@ -221,7 +239,7 @@ export function JourneyBar({
   const divider = dark ? "border-white/10" : "border-ink-150";
   const dateClass = `border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`;
 
-  const extraCell = (field: TripField | null, labelFor: string, labelText: string, control: ReactNode, onRemove?: () => void, removeLabel?: string) =>
+  const extraCell = (field: TripField | null, labelFor: string, labelText: string, control: ReactNode, onRemove?: () => void, removeLabel?: string, extra = "") =>
     cell(
       field,
       <>
@@ -245,6 +263,7 @@ export function JourneyBar({
         </span>
         {control}
       </>,
+      extra,
     );
 
   const modeToggle = (
@@ -481,21 +500,51 @@ export function JourneyBar({
             copy={t}
             tone={tone}
           />
-          <select
-            aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
-            value={stop.wait}
-            onChange={(e) => update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, wait: Number(e.target.value) } : s)) })}
-            className={`shrink-0 cursor-pointer border-0 bg-transparent p-0 text-[13px] outline-none ${dark ? "text-ink-200 [&>option]:text-ink-950" : "text-ink-700"}`}
-          >
-            {STOP_WAITS.map((w) => (
-              <option key={w} value={w}>
-                {w === 0 ? t.waitNone : interpolate(t.waitMinutes, { minutes: w })}
-              </option>
-            ))}
-          </select>
+          <div ref={waitOpen === i ? waitRef : undefined} className="relative shrink-0">
+            <button
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={waitOpen === i}
+              aria-controls={waitOpen === i ? `${uid}-wait-${i}` : undefined}
+              aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
+              onClick={() => setWaitOpen((open) => (open === i ? null : i))}
+              className={`cursor-pointer border-0 bg-transparent p-0 text-left text-[13px] outline-none ${dark ? "text-ink-200" : "text-ink-700"}`}
+            >
+              {stop.wait === 0 ? t.waitNone : interpolate(t.waitMinutes, { minutes: stop.wait })}
+            </button>
+            {waitOpen === i && (
+              <ul
+                id={`${uid}-wait-${i}`}
+                role="listbox"
+                aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
+                className="absolute top-full right-0 z-50 mt-1 box-border max-h-60 min-w-[148px] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
+              >
+                {STOP_WAITS.map((w) => {
+                  const selected = stop.wait === w;
+                  return (
+                    <li key={w}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => {
+                          update({ stops: trip.stops.map((s, j) => (j === i ? { ...s, wait: w } : s)) });
+                          setWaitOpen(null);
+                        }}
+                        className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left text-[13px] text-[#10224f] ${selected ? "bg-[#e8eeff] font-semibold" : "bg-[#ffffff] hover:bg-[#f4f7ff]"}`}
+                      >
+                        {w === 0 ? t.waitNone : interpolate(t.waitMinutes, { minutes: w })}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </span>,
         () => update({ stops: trip.stops.filter((_, j) => j !== i) }),
         interpolate(t.removeStop, { number: i + 1 }),
+        waitOpen === i ? "z-30" : "",
       )}
     </Fragment>
   ));

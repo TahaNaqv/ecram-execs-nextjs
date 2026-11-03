@@ -7,6 +7,7 @@ import type { QuoteRequest } from "@/lib/db/schema";
 import { linkChatToRequest, SESSION_ID } from "@/lib/concierge/store";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { chosenCarIsBooked } from "@/lib/fleet/availability";
+import { allocationFor } from "@/lib/fleet/vehicles";
 import { browserMapKey, routeMapLinks, type RouteMapLinks } from "@/lib/fleet/map";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
@@ -28,7 +29,7 @@ export type QuoteFormState =
 const FIELDS = [
   "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "name", "email", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry",
-  "passengerPhone", "vehicle", "notes", "locale", "entity", "entityKvk",
+  "passengerPhone", "vehicle", "vehicles", "notes", "locale", "entity", "entityKvk",
 ] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
@@ -82,10 +83,15 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
 
   let request: QuoteRequest;
   try {
+    const fleet = allocationFor(parsed.data);
     request = await createQuoteRequest({
       ...parsed.data,
+      ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
       destinations: destinations.length > 0 ? destinations : null,
       destinationWaits: destinations.length > 0 ? destinationWaits : null,
+      vehicleCount: fleet.vehicleCount,
+      vehicles: fleet.vehicles,
+      internalNotes: fleet.internalNotes,
       ipHash,
       userAgent,
     });

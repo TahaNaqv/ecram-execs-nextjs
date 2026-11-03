@@ -4,6 +4,7 @@ import { fontVariables } from "@/lib/fonts";
 import { locale as localeParam } from "next/root-params";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
+import { CaretScroll } from "@/components/caret-scroll";
 import { WhatsAppFloat } from "@/components/whatsapp-float";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { siteTheme, themeColor } from "@/lib/site-theme";
@@ -59,6 +60,7 @@ export default async function SiteLayout({
       </head>
       <body>
         {/* First in the page, so a keyboard visitor reaches the cookie choice before the rest */}
+        <CaretScroll />
         <CookieConsent copy={consentCopy} policyHref={`${localizedPath("/privacy", value)}#cookies`} />
         {children}
         <SameHashScroll />

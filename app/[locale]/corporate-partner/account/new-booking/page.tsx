@@ -3,7 +3,7 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { getBooking, latestPhone } from "@/lib/corporate/bookings";
 import { requirePartner } from "@/lib/corporate/portal";
-import { FLEET, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { FLEET, fleetPicks, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { getDict } from "@/lib/i18n/get-dictionary";
@@ -13,6 +13,14 @@ import { PortalBooking } from "../../../_components/booking/portal-booking";
 import { emptyTrip, MAX_PASSENGERS, type Trip } from "../../../_components/booking/trip";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { PortalPage } from "../../../_components/portal-shell";
+
+function carsFromBooking(source: { vehicle: string | null; vehicleCount: number; vehicles: { key: string; count: number }[] | null }): Trip["cars"] {
+  const stored = fleetPicks(source.vehicles);
+  if (stored.length > 0) return stored;
+  const key = normalizeVehicleKey(source.vehicle);
+  if (!key) return [];
+  return [{ key, count: Math.max(1, source.vehicleCount || 1) }];
+}
 
 /** A booking request, with the partner's details filled in. `?repeat=EE-…` starts from one of their own earlier bookings. */
 async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-partner/account/new-booking">, "searchParams">) {
@@ -35,6 +43,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
   const trip: Trip = emptyTrip();
   if (source) {
     const vehicle = normalizeVehicleKey(source.vehicle) ?? source.vehicle ?? "";
+    const cars = carsFromBooking(source);
     Object.assign(trip, {
       mode: source.service === "hourly" && !source.destination ? "hourly" : "oneway",
       from: { text: source.collection ?? "", id: null, kind: null },
@@ -44,7 +53,8 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
       pax: Math.min(source.passengers ?? trip.pax, MAX_PASSENGERS),
       bags: source.luggage ?? trip.bags,
       guestsSet: true, // the earlier booking's party is the answer; a new booking starts without one
-      vehicle: (VEHICLE_CHOICES as readonly string[]).includes(vehicle) ? (vehicle as VehicleChoice) : "",
+      vehicle: cars[0]?.key ?? ((VEHICLE_CHOICES as readonly string[]).includes(vehicle) ? (vehicle as VehicleChoice) : ""),
+      cars,
     } satisfies Partial<Trip>);
   }
   const passengerPhone = source?.passengerPhone?.match(/^\+(\d{1,4}) (.+)$/);

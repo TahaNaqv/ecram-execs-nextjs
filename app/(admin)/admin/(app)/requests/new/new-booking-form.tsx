@@ -36,13 +36,13 @@ function Select({ values, name, label, options, empty, className = "" }: { value
   );
 }
 
-function Text({ values, name, label, type = "text", hint, className = "" }: { values: Values; name: string; label: string; type?: string; hint?: string; className?: string }) {
+function Text({ values, name, label, type = "text", inputMode, hint, className = "" }: { values: Values; name: string; label: string; type?: string; inputMode?: "email" | "tel" | "text"; hint?: string; className?: string }) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
       <label htmlFor={`nb-${name}`} className={fieldLabel}>
         {label}
       </label>
-      <input id={`nb-${name}`} name={name} type={type} defaultValue="" autoComplete="off" className={`${field} h-10 w-full`} />
+      <input id={`nb-${name}`} name={name} type={type} inputMode={inputMode} spellCheck={inputMode === "email" || inputMode === "tel" ? false : undefined} defaultValue="" autoComplete="off" className={`${field} h-10 w-full`} />
       {hint && <p className="m-0 text-xs text-zinc-500">{hint}</p>}
     </div>
   );
@@ -139,7 +139,7 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
       <Text values={{}} name="passengers" label={copy.passengers} type="number" />
       <Select values={{}} name="vehicle" label={copy.vehicle} options={vehicles} empty={copy.vehicleNone} />
       <Text values={{}} name="name" label={copy.name} hint={copy.contactHint} />
-      <Text values={{}} name="email" label={copy.email} type="email" />
+      <Text values={{}} name="email" label={copy.email} type="text" inputMode="email" />
 
       {/* Contact phone field: compact country select + phone input together in column 1 */}
       <div className="flex flex-col gap-1.5">
@@ -169,8 +169,9 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
           <input
             id="nb-phone"
             name="phone"
-            type="tel"
+            type="text"
             inputMode="numeric"
+            spellCheck={false}
             maxLength={PASTE_MAX}
             onInput={(e) => {
               const target = e.target as HTMLInputElement;

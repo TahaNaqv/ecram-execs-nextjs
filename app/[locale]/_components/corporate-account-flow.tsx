@@ -10,6 +10,7 @@ import { PASSWORD_MIN } from "@/lib/corporate/validation";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
+import { cleanPhoneInput } from "@/lib/phone";
 import { control, Field } from "./form-field";
 
 type Step = "request" | "code" | "password";
@@ -153,14 +154,17 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
 
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8">
-      <ol className="m-0 flex list-none flex-nowrap items-center gap-x-4 p-0 text-[10px] tracking-[0.2em] uppercase whitespace-nowrap overflow-x-auto" aria-label={t.progressLabel}>
-  {steps.map(([key, label], i) => (
-    <li key={key} aria-current={key === step ? "step" : undefined} className={`flex items-center shrink-0 ${key === step ? "text-ink-950 font-medium" : "text-ink-450"}`}>
-      <span className="mr-1.5">{String(i + 1).padStart(2, "0")}</span>
-      {label}
-    </li>
-  ))}
-</ol>
+      <ol className="mx-auto flex w-fit max-w-full list-none flex-wrap items-center justify-center gap-x-3 gap-y-2 p-0 text-center text-[11px] leading-tight tracking-[0.14em] uppercase sm:gap-x-4 sm:text-[10px] sm:tracking-[0.18em]" aria-label={t.progressLabel}>
+        {steps.map(([key, label], i) => {
+          const current = key === step;
+          return (
+            <li key={key} aria-current={current ? "step" : undefined} className={`flex min-w-0 items-center gap-1.5 ${current ? "font-semibold text-ink-950" : "shrink-0 text-ink-500"}`}>
+              <span className="shrink-0 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+              <span className={current ? "min-w-0 whitespace-normal" : "max-sm:sr-only"}>{label}</span>
+            </li>
+          );
+        })}
+      </ol>
 
       {step === "request" ? (
         <RequestForm
@@ -248,7 +252,7 @@ function RequestForm({
       {banner && <Status error>{banner}</Status>}
       <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2">
         <Field idPrefix="c" label={t.labelEmail} name="email" error={err.email} className="md:col-span-2">
-          <input id="c-email" name="email" type="email" required maxLength={200} autoComplete={mode === "signup" ? "off" : "email"} placeholder={t.phEmail}
+          <input id="c-email" name="email" type="text" inputMode="email" spellCheck={false} required maxLength={200} autoComplete={mode === "signup" ? "off" : "email"} placeholder={t.phEmail}
             defaultValue={v.email} aria-invalid={!!err.email} aria-describedby={err.email ? "c-email-error" : undefined} className={control} />
         </Field>
         {mode === "signup" && (
@@ -283,14 +287,17 @@ function RequestForm({
               />
             </Field>
             <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className="md:col-span-2">
-              <div className="flex w-full items-center bg-transparent">
+              <div className="flex w-full min-w-0 items-center bg-transparent">
                 <select 
                   name="phoneCountryCode" 
                   aria-label="Country Code"
                   value={selectedCountry.code}
                   onChange={(e) => {
                     const found = COUNTRY_CODES.find(c => c.code === e.target.value);
-                    if (found) setSelectedCountry(found);
+                    if (!found) return;
+                    setSelectedCountry(found);
+                    const typed = document.getElementById("c-phone");
+                    if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, found.code);
                   }}
                   className="bg-ink-950 text-white border-r border-ink-225 px-2.5 py-2 focus:outline-none font-mono text-xs shrink-0 cursor-pointer"
                 >
@@ -303,15 +310,19 @@ function RequestForm({
                 <input 
                   id="c-phone" 
                   name="phone" 
-                  type="tel" 
+                  type="text" 
                   required 
                   maxLength={selectedCountry.maxLength} 
-                  inputMode="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   autoComplete="off" 
                   placeholder={selectedCountry.placeholder}
-                  defaultValue={v.phone} 
+                  defaultValue={v.phone}
+                  onInput={(e) => {
+                    e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, selectedCountry.code);
+                  }}
                   aria-invalid={!!err.phone} 
-                  className={`${control} rounded-none border-0 px-3 text-xs sm:text-sm`} 
+                  className={`${control} min-w-0 flex-1 rounded-none border-0 px-3 text-xs sm:text-sm`} 
                 />
               </div>
             </Field>

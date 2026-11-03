@@ -273,6 +273,177 @@ function suitcaseRoom(vehicle: FleetVehicle): number {
   return Math.max(1, Math.round(litres / 180));
 }
 
+export const fleetSeats = (vehicle: FleetVehicle) => vehicle.specs?.passengers ?? 0;
+
+/** The biggest car still on offer. Order in the fleet breaks a tie. */
+export function largestOffered(offered: readonly { key: string }[]): FleetVehicle | undefined {
+  const available = offered.map((v) => vehicleByKey(v.key)).filter((v): v is FleetVehicle => v != null && fleetSeats(v) > 0);
+  return available.sort((a, b) => fleetSeats(b) - fleetSeats(a) || FLEET.indexOf(a) - FLEET.indexOf(b))[0];
+}
+
+export type ConvoyPlan = {
+  /** How many of `vehicle` travel together. */
+  count: number;
+  vehicle: FleetVehicle;
+};
+
+/** A booking holds at most this many cars, whether the visitor picks them or we suggest them. */
+export const MAX_CARS = 3;
+
+/**
+ * The tightest set of cars for a party that does not fit in one.
+ * Smaller cars win when they cover the party with fewer empty seats: eight guests use two 4-seaters, not two 7-seaters.
+ * At most `MAX_CARS` are used. A party that fits in one car returns nothing.
+ * A party that cannot be covered in three cars gets the three that seat the most, and the team arranges the rest.
+ */
+export function fitConvoy(offered: readonly { key: string }[], pax: number): FleetPick[] | undefined {
+  const models: FleetVehicle[] = [];
+  const seen = new Set<string>();
+  for (const item of offered) {
+    const vehicle = vehicleByKey(item.key);
+    if (!vehicle || seen.has(vehicle.key) || fleetSeats(vehicle) <= 0) continue;
+    seen.add(vehicle.key);
+    models.push(vehicle);
+  }
+  if (models.length === 0 || pax <= Math.max(...models.map(fleetSeats))) return undefined;
+
+  type Score = { covers: boolean; waste: number; seats: number; desc: number[]; count: number; order: number };
+  let best: { picks: FleetPick[]; score: Score } | undefined;
+  const counts = new Array<number>(models.length).fill(0);
+
+  const better = (a: Score, b: Score) => {
+    if (a.covers !== b.covers) return a.covers;
+    if (!a.covers) return a.seats !== b.seats ? a.seats > b.seats : a.count < b.count;
+    if (a.waste !== b.waste) return a.waste < b.waste;
+    const length = Math.max(a.desc.length, b.desc.length);
+    for (let i = 0; i < length; i++) {
+      const left = a.desc[i] ?? 0;
+      const right = b.desc[i] ?? 0;
+      if (left !== right) return left < right;
+    }
+    return a.count !== b.count ? a.count < b.count : a.order < b.order;
+  };
+
+  const consider = () => {
+    const picks: FleetPick[] = [];
+    const desc: number[] = [];
+    let seats = 0;
+    let count = 0;
+    let order = 0;
+    counts.forEach((n, index) => {
+      if (n <= 0) return;
+      const model = models[index];
+      picks.push({ key: model.key, count: n });
+      seats += fleetSeats(model) * n;
+      count += n;
+      order += FLEET.indexOf(model) * n;
+      for (let i = 0; i < n; i++) desc.push(fleetSeats(model));
+    });
+    if (count < 2) return;
+    desc.sort((a, b) => b - a);
+    const covers = seats >= pax;
+    const score: Score = { covers, waste: covers ? seats - pax : Number.POSITIVE_INFINITY, seats, desc, count, order };
+    if (!best || better(score, best.score)) best = { picks, score };
+  };
+
+  const walk = (index: number, left: number) => {
+    if (index === models.length) {
+      consider();
+      return;
+    }
+    for (let n = 0; n <= left; n++) {
+      counts[index] = n;
+      walk(index + 1, left - n);
+    }
+  };
+  walk(0, MAX_CARS);
+  return best?.picks;
+}
+
+/**
+ * When the party does not fit in the biggest car on offer, how many cars travel together.
+ * The model is the first of the tight fit (`fitConvoy`). A party that fits in one car returns nothing.
+ */
+export function convoyFor(offered: readonly { key: string }[], pax: number, _preferred?: string | null): ConvoyPlan | undefined {
+  const picks = fitConvoy(offered, pax);
+  const lead = picks ? vehicleByKey(picks[0]?.key) : undefined;
+  if (!picks || !lead) return undefined;
+  return { count: picks.reduce((n, pick) => n + pick.count, 0), vehicle: lead };
+}
+
+/** Most seats any one car in the fleet has. A larger party needs more than one car. */
+export const LARGEST_CAR_SEATS = Math.max(...FLEET.map((v) => v.specs?.passengers ?? 0));
+
+export type FleetPick = { key: VehicleKey; count: number };
+
+/** Cars a form or a stored quote named, with a quantity of at least one. Anything else is dropped. */
+export function fleetPicks(raw: unknown): FleetPick[] {
+  if (!Array.isArray(raw)) return [];
+  const picks: FleetPick[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const key = normalizeVehicleKey("key" in item ? String((item as { key: unknown }).key) : "");
+    const count = Number("count" in item ? (item as { count: unknown }).count : 0);
+    const room = MAX_CARS - picks.reduce((n, pick) => n + pick.count, 0);
+    if (key && room > 0 && Number.isInteger(count) && count >= 1) picks.push({ key, count: Math.min(count, room) });
+  }
+  return picks;
+}
+
+const pickLine = (picks: FleetPick[]) => picks.map((p) => `${p.count} × ${vehicleByKey(p.key)?.name ?? p.key}`).join(", ");
+
+/** "2 × Audi e-tron GT", a mix such as "1 × Audi e-tron GT, 1 × Cadillac Escalade IQ", or nothing for a single car. */
+export function convoyTitle(input: { passengers?: number | null; vehicle?: string | null; vehicles?: unknown }): string | null {
+  const picks = fleetPicks(input.vehicles);
+  if (picks.length > 1 || (picks[0] && picks[0].count > 1)) return pickLine(picks);
+  if (picks.length === 1) return null;
+  const plan = fitConvoy(FLEET, input.passengers ?? 0);
+  return plan ? pickLine(plan) : null;
+}
+
+const seatsOf = (picks: FleetPick[]) => picks.reduce((n, pick) => n + (vehicleByKey(pick.key)?.specs?.passengers ?? 0) * pick.count, 0);
+
+/** English note for the dispatch team, and how many cars the fare extras are multiplied by. */
+export function convoyAllocation(input: { passengers?: number | null; vehicle?: string | null }): { vehicleCount: number; vehicles: FleetPick[] | null; internalNotes: string | null } {
+  const passengers = input.passengers ?? 0;
+  const plan = fitConvoy(FLEET, passengers);
+  if (!plan) return { vehicleCount: 1, vehicles: null, internalNotes: null };
+  const seats = seatsOf(plan);
+  const covered = seats >= passengers ? "" : ` These cars seat ${seats}. The team will arrange the remaining seats.`;
+  return {
+    vehicleCount: plan.reduce((n, pick) => n + pick.count, 0),
+    vehicles: plan,
+    internalNotes: `Multi-vehicle convoy: ${pickLine(plan)} for ${passengers} passengers.${covered}`,
+  };
+}
+
+/**
+ * What to store for the cars on a quote. A list the visitor chose is kept, even when it does not seat everyone.
+ * With no list, the tightest fit of up to three cars is planned. Any seats still missing are left for the team.
+ */
+export function allocationFor(input: { passengers?: number | null; vehicle?: string | null; vehicles?: unknown }): {
+  vehicle?: string;
+  vehicleCount: number;
+  vehicles: FleetPick[] | null;
+  internalNotes: string | null;
+} {
+  const picks = fleetPicks(input.vehicles);
+  const passengers = input.passengers ?? 0;
+  if (picks.length > 0) {
+    const seats = seatsOf(picks);
+    const vehicleCount = picks.reduce((n, p) => n + p.count, 0);
+    const chosen = vehicleCount > 1 ? `Selected vehicles: ${pickLine(picks)} for ${passengers} passengers.` : null;
+    const rest = seats < passengers ? `Chosen cars seat ${seats}. The team will arrange the remaining seats for ${passengers} passengers.` : null;
+    return {
+      vehicle: picks[0].key,
+      vehicleCount,
+      vehicles: picks,
+      internalNotes: [chosen, rest].filter(Boolean).join(" ") || null,
+    };
+  }
+  return convoyAllocation({ passengers, vehicle: input.vehicle });
+}
+
 /**
  * The car to book when the visitor asks us to choose. It has to be one of the cars still on offer (not switched off,
  * not already booked), it has to seat the party, and it has to take the suitcases. The smallest that still fits wins,

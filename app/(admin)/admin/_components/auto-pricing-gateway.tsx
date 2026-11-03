@@ -15,7 +15,7 @@ function esc(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 import { formatEuro, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
-import { vehicleByKey } from "@/lib/fleet/vehicles";
+import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { 
   ShieldIcon,
   CheckIcon,
@@ -78,13 +78,14 @@ export function AutoPricingGateway({
   const numericSubtotal = typeof editedAmount === "number" ? editedAmount : (Number(editedAmount) || 0);
   const subtotal = numericSubtotal;
   const durationHours = request.durationHours ?? 0;
+  const vehicleCount = Math.max(1, request.vehicleCount ?? 1);
   const hourlyRate = 50;
-  const timeCost = durationHours * hourlyRate;
-  const airportSurcharge = request.flightNumber ? 25 : 0;
+  const timeCost = durationHours * hourlyRate * vehicleCount;
+  const airportSurcharge = (request.flightNumber ? 25 : 0) * vehicleCount;
   const totalWaitMinutes = stopWaits.reduce((a, b) => a + (b ?? 0), 0);
   const waitRate = 0.5;
-  const waitCost = totalWaitMinutes * waitRate;
-  const deadheadFee = request.returnAt ? subtotal * 0.10 : 0;
+  const waitCost = totalWaitMinutes * waitRate * vehicleCount;
+  const deadheadFee = request.returnAt ? subtotal * 0.10 * vehicleCount : 0;
   const baseFare = subtotal + timeCost + airportSurcharge + waitCost + deadheadFee;
   
   // Dynamic BTW Tax Splits
@@ -159,7 +160,7 @@ export function AutoPricingGateway({
   }
 
   function printQuote() {
-    const vehicleName = request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—";
+    const vehicleName = convoyTitle(request) ?? (request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—");
     const when = [pickup?.date, pickup?.time].filter(Boolean).join(" · ") || "—";
     const issued = new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/Amsterdam",
@@ -350,7 +351,7 @@ export function AutoPricingGateway({
                       {[pickup?.date, pickup?.time].filter(Boolean).join(" · ") || "—"}
                     </p>
                     <p className="text-zinc-700">
-                      {request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—"}
+                      {convoyTitle(request) ?? (request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—")}
                       {request.passengers != null ? ` · ${request.passengers}` : ""}
                       {request.luggage != null ? ` · ${request.luggage}` : ""}
                     </p>
@@ -517,8 +518,16 @@ export function AutoPricingGateway({
                 <BriefcaseIcon size={12} /> {copy.vehicle}
               </p>
               <p className="font-semibold text-zinc-900 mt-0.5 truncate">
-                {request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—"}
+                {(() => {
+                  const count = request.vehicleCount ?? 1;
+                  const named = request.vehicle && request.vehicle !== "advise" ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : null;
+                  if (count > 1) return named ? `${count} × ${named}` : interpolate(copy.convoy, { count });
+                  return named ?? "—";
+                })()}
               </p>
+              {(request.vehicleCount ?? 1) > 1 && request.internalNotes?.trim() ? (
+                <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>
+              ) : null}
             </div>
             {request.notes?.trim() ? (
               <div className="col-span-2 pt-2 border-t border-zinc-100">
@@ -593,6 +602,12 @@ export function AutoPricingGateway({
                   )}
                 </div>
 
+                {vehicleCount > 1 && (
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-zinc-600 font-medium">{interpolate(copy.convoy, { count: vehicleCount })}</span>
+                    <span className="font-mono font-semibold text-zinc-900">×{vehicleCount}</span>
+                  </div>
+                )}
                 <div className="flex justify-between py-2.5">
                   <span className="text-zinc-600 font-medium">{interpolate(copy.timeCharge, { hours: durationHours, rate: hourlyRate })}</span>
                   <span className="font-mono font-semibold text-zinc-900">{formatEuro(timeCost)}</span>

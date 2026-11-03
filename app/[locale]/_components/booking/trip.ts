@@ -1,6 +1,6 @@
 import { HOURLY_DURATIONS, type Service } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
-import { normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { MAX_CARS, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
 
@@ -26,12 +26,17 @@ export type Trip = {
   /** Whether the visitor has chosen the guests and bags: until then the bar shows a prompt, not a count (QA round 3, bug 7) */
   guestsSet: boolean;
   flight: string;
-  /** A fleet key, "advise" for no preference, or "" when not chosen yet */
+  /** A fleet key, "advise" for no preference, or "" when not chosen yet. With several cars, this is the first of `cars`. */
   vehicle: VehicleChoice | "";
+  /** Cars the visitor chose, with how many of each. Empty when they have not chosen, or when they ask us to choose. */
+  cars: { key: VehicleKey; count: number }[];
 };
 
-export const MAX_PASSENGERS = 8; // shown as "8+"
+/** The highest number the form will take. The count is the real number, never "8+". */
+export const MAX_PASSENGERS = 99;
 export const MAX_BAGS = 12;
+/** How many of one model the form will take. The booking total is the same limit. */
+export const MAX_PER_CAR = MAX_CARS;
 export const emptyPlace = (): Place => ({ text: "", id: null, kind: null });
 export const emptyTrip = (): Trip => ({
   mode: "oneway",
@@ -46,6 +51,7 @@ export const emptyTrip = (): Trip => ({
   guestsSet: false,
   flight: "",
   vehicle: "",
+  cars: [],
 });
 
 const WALL_CLOCK = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -96,8 +102,23 @@ export function tripFromParams(params: URLSearchParams): Trip {
   trip.flight = text(params.get("flight"), 12);
   const vehicle = normalizeVehicleKey(params.get("vehicle")) ?? params.get("vehicle");
   trip.vehicle = (VEHICLE_CHOICES as readonly string[]).includes(vehicle ?? "") ? (vehicle as VehicleChoice) : "";
+  trip.cars = carsFromParam(params.get("cars"));
+  if (trip.cars.length === 0 && trip.vehicle && trip.vehicle !== "advise") trip.cars = [{ key: trip.vehicle, count: 1 }];
+  if (trip.cars.length > 0) trip.vehicle = trip.cars[0].key;
   return trip;
 }
+
+const carsFromParam = (raw: string | null): Trip["cars"] => {
+  if (!raw) return [];
+  const cars: Trip["cars"] = [];
+  for (const part of raw.split("|")) {
+    const [key, count] = part.split(":");
+    const vehicle = normalizeVehicleKey(key);
+    const n = Number(count);
+    if (vehicle && Number.isInteger(n) && n >= 1 && n <= MAX_PER_CAR) cars.push({ key: vehicle, count: n });
+  }
+  return cars;
+};
 
 /** The trip as query parameters for /book: only what is set, so links stay short. */
 export function tripToParams(trip: Trip): URLSearchParams {
@@ -125,6 +146,7 @@ export function tripToParams(trip: Trip): URLSearchParams {
   }
   if (trip.flight.trim() && pickupAtAirport(trip)) p.set("flight", trip.flight.trim());
   if (trip.vehicle) p.set("vehicle", trip.vehicle);
+  if (trip.cars.length > 0) p.set("cars", trip.cars.map((c) => `${c.key}:${c.count}`).join("|"));
   return p;
 }
 
@@ -139,7 +161,8 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
     ["passengers", String(trip.pax)],
     ["luggage", String(trip.bags)],
     ["flightNumber", pickupAtAirport(trip) ? trip.flight.trim() : ""],
-    ["vehicle", trip.vehicle],
+    ["vehicle", trip.cars[0]?.key ?? trip.vehicle],
+    ["vehicles", trip.cars.length > 0 ? JSON.stringify(trip.cars) : ""],
   ];
   if (trip.mode === "hourly") fields.push(["durationHours", String(trip.hours)]);
   else {

@@ -78,6 +78,33 @@
     height: 0;
   }
 
+  /*
+   * A long email or phone number has to scroll inside the field. overflow on the
+   * input itself stops the caret following the arrow keys, and type=email has no
+   * caret selection in Chromium. Keep these as ordinary text boxes (see the forms)
+   * and only stop a parent from forcing the text to ellipsis.
+   */
+  input[type="email"],
+  input[type="tel"],
+  input[inputmode="email"],
+  input[inputmode="tel"],
+  input[inputmode="numeric"] {
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: clip;
+  }
+
+  /* Native date fields have a wide intrinsic size that spills out of a two-column modal. */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"] {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

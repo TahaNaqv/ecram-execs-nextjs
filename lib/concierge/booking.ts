@@ -189,6 +189,8 @@ export function tripOf(draft: Draft): Trip {
   trip.guestsSet = draft.passengers !== undefined;
   trip.flight = draft.flight ?? "";
   trip.vehicle = (draft.vehicle as Trip["vehicle"] | undefined) ?? "advise";
+  const chosen = trip.vehicle !== "advise" ? normalizeVehicleKey(trip.vehicle) : undefined;
+  if (chosen) trip.cars = [{ key: chosen, count: 1 }];
   return trip;
 }
 

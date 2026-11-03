@@ -12,7 +12,7 @@ export const btn = {
 };
 
 export const field =
-  "w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-card outline-none transition placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5 aria-invalid:border-red-400";
+  "box-border w-full min-w-0 max-w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-card outline-none transition [text-overflow:clip] placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5 aria-invalid:border-red-400";
 
 export const fieldLabel = "text-[13px] font-medium text-zinc-700";
 

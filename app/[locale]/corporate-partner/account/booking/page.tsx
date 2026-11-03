@@ -6,7 +6,7 @@ import { bookingInvoicesFor, bookingTimeline, getBooking, MESSAGEABLE } from "@/
 import { formatBytes, formatPartnerAmount, formatPickup, formatStamp } from "@/lib/corporate/format";
 import { requirePartner } from "@/lib/corporate/portal";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
-import { vehicleByKey } from "@/lib/fleet/vehicles";
+import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -129,7 +129,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
             </Fact>
           )}
           {booking.vehicle && (
-            <Fact label={d.quoteForm.labelVehicle}>{vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Fact>
+            <Fact label={d.quoteForm.labelVehicle}>{convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Fact>
           )}
           {booking.quotedAmount && <Fact label={p.labelQuote}>{formatPartnerAmount(booking.quotedAmount, locale)}</Fact>}
           <Fact label={p.labelReceived}>{formatStamp(booking.createdAt, locale)}</Fact>

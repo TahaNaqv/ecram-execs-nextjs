@@ -43,6 +43,8 @@ const bookingColumns = {
   passengerName: q.passengerName,
   passengerPhone: q.passengerPhone,
   vehicle: q.vehicle,
+  vehicleCount: q.vehicleCount,
+  vehicles: q.vehicles,
   entity: q.entity,
   itinerary: q.itinerary,
   notes: q.notes,

@@ -7,7 +7,7 @@ import { serviceLabel } from "@/lib/quotes/constants";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import { vehicleByKey } from "@/lib/fleet/vehicles";
+import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { isUrgent } from "@/lib/quotes/urgency";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
@@ -447,7 +447,8 @@ function summaryRows(
   const stops = stopsWithWaits(q.destinations, q.destinationWaits)
     .map((s) => (s.wait > 0 ? `${s.place} (${s.wait} min)` : s.place))
     .join(" → ");
-  const vehicle = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
+  const named = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
+  const vehicle = convoyTitle(q) ?? named;
   return [
     row(t.fieldReference, q.reference),
     row(t.fieldService, serviceLabel(q.service, services)),

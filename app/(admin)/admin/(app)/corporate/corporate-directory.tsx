@@ -1,17 +1,35 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchIcon, PlusIcon, XIcon, BriefcaseIcon } from "../../_components/icons";
 import type { CorporatePartnerRow } from "@/lib/admin/live-queries";
 import { addCorporatePartner, deleteCorporatePartner, updateCorporatePartner } from "@/lib/admin/corporate-actions";
+import { cleanPhoneInput, phoneLengthOk } from "@/lib/phone";
 import { formatEuro, formatPickup, STATUS_STYLE } from "@/lib/admin/format";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { RequestStatus } from "@/lib/quotes/constants";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
+
+/** A plain text box. Chromium will not move a caret through type=email, and overflow on the input stops arrow keys from scrolling the value. */
+const emailField =
+  "box-border w-full min-w-0 max-w-full bg-white text-zinc-900 [text-overflow:clip] focus:outline-none focus:ring-2 focus:ring-black/5";
+const phoneField =
+  "box-border min-w-0 max-w-full flex-1 border-0 bg-transparent px-3 font-mono text-sm text-zinc-900 outline-none [text-overflow:clip]";
+
+const phoneError = "Enter a phone number with 8 to 15 digits for the selected country.";
+
+function keepPartnerPhone(event: FormEvent<HTMLInputElement>) {
+  const input = event.currentTarget;
+  const code = (input.form?.elements.namedItem("countryCode") as HTMLSelectElement | null)?.value ?? "+31";
+  const next = cleanPhoneInput(input.value, code);
+  if (input.value !== next) input.value = next;
+}
+const countryField =
+  "w-[6.75rem] shrink-0 cursor-pointer border-0 border-r border-zinc-200 bg-transparent px-2 text-xs font-mono text-zinc-700 outline-none";
 
 const COUNTRY_CODES = [
   { code: "+31", label: "NL +31" },
@@ -102,8 +120,12 @@ export function CorporateDirectoryHub({
     
     // Combine country code and phone number
     const countryCode = (formData.get("countryCode") as string) || "+31";
-    const rawPhone = (formData.get("phoneRaw") as string) || "";
-    formData.set("phone", `${countryCode} ${rawPhone.trim()}`);
+    const rawPhone = cleanPhoneInput((formData.get("phoneRaw") as string) || "", countryCode);
+    if (!phoneLengthOk(countryCode, rawPhone)) {
+      setAddError(phoneError);
+      return;
+    }
+    formData.set("phone", `${countryCode} ${rawPhone}`);
 
     startTransition(async () => {
       const res = await addCorporatePartner(formData);
@@ -138,8 +160,9 @@ export function CorporateDirectoryHub({
     formData.set("id", selectedPartner.id);
 
     const countryCode = (formData.get("countryCode") as string) || "+31";
-    const rawPhone = (formData.get("phoneRaw") as string) || "";
-    formData.set("phone", `${countryCode} ${rawPhone.trim()}`);
+    const rawPhone = cleanPhoneInput((formData.get("phoneRaw") as string) || "", countryCode);
+    if (!phoneLengthOk(countryCode, rawPhone)) return;
+    formData.set("phone", `${countryCode} ${rawPhone}`);
 
     startTransition(async () => {
       const res = await updateCorporatePartner(formData);
@@ -472,23 +495,26 @@ export function CorporateDirectoryHub({
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
+                  <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="min-w-0">
                       <label className="mb-1.5 block font-medium text-zinc-800">{copy.bookerEmail}</label>
                       <input
-                        type="email"
+                        type="text"
+                        inputMode="email"
+                        autoComplete="email"
+                        spellCheck={false}
                         name="email"
                         defaultValue={selectedPartner.email}
-                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                        className={`${emailField} h-10 rounded-lg border border-zinc-200 px-3 text-sm`}
                       />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <label className="mb-1.5 block font-medium text-zinc-800">{copy.phone} *</label>
-                      <div className="flex h-10 w-full rounded-lg border border-zinc-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-black/5">
+                      <div className="flex h-10 min-w-0 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white focus-within:ring-2 focus-within:ring-black/5">
                         <select
                           name="countryCode"
                           defaultValue={selectedPartner.phone && selectedPartner.phone.startsWith("+") ? selectedPartner.phone.split(" ")[0] : "+31"}
-                          className="bg-transparent px-2.5 text-xs font-mono text-zinc-700 border-r border-zinc-200 focus:outline-none cursor-pointer max-h-48 overflow-y-auto"
+                          className={countryField}
                         >
                           {COUNTRY_CODES.map((c) => (
                             <option key={c.code} value={c.code}>{c.label}</option>
@@ -496,15 +522,20 @@ export function CorporateDirectoryHub({
                         </select>
                         <input
                           type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          autoComplete="tel-national"
+                          spellCheck={false}
                           name="phoneRaw"
                           required
+                          onInput={keepPartnerPhone}
                           placeholder="3349440201"
                           defaultValue={
                             selectedPartner.phone && selectedPartner.phone !== "—"
                               ? selectedPartner.phone.replace(/^\+\d+\s*/, "")
                               : ""
                           }
-                          className="w-full bg-transparent px-3 font-mono text-sm text-zinc-900 focus:outline-none"
+                          className={phoneField}
                         />
                       </div>
                     </div>
@@ -646,8 +677,8 @@ export function CorporateDirectoryHub({
                   className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label className="block font-medium text-zinc-700 mb-1">{copy.colKvk}</label>
                   <input
                     name="kvk"
@@ -670,8 +701,8 @@ export function CorporateDirectoryHub({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label className="block font-medium text-zinc-700 mb-1">{copy.bookerName}</label>
                   <input
                     name="bookerName"
@@ -681,24 +712,27 @@ export function CorporateDirectoryHub({
                     className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block font-medium text-zinc-700 mb-1">{copy.bookerEmail}</label>
                   <input
                     name="email"
-                    type="email"
+                    type="text"
+                    inputMode="email"
+                    autoComplete="email"
+                    spellCheck={false}
                     required
                     placeholder={copy.emailPlaceholder}
-                    className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                    className={`${emailField} rounded-xl border border-zinc-200 px-3.5 py-2.5`}
                   />
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block font-medium text-zinc-700 mb-1">Direct Phone *</label>
-                <div className="flex h-10 w-full rounded-xl border border-zinc-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-black/5">
+                <div className="flex h-10 min-w-0 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white focus-within:ring-2 focus-within:ring-black/5">
                   <select
                     name="countryCode"
                     defaultValue="+31"
-                    className="bg-transparent px-2.5 text-xs font-mono text-zinc-700 border-r border-zinc-200 focus:outline-none cursor-pointer max-h-48 overflow-y-auto"
+                    className={countryField}
                   >
                     {COUNTRY_CODES.map((c) => (
                       <option key={c.code} value={c.code}>{c.label}</option>
@@ -706,10 +740,15 @@ export function CorporateDirectoryHub({
                   </select>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel-national"
+                    spellCheck={false}
                     name="phoneRaw"
                     required
+                    onInput={keepPartnerPhone}
                     placeholder="3349440201"
-                    className="w-full bg-transparent px-3.5 font-mono text-sm text-zinc-900 focus:outline-none"
+                    className={phoneField}
                   />
                 </div>
               </div>

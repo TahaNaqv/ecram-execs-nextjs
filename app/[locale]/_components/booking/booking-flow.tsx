@@ -4,18 +4,18 @@ import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { mapFrameSrc, type RouteMapLinks } from "@/lib/fleet/map";
-import { FLEET, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
-import { VehicleGallery } from "../vehicle-gallery";
+import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { bagsText, guestsText } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { involvesAirport, isTripReady, MAX_PASSENGERS, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
+import { involvesAirport, isTripReady, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
-import { ReviewStep, RouteOutline } from "./review-step";
+import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
 export type BookingStep = "journey" | "car" | "details" | "review";
@@ -160,7 +160,12 @@ export function BookingFlow({
         const keys = new Set(data.busy.map((k) => normalizeVehicleKey(k) ?? k));
         setBooked(keys);
         // A car chosen earlier that is taken at this time is let go
-        setTrip((current) => (current.vehicle && keys.has(normalizeVehicleKey(current.vehicle) ?? current.vehicle) ? { ...current, vehicle: "" } : current));
+        setTrip((current) => {
+          const cars = current.cars.filter((c) => !keys.has(c.key));
+          const held = current.vehicle !== "" && current.vehicle !== "advise" && keys.has(normalizeVehicleKey(current.vehicle) ?? current.vehicle);
+          if (cars.length === current.cars.length && !held) return current;
+          return { ...current, cars, vehicle: cars[0]?.key ?? (held ? "" : current.vehicle) };
+        });
       })
       .catch(() => {});
     return () => controller.abort();
@@ -282,15 +287,17 @@ export function BookingFlow({
           copy={t}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
-          onChoose={(vehicle) => setTrip((current) => ({ ...current, vehicle }))}
+          onCars={(key, count) => setTrip((current) => withCarCount(current, key, count))}
+          onAdvise={() => setTrip((current) => ({ ...current, cars: [], vehicle: current.vehicle === "advise" ? "" : "advise" }))}
           onBack={editJourney}
           onNext={() => {
             setTrip((current) => {
-              const selected = vehicleByKey(current.vehicle);
-              const tooSmall = selected !== undefined && current.pax < MAX_PASSENGERS && (selected.specs?.passengers ?? 0) < current.pax;
-              if (selected && current.vehicle !== "advise" && !tooSmall) return current;
+              if (current.cars.length > 0) return { ...current, vehicle: current.cars[0].key };
+              if (current.vehicle === "advise") return current;
+              // Nothing chosen, and the party does not fit in one car: leave the mix to us.
+              if (current.pax > LARGEST_CAR_SEATS) return { ...current, vehicle: "advise" };
               const pick = suggestVehicle(offered, { pax: current.pax, bags: current.bags });
-              return { ...current, vehicle: pick?.key ?? "advise" };
+              return pick ? { ...current, vehicle: pick.key, cars: [{ key: pick.key, count: 1 }] } : { ...current, vehicle: "advise" };
             });
             go("details");
           }}
@@ -313,6 +320,7 @@ export function BookingFlow({
           privacyHref={privacyHref}
           entered={entered}
           messages={messages}
+          gallery={galleryCopy(fleetDict)}
           onBack={() => go("car")}
           onReview={(entry) => {
             setEntered(entry);
@@ -335,6 +343,7 @@ export function BookingFlow({
           booker={booker}
           privacyHref={privacyHref}
           lockedNotice={lockedNotice}
+          gallery={galleryCopy(fleetDict)}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
           onSend={() => {
             const data = new FormData();
@@ -351,7 +360,29 @@ export function BookingFlow({
   );
 }
 
-function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onChoose, onBack, onNext }: {
+function galleryCopy(t: FleetDictionary): GalleryCopy {
+  return {
+    label: t.galleryLabel,
+    prev: t.galleryPrev,
+    next: t.galleryNext,
+    enlarge: t.galleryEnlarge,
+    close: t.galleryClose,
+    counter: t.galleryCounter,
+    lightbox: t.galleryLightbox,
+  };
+}
+
+function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
+  const next = trip.cars.filter((c) => c.key !== key);
+  const used = next.reduce((n, car) => n + car.count, 0);
+  const n = Math.min(Math.max(0, MAX_CARS - used), Math.max(0, count));
+  if (n > 0) next.push({ key, count: n });
+  const order = new Map(FLEET.map((v, i) => [v.key, i]));
+  next.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+  return { ...trip, cars: next, vehicle: next[0]?.key ?? "" };
+}
+
+function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   vehicles: OfferedVehicle[];
@@ -360,71 +391,103 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
   copy: BookingCopy;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
-  onChoose: (vehicle: VehicleChoice | "") => void;
+  onCars: (key: VehicleKey, count: number) => void;
+  onAdvise: () => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const large = trip.pax >= MAX_PASSENGERS;
+  const large = trip.pax > LARGEST_CAR_SEATS;
+  const convoy = convoySentence(t, trip);
   const cars = vehicles
     .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
     .filter((v): v is FleetVehicle => Boolean(v))
-    .map((v) => ({ vehicle: v, seats: v.specs?.passengers ?? null }))
-    .map((c) => ({ ...c, fits: large || c.seats === null || c.seats >= trip.pax }));
-  const fitting = cars;
+    .map((v) => ({ vehicle: v, seats: v.specs?.passengers ?? null }));
   const party = guestsText(t, trip.pax);
-  const choose = (key: VehicleChoice) => onChoose(trip.vehicle === key ? "" : key);
-  const chosen = vehicleByKey(trip.vehicle);
+  const fitting = cars.filter((c) => c.seats === null || c.seats >= trip.pax).length;
+  const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
+  const chosenSeats = trip.cars.reduce((n, c) => n + (vehicleByKey(c.key)?.specs?.passengers ?? 0) * c.count, 0);
+  const short = trip.cars.length > 0 && chosenSeats < trip.pax;
+  const advise = trip.vehicle === "advise" && trip.cars.length === 0;
+  const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:opacity-40";
 
   const card = (c: (typeof cars)[number]) => {
-    const selected = trip.vehicle === c.vehicle.key;
+    const count = trip.cars.find((pick) => pick.key === c.vehicle.key)?.count ?? 0;
+    const selected = count > 0;
+    const room = MAX_CARS - (totalCars - count);
     return (
       <li key={c.vehicle.key} className="relative">
-        <button
-          type="button"
-          aria-pressed={selected}
-          disabled={!c.fits}
-          onClick={() => choose(c.vehicle.key)}
-          className={`flex w-full cursor-pointer flex-col rounded-2xl bg-white p-2 text-left text-ink-950 transition-shadow disabled:cursor-default disabled:bg-transparent ${
-            selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : c.fits ? "border border-solid border-ink-225 hover:border-ink-950" : "border border-dashed border-ink-300"
+        <div
+          className={`flex flex-col rounded-2xl bg-white text-ink-950 ${
+            selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-2"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here */}
-          <img src={c.vehicle.images[0]} alt="" className={`aspect-[16/9.5] w-full rounded-[11px] object-cover ${c.fits ? "" : "opacity-40 grayscale"}`} />
-          <span className="flex items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
-            <span className={`text-[15px] font-semibold ${c.fits ? "" : "text-ink-600"}`}>{c.vehicle.name}</span>
-            {c.seats !== null && (
-              <span className={`flex items-center gap-1.5 text-[13px] whitespace-nowrap ${c.fits ? "text-ink-700" : "text-ink-600"}`}>
-                <SeatIcon />
-                {interpolate(t.seatsUpTo, { seats: c.seats })}
-              </span>
-            )}
-          </span>
-          {/* What pressing the card does, said on the card itself (and read out with it: why a card cannot be chosen) */}
-          <span
-            className={`m-1.5 mt-2 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
-              !c.fits ? "border border-solid border-ink-300 text-ink-600" : selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
-            }`}
+          <button
+            type="button"
+            aria-pressed={selected}
+            disabled={!selected && totalCars >= MAX_CARS}
+            onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
+            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-default"
           >
-            {!c.fits ? interpolate(t.carTooSmall, { party }) : selected ? (
-              <>
-                <Check />
-                {t.carSelected}
-              </>
-            ) : (
-              t.carSelect
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here */}
+            <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
+            <span className="flex items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
+              <span className="text-[15px] font-semibold">{c.vehicle.name}</span>
+              {c.seats !== null && (
+                <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
+                  <SeatIcon />
+                  {interpolate(t.seatsUpTo, { seats: c.seats })}
+                </span>
+              )}
+            </span>
+            <span
+              className={`m-1.5 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
+                selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
+              }`}
+            >
+              {selected ? (
+                <>
+                  <Check />
+                  {count > 1 ? `${count} · ${t.carSelected}` : t.carSelected}
+                </>
+              ) : (
+                t.carSelect
+              )}
+            </span>
+          </button>
+          <span className="flex items-center justify-center gap-2 px-2 pt-1 pb-2">
+            <button type="button" aria-label={interpolate(t.fewerOf, { car: c.vehicle.name })} disabled={count <= 0} onClick={() => onCars(c.vehicle.key, count - 1)} className={qtyButton}>
+              −
+            </button>
+            <span className="box-border inline-flex h-9 w-12 shrink-0 items-center justify-center rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] [color-scheme:light]">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={room}
+                aria-label={interpolate(t.countOf, { car: c.vehicle.name })}
+                value={count}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value !== "" && Number.isInteger(n)) onCars(c.vehicle.key, n);
+                }}
+                className="w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-center text-[15px] font-semibold leading-none text-[#10224f] tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+            </span>
+            <button type="button" aria-label={interpolate(t.moreOf, { car: c.vehicle.name })} disabled={count >= room} onClick={() => onCars(c.vehicle.key, count + 1)} className={qtyButton}>
+              +
+            </button>
           </span>
           {selected && (
             <span aria-hidden="true" className="absolute top-[18px] left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white">
               <Check size={15} />
             </span>
           )}
-        </button>
+        </div>
         <button
           type="button"
           onClick={() => onDetails(c.vehicle)}
           aria-label={interpolate(t.carDetails, { car: c.vehicle.name })}
-          className="absolute top-[18px] right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-white/90 text-ink-950 shadow-sm hover:bg-white"
+          className="absolute top-[18px] right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-[#ffffff] text-[#10224f] shadow-sm hover:bg-[#e8eeff]"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
@@ -441,8 +504,15 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
         {t.carTitle}
       </h2>
       <p className="m-0 mt-2 text-[15px] text-ink-600">
-        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting.filter((c) => c.fits).length, total: cars.length, party })}
+        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting, total: cars.length, party })}
       </p>
+      {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}
+      {short && (
+        <p className="m-0 mt-3 text-[14px] text-ink-600">
+          {interpolate(totalCars >= MAX_CARS ? t.carsShortMax : t.carsShort, { seats: chosenSeats, party })}
+        </p>
+      )}
+      {totalCars >= MAX_CARS && !short && <p className="m-0 mt-3 text-[14px] text-ink-600">{t.carsLimit}</p>}
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
       {error && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
@@ -450,14 +520,14 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
         </p>
       )}
       <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
-        {fitting.map(card)}
+        {cars.map(card)}
         <li>
           <button
             type="button"
-            aria-pressed={trip.vehicle === "advise"}
-            onClick={() => choose("advise")}
+            aria-pressed={advise}
+            onClick={onAdvise}
             className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl p-[22px] text-left text-ink-950 ${
-              trip.vehicle === "advise" ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent hover:border-ink-950"
+              advise ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent hover:border-ink-950"
             }`}
           >
             <span className="grid size-11 place-items-center rounded-xl border border-solid border-ink-225 bg-white">
@@ -489,7 +559,13 @@ function CarStep({ headingRef, trip, vehicles, bookedCount, copy: t, error, onDe
               {t.back}
             </button>
             <button type="button" onClick={onNext} className="h-[52px] flex-1 cursor-pointer rounded-xl border-0 bg-ink-950 px-6 text-[14px] font-semibold text-white hover:bg-ink-800 md:flex-none">
-              {chosen ? interpolate(t.continueWith, { car: chosen.name }) : trip.vehicle === "advise" ? t.continueWithout : t.skipCar}
+              {totalCars > 1
+                ? interpolate(t.continueWithCount, { count: totalCars })
+                : totalCars === 1
+                  ? interpolate(t.continueWith, { car: vehicleByKey(trip.cars[0].key)?.name ?? "" })
+                  : advise
+                    ? t.continueWithout
+                    : t.skipCar}
             </button>
           </div>
         </div>
@@ -555,7 +631,7 @@ function CountryCode({ name, label, country, onChange }: { name: string; label: 
   );
 }
 
-function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, onBack, onReview }: {
+function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, gallery, onBack, onReview }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
   trip: Trip;
@@ -571,6 +647,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   /** What was typed here before the visitor went on to the review: the form starts from it when they come back */
   entered: DetailsEntry | null;
   messages: TripMessages;
+  gallery: GalleryCopy;
   onBack: () => void;
   onReview: (entry: DetailsEntry) => void;
 }) {
@@ -626,7 +703,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     return field(
       number,
       label,
-      <span className="flex items-center gap-2.5">
+      <span className="flex min-w-0 items-center gap-2.5">
         <CountryCode
           name={code}
           label={t.phoneCountry}
@@ -640,8 +717,8 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
         <input
           {...aria(number)}
           name={number}
-          type="tel"
-          inputMode="numeric"
+          type="text"
+          inputMode="tel"
           autoComplete={prefix ? "off" : "tel-national"}
           maxLength={PASTE_MAX}
           defaultValue={defaultValue}
@@ -649,7 +726,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           onInput={(e) => {
             e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, country);
           }}
-          className={input}
+          className={`${input} flex-1`}
         />
       </span>,
     );
@@ -690,7 +767,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             ) : (
               <>
                 {field("name", t.yourName, <input {...aria("name")} name="name" type="text" autoComplete="name" maxLength={120} defaultValue={typed("name")} className={input} />, true)}
-                {field("email", t.email, <input {...aria("email")} name="email" type="email" autoComplete="email" maxLength={200} defaultValue={typed("email")} placeholder={t.emailPlaceholder} className={input} />)}
+                {field("email", t.email, <input {...aria("email")} name="email" type="text" inputMode="email" autoComplete="email" spellCheck={false} maxLength={200} defaultValue={typed("email")} placeholder={t.emailPlaceholder} className={input} />)}
               </>
             )}
             {phone("", phoneCountry, setPhoneCountry, t.mobile, typed("phone", defaultPhone?.number))}
@@ -794,13 +871,13 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           </p>
         </form>
 
-        <Summary trip={trip} copy={t} locale={locale} chosen={chosen} vehicleAdvise={vehicleAdvise} portal={portal} />
+        <Summary trip={trip} copy={t} locale={locale} chosen={chosen} vehicleAdvise={vehicleAdvise} portal={portal} gallery={gallery} />
       </div>
     </section>
   );
 }
 
-function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { trip: Trip; copy: BookingCopy; locale: Locale; chosen: FleetVehicle | undefined; vehicleAdvise: string; portal: boolean }) {
+function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery }: { trip: Trip; copy: BookingCopy; locale: Locale; chosen: FleetVehicle | undefined; vehicleAdvise: string; portal: boolean; gallery: GalleryCopy }) {
   const route =
     trip.mode === "hourly"
       ? [trip.from.text, interpolate(t.asDirected, { hours: trip.hours })]
@@ -814,34 +891,33 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal }: { tri
   rows.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
   if (pickupAtAirport(trip) && trip.flight.trim()) rows.push([t.summaryFlight, trip.flight.trim()]);
 
-  const displayName = chosen?.name ?? vehicleAdvise;
-  const galleryImages = chosen?.images ?? [];
-  const seats = chosen?.specs?.passengers ?? null;
+  const picks = trip.cars.filter((c) => c.count > 0);
+  const convoy = convoySentence(t, trip);
+  if (convoy) rows.push([t.reviewVehicle, convoy]);
+  const label = selectionLabel(t, trip);
+  const mix = previewCars(trip);
+  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen;
+  const displayName = label ?? lead?.name ?? vehicleAdvise;
+  const galleryImages = mix.length > 0 ? [] : (lead?.images ?? []);
+  const seats = label ? null : (lead?.specs?.passengers ?? null);
 
   return (
     <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.08)] lg:sticky lg:top-6">
-      <div className="relative aspect-[16/9.5] w-full bg-ink-900">
-        <div className="relative isolate h-full w-full overflow-hidden">
-          {galleryImages.length > 0 ? (
-            <VehicleGallery
-              name={displayName}
-              images={galleryImages}
-              alt={displayName}
-              copy={{
-                label: "Vehicle gallery",
-                prev: "Previous image",
-                next: "Next image",
-                enlarge: "Enlarge image",
-                close: "Close",
-                counter: "{current} of {total}",
-                lightbox: "Lightbox",
-              }}
-            />
-          ) : (
-            <div className="grid h-full place-items-center px-6 text-center font-serif text-[22px] text-[#fff]">{displayName}</div>
-          )}
+      {mix.length > 0 ? (
+        <div className="p-4 pb-0">
+          <CarMixPreview cars={mix} copy={gallery} />
         </div>
-      </div>
+      ) : (
+        <div className="relative aspect-[16/9.5] w-full bg-ink-900">
+          <div className="relative isolate h-full w-full overflow-hidden">
+            {galleryImages.length > 0 ? (
+              <VehicleGallery key={galleryImages.join("|")} name={displayName} images={galleryImages} alt={displayName} copy={gallery} />
+            ) : (
+              <div className="grid h-full place-items-center px-6 text-center font-serif text-[22px] text-[#fff]">{displayName}</div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-5 p-6 pt-4">
         <div className="flex items-center justify-between gap-3 border-0 border-b border-solid border-ink-150 pb-4">
           <span className="font-serif text-[22px] leading-tight font-normal">{displayName}</span>

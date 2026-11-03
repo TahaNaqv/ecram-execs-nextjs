@@ -168,9 +168,9 @@ export function CardSelect({ className = "", children, ...props }: ComponentProp
 
 export function LockedInput({ id, type = "text", value, hint }: { id: string; type?: "text" | "email"; value: string; hint: string }) {
   return (
-    <div className="relative" title={hint}>
-      <input id={id} type={type} value={value} readOnly aria-readonly="true" aria-describedby={`${id}-hint`}
-        className="box-border block w-full min-w-0 cursor-default rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] py-3 pr-10 pl-3.5 font-sans text-[16px] text-[#ffffff] font-semibold md:text-[15px]" />
+    <div className="relative min-w-0" title={hint}>
+      <input id={id} type="text" inputMode={type === "email" ? "email" : undefined} spellCheck={false} value={value} readOnly aria-readonly="true" aria-describedby={`${id}-hint`}
+        className="box-border block w-full min-w-0 max-w-full cursor-text rounded-xl border border-solid border-[rgba(116,161,255,0.35)] bg-[#102a63] py-3 pr-10 pl-3.5 font-sans text-[16px] text-[#ffffff] font-semibold [text-overflow:clip] md:text-[15px]" />
       <span id={`${id}-hint`} className="sr-only">
         {hint}
       </span>
@@ -290,7 +290,9 @@ export function PhoneField({
         <input
           id={`${idPrefix}-phone`}
           name="phone"
-          type="tel"
+          type="text"
+          inputMode="numeric"
+          spellCheck={false}
           required
           maxLength={PASTE_MAX}
           value={number}
@@ -299,7 +301,7 @@ export function PhoneField({
           placeholder={placeholder}
           aria-invalid={!!error}
           aria-describedby={error ? `${idPrefix}-phone-error` : undefined}
-          className="min-w-0 flex-1 rounded-r-xl border-0 bg-transparent px-3 py-3 text-[16px] text-[#ffffff] outline-none placeholder:text-[#8eaee8] md:text-[15px]"
+          className="min-w-0 max-w-full flex-1 rounded-r-xl border-0 bg-transparent px-3 py-3 text-[16px] text-[#ffffff] outline-none [text-overflow:clip] placeholder:text-[#8eaee8] md:text-[15px]"
         />
       </div>
     </CardField>

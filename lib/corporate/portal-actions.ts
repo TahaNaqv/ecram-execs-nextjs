@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartnerActivity } from "@/lib/email";
 import { chosenCarIsBooked, clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { allocationFor } from "@/lib/fleet/vehicles";
 import { routeBlockMinutes } from "@/lib/fleet/route";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
@@ -36,7 +37,7 @@ const MESSAGE_LIMIT = { max: 20, minutes: 60 };
 const FIELDS = [
   "collection", "destination", "pickupAt", "returnAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry", "passengerPhone",
-  "vehicle", "notes", "locale",
+  "vehicle", "vehicles", "notes", "locale",
 ] as const;
 
 /** A new booking request from inside the portal: the partner's own details, the usual trip fields. */
@@ -81,10 +82,15 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
       .where(and(eq(q.corporateContactId, contact.id), eq(q.source, "portal"), gt(q.createdAt, minutesAgo(BOOKING_LIMIT.minutes))));
     if (recent >= BOOKING_LIMIT.max) return fail(f.quoteRateLimited);
 
+    const fleet = allocationFor(parsed.data);
     const request = await createQuoteRequest({
       ...parsed.data,
+      ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
       destinations: stops.length > 0 ? stops : null,
       destinationWaits: stops.length > 0 ? destinationWaits : null,
+      vehicleCount: fleet.vehicleCount,
+      vehicles: fleet.vehicles,
+      internalNotes: fleet.internalNotes,
       entity: contact.companyName,
       entityKvk: contact.kvkNumber,
       corporateContactId: contact.id,

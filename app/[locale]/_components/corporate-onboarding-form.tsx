@@ -163,9 +163,10 @@ function PassengersSuitcasesSelector({
   onChange: (passengers: string, suitcases: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const pCount = Math.min(MAX_PASSENGERS, Math.max(1, parseInt(passengers || "1", 10)));
-  const pLabel = pCount >= MAX_PASSENGERS ? `${MAX_PASSENGERS}+` : String(pCount);
-  const sCount = Math.max(0, parseInt(suitcases || "0", 10));
+  const pCount = Math.min(MAX_PASSENGERS, Math.max(1, parseInt(passengers || "1", 10) || 1));
+  const sCount = Math.min(20, Math.max(0, parseInt(suitcases || "0", 10) || 0));
+  const setCount = (nextPassengers: number, nextSuitcases: number) =>
+    onChange(String(Math.min(MAX_PASSENGERS, Math.max(1, nextPassengers))), String(Math.min(20, Math.max(0, nextSuitcases))));
 
   return (
     <div className="relative w-full max-w-full">
@@ -178,7 +179,7 @@ function PassengersSuitcasesSelector({
         className={`${cardControl} flex w-full cursor-pointer items-center justify-between gap-2 text-left text-[#ffffff]`}
       >
         <span className="min-w-0 flex-1 whitespace-normal font-medium leading-normal text-[#ffffff]">
-          {pLabel} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
+          {pCount} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
         </span>
         <span className="text-xs text-zinc-600">▼</span>
       </button>
@@ -188,63 +189,94 @@ function PassengersSuitcasesSelector({
           role="dialog"
           aria-label="Passengers and suitcases"
           onClick={(event) => event.stopPropagation()}
-          className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-2xl"
+          className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-solid border-[#d5dbe8] bg-[#ffffff] p-5 text-[#10224f] shadow-2xl [color-scheme:light]"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="m-0 text-sm font-semibold text-zinc-900">Passengers</p>
-              <p className="m-0 text-xs text-zinc-500">Including you</p>
+              <p className="m-0 text-sm font-semibold text-[#10224f]">Passengers</p>
+              <p className="m-0 text-xs text-[#5c6b8a]">Including you</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onChange(String(Math.max(1, pCount - 1)), String(sCount))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100"
+                aria-label="One fewer passenger"
+                disabled={pCount <= 1}
+                onClick={() => setCount(pCount - 1, sCount)}
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 −
               </button>
-              <span className="min-w-6 text-center text-sm font-semibold text-zinc-900 tabular-nums">{pLabel}</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_PASSENGERS}
+                aria-label="Passenger count"
+                value={pCount}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value !== "" && Number.isInteger(n)) setCount(n, sCount);
+                }}
+                className="box-border h-8 w-16 rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums"
+              />
               <button
                 type="button"
+                aria-label="One more passenger"
                 disabled={pCount >= MAX_PASSENGERS}
-                onClick={() => onChange(String(Math.min(MAX_PASSENGERS, pCount + 1)), String(sCount))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100 disabled:cursor-default disabled:opacity-40"
+                onClick={() => setCount(pCount + 1, sCount)}
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
+          <div className="flex items-center justify-between gap-3 border-t border-solid border-[#d5dbe8] pt-3">
             <div>
-              <p className="m-0 text-sm font-semibold text-zinc-900">Suitcases</p>
-              <p className="m-0 text-xs text-zinc-500">Large bags</p>
+              <p className="m-0 text-sm font-semibold text-[#10224f]">Suitcases</p>
+              <p className="m-0 text-xs text-[#5c6b8a]">Large bags</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onChange(String(pCount), String(Math.max(0, sCount - 1)))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100"
+                aria-label="One fewer suitcase"
+                disabled={sCount <= 0}
+                onClick={() => setCount(pCount, sCount - 1)}
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 −
               </button>
-              <span className="w-4 text-center text-sm font-semibold text-zinc-900">{sCount}</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={20}
+                aria-label="Suitcase count"
+                value={sCount}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value !== "" && Number.isInteger(n)) setCount(pCount, n);
+                }}
+                className="box-border h-8 w-16 rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums"
+              />
               <button
                 type="button"
-                onClick={() => onChange(String(pCount), String(Math.min(20, sCount + 1)))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-[18px] leading-none font-bold text-zinc-900 hover:bg-zinc-100"
+                aria-label="One more suitcase"
+                disabled={sCount >= 20}
+                onClick={() => setCount(pCount, sCount + 1)}
+                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 +
               </button>
             </div>
           </div>
 
-          <p className="m-0 text-center text-[11px] text-zinc-500">We use this to suggest the cars that fit.</p>
+          <p className="m-0 text-center text-[11px] text-[#5c6b8a]">Type the exact number, or use the buttons. We use this to suggest the cars that fit.</p>
 
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-full cursor-pointer rounded-xl border border-zinc-900 bg-zinc-900 py-2.5 text-xs font-bold tracking-wider text-white uppercase transition-colors hover:bg-zinc-800"
+            className="w-full cursor-pointer rounded-xl border border-solid border-[#10224f] bg-[#10224f] py-2.5 text-xs font-bold tracking-wider text-[#ffffff] uppercase transition-colors hover:bg-[#1d3f8f]"
           >
             Done
           </button>

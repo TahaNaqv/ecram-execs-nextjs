@@ -29,14 +29,14 @@ function optionalIsoDate(formData: FormData, key: string): string | null {
   return value;
 }
 
-export async function addVehicle(formData: FormData) {
+export async function addVehicle(formData: FormData): Promise<{ ok: boolean }> {
   await requireAdmin();
 
   const name = (formData.get("name") as string)?.trim();
 
   if (!name) {
     console.error("❌ Add vehicle failed: Vehicle name is missing");
-    return;
+    return { ok: false };
   }
 
   const rawKey = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -54,10 +54,12 @@ export async function addVehicle(formData: FormData) {
     console.log(`🎉 Successfully added vehicle: ${name} (${rawKey})`);
   } catch (error) {
     console.error("❌ Error inserting vehicle into database:", error);
+    return { ok: false };
   }
 
   revalidatePath("/admin/vehicles");
   revalidatePath("/[locale]", "layout");
+  return { ok: true };
 }
 
 export async function updateVehicleName(formData: FormData) {

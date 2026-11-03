@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HOURLY_DURATIONS, SERVICES } from "@/lib/quotes/constants";
-import { VEHICLE_CHOICES, normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 
@@ -86,7 +86,7 @@ export const quoteSchema = (t: QuoteMessages) =>
         .refine((h) => (HOURLY_DURATIONS as readonly number[]).includes(h), t.durationRequired)
         .optional(),
     ),
-    passengers: z.coerce.number().int().min(1).max(50).optional(),
+    passengers: z.coerce.number().int().min(1).max(99).optional(),
     luggage: z.preprocess(blank, z.coerce.number().int().min(0).max(20).optional()),
     // An airline flight ("KL 1002") or, for a private flight, the aircraft's registration ("PH-ABC")
     flightNumber: z.preprocess(
@@ -112,6 +112,21 @@ export const quoteSchema = (t: QuoteMessages) =>
       .optional()
       .transform((v) => (v ? (normalizeVehicleKey(v) ?? v) : undefined))
       .pipe(z.enum(VEHICLE_CHOICES).optional()),
+    // JSON from the car step: [{ "key": "audi", "count": 1 }, ...]. Empty when the visitor asks us to choose.
+    vehicles: z.preprocess((v) => {
+      if (v == null || v === "") return undefined;
+      if (typeof v === "string") {
+        try {
+          return JSON.parse(v);
+        } catch {
+          return v;
+        }
+      }
+      return v;
+    }, z.array(z.object({
+      key: z.string().transform((k) => normalizeVehicleKey(k) ?? k).pipe(z.enum(VEHICLE_KEYS)),
+      count: z.coerce.number().int().min(1).max(3),
+    })).max(8).optional()),
     // When the booker books on behalf of a company or organization
     entity: z.preprocess(blank, z.string().trim().max(200).optional()),
     entityKvk: z.preprocess(blank, z.string().trim().max(30).optional()),

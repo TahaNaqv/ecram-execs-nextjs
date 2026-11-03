@@ -39,8 +39,8 @@ export type DashboardFigures = {
   fleet: { available: number; total: number };
   /** Requests with a pick-up or a return today, and the time of the next one still to come today */
   jobs: { today: number; nextAt: string | null };
-  /** Partner accounts (a password has been chosen), and those that signed in during the last 30 days */
-  partners: { total: number; recent: number };
+  /** Every corporate partner account, the same set as the Corporate Partners list */
+  partners: { total: number };
   /** Confirmed and completed bookings whose pick-up is in the current month, at the amounts quoted: trips, not payments received (one without a quote adds nothing; a bespoke one has no pick-up and is not counted) */
   revenue: { amount: string; count: number };
 };
@@ -59,12 +59,7 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
       .select({ pickupAt: q.pickupAt, returnAt: q.returnAt, status: q.status })
       .from(q)
       .where(todayJobsWhere()),
-    db
-      .select({
-        total: sql<number>`count(*) filter (where ${contacts.passwordHash} is not null)`.mapWith(Number),
-        recent: sql<number>`count(*) filter (where ${contacts.passwordHash} is not null and ${contacts.lastLoginAt} > now() - interval '30 days')`.mapWith(Number),
-      })
-      .from(contacts),
+    db.select({ total: sql<number>`count(*)`.mapWith(Number) }).from(contacts),
     db
       .select({
         amount: sql<string>`coalesce(sum(${q.quotedAmount}), 0)`,

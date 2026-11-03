@@ -4,6 +4,7 @@ import { and, count, eq, gt, isNotNull } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
+import { convoyAllocation } from "@/lib/fleet/vehicles";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { withinLimit } from "@/lib/rate-limit";
@@ -27,7 +28,7 @@ import {
 export async function requestCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(
-    ["email", "name", "position", "companyName", "kvkNumber", "phone", "marketingConsent", "locale"].map((k) => [
+    ["email", "name", "position", "companyName", "kvkNumber", "phoneCountryCode", "phone", "marketingConsent", "locale"].map((k) => [
       k,
       String(formData.get(k) ?? ""),
     ])
@@ -216,6 +217,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
 
     // The booker's name and email are the verified contact's, never taken from the form
     const chosen = CORPORATE_VEHICLES.find((v) => v.key === input.vehicle)!;
+    const convoy = convoyAllocation({ passengers: input.passengers, vehicle: chosen.fleetKey });
     const label = (word: string) => word.replace(/_/g, " ");
     const stopLines = input.stops.length
       ? input.stops.map((stop) => (stop.wait ? `${stop.place} (wait ${stop.wait} min)` : stop.place)).join("; ")
@@ -234,6 +236,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       `Drop-off: ${input.destination}`,
       `Pick-up (Netherlands): ${input.pickupAt.replace("T", " ")}`,
       `Passengers: ${input.passengers}`,
+      ...(convoy.internalNotes ? [convoy.internalNotes] : []),
       `Stopovers: ${stopLines}`,
       `Luggage: ${input.luggage}`,
       `Journey: ${input.returnStatus === "hourly" ? "hourly" : "one way"}`,
@@ -261,6 +264,9 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             passengers: input.passengers,
             luggage: input.luggage,
             vehicle: chosen.fleetKey,
+            vehicleCount: convoy.vehicleCount,
+            vehicles: convoy.vehicles,
+            internalNotes: convoy.internalNotes,
             itinerary,
             // Where the dispatch manager follows up: the team alert and the admin page both show it
             contactPreference: input.contactMethod,

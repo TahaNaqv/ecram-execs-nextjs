@@ -129,7 +129,7 @@ async function Chats({ searchParams }: { searchParams: Promise<{ page?: string }
     <>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-sm text-zinc-500">{interpolate(c.summary, { total, booked })}</p>
-        {pages > 1 && pager()}
+        
       </div>
       <Card className="mt-3">
         <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0">
