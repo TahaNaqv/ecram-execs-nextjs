@@ -80,6 +80,7 @@ export function PriceBreakdown({
         ])}
         {row("vat", t.priceVat, euro(price.vat))}
         {row("fee", t.priceServiceFee, euro(price.fee))}
+        {price.feeVat ? row("feeVat", t.priceFeeVat, euro(price.feeVat)) : null}
         {row("total", t.priceTotal, price.exact ? euro(price.total) : interpolate(t.priceFrom, { price: euro(price.total) }), true)}
       </dl>
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12px] leading-snug text-ink-600">

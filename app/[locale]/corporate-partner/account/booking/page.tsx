@@ -12,7 +12,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
-import { formatCents } from "@/lib/pricing/rates";
+import { formatCents, priceNet } from "@/lib/pricing/rates";
 import { RouteMap } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { outlineButton } from "../../../_components/corporate-styles";
@@ -137,7 +137,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
           {!booking.quotedAmount && booking.priceEstimate && (
             <Fact label={d.booking.priceEstimateLabel}>
               {interpolate(d.booking.priceEstimateValue, {
-                net: (booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `) + formatCents(booking.priceEstimate.total - booking.priceEstimate.vat, locale),
+                net: (booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `) + formatCents(priceNet(booking.priceEstimate), locale),
                 total: formatCents(booking.priceEstimate.total, locale),
               })}
             </Fact>

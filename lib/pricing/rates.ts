@@ -3,12 +3,12 @@ import { normalizeVehicleKey, type VehicleKey } from "../fleet/vehicles.ts";
 /**
  * The client's rate card (November 2026), as data. Every booking is billed by the hour per car, at a rate that depends on
  * the car, on whether the booker is a corporate partner, and on the day of the week, in whole hours and at least two. At
- * the end 9% VAT is added to the rides, then the €12.50 service fee, once per booking.
+ * the end 9% VAT is added to the rides, then the €12.50 service fee, once per booking, with 21% VAT of its own.
  *
  * Read by the booking flow in the browser and by the server, which works the price out again when a booking is sent and
  * stores it: nothing here may import server-only code. Amounts are whole euro cents throughout.
  */
-export const RATE_CARD_VERSION = "2026-11b";
+export const RATE_CARD_VERSION = "2026-11c";
 
 export type Segment = "corporate" | "public";
 export type DayKind = "weekday" | "saturday" | "sunday";
@@ -38,8 +38,10 @@ const RATES: Record<"first" | "second", Record<Segment, Record<DayKind, number>>
 export const MIN_HOURS = 2;
 /** Dutch VAT on passenger transport (the low rate), on the rides. */
 export const VAT_RATE = 0.09;
-/** Added once to every booking, after VAT, as the client's rate card works it out. */
+/** Added once to every booking, after the rides' VAT, as the client's rate card works it out. */
 export const SERVICE_FEE_CENTS = 1250;
+/** The service fee is not transport, so it carries the high rate (the client's accountant, 4 Nov 2026): €12.50 + €2.63. */
+export const SERVICE_FEE_VAT_RATE = 0.21;
 
 const WALL_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
 
@@ -80,9 +82,11 @@ export type Price = {
   rides: number;
   /** 9% of the rides */
   vat: number;
-  /** The service fee, added last */
+  /** The service fee, added last, before its VAT */
   fee: number;
-  /** What the booking costs: rides + VAT + service fee. Paid when booked (website) or invoiced (corporate partners). */
+  /** 21% of the service fee. Missing on prices stored before 4 Nov 2026, when the fee carried no VAT. */
+  feeVat?: number;
+  /** What the booking costs: rides + their VAT + service fee + its VAT. Paid when booked (website) or invoiced (corporate partners). */
   total: number;
   /**
    * False when the price is a lower bound: the drive could not be timed (so only the minimum hours are counted), or the
@@ -131,7 +135,13 @@ export function priceBooking(input: PriceInput): Price | null {
   // The client's order: the rides, then 9% VAT on them, then the service fee
   const vat = Math.round(rides * VAT_RATE);
   const fee = SERVICE_FEE_CENTS;
-  return { version: RATE_CARD_VERSION, segment: input.segment, legs, rides, vat, fee, total: rides + vat + fee, exact: timed !== null && !input.suggested };
+  const feeVat = Math.round(fee * SERVICE_FEE_VAT_RATE);
+  return { version: RATE_CARD_VERSION, segment: input.segment, legs, rides, vat, fee, feeVat, total: rides + vat + fee + feeVat, exact: timed !== null && !input.suggested };
+}
+
+/** A stored price before any VAT: the rides and the service fee. */
+export function priceNet(p: Price): number {
+  return p.total - p.vat - (p.feeVat ?? 0);
 }
 
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */

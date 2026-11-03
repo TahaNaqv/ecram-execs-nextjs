@@ -298,6 +298,7 @@ function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited
           ))}
           {line(rd.rateCardVat, euro(price.vat))}
           {line(rd.rateCardFee, euro(price.fee))}
+          {price.feeVat ? line(rd.rateCardFeeVat, euro(price.feeVat)) : null}
           {line(rd.rateCardTotal, euro(price.total), true)}
           {!price.exact && <p className="mt-2 text-xs text-amber-700">{rd.rateCardLower}</p>}
         </div>

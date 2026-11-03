@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { carsToPrice } from "../../lib/pricing/booking";
-import { billedHours, dayKind, hourlyRate, priceBooking } from "../../lib/pricing/rates";
+import { billedHours, dayKind, hourlyRate, priceBooking, priceNet } from "../../lib/pricing/rates";
 
 // The client's rate card (November 2026): per car per hour, in whole hours and at least 2; then 9% VAT on the rides,
-// then a €12.50 service fee. 2027-06-14 is a Monday, 2027-06-19 a Saturday, 2027-06-20 a Sunday.
+// then a €12.50 service fee with 21% VAT on it (€2.63). 2027-06-14 is a Monday, 2027-06-19 a Saturday, 2027-06-20 a Sunday.
 
 test("the rate card's columns follow the day of the pick-up, in either wall-clock format", () => {
   expect(dayKind("2027-06-14T08:30")).toBe("weekday");
@@ -37,13 +37,15 @@ test("a transfer is billed in whole hours for its drive, never under two, and wa
   expect(billedHours({ driveSeconds: null })).toBeNull();
 });
 
-test("a standard weekday ride: hours × rate, then 9% VAT, then the €12.50 service fee", () => {
+test("a standard weekday ride: hours × rate, 9% VAT, then the €12.50 service fee with its 21% VAT", () => {
   const price = priceBooking({ segment: "public", pickupAt: "2027-06-14T08:30", driveSeconds: 45 * 60, cars: [{ key: "audi", count: 1 }] })!;
-  // 2 hours × €84 = €168, + 9% (€15.12) = €183.12, + €12.50 = €195.62
+  // 2 hours × €84 = €168, + 9% (€15.12) = €183.12, + €12.50 + 21% of it (€2.63) = €198.25
   expect(price.rides).toBe(16800);
   expect(price.vat).toBe(1512);
   expect(price.fee).toBe(1250);
-  expect(price.total).toBe(19562);
+  expect(price.feeVat).toBe(263);
+  expect(price.total).toBe(19825);
+  expect(priceNet(price)).toBe(16800 + 1250);
   expect(price.exact).toBe(true);
 });
 
@@ -60,7 +62,7 @@ test("corporate, a mix of cars, and a return on a Sunday priced at Sunday's rate
   const rides = 58200 + 38100 + 69600 + 45600;
   expect(price.rides).toBe(rides);
   expect(price.vat).toBe(Math.round(rides * 0.09));
-  expect(price.total).toBe(rides + Math.round(rides * 0.09) + 1250);
+  expect(price.total).toBe(rides + Math.round(rides * 0.09) + 1250 + 263);
 });
 
 test("an hourly booking is billed for its hours; an untimed transfer or a suggested car is a 'from' price", () => {
@@ -76,6 +78,9 @@ test("an hourly booking is billed for its hours; an untimed transfer or a sugges
   expect(suggested).toBe(true);
   expect(cars).toHaveLength(1);
   expect(priceBooking({ segment: "public", pickupAt: "2027-06-14T10:00", driveSeconds: 3600, cars, suggested })!.exact).toBe(false);
+
+  // A price stored before the fee carried VAT still reads correctly
+  expect(priceNet({ ...hourly, feeVat: undefined, total: hourly.rides + hourly.vat + hourly.fee })).toBe(hourly.rides + hourly.fee);
 
   // No car the card knows, or no date: no price at all
   expect(priceBooking({ segment: "public", pickupAt: "2027-06-14T10:00", hours: 2, cars: [] })).toBeNull();
