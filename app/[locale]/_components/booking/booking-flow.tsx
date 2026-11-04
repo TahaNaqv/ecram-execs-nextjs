@@ -202,36 +202,6 @@ export function BookingFlow({
   }, [ready, step, trip, draft, entered]);
   const go = setStep;
 
-  // The cars a confirmed booking already holds at this pick-up are not offered. Asked when the car step shows, and again if
-  // the trip changes; the answer is only keys. If it cannot be asked every car is offered, and the team is stopped
-  // from confirming a clash anyway.
-  const [booked, setBooked] = useState<ReadonlySet<string>>(new Set());
-  const asked = step === "car" && trip.at ? `${trip.at}|${trip.mode === "hourly" ? trip.hours : ""}` : "";
-  useEffect(() => {
-    if (!asked) return;
-    const [at, hours] = asked.split("|");
-    const query = new URLSearchParams({ at });
-    if (hours) query.set("hours", hours);
-    const controller = new AbortController();
-    fetch(`/api/vehicles/unavailable?${query}`, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { busy?: string[] } | null) => {
-        if (!data?.busy) return;
-        const keys = new Set(data.busy.map((k) => normalizeVehicleKey(k) ?? k));
-        setBooked(keys);
-        // A car chosen earlier that is taken at this time is let go
-        setTrip((current) => {
-          const cars = current.cars.filter((c) => !keys.has(c.key));
-          const held = current.vehicle !== "" && current.vehicle !== "advise" && keys.has(normalizeVehicleKey(current.vehicle) ?? current.vehicle);
-          if (cars.length === current.cars.length && !held) return current;
-          return { ...current, cars, vehicle: cars[0]?.key ?? (held ? "" : current.vehicle) };
-        });
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [asked]);
-  const offered = vehicles.filter((v) => !booked.has(normalizeVehicleKey(v.key) ?? v.key));
-
   // A server error belongs to a step: go back to it (once per answer from the server)
   const errorKeys = Object.keys(result.fieldErrors);
   const [answered, setAnswered] = useState(result.fieldErrors);
@@ -346,10 +316,8 @@ export function BookingFlow({
           trip={trip}
           segment={segmentOf(variant)}
           locale={locale}
-          vehicles={offered}
-          bookedCount={vehicles.length - offered.length}
+          vehicles={vehicles}
           copy={t}
-          messages={messages}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
           onCars={(key, count) => setTrip((current) => withCarCount(current, key, count))}
@@ -361,13 +329,9 @@ export function BookingFlow({
             else if (trip.vehicle !== "advise") {
               if (trip.pax > LARGEST_CAR_SEATS) next = { ...trip, vehicle: "advise" };
               else {
-                const pick = suggestVehicle(offered, { pax: trip.pax, bags: trip.bags });
+                const pick = suggestVehicle(vehicles, { pax: trip.pax, bags: trip.bags });
                 next = pick ? { ...trip, vehicle: pick.key, cars: [{ key: pick.key, count: 1 }] } : { ...trip, vehicle: "advise" };
               }
-            }
-            if (fitText(next, messages)) {
-              setTrip(next);
-              return;
             }
             setTrip(next);
             go("details");
@@ -444,36 +408,19 @@ function galleryCopy(t: FleetDictionary): GalleryCopy {
   };
 }
 
-type CapacityMessages = { vehiclePassengers: string; vehicleLuggage: string; vehicleBoth: string };
-
-function capacityWarning(problem: { passengers: boolean; luggage: boolean }, messages: CapacityMessages): string | null {
-  if (problem.passengers && problem.luggage) return messages.vehicleBoth;
-  if (problem.passengers) return messages.vehiclePassengers;
-  if (problem.luggage) return messages.vehicleLuggage;
-  return null;
-}
-
-function fitText(trip: Trip, messages: CapacityMessages): string | null {
-  const key = trip.cars[0]?.key ?? (trip.vehicle && trip.vehicle !== "advise" ? trip.vehicle : "");
-  return capacityWarning(capacityProblem(key, trip.pax, trip.bags), messages);
-}
-
 function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
   if (count <= 0) return normalizeTrip({ ...trip, cars: [], vehicle: trip.vehicle === key ? "" : trip.vehicle });
   return normalizeTrip({ ...trip, cars: [{ key, count: 1 }], vehicle: key });
 }
 
-function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, copy: t, messages, error, onDetails, onCars, onAdvise, onBack, onNext }: {
+function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   /** Whose rates the cards show: the website's standard rates or a corporate partner's */
   segment: Segment;
   locale: Locale;
   vehicles: OfferedVehicle[];
-  /** Cars left out because a confirmed booking already holds them at this time */
-  bookedCount: number;
   copy: BookingCopy;
-  messages: CapacityMessages;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
   onCars: (key: VehicleKey, count: number) => void;
@@ -481,14 +428,11 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
   onBack: () => void;
   onNext: () => void;
 }) {
-  const large = trip.pax > LARGEST_CAR_SEATS;
-  const convoy = convoySentence(t, trip);
   const cars = vehicles
     .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
     .filter((v): v is FleetVehicle => Boolean(v))
     .map((v) => ({ vehicle: v, seats: v.specs?.passengers ?? null }));
   const party = guestsText(t, trip.pax);
-  const fitting = cars.filter((c) => c.seats === null || c.seats >= trip.pax).length;
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
   const recommendation = suggestVehicle(cars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
@@ -498,21 +442,18 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
     const rate = day ? hourlyRate(key, segment, day) : null;
     return rate === null ? null : interpolate(t.carRate, { price: formatCents(rate, locale) });
   };
-  const overCapacity = fitText(trip, messages);
-  const blocked = (key: string) => {
+  const unfit = (key: string) => {
     const problem = capacityProblem(key, trip.pax, trip.bags);
     return problem.passengers || problem.luggage;
   };
-  const someBlocked = cars.some((c) => blocked(c.vehicle.key));
+  const blockedSelection = trip.cars.length === 1 && unfit(trip.cars[0].key);
   const card = (c: (typeof cars)[number]) => {
     const selected = trip.cars.length === 1 && trip.cars[0].key === c.vehicle.key;
-    const unavailable = blocked(c.vehicle.key);
+    const unavailable = unfit(c.vehicle.key);
     return (
       <li key={c.vehicle.key} className="relative">
         <div
-          className={`flex flex-col rounded-2xl bg-white text-ink-950 ${
-            unavailable ? "opacity-50" : ""
-          } ${
+          className={`flex flex-col rounded-2xl bg-white text-ink-950 ${unavailable ? "opacity-50" : ""} ${
             selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-2"
           }`}
         >
@@ -580,19 +521,12 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
       <h2 id="booking-car" ref={headingRef} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
         {t.carTitle}
       </h2>
-      <p className="m-0 mt-2 text-[15px] text-ink-600">
-        {large ? t.carIntroLarge : interpolate(t.carIntro, { fits: fitting, total: cars.length, party })}
-      </p>
       {day && (
         <p className="m-0 mt-2 text-[13px] text-ink-600">
           {interpolate(t.carRates, { day: dayLabel(t, day), fee: formatCents(SERVICE_FEE_CENTS, locale) })}
         </p>
       )}
-      {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}
-      {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
-      {error && !someBlocked && <p role="alert" className="m-0 mt-3 text-xs leading-snug text-[#9a6240]">{error}</p>}
-      {someBlocked && <p className="m-0 mt-6 text-xs leading-snug text-[#9a6240]">{t.carsDisabledNote}</p>}
-      <ul role="radiogroup" aria-labelledby="booking-car" className={`m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 ${someBlocked ? "mt-3" : "mt-6"}`}>
+      <ul role="radiogroup" aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {cars.map(card)}
         <li>
           <button
@@ -623,6 +557,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
         </li>
       </ul>
 
+      {error && <p role="alert" className="m-0 mt-6 text-[13px] leading-snug text-error">{error}</p>}
       <div className="sticky bottom-0 z-10 mt-8 -mx-5 border-t border-solid border-ink-150 bg-white/95 px-5 pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur md:-mx-6 md:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <ul className="m-0 hidden list-none flex-wrap gap-x-5 gap-y-1.5 p-0 text-[13px] text-ink-700 md:flex">
@@ -641,9 +576,9 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
             <button
               type="button"
               onClick={onNext}
-              disabled={Boolean(overCapacity)}
+              disabled={blockedSelection}
               className={`h-[52px] flex-1 rounded-xl border-0 px-6 text-[14px] font-semibold md:flex-none ${
-                overCapacity ? "cursor-not-allowed bg-ink-225 text-ink-600" : "cursor-pointer bg-ink-950 text-white hover:bg-ink-800"
+                blockedSelection ? "cursor-not-allowed bg-ink-225 text-ink-600" : "cursor-pointer bg-ink-950 text-white hover:bg-ink-800"
               }`}
             >
               {totalCars > 1
