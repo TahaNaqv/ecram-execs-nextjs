@@ -616,18 +616,17 @@ export function JourneyBar({
           {guestsCell}
         </div>
 
-        {hasExtras && (
-          <div className={`mt-1.5 grid grid-cols-1 border-0 border-t border-solid pt-1.5 md:grid-cols-2 lg:grid-cols-3 ${divider}`}>
-            {stopCells}
-            {flightCell}
-          </div>
-        )}
-
-        <div className="px-1.5">{errorLine}</div>
-        <div className={`mt-1.5 flex border-0 border-t border-solid pt-1.5 ${divider}`}>
+        {liveProblems.length > 0 && <div className="px-3 pt-2">{errorLine}</div>}
+        <div className={`flex flex-col gap-3 px-1.5 pt-2 pb-1.5 sm:flex-row sm:items-end ${hasExtras ? `mt-1 border-0 border-t border-solid ${divider}` : ""}`}>
+          {hasExtras && (
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+              {stopCells}
+              {flightCell}
+            </div>
+          )}
           <button
             type="submit"
-            className={`m-1 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold sm:ml-auto sm:w-auto ${
+            className={`flex h-[52px] w-full shrink-0 cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold sm:ml-auto sm:w-auto ${
               dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
             }`}
           >

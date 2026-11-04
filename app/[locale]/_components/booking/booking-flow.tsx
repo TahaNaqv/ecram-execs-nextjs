@@ -526,6 +526,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
           {interpolate(t.carRates, { day: dayLabel(t, day), fee: formatCents(SERVICE_FEE_CENTS, locale) })}
         </p>
       )}
+      {cars.some((c) => unfit(c.vehicle.key)) && <p className="m-0 mt-2 text-xs leading-snug text-red-500">{t.carsDisabledNote}</p>}
       <ul role="radiogroup" aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {cars.map(card)}
         <li>
@@ -783,10 +784,25 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     );
   };
 
+  const formId = `${uid}-details`;
+  const actionButtons = () => (
+    <div className="flex w-full min-w-0 gap-2 sm:gap-2.5">
+      <button type="button" onClick={onBack} className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-3 text-[14px] font-semibold text-ink-950 hover:border-ink-950 sm:h-[52px] sm:flex-none sm:px-5">
+        <ArrowLeft />
+        {t.back}
+      </button>
+      <button type="submit" form={formId} className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-4 text-[14px] font-semibold text-white hover:bg-ink-800 sm:h-[52px] sm:flex-none sm:px-7">
+        {t.reviewButton}
+        <ArrowRight />
+      </button>
+    </div>
+  );
+
   return (
     <section aria-labelledby="booking-details" className="scroll-mt-6">
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <form
+          id={formId}
           ref={formRef}
           onSubmit={onSubmit}
           onInput={(e) => onDraft(snapshot(e.currentTarget))}
@@ -900,7 +916,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             </div>
           )}
 
-          <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col items-stretch gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
             <p className="m-0 max-w-[40ch] text-[12px] text-ink-600">
               {portal ? null : (
                 <>
@@ -913,16 +929,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                 </>
               )}
             </p>
-            <div className="flex w-full min-w-0 gap-2 sm:w-auto sm:gap-2.5">
-              <button type="button" onClick={onBack} className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-3 text-[14px] font-semibold text-ink-950 hover:border-ink-950 sm:h-[52px] sm:flex-none sm:px-5">
-                <ArrowLeft />
-                {t.back}
-              </button>
-              <button type="submit" className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-4 text-[14px] font-semibold text-white hover:bg-ink-800 sm:h-[52px] sm:flex-none sm:px-7">
-                {t.reviewButton}
-                <ArrowRight />
-              </button>
-            </div>
+            <div className="hidden lg:block">{actionButtons()}</div>
           </div>
           {/* A send the server turned back lands here: say why, as well as marking the fields */}
           <p aria-live="polite" className="m-0 min-h-5 text-[13px] text-error">
@@ -931,6 +938,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
         </form>
 
         <Summary trip={trip} copy={t} locale={locale} chosen={chosen} vehicleAdvise={vehicleAdvise} portal={portal} gallery={gallery} />
+        <div className="lg:hidden">{actionButtons()}</div>
       </div>
     </section>
   );
@@ -1014,8 +1022,8 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
         <ol className="m-0 flex list-none flex-col gap-3.5 p-0 text-[14px] leading-[1.45] text-ink-800">
           {[t.next1, portal ? t.next2Portal : t.next2, t.next3].map((line, i) => (
             <li key={i} className="flex gap-3">
-              <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-ink-950 text-[12px] font-semibold text-white">
-                {i + 1}
+              <span aria-hidden="true" className="inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-visible rounded-full bg-ink-950 text-[13px] leading-none font-semibold tracking-normal text-white">
+                <span className="block">{i + 1}</span>
               </span>
               {line}
             </li>

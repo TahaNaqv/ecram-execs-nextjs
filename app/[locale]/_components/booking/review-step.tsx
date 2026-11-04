@@ -360,17 +360,12 @@ export function ReviewStep({
             </div>
           </section>
         </div>
-        {!portal && (
-          <p className="m-0 flex items-center gap-2 text-[13px] text-ink-600">
-            <Check />
-            {t.next1}
-          </p>
-        )}
+       
         <p aria-live="polite" className={result.message ? "m-0 text-[13px] text-error" : "sr-only"}>
           {result.message ?? ""}
         </p>
-        <div className="flex flex-wrap items-center justify-end gap-4">
-          <div className="flex w-full gap-2.5 sm:w-auto">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-4">
+          <div className="flex w-full gap-2.5 lg:w-auto">
             <button type="button" onClick={() => onEdit("details")} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
               <ArrowLeft />
               {t.back}
