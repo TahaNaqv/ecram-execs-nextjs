@@ -596,22 +596,22 @@ export function JourneyBar({
     );
   }
 
+  // Calculate items in the last grid row (3 columns on lg) to decide if button fits inline or needs a centered wide row
+  const totalExtraItems = stops.length + (flightCell ? 1 : 0);
+  const remainderInRow = totalExtraItems % 3;
+  const buttonFitsInline = totalExtraItems > 0 && remainderInRow !== 0;
+
   const continueButton = (
     <button
       type="submit"
-      className={`flex h-[52px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold ${
-        dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
-      }`}
+      className={`flex h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold ${
+        buttonFitsInline ? "w-full" : "w-full sm:w-[360px] mx-auto"
+      } ${dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"}`}
     >
       {t.continue}
       <ArrowIcon />
     </button>
   );
-
-  // Calculate items in the last grid row (3 columns on lg) to decide if button fits inline
-  const totalExtraItems = stops.length + (flightCell ? 1 : 0);
-  const remainderInRow = totalExtraItems % 3;
-  const buttonFitsInline = totalExtraItems === 0 || remainderInRow < 2;
 
   const body = (
     <>
@@ -642,9 +642,8 @@ export function JourneyBar({
         )}
 
         {(!hasExtras || !buttonFitsInline) && (
-          <div className={`mx-1.5 mt-1 grid grid-cols-1 gap-2 border-0 border-t border-solid pt-3 md:grid-cols-2 lg:grid-cols-3 ${divider}`}>
-            <div className="hidden lg:block" />
-            <div className="lg:col-span-2 flex justify-end">{continueButton}</div>
+          <div className={`mx-1.5 mt-1 flex items-center justify-center border-0 border-t border-solid pt-3 ${divider}`}>
+            {continueButton}
           </div>
         )}
 
