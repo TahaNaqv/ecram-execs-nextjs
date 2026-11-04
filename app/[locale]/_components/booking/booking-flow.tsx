@@ -12,12 +12,13 @@ import { dayKind, formatCents, hourlyRate, SERVICE_FEE_CENTS, type Segment } fro
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
-import { bagsText, guestsText } from "./guests-picker";
+import { guestsText, luggageLine, partyLine } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { involvesAirport, isTripReady, MAX_PER_CAR, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
+import { capacityProblem, involvesAirport, isTripReady, normalizeTrip, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
 import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
+import { bookingsSent } from "./sent";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
 export type BookingStep = "journey" | "car" | "details" | "review";
@@ -48,14 +49,48 @@ const PASSENGER_FIELDS = ["passengerName", "passengerPhone", "passengerPhoneCoun
 const COMPANY_FIELDS = ["entity", "entityKvk"];
 /**
  * The details that are sent: everything typed is kept (so switching back to "someone else" or "business" finds it again),
- * but a passenger is only sent when someone else travels, and a company only for business on the website.
+ * but a passenger is only sent when someone else travels, and a company only for a business trip.
  */
-export function sentFields(entry: DetailsEntry, variant: "public" | "portal"): [string, string][] {
+export function sentFields(entry: DetailsEntry, _variant: "public" | "portal"): [string, string][] {
   return entry.fields.filter(
-    ([k]) => !(entry.who === "me" && PASSENGER_FIELDS.includes(k)) && !((entry.purpose === "private" || variant === "portal") && COMPANY_FIELDS.includes(k)),
+    ([k]) => !(entry.who === "me" && PASSENGER_FIELDS.includes(k)) && !(entry.purpose === "private" && COMPANY_FIELDS.includes(k)),
   );
 }
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DRAFT_STEPS: BookingStep[] = ["journey", "car", "details", "review"];
+
+type BookingDraft = { sent: number; step: BookingStep; trip: Trip; draft: Trip; entered: DetailsEntry | null };
+
+const draftKey = () => `ee-booking-draft:${window.location.pathname}${window.location.search}`;
+
+const isTrip = (value: unknown): value is Trip => {
+  if (!value || typeof value !== "object") return false;
+  const trip = value as Trip;
+  return (trip.mode === "oneway" || trip.mode === "hourly") && !!trip.from && typeof trip.from.text === "string" && !!trip.to && Array.isArray(trip.stops) && Array.isArray(trip.cars);
+};
+
+const readDraft = (): BookingDraft | null => {
+  try {
+    const raw = sessionStorage.getItem(draftKey());
+    if (!raw) return null;
+    const data = JSON.parse(raw) as BookingDraft;
+    if (data.sent !== bookingsSent()) return null;
+    if (!DRAFT_STEPS.includes(data.step) || !isTrip(data.trip) || !isTrip(data.draft)) return null;
+    const entered = data.entered;
+    if (entered != null) {
+      if (entered.who !== "me" && entered.who !== "other") return null;
+      if (entered.purpose !== "business" && entered.purpose !== "private") return null;
+      if (!Array.isArray(entered.fields)) return null;
+      entered.fields = entered.fields.map((pair) => [String(pair?.[0] ?? ""), String(pair?.[1] ?? "")] as [string, string]);
+    }
+    if (data.step === "review" && !entered) return null;
+    data.trip = normalizeTrip(data.trip);
+    data.draft = normalizeTrip(data.draft);
+    return data;
+  } catch {
+    return null;
+  }
+};
 
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -141,6 +176,30 @@ export function BookingFlow({
     heading.current?.focus({ preventScroll: true });
     heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [step]);
+
+  // A reload keeps the step and what was typed. A booking that was actually sent starts this page empty again.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const saved = readDraft();
+    if (saved) {
+      setTrip(saved.trip);
+      setDraft(saved.draft);
+      setEntered(saved.entered);
+      setStep(saved.step);
+      setJourneyEdit((n) => n + 1);
+      focused.current = saved.step;
+    }
+    setReady(true);
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      const saved: BookingDraft = { sent: bookingsSent(), step, trip, draft, entered };
+      sessionStorage.setItem(draftKey(), JSON.stringify(saved));
+    } catch {
+      // storage blocked: the form still works, it just cannot survive a reload
+    }
+  }, [ready, step, trip, draft, entered]);
   const go = setStep;
 
   // The cars a confirmed booking already holds at this pick-up are not offered. Asked when the car step shows, and again if
@@ -208,11 +267,13 @@ export function BookingFlow({
       ? `${shortPlace(trip.from)} · ${interpolate(t.asDirected, { hours: trip.hours })}`
       : [shortPlace(trip.from), ...trip.stops.filter((s) => s.place).map(() => "…"), shortPlace(trip.to)].join(" → "),
     trip.at ? pretty(trip.at, locale) : "",
-    guestsText(t, trip.pax),
-    bagsText(t, trip.bags),
+    partyLine(t, trip.pax, trip.bags, trip.small),
   ]
     .filter(Boolean)
     .join("  ·  ");
+
+  // Wait until any saved step is read, so a reload does not paint step 1 and then jump.
+  if (!ready) return <div className="min-h-[480px]" aria-hidden="true" />;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -266,7 +327,7 @@ export function BookingFlow({
               messages={messages}
               tone="light"
               layout="stacked"
-              initial={trip}
+              initial={draft}
               cancelHref={cancelHref}
               onTripChange={setDraft}
               onDone={(next) => {
@@ -288,20 +349,27 @@ export function BookingFlow({
           vehicles={offered}
           bookedCount={vehicles.length - offered.length}
           copy={t}
+          messages={messages}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
           onCars={(key, count) => setTrip((current) => withCarCount(current, key, count))}
-          onAdvise={() => setTrip((current) => ({ ...current, cars: [], vehicle: current.vehicle === "advise" ? "" : "advise" }))}
+          onAdvise={() => setTrip((current) => normalizeTrip({ ...current, cars: [], vehicle: current.vehicle === "advise" ? "" : "advise" }))}
           onBack={editJourney}
           onNext={() => {
-            setTrip((current) => {
-              if (current.cars.length > 0) return { ...current, vehicle: current.cars[0].key };
-              if (current.vehicle === "advise") return current;
-              // Nothing chosen, and the party does not fit in one car: leave the mix to us.
-              if (current.pax > LARGEST_CAR_SEATS) return { ...current, vehicle: "advise" };
-              const pick = suggestVehicle(offered, { pax: current.pax, bags: current.bags });
-              return pick ? { ...current, vehicle: pick.key, cars: [{ key: pick.key, count: 1 }] } : { ...current, vehicle: "advise" };
-            });
+            let next = trip;
+            if (trip.cars.length > 0) next = { ...trip, vehicle: trip.cars[0].key };
+            else if (trip.vehicle !== "advise") {
+              if (trip.pax > LARGEST_CAR_SEATS) next = { ...trip, vehicle: "advise" };
+              else {
+                const pick = suggestVehicle(offered, { pax: trip.pax, bags: trip.bags });
+                next = pick ? { ...trip, vehicle: pick.key, cars: [{ key: pick.key, count: 1 }] } : { ...trip, vehicle: "advise" };
+              }
+            }
+            if (fitText(next, messages)) {
+              setTrip(next);
+              return;
+            }
+            setTrip(next);
             go("details");
           }}
         />
@@ -324,6 +392,7 @@ export function BookingFlow({
           entered={entered}
           messages={messages}
           gallery={galleryCopy(fleetDict)}
+          onDraft={setEntered}
           onBack={() => go("car")}
           onReview={(entry) => {
             setEntered(entry);
@@ -375,16 +444,19 @@ function galleryCopy(t: FleetDictionary): GalleryCopy {
   };
 }
 
-function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
-  const next = trip.cars.filter((c) => c.key !== key);
-  const n = Math.min(MAX_PER_CAR, Math.max(0, Math.trunc(count)));
-  if (n > 0) next.push({ key, count: n });
-  const order = new Map(FLEET.map((v, i) => [v.key, i]));
-  next.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
-  return { ...trip, cars: next, vehicle: next[0]?.key ?? "" };
+function fitText(trip: Trip, messages: { vehiclePassengers: string; vehicleLuggage: string }): string | null {
+  const key = trip.cars[0]?.key ?? (trip.vehicle && trip.vehicle !== "advise" ? trip.vehicle : "");
+  const fit = capacityProblem(key, trip.pax, trip.bags);
+  const text = [fit.passengers ? messages.vehiclePassengers : "", fit.luggage ? messages.vehicleLuggage : ""].filter(Boolean).join(" ");
+  return text || null;
 }
 
-function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
+function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
+  if (count <= 0) return normalizeTrip({ ...trip, cars: [], vehicle: trip.vehicle === key ? "" : trip.vehicle });
+  return normalizeTrip({ ...trip, cars: [{ key, count: 1 }], vehicle: key });
+}
+
+function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, copy: t, messages, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   /** Whose rates the cards show: the website's standard rates or a corporate partner's */
@@ -394,6 +466,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
   /** Cars left out because a confirmed booking already holds them at this time */
   bookedCount: number;
   copy: BookingCopy;
+  messages: { vehiclePassengers: string; vehicleLuggage: string };
   error?: string;
   onDetails: (v: FleetVehicle) => void;
   onCars: (key: VehicleKey, count: number) => void;
@@ -417,11 +490,11 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
     const rate = day ? hourlyRate(key, segment, day) : null;
     return rate === null ? null : interpolate(t.carRate, { price: formatCents(rate, locale) });
   };
-  const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:opacity-40";
-
+  const overCapacity = fitText(trip, messages);
   const card = (c: (typeof cars)[number]) => {
-    const count = trip.cars.find((pick) => pick.key === c.vehicle.key)?.count ?? 0;
-    const selected = count > 0;
+    const selected = trip.cars.length === 1 && trip.cars[0].key === c.vehicle.key;
+    const unfit = capacityProblem(c.vehicle.key, trip.pax, trip.bags);
+    const cardFit = [unfit.passengers ? messages.vehiclePassengers : "", unfit.luggage ? messages.vehicleLuggage : ""].filter(Boolean).join(" ");
     return (
       <li key={c.vehicle.key} className="relative">
         <div
@@ -431,16 +504,19 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
         >
           <button
             type="button"
-            aria-pressed={selected}
-            onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
+            role="radio"
+            aria-checked={selected}
+            onClick={() => {
+              if (!selected) onCars(c.vehicle.key, 1);
+            }}
             className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-default"
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here */}
             <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
-            <span className="flex items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
-              <span className="text-[15px] font-semibold">{c.vehicle.name}</span>
+            <span className="flex min-w-0 items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
+              <span className="min-w-0 text-[15px] font-semibold">{c.vehicle.name}</span>
               {c.seats !== null && (
-                <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
+                <span className="flex shrink-0 items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
                   <SeatIcon />
                   {interpolate(t.seatsUpTo, { seats: c.seats })}
                 </span>
@@ -455,36 +531,14 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
               {selected ? (
                 <>
                   <Check />
-                  {count > 1 ? `${count} · ${t.carSelected}` : t.carSelected}
+                  {t.carSelected}
                 </>
               ) : (
                 t.carSelect
               )}
             </span>
+            {cardFit && <span className="px-1.5 pb-2 text-[12px] leading-snug text-error">{cardFit}</span>}
           </button>
-          <span className="flex items-center justify-center gap-2 px-2 pt-1 pb-2">
-            <button type="button" aria-label={interpolate(t.fewerOf, { car: c.vehicle.name })} disabled={count <= 0} onClick={() => onCars(c.vehicle.key, count - 1)} className={qtyButton}>
-              −
-            </button>
-            <span className="box-border inline-flex h-9 w-12 shrink-0 items-center justify-center rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] [color-scheme:light]">
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={MAX_PER_CAR}
-                aria-label={interpolate(t.countOf, { car: c.vehicle.name })}
-                value={count}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (e.target.value !== "" && Number.isInteger(n)) onCars(c.vehicle.key, n);
-                }}
-                className="w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-center text-[15px] font-semibold leading-none text-[#10224f] tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </span>
-            <button type="button" aria-label={interpolate(t.moreOf, { car: c.vehicle.name })} disabled={count >= MAX_PER_CAR} onClick={() => onCars(c.vehicle.key, count + 1)} className={qtyButton}>
-              +
-            </button>
-          </span>
           {selected && (
             <span aria-hidden="true" className="absolute top-[18px] left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white">
               <Check size={15} />
@@ -521,17 +575,18 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
       )}
       {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
-      {error && (
+      {(overCapacity || error) && (
         <p role="alert" className="m-0 mt-3 text-[14px] text-error">
-          {error}
+          {overCapacity ?? error}
         </p>
       )}
-      <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <ul role="radiogroup" aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {cars.map(card)}
         <li>
           <button
             type="button"
-            aria-pressed={advise}
+            role="radio"
+            aria-checked={advise}
             onClick={onAdvise}
             className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl p-[22px] text-left text-ink-950 ${
               advise ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent hover:border-ink-950"
@@ -544,7 +599,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
             </span>
             <span className="flex flex-col gap-1.5">
               <span className="font-serif text-[26px] leading-none">{t.noPreference}</span>
-              <span className="text-[13px] text-ink-600">{interpolate(t.noPreferenceNote, { party, bags: bagsText(t, trip.bags) })}</span>
+              <span className="text-[13px] text-ink-600">{interpolate(t.noPreferenceNote, { party, bags: luggageLine(t, trip.bags, trip.small) })}</span>
             </span>
           </button>
         </li>
@@ -617,7 +672,7 @@ function CountryCode({ name, label, country, onChange }: { name: string; label: 
         {current[1]} +{current[0]}
       </button>
       {open && (
-        <ul role="listbox" aria-label={label} className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-44 list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
+        <ul role="listbox" aria-label={label} className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
           {COUNTRY_CODES.map(([code, iso]) => (
             <li key={code} role="option" aria-selected={code === country}>
               <button
@@ -638,7 +693,7 @@ function CountryCode({ name, label, country, onChange }: { name: string; label: 
   );
 }
 
-function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, gallery, onBack, onReview }: {
+function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, gallery, onDraft, onBack, onReview }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
   trip: Trip;
@@ -655,6 +710,8 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   entered: DetailsEntry | null;
   messages: TripMessages;
   gallery: GalleryCopy;
+  /** Keeps the details typed so far, so a reload can put them back */
+  onDraft: (entry: DetailsEntry) => void;
   onBack: () => void;
   onReview: (entry: DetailsEntry) => void;
 }) {
@@ -669,6 +726,27 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors: Record<string, string | undefined> = { ...result.fieldErrors, ...localErrors };
   const portal = variant === "portal";
+  const formRef = useRef<HTMLFormElement>(null);
+  const purposeStarted = useRef(true);
+
+  const snapshot = (form: HTMLFormElement): DetailsEntry => {
+    const fields = new Map(entered?.fields);
+    for (const [k, v] of new FormData(form).entries()) fields.set(k, String(v));
+    if (who === "me") for (const key of PASSENGER_FIELDS) fields.delete(key);
+    return { who, purpose, fields: [...fields] };
+  };
+
+  // Who/purpose are not form fields. Skip the first run so a restored draft is not replaced by an empty form.
+  useEffect(() => {
+    if (purposeStarted.current) {
+      purposeStarted.current = false;
+      return;
+    }
+    const form = formRef.current;
+    if (form) onDraft(snapshot(form));
+    // snapshot reads the latest who, purpose and dial codes; typed text is saved by the form's input handler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [who, purpose, phoneCountry, passengerCountry]);
 
   // Checked here, before the review, so the review only ever shows a booking that can be sent; the server checks again
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -680,13 +758,17 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     if (!portal && !EMAIL.test(value("email"))) found.email = messages.emailInvalid;
     if (value("phone").replace(/\D/g, "").length < 6) found.phone = messages.phoneNumberInvalid;
     if (who === "other" && !value("passengerName")) found.passengerName = t.passengerNameRequired;
+    if (purpose === "business" && !value("entity")) found.entity = locale === "nl" ? "Vul het bedrijf in." : "Please enter the company or organization.";
+    if (purpose === "business" && !value("entityKvk")) found.entityKvk = locale === "nl" ? "Vul het KVK-nummer in." : "Please enter the KVK / CoC number.";
     setLocalErrors(found);
-    const first = ["name", "email", "phone", "passengerName"].find((k) => found[k]);
+    const first = ["name", "email", "phone", "passengerName", "entity", "entityKvk"].find((k) => found[k]);
     if (first) {
       document.getElementById(`${uid}-${first}`)?.focus();
       return;
     }
-    onReview({ who, purpose, fields: [...data.entries()].map(([k, v]) => [k, String(v)]) });
+    const entry = snapshot(e.currentTarget);
+    onDraft(entry);
+    onReview(entry);
   };
 
   const field = (name: string, label: string, control: ReactNode, wide = false) => (
@@ -742,7 +824,13 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   return (
     <section aria-labelledby="booking-details" className="scroll-mt-6">
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6 rounded-[20px] border border-solid border-ink-150 bg-white p-5 md:p-8">
+        <form
+          ref={formRef}
+          onSubmit={onSubmit}
+          onInput={(e) => onDraft(snapshot(e.currentTarget))}
+          noValidate
+          className="flex min-w-0 max-w-full flex-col gap-5 rounded-[20px] border border-solid border-ink-150 bg-white p-4 sm:gap-6 sm:p-5 md:p-8"
+        >
           <h2 id="booking-details" ref={headingRef} tabIndex={-1} className="m-0 font-serif text-[clamp(30px,3.6vw,40px)] leading-[1.05] font-normal outline-none">
             {portal ? t.detailsTitlePortal : t.detailsTitle}
           </h2>
@@ -807,33 +895,35 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             </div>
           </div>
 
-          {purpose === "business" && !portal && (
+          {purpose === "business" && (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {field(
                 "entity",
-                locale === "nl" ? "Bedrijfsnaam" : "Company / Organization",
+                locale === "nl" ? "Bedrijfsnaam *" : "Company / Organization *",
                 <input
                   {...aria("entity")}
                   name="entity"
                   type="text"
+                  required
                   autoComplete="organization"
                   maxLength={200}
-                  defaultValue={typed("entity", defaults?.entity)}
-                  placeholder={locale === "nl" ? "bv. Acme B.V." : "e.g. Acme Corporation"}
+                  defaultValue={typed("entity", defaults?.entity ?? booker?.companyName ?? undefined)}
+                  placeholder={locale === "nl" ? "Verplicht, bv. Acme B.V." : "Required, e.g. Acme Corporation"}
                   className={input}
                 />,
               )}
               {field(
                 "entityKvk",
-                locale === "nl" ? "KVK-nummer" : "KVK / CoC Number",
+                locale === "nl" ? "KVK-nummer *" : "KVK / CoC Number *",
                 <input
                   {...aria("entityKvk")}
                   name="entityKvk"
                   type="text"
+                  required
                   autoComplete="off"
                   maxLength={30}
                   defaultValue={typed("entityKvk", defaults?.entityKvk)}
-                  placeholder={locale === "nl" ? "8 cijfers (optioneel)" : "8 digits (optional)"}
+                  placeholder={locale === "nl" ? "Verplicht, 8 cijfers" : "Required, 8 digits"}
                   className={input}
                 />,
               )}
@@ -848,7 +938,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <p className="m-0 max-w-[40ch] text-[12px] text-ink-600">
               {portal ? null : (
                 <>
@@ -861,12 +951,12 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                 </>
               )}
             </p>
-            <div className="flex w-full gap-2.5 sm:w-auto">
-              <button type="button" onClick={onBack} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
+            <div className="flex w-full min-w-0 gap-2 sm:w-auto sm:gap-2.5">
+              <button type="button" onClick={onBack} className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-3 text-[14px] font-semibold text-ink-950 hover:border-ink-950 sm:h-[52px] sm:flex-none sm:px-5">
                 <ArrowLeft />
                 {t.back}
               </button>
-              <button type="submit" className="flex h-[52px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 sm:flex-none">
+              <button type="submit" className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-4 text-[14px] font-semibold text-white hover:bg-ink-800 sm:h-[52px] sm:flex-none sm:px-7">
                 {t.reviewButton}
                 <ArrowRight />
               </button>
@@ -894,7 +984,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
     [t.summaryRoute, route.map((r, i) => <span key={i} className="block">{i > 0 ? `→ ${r}` : r}</span>)],
     [t.summaryWhen, trip.at ? pretty(trip.at, locale) : ""],
   ];
-  rows.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
+  rows.push([t.summaryParty, partyLine(t, trip.pax, trip.bags, trip.small)]);
   if (pickupAtAirport(trip) && trip.flight.trim()) rows.push([t.summaryFlight, trip.flight.trim()]);
 
   const picks = trip.cars.filter((c) => c.count > 0);
@@ -906,10 +996,11 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
   else if (convoy) rows.push([t.reviewVehicle, convoy]);
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip);
-  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen;
-  const displayName = label ?? lead?.name ?? vehicleAdvise;
-  const galleryImages = mix.length > 0 ? [] : (lead?.images ?? []);
-  const seats = label ? null : (lead?.specs?.passengers ?? null);
+  const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
+  const shown = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen ?? advised;
+  const displayName = trip.vehicle === "advise" && picks.length === 0 ? vehicleAdvise : label ?? shown?.name ?? vehicleAdvise;
+  const galleryImages = mix.length > 0 ? [] : (shown?.images ?? []);
+  const seats = label ? null : (shown?.specs?.passengers ?? null);
 
   return (
     <aside aria-label={t.summaryLabel} className="overflow-hidden rounded-[24px] border border-solid border-ink-225 bg-white text-ink-950 shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.08)] lg:sticky lg:top-6">
@@ -918,10 +1009,10 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
           <CarMixPreview cars={mix} copy={gallery} />
         </div>
       ) : (
-        <div className="relative aspect-[16/9.5] w-full bg-ink-900">
+        <div className="relative aspect-[16/9.5] w-full bg-[#081b62]">
           <div className="relative isolate h-full w-full overflow-hidden">
             {galleryImages.length > 0 ? (
-              <VehicleGallery key={galleryImages.join("|")} name={displayName} images={galleryImages} alt={displayName} copy={gallery} />
+              <VehicleGallery key={galleryImages.join("|")} name={shown?.name ?? displayName} images={galleryImages} alt={shown?.name ?? displayName} copy={gallery} />
             ) : (
               <div className="grid h-full place-items-center px-6 text-center font-serif text-[22px] text-[#fff]">{displayName}</div>
             )}

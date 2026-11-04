@@ -57,7 +57,7 @@ export default function RequestPage({ params }: PageProps<"/admin/requests/[id]"
   );
 }
 
-const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"];
+const PIPELINE: RequestStatus[] = ["new", "confirmed", "completed", "cancelled"];
 
 async function Pipeline({ status }: { status: RequestStatus }) {
   const { admin: t } = await adminDictionary();
@@ -68,9 +68,9 @@ async function Pipeline({ status }: { status: RequestStatus }) {
       </div>
     );
   }
-  const at = PIPELINE.indexOf(status);
+  const at = status === "contacted" || status === "quoted" ? PIPELINE.indexOf("new") : PIPELINE.indexOf(status);
   return (
-    <ol className="grid grid-cols-6 gap-1" aria-label={t.common.progress}>
+    <ol className="grid grid-cols-4 gap-1" aria-label={t.common.progress}>
       {PIPELINE.map((s, i) => {
         const done = i < at;
         const current = i === at;
@@ -173,16 +173,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         <Pipeline status={r.status} />
       </div>
 
-      {/* The rate card's price, as the booker saw it */}
-      {!isBespoke(r) && (
-        <div className="mt-6">
-          <RateCardPrice price={r.priceEstimate} copy={rd} />
-        </div>
-      )}
-
-      {/* Auto-Pricing Gateway */}
       <div className="mt-6">
-        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap} />
+        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap}>
+          {!isBespoke(r) && <RateCardPrice price={r.priceEstimate} copy={rd} />}
+        </AutoPricingGateway>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -284,7 +278,7 @@ function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited
     </div>
   );
   return (
-    <Card>
+    <Card className="rounded-none border-0 bg-transparent shadow-none">
       <CardHeader title={rd.rateCardTitle} description={price ? `${price.segment === "corporate" ? rd.rateCardCorporate : rd.rateCardPublic} · ${rd.rateCardNote}` : rd.rateCardNone} />
       {price && (
         <div className="px-5 py-4">
@@ -300,7 +294,7 @@ function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited
           {line(rd.rateCardFee, euro(price.fee))}
           {price.feeVat ? line(rd.rateCardFeeVat, euro(price.feeVat)) : null}
           {line(rd.rateCardTotal, euro(price.total), true)}
-          {!price.exact && <p className="mt-2 text-xs text-amber-700">{rd.rateCardLower}</p>}
+         
         </div>
       )}
     </Card>

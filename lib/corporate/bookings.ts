@@ -40,6 +40,7 @@ const bookingColumns = {
   durationHours: q.durationHours,
   passengers: q.passengers,
   luggage: q.luggage,
+  handLuggage: q.handLuggage,
   flightNumber: q.flightNumber,
   passengerName: q.passengerName,
   passengerPhone: q.passengerPhone,

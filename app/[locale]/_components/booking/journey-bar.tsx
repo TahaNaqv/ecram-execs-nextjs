@@ -12,7 +12,7 @@ import { AddressField } from "./address-field";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
 import { GuestsPicker } from "./guests-picker";
 import { useResetAfterBooking } from "./sent";
-import { emptyPlace, emptyTrip, pickupAtAirport, tripFromParams, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
+import { emptyPlace, emptyTrip, normalizeTrip, pickupAtAirport, samePlace, tripFromParams, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
 
 const PlusIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -165,6 +165,7 @@ export function JourneyBar({
     ({
       collection: messages.collectionRequired,
       destination: messages.destinationRequired,
+      samePlace: messages.samePlace,
       pickupAt: !trip.at ? messages.pickupInvalid : trip.at < netherlandsNow() ? messages.pickupPast : messages.pickupTooFar,
       durationHours: messages.checkHighlighted,
       guests: messages.guestsRequired,
@@ -187,7 +188,7 @@ export function JourneyBar({
     setProblems(found);
     if (found.length > 0) {
       e.preventDefault();
-      document.getElementById({ collection: ids.from, destination: ids.to, pickupAt: ids.at, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]])?.focus();
+      document.getElementById({ collection: ids.from, destination: ids.to, samePlace: ids.to, pickupAt: ids.at, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]])?.focus();
       return;
     }
     if (onDone) {
@@ -196,7 +197,9 @@ export function JourneyBar({
     }
   };
 
-  const invalid = (field: TripField) => problems.includes(field);
+  const same = trip.mode === "oneway" && samePlace(trip.from.text, trip.to.text);
+  const liveProblems: TripField[] = same ? ["samePlace", ...problems.filter((field) => field !== "samePlace")] : problems.filter((field) => field !== "samePlace");
+  const invalid = (field: TripField) => liveProblems.includes(field) || (field === "destination" && liveProblems.includes("samePlace"));
   const stacked = layout === "stacked";
   const focusCell = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -209,10 +212,10 @@ export function JourneyBar({
       onClick={focusCell}
       className={
         stacked
-          ? `relative flex min-w-0 cursor-pointer flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 focus-within:border-ink-950 ${
+          ? `relative flex min-w-0 cursor-pointer flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 [--field-pad:14px] focus-within:border-ink-950 ${
               field && invalid(field) ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"
             } ${extra}`
-          : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 ${
+          : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 [--field-pad:18px] ${
               dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
             } ${field && invalid(field) ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`
       }
@@ -264,14 +267,14 @@ export function JourneyBar({
     );
 
   const modeToggle = (
-    <div role="group" aria-label={t.modeLabel} className={`flex rounded-full p-1 ${dark ? "bg-white/[0.1]" : "bg-ink-100"}`}>
+    <div role="group" aria-label={t.modeLabel} className={`flex max-w-full rounded-full p-1 ${dark ? "bg-white/[0.1]" : "bg-ink-100"}`}>
       {(["oneway", "hourly"] as const).map((mode) => (
         <button
           key={mode}
           type="button"
           aria-pressed={trip.mode === mode}
           onClick={() => update({ mode, ...(mode === "hourly" ? { to: emptyPlace(), stops: [] } : {}) })}
-          className={`h-[34px] cursor-pointer rounded-full border-0 px-4 text-[13px] ${
+          className={`h-[34px] min-w-0 cursor-pointer rounded-full border-0 px-3 text-[12px] sm:px-4 sm:text-[13px] ${
             trip.mode === mode
               ? dark
                 ? "bg-white font-semibold text-ink-950"
@@ -458,8 +461,12 @@ export function JourneyBar({
         labelledBy={ids.guestsLabel}
         pax={trip.pax}
         bags={trip.bags}
+        small={trip.small}
         set={trip.guestsSet}
-        onChange={(g) => update({ ...g, guestsSet: true })}
+        onChange={(g) => {
+          setTrip((current) => normalizeTrip({ ...current, ...g, guestsSet: true }));
+          setProblems([]);
+        }}
         copy={t}
         tone={tone}
         describedBy={describedBy("guests")}
@@ -474,7 +481,7 @@ export function JourneyBar({
         null,
         `${uid}-stop-${i}`,
         interpolate(t.stopLabel, { number: i + 1 }),
-        <span className="flex items-center gap-3">
+        <span className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <AddressField
             id={`${uid}-stop-${i}`}
             value={{ text: stop.place, id: null, kind: null }}
@@ -484,7 +491,7 @@ export function JourneyBar({
             copy={t}
             tone={tone}
           />
-          <div ref={waitOpen === i ? waitRef : undefined} className="relative shrink-0">
+          <div ref={waitOpen === i ? waitRef : undefined} className="relative w-full sm:w-auto sm:shrink-0">
             <button
               type="button"
               aria-haspopup="listbox"
@@ -492,7 +499,7 @@ export function JourneyBar({
               aria-controls={waitOpen === i ? `${uid}-wait-${i}` : undefined}
               aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
               onClick={() => setWaitOpen((open) => (open === i ? null : i))}
-              className={`cursor-pointer border-0 bg-transparent p-0 text-left text-[13px] outline-none ${dark ? "text-ink-200" : "text-ink-700"}`}
+              className={`w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[13px] outline-none sm:w-auto ${dark ? "text-ink-200" : "text-ink-700"}`}
             >
               {stop.wait === 0 ? t.waitNone : interpolate(t.waitMinutes, { minutes: stop.wait })}
             </button>
@@ -501,7 +508,7 @@ export function JourneyBar({
                 id={`${uid}-wait-${i}`}
                 role="listbox"
                 aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
-                className="absolute top-full right-0 z-50 mt-1 box-border max-h-60 min-w-[148px] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
+                className="absolute top-full left-0 z-50 mt-1 box-border max-h-60 w-full min-w-0 list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light] sm:left-auto sm:right-0 sm:w-auto sm:min-w-[148px]"
               >
                 {STOP_WAITS.map((w) => {
                   const selected = stop.wait === w;
@@ -553,14 +560,14 @@ export function JourneyBar({
 
   const errorLine = (
     <p id={ids.error} role="alert" className={`m-0 min-h-5 text-[13px] ${dark ? "text-[#fda29b]" : "text-error"}`}>
-      {problems.length > 0 ? [...new Set(problems.map(message))].filter(Boolean).join(" ") : ""}
+      {liveProblems.length > 0 ? [...new Set(liveProblems.map(message))].filter(Boolean).join(" ") : ""}
     </p>
   );
 
   // The journey step of /book and the portal: one field under the other, in the order the car drives them
   if (stacked) {
     return (
-      <form onSubmit={submit} noValidate className="flex w-full flex-col gap-3">
+      <form onSubmit={submit} noValidate className="flex w-full min-w-0 max-w-full flex-col gap-3">
         <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950 md:p-6">
           <div className="mb-1">{modeToggle}</div>
           {fromCell}
@@ -582,7 +589,7 @@ export function JourneyBar({
           ) : (
             <span />
           )}
-          <button type="submit" className="flex h-[52px] cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800">
+          <button type="submit" className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 bg-ink-950 px-5 text-[14px] font-semibold text-white hover:bg-ink-800 sm:h-[52px] sm:w-auto sm:px-7">
             {t.chooseCar}
             <ArrowIcon />
           </button>
@@ -595,7 +602,7 @@ export function JourneyBar({
     <>
       {params && [...params.entries()].map(([k, v], i) => <input key={`${k}-${i}`} type="hidden" name={k} value={v} />)}
       <div
-        className={`relative rounded-[22px] border border-solid p-1.5 ${
+        className={`relative rounded-[18px] border border-solid p-1 sm:rounded-[22px] sm:p-1.5 ${
           dark ? "border-white/25 bg-[rgba(var(--ec-panel-rgb),0.62)] text-white backdrop-blur-xl" : "border-ink-225 bg-white text-ink-950 shadow-sm"
         }`}
       >
@@ -604,7 +611,7 @@ export function JourneyBar({
           {addButtons}
         </div>
 
-        <div className="relative mt-1.5 grid grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(205px,1.1fr)_minmax(205px,0.95fr)_auto]">
+        <div className="relative mt-1.5 grid min-w-0 grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(205px,1.1fr)_minmax(205px,0.95fr)_auto]">
           {fromCell}
           {toCell}
           {whenCell}
@@ -632,7 +639,7 @@ export function JourneyBar({
     </>
   );
 
-  const formClass = "flex w-full flex-col gap-3";
+  const formClass = "flex w-full min-w-0 max-w-full flex-col gap-3";
   return action ? (
     <Form action={action} onSubmit={submit} noValidate className={formClass}>
       {body}

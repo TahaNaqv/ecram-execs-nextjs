@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { emailBookingRecorded, emailPartnerBooking } from "@/lib/email";
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
+import { capacityProblem, MAX_PASSENGERS, samePlace } from "@/app/[locale]/_components/booking/trip";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import type { QuoteRequest } from "@/lib/db/schema";
@@ -34,7 +35,7 @@ const schemaFor = z.object({
   destination: z.string().trim().min(1, "Enter the destination.").max(200),
   stops: z.string().max(1200),
   pickupAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Enter the pick-up date and time."),
-  passengers: z.preprocess(blank, z.coerce.number().int().min(1).max(50).optional()),
+  passengers: z.preprocess(blank, z.coerce.number().int().min(1).max(MAX_PASSENGERS, "Passengers are at most 7.").optional()),
   vehicle: z.preprocess(blank, z.enum(VEHICLE_CHOICES).optional()),
   name: z.string().trim().max(120),
   email: z.string().trim().toLowerCase().max(200),
@@ -52,6 +53,13 @@ const schemaFor = z.object({
     .transform((v) => (v === "" ? null : v)),
   notes: z.string().trim().max(2000).transform((v) => v || null),
   internalNotes: z.string().trim().max(5000).transform((v) => v || null),
+}).superRefine((v, ctx) => {
+  if (samePlace(v.collection, v.destination)) {
+    ctx.addIssue({ code: "custom", path: ["destination"], message: "Pickup and drop-off locations cannot be the same." });
+  }
+  if (capacityProblem(v.vehicle, v.passengers ?? 1, null).passengers) {
+    ctx.addIssue({ code: "custom", path: ["passengers"], message: "This car cannot accommodate this count of passengers." });
+  }
 });
 
 /** A booking entered by the team (it came by phone or email), optionally for a partner so it shows in their portal. */

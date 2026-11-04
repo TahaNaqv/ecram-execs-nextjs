@@ -155,12 +155,12 @@ test("bug 7: Guests and bags start as a prompt, must be chosen, and then show th
   const dialog = page.getByRole("dialog", { name: b.guestsDialog });
   await expect(dialog.getByRole("status").first()).toHaveText("1");
   await dialog.getByRole("button", { name: b.done }).click();
-  await expect(guestsButton(hero)).toContainText(`${b.guestOne} · ${b.bagNone}`);
+  await expect(guestsButton(hero)).toContainText(`${b.guestOne} · ${b.bagMany.replace("{count}", "0")} ${b.bagSplit.replace("{large}", "0").replace("{small}", "0")}`);
   await guestsButton(hero).click();
   await page.getByRole("dialog", { name: b.guestsDialog }).getByRole("button", { name: b.morePassengers }).click();
   await page.getByRole("dialog", { name: b.guestsDialog }).getByRole("button", { name: b.moreSuitcases }).click();
   await page.getByRole("dialog", { name: b.guestsDialog }).getByRole("button", { name: b.done }).click();
-  await expect(guestsButton(hero)).toContainText(`${b.guestMany.replace("{count}", "2")} · ${b.bagOne}`);
+  await expect(guestsButton(hero)).toContainText(`${b.guestMany.replace("{count}", "2")} · ${b.bagOne} ${b.bagSplit.replace("{large}", "1").replace("{small}", "0")}`);
 });
 
 test("bug 7 in the portal: a new booking asks for the guests too", async ({ page, context }) => {
@@ -182,7 +182,7 @@ test("bug 9: Edit on the trip chip goes back to the journey step of the same boo
   // The journey is as the visitor left it
   await expect(shown(page.getByLabel(b.pickupLabel, { exact: true }))).toHaveValue(/Schiphol/);
   await expect(shown(page.getByLabel(b.dropoffLabel, { exact: true }))).toHaveValue(/Des Indes/);
-  await expect(shown(guestsButton(page.locator("main")))).toContainText(`${b.guestMany.replace("{count}", "2")} · ${b.bagOne}`);
+  await expect(shown(guestsButton(page.locator("main")))).toContainText(`${b.guestMany.replace("{count}", "2")} · ${b.bagOne} ${b.bagSplit.replace("{large}", "1").replace("{small}", "0")}`);
 });
 
 test("bug 9 in the portal: Edit stays in the partner's booking panel", async ({ page, context }) => {

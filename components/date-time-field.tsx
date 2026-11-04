@@ -158,6 +158,7 @@ export function DateTimeField({
   };
 
   const openPicker = () => {
+    setNarrow(window.matchMedia("(max-width: 767px)").matches);
     const { day: now, time: clock } = nowInNetherlands();
     setToday(now);
     // No time chosen yet and no day either: the lists show the time it is now. With a day chosen the time already shown in
@@ -176,6 +177,15 @@ export function DateTimeField({
   };
 
   useEffect(() => {
+    if (!open || !narrow) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open, narrow]);
+
+  useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -186,11 +196,11 @@ export function DateTimeField({
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
-  // A phone has no room to hang the calendar off the field: it is centred on the screen instead.
+  // A phone has no room to hang the calendar off the field: it rises from the bottom of the screen instead.
   useLayoutEffect(() => {
     if (!open) return;
     const sync = () => {
-      const phone = window.matchMedia("(max-width: 639px)").matches;
+      const phone = window.matchMedia("(max-width: 767px)").matches;
       setNarrow(phone);
       const box = input.current?.getBoundingClientRect();
       if (!phone && box) setAnchor({ top: box.bottom + 8, left: Math.max(8, Math.min(box.left, window.innerWidth - Math.min(448, window.innerWidth - 16))) });
@@ -275,10 +285,10 @@ export function DateTimeField({
     setActive(now.day);
   };
 
-  const navBtn = "grid size-7 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20";
-  const column = `${narrow ? "h-full" : "h-[232px]"} min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:#5f6368_transparent] [scrollbar-width:thin]`;
+  const navBtn = `grid cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20 ${narrow ? "size-10" : "size-7"}`;
+  const column = `${narrow ? "h-full" : "h-[232px]"} min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`;
   const optionCls = (selected: boolean) =>
-    `block w-full cursor-pointer rounded-md border-0 px-0 py-1.5 text-center text-[13px] font-medium tabular-nums ${
+    `mx-auto block w-[calc(100%-8px)] cursor-pointer rounded-md border-0 px-0 text-center font-medium tabular-nums ${narrow ? "py-2.5 text-[16px]" : "py-1.5 text-[13px]"} ${
       selected ? "bg-[#a8c7fa] text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
     }`;
 

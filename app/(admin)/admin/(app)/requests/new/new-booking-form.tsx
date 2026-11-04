@@ -7,6 +7,7 @@ import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { AlertIcon, PlusIcon, XIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { capacityProblem, MAX_PASSENGERS, samePlace } from "@/app/[locale]/_components/booking/trip";
 import { createBookingForPartner, type NewBookingState } from "./actions";
 
 type Option = { value: string; label: string };
@@ -36,13 +37,13 @@ function Select({ values, name, label, options, empty, className = "" }: { value
   );
 }
 
-function Text({ values, name, label, type = "text", inputMode, hint, className = "" }: { values: Values; name: string; label: string; type?: string; inputMode?: "email" | "tel" | "text"; hint?: string; className?: string }) {
+function Text({ values, name, label, type = "text", inputMode, hint, min, max, className = "" }: { values: Values; name: string; label: string; type?: string; inputMode?: "email" | "tel" | "text" | "numeric"; hint?: string; min?: number; max?: number; className?: string }) {
   return (
     <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
       <label htmlFor={`nb-${name}`} className={fieldLabel}>
         {label}
       </label>
-      <input id={`nb-${name}`} name={name} type={type} inputMode={inputMode} spellCheck={inputMode === "email" || inputMode === "tel" ? false : undefined} defaultValue="" autoComplete="off" className={`${field} h-10 w-full`} />
+      <input id={`nb-${name}`} name={name} type={type} inputMode={inputMode} min={min} max={max} spellCheck={inputMode === "email" || inputMode === "tel" ? false : undefined} defaultValue="" autoComplete="off" className={`${field} h-10 w-full`} />
       {hint && <p className="m-0 text-xs text-zinc-500">{hint}</p>}
     </div>
   );
@@ -54,12 +55,17 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
   const formRef = useRef<HTMLFormElement>(null);
   const [phoneCountry, setPhoneCountry] = useState("31");
   const [destinations, setDestinations] = useState<string[]>([""]);
+  const [collection, setCollection] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
+  const placesMatch = samePlace(collection, destinations[0] ?? "");
 
   // Clear form fields whenever the component mounts / user navigates back to this tab
   useEffect(() => {
     if (formRef.current) {
       formRef.current.reset();
       setDestinations([""]);
+      setCollection("");
+      setClientError(null);
       setPhoneCountry("31");
     }
   }, []);
@@ -79,7 +85,34 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
   };
 
   return (
-    <form ref={formRef} action={action} className="grid gap-5 md:grid-cols-2">
+    <form
+      ref={formRef}
+      action={action}
+      className="grid gap-5 md:grid-cols-2"
+      onSubmit={(event) => {
+        const data = new FormData(event.currentTarget);
+        const from = String(data.get("collection") ?? "");
+        const to = String(data.getAll("destinations")[0] ?? "");
+        const pax = Number(data.get("passengers"));
+        const vehicle = String(data.get("vehicle") ?? "");
+        if (samePlace(from, to)) {
+          event.preventDefault();
+          setClientError("Pickup and drop-off locations cannot be the same.");
+          return;
+        }
+        if (Number.isInteger(pax) && (pax < 1 || pax > MAX_PASSENGERS)) {
+          event.preventDefault();
+          setClientError("Passengers are at most 7.");
+          return;
+        }
+        if (capacityProblem(vehicle, Number.isInteger(pax) ? pax : 1, null).passengers) {
+          event.preventDefault();
+          setClientError("This car cannot accommodate this count of passengers.");
+          return;
+        }
+        setClientError(null);
+      }}
+    >
       <div className="md:col-span-2">
         <Select values={{}} name="contactId" label={copy.partner} options={partners} empty={copy.noPartner} />
       </div>
@@ -92,7 +125,10 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
         </label>
         <DateTimeField id="nb-pickupAt" name="pickupAt" allowTyping locale={locale} copy={dateTimeCopy} defaultValue="" className={`${field} h-10`} />
       </div>
-      <Text values={{}} name="collection" label={copy.collection} className="md:col-span-2" />
+      <div className="flex min-w-0 flex-col gap-1.5 md:col-span-2">
+        <label htmlFor="nb-collection" className={fieldLabel}>{copy.collection}</label>
+        <input id="nb-collection" name="collection" value={collection} onChange={(event) => setCollection(event.target.value)} autoComplete="off" className={`${field} h-10 w-full`} />
+      </div>
 
       {/* Dynamic Destinations Section (Max 5 stops) */}
       <div className="flex flex-col gap-2.5 md:col-span-2">
@@ -134,9 +170,10 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
           </div>
         ))}
         {destinations.length > 1 && <p className="m-0 text-xs text-zinc-500">{copy.stops}</p>}
+        {placesMatch && <p role="alert" className="m-0 text-sm text-red-700">Pickup and drop-off locations cannot be the same.</p>}
       </div>
 
-      <Text values={{}} name="passengers" label={copy.passengers} type="number" />
+      <Text values={{}} name="passengers" label={copy.passengers} type="number" inputMode="numeric" min={1} max={MAX_PASSENGERS} />
       <Select values={{}} name="vehicle" label={copy.vehicle} options={vehicles} empty={copy.vehicleNone} />
       <Text values={{}} name="name" label={copy.name} hint={copy.contactHint} />
       <Text values={{}} name="email" label={copy.email} type="text" inputMode="email" />
@@ -210,10 +247,10 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
         </label>
         <textarea id="nb-internalNotes" name="internalNotes" rows={3} maxLength={5000} defaultValue="" className={`${field} resize-y py-2.5`} />
       </div>
-      {state.error && (
+      {(clientError || state.error) && (
         <p role="alert" className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-800 ring-1 ring-inset ring-red-200 md:col-span-2">
           <AlertIcon className="mt-0.5 shrink-0" />
-          {state.error}
+          {clientError || state.error}
         </p>
       )}
       <div className="md:col-span-2">

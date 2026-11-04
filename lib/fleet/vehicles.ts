@@ -266,12 +266,19 @@ export const vehicleByKey = (key: string | null | undefined) => {
   return FLEET.find((v) => v.key === normalized);
 };
 
-/** A rough count of large suitcases from the published boot figure, about 180 litres each. Ranking only. */
-function suitcaseRoom(vehicle: FleetVehicle): number {
-  const litres = Number((vehicle.specs?.luggage?.en.match(/(\d[\d,]*)/)?.[1] ?? "0").replace(/,/g, ""));
+/**
+ * Large suitcases the car can take with the seats in place, about 180 litres each.
+ * The boot and the front trunk both count. A figure in parentheses is the folded-seat volume, so it is left out.
+ */
+export function bagCapacity(vehicle: FleetVehicle): number {
+  const text = (vehicle.specs?.luggage?.en ?? "").replace(/\([^)]*\)/g, " ");
+  const litres = [...text.matchAll(/(\d[\d,]*)/g)].reduce((sum, match) => sum + Number(match[1].replace(/,/g, "")), 0);
   if (!litres) return vehicle.specs?.passengers ?? 1;
   return Math.max(1, Math.round(litres / 180));
 }
+
+/** The most suitcases any one car in the fleet can take. */
+export const MAX_BAG_CAPACITY = Math.max(...FLEET.map(bagCapacity));
 
 export const fleetSeats = (vehicle: FleetVehicle) => vehicle.specs?.passengers ?? 0;
 
@@ -458,7 +465,7 @@ export function suggestVehicle(offered: readonly { key: string }[], need: { pax:
   const seats = (v: FleetVehicle) => v.specs?.passengers ?? 0;
   const seating = available.filter((v) => seats(v) >= need.pax);
   if (seating.length === 0) return undefined;
-  const roomy = seating.filter((v) => suitcaseRoom(v) >= need.bags);
-  const candidates = roomy.length > 0 ? roomy : [...seating].sort((a, b) => suitcaseRoom(b) - suitcaseRoom(a)).slice(0, 1);
-  return [...candidates].sort((a, b) => seats(a) - seats(b) || suitcaseRoom(b) - suitcaseRoom(a) || FLEET.indexOf(a) - FLEET.indexOf(b))[0];
+  const roomy = seating.filter((v) => bagCapacity(v) >= need.bags);
+  const candidates = roomy.length > 0 ? roomy : [...seating].sort((a, b) => bagCapacity(b) - bagCapacity(a)).slice(0, 1);
+  return [...candidates].sort((a, b) => seats(a) - seats(b) || bagCapacity(b) - bagCapacity(a) || FLEET.indexOf(a) - FLEET.indexOf(b))[0];
 }

@@ -10,16 +10,15 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { PortalBooking } from "../../../_components/booking/portal-booking";
-import { emptyTrip, MAX_PASSENGERS, type Trip } from "../../../_components/booking/trip";
+import { emptyTrip, normalizeTrip, type Trip } from "../../../_components/booking/trip";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { PortalPage } from "../../../_components/portal-shell";
 
 function carsFromBooking(source: { vehicle: string | null; vehicleCount: number; vehicles: { key: string; count: number }[] | null }): Trip["cars"] {
   const stored = fleetPicks(source.vehicles);
-  if (stored.length > 0) return stored;
-  const key = normalizeVehicleKey(source.vehicle);
+  const key = stored[0]?.key ?? normalizeVehicleKey(source.vehicle);
   if (!key) return [];
-  return [{ key, count: Math.max(1, source.vehicleCount || 1) }];
+  return [{ key, count: 1 }];
 }
 
 /** A booking request, with the partner's details filled in. `?repeat=EE-…` starts from one of their own earlier bookings. */
@@ -44,18 +43,20 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
   if (source) {
     const vehicle = normalizeVehicleKey(source.vehicle) ?? source.vehicle ?? "";
     const cars = carsFromBooking(source);
-    Object.assign(trip, {
+    Object.assign(trip, normalizeTrip({
+      ...trip,
       mode: source.service === "hourly" && !source.destination ? "hourly" : "oneway",
       from: { text: source.collection ?? "", id: null, kind: null },
       to: { text: source.destination ?? "", id: null, kind: null },
       stops: stopsWithWaits(source.destinations, source.destinationWaits),
       hours: (HOURLY_DURATIONS as readonly number[]).includes(source.durationHours ?? 0) ? source.durationHours! : trip.hours,
-      pax: Math.min(source.passengers ?? trip.pax, MAX_PASSENGERS),
+      pax: source.passengers ?? trip.pax,
       bags: source.luggage ?? trip.bags,
+      small: source.handLuggage ?? 0,
       guestsSet: true, // the earlier booking's party is the answer; a new booking starts without one
       vehicle: cars[0]?.key ?? ((VEHICLE_CHOICES as readonly string[]).includes(vehicle) ? (vehicle as VehicleChoice) : ""),
       cars,
-    } satisfies Partial<Trip>);
+    }));
   }
   const passengerPhone = source?.passengerPhone?.match(/^\+(\d{1,4}) (.+)$/);
 

@@ -122,6 +122,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
           )}
           {booking.passengers !== null && <Fact label={d.quoteForm.labelPassengers}>{booking.passengers}</Fact>}
           {booking.luggage !== null && <Fact label={d.booking.suitcases}>{booking.luggage}</Fact>}
+          {booking.handLuggage != null && <Fact label={d.booking.smallBags}>{booking.handLuggage}</Fact>}
           {booking.flightNumber && <Fact label={d.booking.flight}>{booking.flightNumber}</Fact>}
           {booking.passengerName && (
             <Fact label={d.booking.passengerName}>

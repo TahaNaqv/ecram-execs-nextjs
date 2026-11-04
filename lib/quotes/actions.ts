@@ -29,7 +29,7 @@ export type QuoteFormState =
 
 const FIELDS = [
   // No "returnAt": the client takes no return journeys, so one sent anyway is not read
-  "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
+  "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "handLuggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "name", "email", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry",
   "passengerPhone", "vehicle", "vehicles", "notes", "locale", "entity", "entityKvk",
 ] as const;

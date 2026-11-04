@@ -37,9 +37,9 @@ const MESSAGE_LIMIT = { max: 20, minutes: 60 };
 
 const FIELDS = [
   // No "returnAt": the client takes no return journeys, so one sent anyway is not read
-  "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "flightNumber",
+  "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "handLuggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry", "passengerPhone",
-  "vehicle", "vehicles", "notes", "locale",
+  "vehicle", "vehicles", "notes", "locale", "entity", "entityKvk",
 ] as const;
 
 /** A new booking request from inside the portal: the partner's own details, the usual trip fields. */
@@ -94,8 +94,8 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
       vehicleCount: fleet.vehicleCount,
       vehicles: fleet.vehicles,
       internalNotes: fleet.internalNotes,
-      entity: contact.companyName,
-      entityKvk: contact.kvkNumber,
+      entity: parsed.data.entity || contact.companyName,
+      entityKvk: parsed.data.entityKvk || contact.kvkNumber,
       corporateContactId: contact.id,
       source: "portal",
       ipHash,

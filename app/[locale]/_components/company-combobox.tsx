@@ -185,7 +185,7 @@ export function CompanyCombobox({ id, name, copy, placeholder, defaultValue = ""
           className={`absolute top-full z-20 m-0 max-h-[320px] list-none overflow-y-auto p-0 shadow-lg ${
             variant === "card"
               ? "right-0 left-0 mt-1 rounded-xl border border-[#d5e4ff] bg-[#ffffff] text-[#10224f] shadow-[0_12px_32px_rgba(47,98,255,0.16)]"
-              : "right-[-18px] left-[-18px] mt-3 border border-ink-225 bg-white"
+              : "right-0 left-0 mt-2 border border-ink-225 bg-white sm:right-[-18px] sm:left-[-18px] sm:mt-3"
           }`}
         >
           {items.map((hit, i) => (

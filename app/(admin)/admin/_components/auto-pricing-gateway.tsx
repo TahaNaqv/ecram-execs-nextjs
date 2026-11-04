@@ -9,7 +9,8 @@ import { interpolate } from "@/lib/i18n/interpolate";
 
 type PricingCopy = Dictionary["admin"]["pricing"];
 type StatusCopy = Dictionary["admin"]["statuses"];
-const STATUSES = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"] as const;
+const STATUSES = ["new", "confirmed", "completed", "cancelled"] as const;
+type StatusChoice = (typeof STATUSES)[number] | "contacted" | "quoted";
 
 function esc(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
@@ -36,36 +37,31 @@ export function AutoPricingGateway({
   copy,
   statuses,
   routeMap,
+  children,
 }: {
   request: QuoteRequest;
   copy: PricingCopy;
   statuses: StatusCopy;
   routeMap?: RouteMapProps | null;
+  /** Sits above Authorisation in the left column, usually the rate-card price */
+  children?: React.ReactNode;
 }) {
   const router = useRouter();
   // Confirmed status stored from the request/backend
-  const [status, setStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
-    request.status as any
-  );
+  const [status, setStatus] = useState<StatusChoice>(request.status as StatusChoice);
   // Temporary dropdown choice before confirmation button is clicked
-  const [selectedStatus, setSelectedStatus] = useState<"new" | "contacted" | "quoted" | "confirmed" | "completed" | "cancelled">(
-    request.status as any
-  );
+  const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(request.status as StatusChoice);
   
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
-  
-  // Inline editing state for fare, tax rates, and tax descriptions
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedAmount, setEditedAmount] = useState<number | string>(
-    request.quotedAmount ? Number(request.quotedAmount) : 0
-  );
-  const [btw9Rate, setBtw9Rate] = useState(9);
-  const [btw21Rate, setBtw21Rate] = useState(21);
-  const [btw9Label, setBtw9Label] = useState("Passenger Transport");
-  const [btw21Label, setBtw21Label] = useState("Ancillary / Fees");
+
+  const editedAmount = request.quotedAmount ? Number(request.quotedAmount) : 0;
+  const btw9Rate = 9;
+  const btw21Rate = 21;
+  const btw9Label = "Passenger Transport";
+  const btw21Label = "Ancillary / Fees";
 
   // Real data extracted from request
   const collection = request.collection ?? "—";
@@ -136,29 +132,6 @@ export function AutoPricingGateway({
     }
   }
 
-  // Save Fare: Updates fare amount and sets status to "quoted"
-  async function handleSaveFare() {
-    setIsEditing(false);
-    setSelectedStatus("quoted");
-    setStatus("quoted");
-    setLoading(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setToast("Fare updated and status set to quoted (No email sent).");
-    try {
-      await fetch(`/api/admin/requests/${request.id}/authorise`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: "quoted", amount: grandTotal, sendMail: false }),
-      });
-      router.refresh();
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-      setTimeout(() => setToast(null), 3000);
-    }
-  }
-
   function printQuote() {
     const vehicleName = convoyTitle(request) ?? (request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—");
     const when = [pickup?.date, pickup?.time].filter(Boolean).join(" · ") || "—";
@@ -208,7 +181,7 @@ export function AutoPricingGateway({
       <p class="k">${esc(copy.itinerary)}</p>
       <p class="v">${esc(collection)} → ${esc(destination)}</p>
       <p>${esc(when)}</p>
-      <p>${esc(vehicleName)}${request.passengers != null ? ` · ${esc(String(request.passengers))}` : ""}${request.luggage != null ? ` · ${esc(String(request.luggage))}` : ""}</p>
+      <p>${esc(vehicleName)}${request.passengers != null ? ` · ${esc(String(request.passengers))}` : ""}${request.luggage != null ? ` · ${esc(String(request.luggage))} large` : ""}${request.handLuggage ? ` · ${esc(String(request.handLuggage))} small` : ""}</p>
     </div>
   </div>
   <table>
@@ -261,9 +234,9 @@ export function AutoPricingGateway({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white text-zinc-900 shadow-sm overflow-hidden relative">
+    <>
       {toast && (
-        <div className="absolute top-4 right-4 z-50 bg-emerald-900 text-white px-4 py-2 rounded-lg shadow-lg text-xs flex items-center gap-2 animate-bounce">
+        <div className="fixed top-4 right-4 z-50 bg-emerald-900 text-white px-4 py-2 rounded-lg shadow-lg text-xs flex items-center gap-2 animate-bounce">
           <CheckIcon size={14} /> {toast}
         </div>
       )}
@@ -353,7 +326,8 @@ export function AutoPricingGateway({
                     <p className="text-zinc-700">
                       {convoyTitle(request) ?? (request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—")}
                       {request.passengers != null ? ` · ${request.passengers}` : ""}
-                      {request.luggage != null ? ` · ${request.luggage}` : ""}
+                      {request.luggage != null ? ` · ${request.luggage} large` : ""}
+                      {request.handLuggage ? ` · ${request.handLuggage} small` : ""}
                     </p>
                   </div>
                 </div>
@@ -407,39 +381,101 @@ export function AutoPricingGateway({
           document.body,
         )}
 
-      {/* Header bar */}
-      <div className="border-b border-zinc-100 bg-zinc-50/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-950 flex items-center gap-2">
-            <span className="inline-block size-2 rounded-full bg-emerald-600 animate-pulse" />
-            {copy.heading}
-          </h2>
-         
-        </div>
-        <div className="text-xs font-mono text-zinc-600 bg-white border border-zinc-200 px-3 py-1.5 rounded-lg shadow-2xs">
-          {formatTimestamp(request.createdAt)}
-        </div>
-      </div>
-
-      {/* Main Grid Body */}
-      <div className="p-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
-        
-        {/* Column 1: Itinerary, Distance & Journey Timing Info */}
-        <div className="flex flex-col gap-5 bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">{copy.itinerary}</h3>
-            {routeMap ? (
-              <a
-                href={routeMap.open}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1 rounded font-mono hover:bg-zinc-100"
+      <div className="grid h-fit w-full grid-cols-1 items-start gap-6 lg:grid-cols-2" style={{ alignItems: "start" }}>
+        <div className="box-border h-fit w-full min-w-0 self-start overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-card" style={{ alignSelf: "start", height: "fit-content" }}>
+          {children}
+          {/* Authorisation & Dispatch — same box as the rate card */}
+          <div className={children ? "border-t border-zinc-100 px-5 py-5" : "px-5 py-5"}>
+            <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-2.5">{copy.authTitle}</h3>
+            
+            {/* Status Dropdown Selector */}
+            <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
+                disabled={loading}
+                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50 mt-2"
               >
-                {routeMap.openLabel}
-              </a>
-            ) : (
-              <span className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded font-mono">{copy.googleMap}</span>
-            )}
+                {STATUSES.map((value) => (
+                  <option key={value} value={value}>{statuses[value]}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleSend}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                 {loading ? copy.saving : copy.notifyClient}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setShowAuditModal(true)}
+                className="w-full bg-white hover:bg-zinc-50 text-zinc-800 font-semibold py-2 px-3 rounded-xl text-xs transition border border-zinc-200 shadow-2xs cursor-pointer"
+              >
+                {copy.viewAudit}
+              </button>
+            </div>
+
+            {/* Client Notification Previews */}
+            <div className="mt-3 pt-3 border-t border-zinc-200">
+              <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider block mb-2">{copy.notifyPreview}</span>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  onClick={() => setShowPdfModal(true)}
+                  className="bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl p-2.5 text-center shadow-2xs cursor-pointer transition group flex flex-col items-center justify-center gap-1.5"
+                >
+                  <div className="size-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-700 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+                    <MailIcon size={12} />
+                  </div>
+                  <span className="text-[11px] text-zinc-800 font-semibold">{copy.pdfQuote}</span>
+                </div>
+
+                <div
+                  onClick={handleWhatsappLink}
+                  className="bg-white hover:bg-zinc-50 border border-emerald-200 rounded-xl p-2.5 text-center shadow-2xs cursor-pointer transition group flex flex-col items-center justify-center gap-1.5"
+                >
+                  <div className="size-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <ChatIcon size={12} />
+                  </div>
+                  <span className="text-[11px] text-zinc-800 font-semibold">{copy.whatsappPay}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div className="box-border flex h-fit w-full min-w-0 flex-col gap-6 self-start rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-5" style={{ alignSelf: "start", height: "fit-content" }}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-zinc-950">
+                <span className="inline-block size-2 animate-pulse rounded-full bg-emerald-600" />
+                {copy.heading}
+              </h2>
+              <p className="mt-1 text-xs font-semibold tracking-wider text-zinc-500 uppercase">{copy.itinerary}</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-mono text-xs text-zinc-600 shadow-2xs">
+                {formatTimestamp(request.createdAt)}
+              </div>
+              {routeMap ? (
+                <a
+                  href={routeMap.open}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1 rounded font-mono hover:bg-zinc-100"
+                >
+                  {routeMap.openLabel}
+                </a>
+              ) : (
+                <span className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded font-mono">{copy.googleMap}</span>
+              )}
+            </div>
           </div>
 
           {routeMap &&
@@ -511,7 +547,7 @@ export function AutoPricingGateway({
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
                 🧳 Luggage
               </p>
-              <p className="font-semibold text-zinc-900 mt-0.5">{request.luggage ?? "—"}</p>
+              <p className="font-semibold text-zinc-900 mt-0.5">{[request.luggage != null ? `${request.luggage} large` : null, request.handLuggage ? `${request.handLuggage} small` : null].filter(Boolean).join(", ") || "—"}</p>
             </div>
             <div className="col-span-2 pt-2 border-t border-zinc-100">
               <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
@@ -533,222 +569,7 @@ export function AutoPricingGateway({
           </div>
         </div>
 
-        {/* Column 2 & 3 Combined */}
-        <div className="flex flex-col gap-4 md:col-span-1 xl:col-span-2">
-          
-          {/* Fare Breakdown Engine */}
-          <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5 flex flex-col gap-4">
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">{copy.fareTitle}</h3>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={handleSaveFare}
-                      className="text-xs font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1.5 rounded-lg transition cursor-pointer"
-                    >
-                      {copy.save}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="text-xs font-semibold text-zinc-700 bg-zinc-200 hover:bg-zinc-300 px-3 py-1.5 rounded-lg transition cursor-pointer"
-                    >
-                      {copy.cancel}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition cursor-pointer shrink-0"
-                  >
-                    {copy.editFare}
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-1 text-xs divide-y divide-zinc-100">
-                <div className="flex justify-between items-center py-2.5">
-                  <span className="text-zinc-600 font-medium">{copy.baseFare}</span>
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-zinc-500 font-mono">€</span>
-                      <input
-                        type="number"
-                        value={editedAmount}
-                        onFocus={() => {
-                          if (editedAmount === 0) setEditedAmount("");
-                        }}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEditedAmount(val === "" ? "" : Number(val));
-                        }}
-                        onBlur={() => {
-                          if (editedAmount === "" || isNaN(Number(editedAmount))) setEditedAmount(0);
-                        }}
-                        className="w-32 bg-white border border-zinc-300 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
-                        autoFocus
-                      />
-                    </div>
-                  ) : (
-                    <span className="font-mono font-semibold text-zinc-900">{formatEuro(subtotal)}</span>
-                  )}
-                </div>
-
-                {vehicleCount > 1 && (
-                  <div className="flex justify-between py-2.5">
-                    <span className="text-zinc-600 font-medium">{interpolate(copy.convoy, { count: vehicleCount })}</span>
-                    <span className="font-mono font-semibold text-zinc-900">×{vehicleCount}</span>
-                  </div>
-                )}
-                <div className="flex justify-between py-2.5">
-                  <span className="text-zinc-600 font-medium">{interpolate(copy.timeCharge, { hours: durationHours, rate: hourlyRate })}</span>
-                  <span className="font-mono font-semibold text-zinc-900">{formatEuro(timeCost)}</span>
-                </div>
-                <div className="flex justify-between py-2.5">
-                  <span className="text-zinc-600 font-medium">{interpolate(copy.waitTime, { minutes: totalWaitMinutes })}</span>
-                  <span className="font-mono font-semibold text-zinc-900">{formatEuro(waitCost)}</span>
-                </div>
-              </div>
-
-              <div className="pt-3 mt-3 border-t border-zinc-200 space-y-3">
-                <div className="flex justify-between text-xs text-zinc-700 font-medium">
-                  <span>{copy.totalBaseExcl}</span>
-                  <span className="font-mono text-zinc-900">{formatEuro(baseFare)}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs text-cyan-700 font-medium">
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5 flex-1 mr-4">
-                      <input
-                        type="number"
-                        value={btw9Rate}
-                        onChange={(e) => setBtw9Rate(Number(e.target.value))}
-                        className="w-12 bg-white border border-cyan-300 rounded px-1.5 py-1 font-mono text-xs font-bold text-cyan-900 focus:outline-none"
-                      />
-                      <span>% BTW (</span>
-                      <input
-                        type="text"
-                        value={btw9Label}
-                        onChange={(e) => setBtw9Label(e.target.value)}
-                        className="bg-white border border-cyan-300 rounded px-2 py-1 text-xs text-cyan-900 focus:outline-none flex-1"
-                      />
-                      <span>)</span>
-                    </div>
-                  ) : (
-                    <span>{btw9Rate}% BTW ({btw9Label})</span>
-                  )}
-                  <span className="font-mono shrink-0">{formatEuro(btw9)}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs text-blue-700 font-medium">
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5 flex-1 mr-4">
-                      <input
-                        type="number"
-                        value={btw21Rate}
-                        onChange={(e) => setBtw21Rate(Number(e.target.value))}
-                        className="w-12 bg-white border border-blue-300 rounded px-1.5 py-1 font-mono text-xs font-bold text-blue-900 focus:outline-none"
-                      />
-                      <span>% BTW (</span>
-                      <input
-                        type="text"
-                        value={btw21Label}
-                        onChange={(e) => setBtw21Label(e.target.value)}
-                        className="bg-white border border-blue-300 rounded px-2 py-1 text-xs text-blue-900 focus:outline-none flex-1"
-                      />
-                      <span>)</span>
-                    </div>
-                  ) : (
-                    <span>{btw21Rate}% BTW ({btw21Label})</span>
-                  )}
-                  <span className="font-mono shrink-0">{formatEuro(btw21)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-zinc-900 text-white rounded-xl p-3.5 flex items-center justify-between shadow-sm">
-              <span className="text-xs font-bold tracking-wider uppercase">Total Tax (BTW)</span>
-              <span className="text-lg font-bold font-mono text-cyan-400">{formatEuro(totalTax)}</span>
-            </div>
-
-            <div className="bg-gradient-to-r from-zinc-900 to-zinc-950 text-white border border-zinc-900 rounded-xl p-3.5 text-center shadow-sm flex items-center justify-between">
-              <span className="text-xs text-zinc-400 uppercase tracking-wider">{copy.finalAmount}</span>
-              <span className="text-xl font-bold font-mono text-emerald-400">
-                {formatEuro(grandTotal)}
-              </span>
-            </div>
-          </div>
-
-          {/* Authorisation & Dispatch Controls */}
-          <div className="bg-zinc-50/60 border border-zinc-200/80 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-2.5">{copy.authTitle}</h3>
-            
-            {/* Status Dropdown Selector */}
-            <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
-                disabled={loading}
-                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50 mt-2"
-              >
-                {STATUSES.map((value) => (
-                  <option key={value} value={value}>{statuses[value]}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleSend}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                 {loading ? copy.saving : copy.notifyClient}
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setShowAuditModal(true)}
-                className="w-full bg-white hover:bg-zinc-50 text-zinc-800 font-semibold py-2 px-3 rounded-xl text-xs transition border border-zinc-200 shadow-2xs cursor-pointer"
-              >
-                {copy.viewAudit}
-              </button>
-            </div>
-
-            {/* Client Notification Previews */}
-            <div className="mt-3 pt-3 border-t border-zinc-200">
-              <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider block mb-2">{copy.notifyPreview}</span>
-              <div className="grid grid-cols-2 gap-2">
-                <div
-                  onClick={() => setShowPdfModal(true)}
-                  className="bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl p-2.5 text-center shadow-2xs cursor-pointer transition group flex flex-col items-center justify-center gap-1.5"
-                >
-                  <div className="size-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-700 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
-                    <MailIcon size={12} />
-                  </div>
-                  <span className="text-[11px] text-zinc-800 font-semibold">{copy.pdfQuote}</span>
-                </div>
-
-                <div
-                  onClick={handleWhatsappLink}
-                  className="bg-white hover:bg-zinc-50 border border-emerald-200 rounded-xl p-2.5 text-center shadow-2xs cursor-pointer transition group flex flex-col items-center justify-center gap-1.5"
-                >
-                  <div className="size-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <ChatIcon size={12} />
-                  </div>
-                  <span className="text-[11px] text-zinc-800 font-semibold">{copy.whatsappPay}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
       </div>
-    </div>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { bookingTabCounts, hasIntroduction, isPortalTab, listBookings, PORTAL_PAGE_SIZE, PORTAL_TABS, type PortalTab } from "@/lib/corporate/bookings";
+import { bookingTabCounts, isPortalTab, listBookings, PORTAL_PAGE_SIZE, PORTAL_TABS, type PortalTab } from "@/lib/corporate/bookings";
 import { formatPartnerAmount, formatPickup } from "@/lib/corporate/format";
 import { requirePartner } from "@/lib/corporate/portal";
 import { getDict } from "@/lib/i18n/get-dictionary";
@@ -25,7 +25,7 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
   const counts = await bookingTabCounts();
   const tab: PortalTab = isPortalTab(rawTab) ? rawTab : counts.answer > 0 ? "answer" : "open";
   const page = Math.max(1, Math.floor(Number(rawPage)) || 1);
-  const [{ rows, total }, introduced] = await Promise.all([listBookings(tab, page), hasIntroduction()]);
+  const { rows, total } = await listBookings(tab, page);
   const pages = Math.max(1, Math.ceil(total / PORTAL_PAGE_SIZE));
 
   const base = localizedPath("/corporate-partner/account", locale);
@@ -35,16 +35,6 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
 
   return (
     <div className="flex flex-col gap-8">
-      {!introduced && (
-        <aside className="flex flex-col items-start gap-3 border border-ink-225 bg-white p-6">
-          <h2 className="m-0 font-serif text-[24px] font-normal leading-[1.15] text-ink-950">{p.introCtaTitle}</h2>
-          <p className="m-0 max-w-[560px] text-[15px] text-ink-700">{p.introCtaText}</p>
-          <Link href={localizedPath("/corporate-partner/account/introduction", locale)} className="text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4">
-            {p.introCtaLink}
-          </Link>
-        </aside>
-      )}
-
       {counts.answer > 0 && tab !== "answer" && (
         <p className="m-0 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-[15px] text-[#10224f]">
           <Link href={`${base}?tab=answer`} className="text-[#10224f] underline underline-offset-4 hover:text-[#10224f]">

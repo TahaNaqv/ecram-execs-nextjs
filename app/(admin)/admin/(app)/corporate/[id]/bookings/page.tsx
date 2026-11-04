@@ -23,7 +23,7 @@ export default async function PartnerBookingsPage({ params }: { params: Promise<
     pickupDate: [
       b.pickupAt ? formatPickup(b.pickupAt) : "—",
       b.passengers != null ? `${b.passengers} ${detailCopy.passengers}` : null,
-      b.luggage != null ? `${b.luggage} ${detailCopy.luggage}` : null,
+      b.luggage != null ? `${b.luggage} ${detailCopy.luggage}${b.handLuggage ? `, ${b.handLuggage} small` : ""}` : null,
     ]
       .filter((part) => part != null)
       .join(" · "),

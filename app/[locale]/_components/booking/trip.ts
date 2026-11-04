@@ -1,6 +1,6 @@
 import { HOURLY_DURATIONS, type Service } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
-import { MAX_CARS, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
+import { bagCapacity, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
 
@@ -20,21 +20,65 @@ export type Trip = {
   /** Wall-clock "YYYY-MM-DDTHH:mm" in the Netherlands, or "" */
   at: string;
   pax: number;
+  /** Large suitcases. Checked against the chosen car's boot. */
   bags: number;
+  /** Hand luggage and backpacks. Cabin items, not part of the boot check. */
+  small: number;
   /** Whether the visitor has chosen the guests and bags: until then the bar shows a prompt, not a count (QA round 3, bug 7) */
   guestsSet: boolean;
   flight: string;
-  /** A fleet key, "advise" for no preference, or "" when not chosen yet. With several cars, this is the first of `cars`. */
+  /** A fleet key, "advise" for no preference, or "" when not chosen yet. */
   vehicle: VehicleChoice | "";
-  /** Cars the visitor chose, with how many of each. Empty when they have not chosen, or when they ask us to choose. */
+  /** The one car the visitor chose. Empty when they have not chosen, or when they ask us to choose. */
   cars: { key: VehicleKey; count: number }[];
 };
 
-/** The highest number the form will take. The count is the real number, never "8+". */
-export const MAX_PASSENGERS = 99;
-export const MAX_BAGS = 12;
-/** How many of one model the form will take. Other models stay available up to the same number. */
-export const MAX_PER_CAR = MAX_CARS;
+/** The Cadillac Escalade IQ seats 7, the most in the fleet. The form never takes more. */
+export const MAX_PASSENGERS = 7;
+/** Large suitcases any form will take, before the chosen car's boot is checked. */
+export const MAX_BAGS = 6;
+/** Hand luggage and backpacks. They ride in the cabin, so the boot does not cap them. */
+export const MAX_SMALL_BAGS = 8;
+/** One of the chosen model. Selecting another model replaces it. */
+export const MAX_PER_CAR = 1;
+
+/** Pickup and drop-off, ignoring case and extra spaces. Empty text never matches. */
+export function samePlace(a: string, b: string): boolean {
+  const norm = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
+  const left = norm(a);
+  const right = norm(b);
+  return left.length > 0 && left === right;
+}
+
+/** Whether the chosen car can seat this party and take these large suitcases. Hand luggage is not part of this. "advise" is not a car yet. */
+export function capacityProblem(vehicleKey: string | null | undefined, pax: number, bags: number | null): { passengers: boolean; luggage: boolean } {
+  if (!vehicleKey || vehicleKey === "advise") return { passengers: false, luggage: false };
+  const car = vehicleByKey(vehicleKey);
+  if (!car) return { passengers: false, luggage: false };
+  return {
+    passengers: pax > (car.specs?.passengers ?? 0),
+    luggage: bags != null && bags > bagCapacity(car),
+  };
+}
+
+const bounded = (n: number, min: number, max: number) => {
+  const value = Number.isFinite(n) ? Math.trunc(n) : min;
+  return Math.min(max, Math.max(min, value));
+};
+
+/**
+ * One car, and a party inside the form's own limits. A car that cannot take the party stays selected:
+ * the form then explains that, instead of quietly switching the car or the counts.
+ */
+export function normalizeTrip(trip: Trip): Trip {
+  const pax = bounded(trip.pax, 1, MAX_PASSENGERS);
+  const bags = bounded(trip.bags, 0, MAX_BAGS);
+  const small = bounded(trip.small, 0, MAX_SMALL_BAGS);
+  const chosen = trip.cars.find((c) => c.count >= 1);
+  const named = (chosen ? vehicleByKey(chosen.key) : undefined) ?? (trip.vehicle && trip.vehicle !== "advise" ? vehicleByKey(trip.vehicle) : undefined);
+  if (named) return { ...trip, pax, bags, small, cars: [{ key: named.key, count: 1 }], vehicle: named.key };
+  return { ...trip, pax, bags, small, cars: [], vehicle: trip.vehicle === "advise" ? "advise" : "" };
+}
 export const emptyPlace = (): Place => ({ text: "", id: null, kind: null });
 export const emptyTrip = (): Trip => ({
   mode: "oneway",
@@ -45,6 +89,7 @@ export const emptyTrip = (): Trip => ({
   at: "",
   pax: 1,
   bags: 0,
+  small: 0,
   guestsSet: false,
   flight: "",
   vehicle: "",
@@ -92,28 +137,33 @@ export function tripFromParams(params: URLSearchParams): Trip {
   const hours = clampInt(params.get("hours"), 1, 24, 0);
   trip.hours = (HOURLY_DURATIONS as readonly number[]).includes(hours) ? hours : "";
   trip.at = WALL_CLOCK.test(params.get("at") ?? "") ? params.get("at")! : "";
-  trip.pax = clampInt(params.get("pax"), 1, MAX_PASSENGERS, trip.pax);
-  trip.bags = clampInt(params.get("bags"), 0, MAX_BAGS, trip.bags);
+  const pax = Number(params.get("pax"));
+  if (Number.isInteger(pax)) trip.pax = pax;
+  const bags = Number(params.get("bags"));
+  if (Number.isInteger(bags)) trip.bags = bags;
+  const small = Number(params.get("small"));
+  if (Number.isInteger(small)) trip.small = small;
   trip.guestsSet = params.has("pax");
   trip.flight = text(params.get("flight"), 12);
   const vehicle = normalizeVehicleKey(params.get("vehicle")) ?? params.get("vehicle");
   trip.vehicle = (VEHICLE_CHOICES as readonly string[]).includes(vehicle ?? "") ? (vehicle as VehicleChoice) : "";
   trip.cars = carsFromParam(params.get("cars"));
-  if (trip.cars.length === 0 && trip.vehicle && trip.vehicle !== "advise") trip.cars = [{ key: trip.vehicle, count: 1 }];
-  if (trip.cars.length > 0) trip.vehicle = trip.cars[0].key;
-  return trip;
+  if (trip.cars.length === 0 && trip.vehicle && trip.vehicle !== "advise") {
+    const key = normalizeVehicleKey(trip.vehicle);
+    if (key) trip.cars = [{ key, count: 1 }];
+  }
+  return normalizeTrip(trip);
 }
 
 const carsFromParam = (raw: string | null): Trip["cars"] => {
   if (!raw) return [];
-  const cars: Trip["cars"] = [];
   for (const part of raw.split("|")) {
     const [key, count] = part.split(":");
     const vehicle = normalizeVehicleKey(key);
     const n = Number(count);
-    if (vehicle && Number.isInteger(n) && n >= 1 && n <= MAX_PER_CAR) cars.push({ key: vehicle, count: n });
+    if (vehicle && Number.isInteger(n) && n >= 1) return [{ key: vehicle, count: 1 }];
   }
-  return cars;
+  return [];
 };
 
 /** The trip as query parameters for /book: only what is set, so links stay short. */
@@ -138,6 +188,7 @@ export function tripToParams(trip: Trip): URLSearchParams {
   if (trip.guestsSet) {
     p.set("pax", String(trip.pax));
     p.set("bags", String(trip.bags));
+    p.set("small", String(trip.small));
   }
   if (trip.flight.trim() && pickupAtAirport(trip)) p.set("flight", trip.flight.trim());
   if (trip.vehicle) p.set("vehicle", trip.vehicle);
@@ -154,6 +205,7 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
     ["service", serviceFor(trip, purpose)],
     ["passengers", String(trip.pax)],
     ["luggage", String(trip.bags)],
+    ["handLuggage", String(trip.small)],
     ["flightNumber", pickupAtAirport(trip) ? trip.flight.trim() : ""],
     ["vehicle", trip.cars[0]?.key ?? trip.vehicle],
     ["vehicles", trip.cars.length > 0 ? JSON.stringify(trip.cars) : ""],
@@ -167,7 +219,7 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
 }
 
 /** Which of the trip's fields are missing or wrong, by the action's field names, so the bar can mark them. */
-export type TripField = "collection" | "destination" | "pickupAt" | "durationHours" | "guests" | "flightNumber";
+export type TripField = "collection" | "destination" | "samePlace" | "pickupAt" | "durationHours" | "guests" | "flightNumber";
 export function tripProblems(trip: Trip, nowWallClock: string): TripField[] {
   const problems: TripField[] = [];
   // The server takes bookings up to two years ahead (lib/quotes/validation.ts); same limit here, so nothing typed later is lost to it
@@ -177,6 +229,7 @@ export function tripProblems(trip: Trip, nowWallClock: string): TripField[] {
   const earliest = new Date(Date.parse(`${nowWallClock}:00Z`) - 60 * 60_000).toISOString().slice(0, 16);
   if (!trip.from.text.trim()) problems.push("collection");
   if (trip.mode === "oneway" && !trip.to.text.trim()) problems.push("destination");
+  if (trip.mode === "oneway" && samePlace(trip.from.text, trip.to.text)) problems.push("samePlace");
   if (trip.mode === "hourly" && trip.hours === "") problems.push("durationHours");
   if (!WALL_CLOCK.test(trip.at) || trip.at < earliest || trip.at > latest) problems.push("pickupAt");
   if (!trip.guestsSet) problems.push("guests");

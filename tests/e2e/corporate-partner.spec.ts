@@ -89,6 +89,8 @@ test("the sign-up request step validates its fields", async ({ page }) => {
   await expect(page.locator("#c-email-error")).toHaveText(en.forms.emailInvalid);
   await expect(page.locator("#c-name-error")).toHaveText(en.forms.nameRequired);
   await expect(page.locator("#c-position-error")).toHaveText(t.positionRequired);
+  await expect(page.locator("#c-signatory-error")).toHaveText(t.signatoryRequired);
+  await expect(page.locator("#c-pointOfCall-error")).toHaveText(t.pointOfCallRequired);
 });
 
 test("signing in says the same thing for every failure, and a paused account stays shut until the password is reset", async ({ page, context }) => {
@@ -130,54 +132,15 @@ test("a partner can sign out, sign in again, and sees their introductions", asyn
   await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
   await expect(page.getByRole("heading", { name: en.portal.headingBookings, level: 1 })).toBeVisible();
 
-  // No bookings yet, and the company introduction is still to do: that is offered, and leads to the form
+  // No bookings yet, and the account no longer asks for a separate company introduction
   await expect(page.getByText(en.portal.emptyOpen)).toBeVisible();
-  await page.getByRole("link", { name: en.portal.introCtaLink }).click();
-  await expect(page).toHaveURL(/\/en\/corporate-partner\/account\/introduction$/);
-
-  // The booker's own details are shown, not typed
-  await expect(page.getByRole("heading", { name: t.formHeading })).toBeVisible();
-  await expect(page.locator("#c-bookerEmail")).toHaveValue(email);
-  await expect(page.locator("#c-bookerName")).toHaveValue("Anouk Jansen");
-  await expect(page.locator("#c-phoneCountry")).toHaveValue("31");
-
-  // The client's vehicles and choices, in the client's order (the first option is the placeholder)
-  const optionTexts = (id: string) => page.locator(`${id} option`).evaluateAll((os) => os.slice(1).map((o) => (o as HTMLOptionElement).text));
-  expect(await optionTexts("#c-vehicle")).toEqual([
-    "Audi e-tron GT",
-    "Mercedes-Benz VLE 300",
-    "Cadillac Escalade IQ",
-    "Range Rover EV",
-    "Hongqi E-HS9",
-  ]);
-  // The short lists are choice pills (radio buttons), not drop-downs
-  const radioValues = (name: string) => page.locator(`input[type=radio][name=${name}]`).evaluateAll((os) => os.map((o) => (o as HTMLInputElement).value));
-  expect(await radioValues("contactMethod")).toEqual(["email", "phone", "whatsapp"]);
-  expect(await radioValues("tripTime")).toEqual(["morning", "afternoon", "evening"]);
-  expect(await radioValues("duration")).toEqual(["2_4", "2_8", "2_12", "2_24"]);
-
-  await page.fill("#c-company", "Orion Holdings B.V.");
-  await page.fill("#c-companyNumber", "12345678");
-  await page.fill("#c-phone", "6 1234 5678");
-  await page.locator("#c-contactMethod-whatsapp").check();
-  await page.fill("#c-signatory", "Marieke van Dijk");
-  await page.fill("#c-pointOfCall", "Jeroen Bakker");
-  await page.selectOption("#c-vehicle", "mercedes_vle_300");
-  await page.locator("#c-tripTime-morning").check();
-  await page.locator("#c-duration-2_8").check();
-  await page.getByRole("button", { name: t.submit }).click();
-  await expect(page.getByRole("status")).toContainText("Anouk");
-
-  // Reloading keeps the session (checked against the database every time), and the introduction is listed
-  await page.goto("/en/corporate-partner/account/introduction");
-  await expect(page.getByRole("heading", { name: t.introductionsHeading })).toBeVisible();
-  await expect(page.getByText(/EE-[A-Z0-9]{6}/)).toBeVisible();
-  await expect(page.getByText("Orion Holdings B.V.")).toBeVisible();
-
-  // The introduction is one of this account's bookings, and the prompt to send one is gone
-  await page.goto("/en/corporate-partner/account");
-  await expect(page.getByText(/EE-[A-Z0-9]{6}/)).toBeVisible();
   await expect(page.getByRole("heading", { name: en.portal.introCtaTitle })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: en.portal.navIntro })).toHaveCount(0);
+
+  // The old introduction address opens the bookings list
+  await page.goto("/en/corporate-partner/account/introduction");
+  await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
+  await expect(page.getByRole("heading", { name: t.formHeading })).toHaveCount(0);
 
   // Sign out: the page closes, and signing back in with the password opens it again
   await page.getByRole("button", { name: t.signOut }).click();
@@ -237,6 +200,8 @@ test("an unfinished sign-up is cleared on refresh and when the page is opened ag
   await page.fill("#c-position", "Kept Role");
   await page.fill("#c-companyName", "Kept BV");
   await page.fill("#c-kvkNumber", "12345678");
+  await page.fill("#c-signatory", "Kept Signatory");
+  await page.fill("#c-pointOfCall", "Kept Contact");
   await page.fill("#c-phone", "+31612345678");
   await page.reload();
   await expect(page.locator("#c-email")).toHaveValue("");
@@ -244,6 +209,8 @@ test("an unfinished sign-up is cleared on refresh and when the page is opened ag
   await expect(page.locator("#c-position")).toHaveValue("");
   await expect(page.locator("#c-companyName")).toHaveValue("");
   await expect(page.locator("#c-kvkNumber")).toHaveValue("");
+  await expect(page.locator("#c-signatory")).toHaveValue("");
+  await expect(page.locator("#c-pointOfCall")).toHaveValue("");
   await expect(page.locator("#c-phone")).toHaveValue("");
   await expect(page.locator("#c-code")).toHaveCount(0);
 

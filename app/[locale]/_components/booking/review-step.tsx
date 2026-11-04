@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, vehicleByKey, type ConvoyPlan, type FleetVehicle } from "@/lib/fleet/vehicles";
+import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, suggestVehicle, vehicleByKey, type ConvoyPlan, type FleetVehicle } from "@/lib/fleet/vehicles";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingResult, BookingStep, DetailsEntry } from "./booking-flow";
 import { Check, pretty, SeatIcon } from "./parts";
 import type { BookingCopy } from "./copy";
-import { bagsText, guestsText } from "./guests-picker";
+import { guestsText, partyLine } from "./guests-picker";
 import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
 import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
 
@@ -70,7 +70,7 @@ export function RouteOutline({ trip, copy: t, locale }: { trip: Trip; copy: Book
           {trip.guestsSet && (
             <>
               <dt className="text-ink-500">{t.summaryParty}</dt>
-              <dd className="m-0">{`${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`}</dd>
+              <dd className="m-0">{partyLine(t, trip.pax, trip.bags, trip.small)}</dd>
             </>
           )}
           {trip.guestsSet && convoySentence(t, trip) && (
@@ -237,7 +237,7 @@ export function ReviewStep({
   const ride: [string, ReactNode][] = waypoints(trip, t).map((w) => [w.label, w.place]);
   if (trip.mode === "hourly" && trip.hours !== "") ride.push([t.duration, interpolate(t.asDirected, { hours: trip.hours })]);
   if (trip.at) ride.push([t.summaryWhen, pretty(trip.at, locale)]);
-  ride.push([t.summaryParty, `${guestsText(t, trip.pax)} · ${bagsText(t, trip.bags)}`]);
+  ride.push([t.summaryParty, partyLine(t, trip.pax, trip.bags, trip.small)]);
   if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
   if (routed && estimate) ride.push([t.reviewDistance, estimate === "pending" ? <span className="text-ink-500">{t.reviewDistancePending}</span> : distanceText(estimate, t, locale)]);
   // The drive and the waits together: the time the price is worked out on
@@ -256,8 +256,9 @@ export function ReviewStep({
   else if (convoy) ride.push([t.reviewVehicle, convoy]);
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip);
-  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? chosen;
-  const name = label ?? lead?.name ?? vehicleAdvise;
+  const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
+  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? chosen ?? advised;
+  const name = trip.vehicle === "advise" && picks.length === 0 ? vehicleAdvise : label ?? lead?.name ?? vehicleAdvise;
   const photos = (lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
   const seats = label ? null : (lead?.specs?.passengers ?? null);
 
@@ -265,7 +266,7 @@ export function ReviewStep({
   const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null);
 
   const card = (title: string, children: ReactNode) => (
-    <section aria-label={title} className="flex h-full min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+    <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
       <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
       {children}
     </section>
@@ -373,10 +374,10 @@ export function ReviewStep({
                   ))}
                 </span>
               ) : (
-                <span className="font-serif text-[22px] leading-tight">{name}</span>
+                <span className="min-w-0 font-serif text-[22px] leading-tight">{name}</span>
               )}
               {seats !== null && (
-                <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
+                <span className="flex shrink-0 items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
                   <SeatIcon />
                   {interpolate(t.seatsUpTo, { seats })}
                 </span>

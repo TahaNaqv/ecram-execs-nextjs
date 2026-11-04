@@ -1,6 +1,6 @@
 import "server-only";
 import { ne } from "drizzle-orm";
-import { tripFields, emptyTrip, MAX_BAGS, type Trip } from "@/app/[locale]/_components/booking/trip";
+import { tripFields, emptyTrip, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, normalizeTrip, type Trip } from "@/app/[locale]/_components/booking/trip";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { busyVehicleKeys } from "@/lib/fleet/availability";
@@ -34,6 +34,8 @@ export type Draft = {
   ret?: string;
   passengers?: number;
   bags?: number;
+  /** Hand luggage and backpacks. Optional: left out means none. */
+  small?: number;
   flight?: string;
   /** A fleet key, or "advise" for no preference */
   vehicle?: string;
@@ -80,8 +82,9 @@ const CLEAN: { [K in DraftKey]-?: (v: unknown) => Draft[K] | undefined } = {
   at: (v) => (typeof v === "string" && WALL_CLOCK.test(v.trim()) ? v.trim() : undefined),
   // Never kept (see applyPatch): the client takes no return journeys
   ret: () => undefined,
-  passengers: whole(1, 50),
+  passengers: whole(1, MAX_PASSENGERS),
   bags: whole(0, MAX_BAGS),
+  small: whole(0, MAX_SMALL_BAGS),
   flight: text(12),
   vehicle: (v) => {
     if (typeof v !== "string") return undefined;
@@ -167,6 +170,7 @@ const FIELD_OF: Record<string, DraftKey> = {
   durationHours: "hours",
   passengers: "passengers",
   luggage: "bags",
+  handLuggage: "small",
   flightNumber: "flight",
   name: "name",
   email: "email",
@@ -190,12 +194,13 @@ export function tripOf(draft: Draft): Trip {
   trip.at = draft.at ?? "";
   trip.pax = draft.passengers ?? 1;
   trip.bags = draft.bags ?? 0;
+  trip.small = draft.small ?? 0;
   trip.guestsSet = draft.passengers !== undefined;
   trip.flight = draft.flight ?? "";
   trip.vehicle = (draft.vehicle as Trip["vehicle"] | undefined) ?? "advise";
   const chosen = trip.vehicle !== "advise" ? normalizeVehicleKey(trip.vehicle) : undefined;
   if (chosen) trip.cars = [{ key: chosen, count: 1 }];
-  return trip;
+  return normalizeTrip(trip);
 }
 
 /** What the visitor sees on the card, in plain values the page can label. */
@@ -209,6 +214,7 @@ export type Summary = {
   returning: string | null;
   passengers: number;
   bags: number;
+  small: number;
   car: string | null;
   flight: string | null;
   name: string;
@@ -358,6 +364,7 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
       returning: null,
       passengers: draft.passengers!,
       bags: draft.bags ?? 0,
+      small: draft.small ?? 0,
       car,
       flight: draft.flight && form.some(([k, v]) => k === "flightNumber" && v) ? draft.flight : null,
       name: draft.name!,

@@ -185,9 +185,7 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-full z-40 m-0 mt-4 box-border max-h-[min(24rem,60vh)] w-max min-w-full max-w-[min(28rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain ${
-            alignEnd ? "right-0 left-auto" : "left-0"
-          } list-none rounded-2xl border border-solid p-2 shadow-2xl ${
+          className={`absolute top-[calc(100%+var(--field-pad,0px)+6px)] left-[calc(var(--field-pad,0px)*-1)] z-40 m-0 box-border max-h-[min(18rem,50vh)] w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-xl border border-solid p-1.5 shadow-2xl sm:max-h-[min(24rem,60vh)] sm:rounded-2xl sm:p-2 ${
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
           }`}
         >
@@ -204,21 +202,21 @@ export function AddressField({
                 pick(hit);
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex min-h-[64px] cursor-pointer items-center gap-3.5 rounded-[12px] px-3.5 py-3 ${
+              className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 sm:min-h-[64px] sm:gap-3.5 sm:rounded-[12px] sm:px-3.5 sm:py-3 ${
                 i === active ? (dark ? "bg-white/10" : "bg-ink-100") : ""
               }`}
             >
-              <span className={`grid size-11 shrink-0 place-items-center rounded-[12px] ${dark ? "bg-white/10" : "bg-ink-100"}`}>
-                <PlaceIcon kind={hit.kind} size={20} />
+              <span className={`grid size-8 shrink-0 place-items-center rounded-lg sm:size-11 sm:rounded-[12px] ${dark ? "bg-white/10" : "bg-ink-100"}`}>
+                <PlaceIcon kind={hit.kind} size={16} />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-[16px] leading-snug font-semibold">{hit.name}</span>
-                {hit.detail && <span className={`text-[13px] leading-snug ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
+                <span className="truncate text-[14px] leading-snug font-semibold sm:text-[16px]">{hit.name}</span>
+                {hit.detail && <span className={`truncate text-[12px] leading-snug sm:text-[13px] ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
               </span>
             </li>
           ))}
           {active >= 0 && items[active] && (
-            <li role="presentation" className={`mx-1 mt-1 border-0 border-t border-solid px-3 pt-2.5 pb-1.5 text-[14px] leading-snug ${dark ? "border-white/15 text-white" : "border-ink-150 text-ink-950"}`}>
+            <li role="presentation" className={`mx-1 mt-1 hidden border-0 border-t border-solid px-3 pt-2.5 pb-1.5 text-[14px] leading-snug sm:block ${dark ? "border-white/15 text-white" : "border-ink-150 text-ink-950"}`}>
               {fullAddress(items[active])}
             </li>
           )}

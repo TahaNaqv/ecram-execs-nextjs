@@ -42,6 +42,8 @@ export const quoteRequests = pgTable(
     service: serviceKind("service").notNull(),
     passengers: integer("passengers"),
     luggage: integer("luggage"),
+    /** Cabin bags and backpacks. They ride with the guests and are not checked against the boot. */
+    handLuggage: integer("hand_luggage"),
     flightNumber: text("flight_number"),
     durationHours: integer("duration_hours"),
     // Minutes the car is held for the trip itself (the buffer after it is added on top): the route's drive time plus an
@@ -277,6 +279,8 @@ export const corporateContacts = pgTable(
     position: text("position").notNull(),
     companyName: text("company_name"),
     kvkNumber: text("kvk_number"),
+    signatory: text("signatory"),
+    pointOfCall: text("point_of_call"),
     phone: text("phone"), // <-- Added phone field to persist direct phone numbers
     locale: contentLocale("locale").notNull().default("en"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),

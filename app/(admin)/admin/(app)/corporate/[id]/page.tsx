@@ -66,7 +66,7 @@ export default async function CorporatePartnerProfilePage({
       pickupDate: [
         b.pickupAt ? formatPickup(b.pickupAt) : "—",
         b.passengers != null ? `${b.passengers} ${admin.requestDetail.passengers}` : null,
-        b.luggage != null ? `${b.luggage} ${admin.requestDetail.luggage}` : null,
+        b.luggage != null ? `${b.luggage} ${admin.requestDetail.luggage}${b.handLuggage ? `, ${b.handLuggage} small` : ""}` : null,
       ]
         .filter((part) => part != null)
         .join(" · "),

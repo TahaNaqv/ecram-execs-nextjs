@@ -45,7 +45,9 @@ type HeadingRef = {
 
 export type AccountFlowCopy = Record<
   | "stepRequest" | "stepCode" | "stepPassword" | "resetStepRequest" | "resetStepCode" | "resetStepPassword" | "progressLabel"
-  | "labelEmail" | "phEmail" | "labelName" | "phName" | "labelPosition" | "phPosition" | "consentLabel" | "privacyNote" | "privacyLink"
+  | "labelEmail" | "phEmail" | "labelName" | "phName" | "labelPosition" | "phPosition"
+  | "labelSignatory" | "phSignatory" | "labelPointOfCall" | "phPointOfCall"
+  | "consentLabel" | "privacyNote" | "privacyLink"
   | "sendCode" | "sendResetCode" | "sending" | "verifyHeading" | "verifyIntro" | "resetVerifyHeading" | "resetVerifyIntro" | "verifyCta" | "verifying"
   | "passwordHeading" | "passwordIntro" | "resetPasswordHeading" | "resetPasswordIntro"
   | "labelCode" | "phCode" | "labelNewPassword" | "labelConfirmPassword" | "passwordHint" | "createAccountCta" | "creating"
@@ -303,6 +305,14 @@ function RequestForm({
                 aria-invalid={!!err.kvkNumber} 
                 className={`${control} px-3 py-2.5 text-xs sm:text-sm`} 
               />
+            </Field>
+            <Field idPrefix="c" label={t.labelSignatory} name="signatory" error={err.signatory}>
+              <input id="c-signatory" name="signatory" type="text" required maxLength={120} autoComplete="off" placeholder={t.phSignatory}
+                defaultValue={v.signatory} aria-invalid={!!err.signatory} aria-describedby={err.signatory ? "c-signatory-error" : undefined} className={control} />
+            </Field>
+            <Field idPrefix="c" label={t.labelPointOfCall} name="pointOfCall" error={err.pointOfCall}>
+              <input id="c-pointOfCall" name="pointOfCall" type="text" required maxLength={120} autoComplete="off" placeholder={t.phPointOfCall}
+                defaultValue={v.pointOfCall} aria-invalid={!!err.pointOfCall} aria-describedby={err.pointOfCall ? "c-pointOfCall-error" : undefined} className={control} />
             </Field>
             <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className={`md:col-span-2 ${countryOpen ? "relative z-30" : ""}`}>
               <div ref={countryRef} className="relative flex w-full min-w-0 items-center bg-transparent">

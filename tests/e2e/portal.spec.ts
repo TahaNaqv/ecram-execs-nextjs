@@ -66,15 +66,14 @@ test("the bookings are grouped by what the partner has to do, including an intro
   await page.getByRole("link", { name: new RegExp(`^${p.tabPast}`) }).click();
   await expect(page.getByText(done.reference)).toBeVisible();
 
-  // The introduction exists, so the prompt to send one is not shown; the counts on the tabs say the same
   await expect(page.getByRole("heading", { name: p.introCtaTitle })).toHaveCount(0);
   await expect(page.getByRole("link", { name: new RegExp(`^${p.tabAnswer} \\(1\\)`) })).toBeVisible();
 });
 
-test("a partner with no introduction yet is offered one", async ({ page, context }) => {
+test("a partner is not asked to introduce the company from the bookings list", async ({ page, context }) => {
   await signedInPartner(page, context, "nointro");
   await page.goto("/en/corporate-partner/account");
-  await expect(page.getByRole("heading", { name: p.introCtaTitle })).toBeVisible();
+  await expect(page.getByRole("heading", { name: p.introCtaTitle })).toHaveCount(0);
   await expect(page.getByText(p.emptyOpen)).toBeVisible();
 });
 
@@ -541,36 +540,18 @@ test("an invoice uploaded by the team is downloadable by its partner and nobody 
   await strangerContext.close();
 });
 
-test("the introduction form keeps its pills after an error, and no pill spills out of its card on a tablet or phone, in Dutch too", async ({ page, context }) => {
+test("sign-up keeps company and signatory, and the old introduction address does not show a trip form", async ({ page, context }) => {
+  await page.goto("/en/corporate-partner/signup");
+  await expect(page.locator("#c-companyName")).toBeVisible();
+  await expect(page.locator("#c-signatory")).toBeVisible();
+  await expect(page.locator("#c-pointOfCall")).toBeVisible();
+  await expect(page.locator("#c-vehicle")).toHaveCount(0);
+  await expect(page.locator("#c-collection")).toHaveCount(0);
+
   await signedInPartner(page, context, "intro-pills");
   await page.goto("/en/corporate-partner/account/introduction");
-  await page.locator("#c-contactMethod-whatsapp").check();
-  await page.locator("#c-tripTime-morning").check();
-  await submit(page, en.corporatePartner.submit);
-  await expect(page.locator("#c-company-error")).toBeVisible();
-  await expect(page.locator("#c-contactMethod-whatsapp")).toBeChecked();
-  await expect(page.locator("#c-tripTime-morning")).toBeChecked();
-
-  // Nothing may run past the edge of its own box: the longer Dutch labels at a tablet's narrow cards are the risk
-  for (const path of ["/nl/zakelijke-partner/account/kennismaking"]) {
-    for (const width of [390, 440, 768, 1024]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(path);
-      await expect(page.locator("form section").first()).toBeVisible();
-      // Text may not run past its pill or card; a long value inside a field scrolls within it, which is fine, but the field itself may not leave its card
-      const spills = await page.evaluate(() => {
-        const out: string[] = [];
-        for (const el of document.querySelectorAll("form section, form fieldset label")) {
-          if (el.scrollWidth > el.clientWidth + 1) out.push(`${el.tagName} ${el.textContent?.slice(0, 20)}`);
-        }
-        for (const el of document.querySelectorAll("form section :is(input, select, textarea, label)")) {
-          if (el.getBoundingClientRect().right > el.closest("section")!.getBoundingClientRect().right + 1) out.push(`${el.tagName}#${el.id}`);
-        }
-        return out;
-      });
-      expect(spills, `${path} at ${width}px`).toEqual([]);
-    }
-  }
+  await expect(page).toHaveURL(/\/en\/corporate-partner\/account$/);
+  await expect(page.locator("#c-vehicle")).toHaveCount(0);
   // The new-booking page is the booking flow now: its bar fits the screen at the same widths, in Dutch
   for (const width of [390, 440, 768, 1024]) {
     await page.setViewportSize({ width, height: 900 });

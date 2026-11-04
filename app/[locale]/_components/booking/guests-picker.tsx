@@ -4,23 +4,37 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { LARGEST_CAR_SEATS } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { BookingCopy } from "./copy";
-import { MAX_BAGS, MAX_PASSENGERS } from "./trip";
+import { MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS } from "./trip";
 
 export const guestsText = (t: BookingCopy, pax: number) =>
   pax === 1 ? t.guestOne : interpolate(t.guestMany, { count: pax });
 export const bagsText = (t: BookingCopy, bags: number) => (bags === 0 ? t.bagNone : bags === 1 ? t.bagOne : interpolate(t.bagMany, { count: bags }));
 
+const counted = (n: number, one: string, many: string) => (n === 1 ? one : interpolate(many, { count: n }));
+
+/** "1 large bag, 2 small bags" — for sentences, not the tight guest button. */
+export const luggageLine = (t: BookingCopy, bags: number, small: number) =>
+  `${counted(bags, t.largeOne, t.largeMany)}, ${counted(small, t.smallOne, t.smallMany)}`;
+
+/** "2 guests · 3 bags (1 large, 2 small)". Short enough for the booking bar. */
+export const partyLine = (t: BookingCopy, pax: number, bags: number, small: number) => {
+  const guests = pax === 1 ? t.guestOne : interpolate(t.guestMany, { count: pax });
+  const total = bags + small;
+  const all = total === 1 ? t.bagOne : interpolate(t.bagMany, { count: total });
+  return `${guests} · ${all} ${interpolate(t.bagSplit, { large: bags, small })}`;
+};
+
 function Stepper({ value, label, min, max, less, more, onChange }: {
   value: number; label: string; min: number; max: number; less: string; more: string; onChange: (n: number) => void;
 }) {
   const button =
-    "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:border-[#e4e8f2] disabled:text-[#b7c0d4]";
+    "grid size-8 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[16px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:border-[#e4e8f2] disabled:text-[#b7c0d4]";
   return (
     <span className="flex items-center gap-2.5">
       <button type="button" aria-label={less} disabled={value <= min} onClick={() => onChange(value - 1)} className={button}>
         −
       </button>
-      <span className="box-border inline-flex h-9 w-12 shrink-0 items-center justify-center rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] [color-scheme:light]">
+      <span className="box-border inline-flex h-8 w-10 shrink-0 items-center justify-center rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] [color-scheme:light]">
         <input
           type="number"
           inputMode="numeric"
@@ -46,16 +60,17 @@ function Stepper({ value, label, min, max, less, more, onChange }: {
 }
 
 /**
- * Passengers and suitcases, behind one button in the booking bar. On wide screens it drops down under the button; on
- * phones it rises from the bottom of the screen. Escape, Done or a click outside closes it.
+ * Passengers, large suitcases and small hand luggage, behind one button in the booking bar.
+ * Escape, Done or a click outside closes it.
  */
-export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labelledBy, describedBy }: {
+export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, tone, labelledBy, describedBy }: {
   id: string;
   pax: number;
   bags: number;
+  small: number;
   /** False until the visitor has chosen: the button then asks for it instead of showing a count (QA round 3, bug 7) */
   set: boolean;
-  onChange: (next: { pax: number; bags: number }) => void;
+  onChange: (next: { pax: number; bags: number; small: number }) => void;
   copy: BookingCopy;
   tone: "dark" | "light";
   labelledBy: string;
@@ -75,17 +90,17 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
     const outside = (e: MouseEvent) => {
       if (root.current?.contains(e.target as Node)) return;
       setOpen(false);
-      if (!set) onChange({ pax, bags });
+      if (!set) onChange({ pax, bags, small });
     };
     document.addEventListener("mousedown", outside);
     return () => document.removeEventListener("mousedown", outside);
-  }, [open, set, pax, bags, onChange]);
+  }, [open, set, pax, bags, small, onChange]);
 
   const close = () => {
     setOpen(false);
     trigger.current?.focus();
     // However it is closed (Done, Escape, a press outside), the visitor has seen the counts and left them: that is the answer
-    if (!set) onChange({ pax, bags });
+    if (!set) onChange({ pax, bags, small });
   };
   const done = close;
   const dark = tone === "dark";
@@ -116,7 +131,7 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
           dark ? "after:ring-white/60" : "after:ring-ink-950"
         } ${set ? (dark ? "text-white" : "text-ink-950") : dark ? "font-normal text-ink-400" : "font-normal text-ink-475"}`}
       >
-        <span className="truncate">{set ? `${guestsText(t, pax)} · ${bagsText(t, bags)}` : t.guestsPlaceholder}</span>
+        <span className="whitespace-normal">{set ? partyLine(t, pax, bags, small) : t.guestsPlaceholder}</span>
         <span className={`shrink-0 ${dark ? "text-ink-250" : "text-ink-600"}`} aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? "rotate-180" : ""}`}>
             <path d="M6 9l6 6 6-6" />
@@ -129,12 +144,12 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
             id={dialogId}
             role="dialog"
             aria-label={t.guestsDialog}
-            className="fixed inset-x-0 bottom-0 z-[70] rounded-t-3xl border-t border-solid border-ink-300 bg-white px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-ink-950 shadow-2xl md:absolute md:inset-x-auto md:top-full md:right-0 md:bottom-auto md:mt-1 md:w-[310px] md:rounded-2xl md:p-4"
+            className="absolute top-full right-0 left-0 z-[70] mt-1.5 max-h-[min(70dvh,26rem)] overflow-y-auto rounded-2xl border border-solid border-ink-300 bg-white p-3 text-ink-950 shadow-2xl md:left-auto md:w-[300px]"
           >
-            <div ref={first} className="flex items-center justify-between gap-3 py-2">
-              <span className="flex flex-col">
-                <strong className="text-[14px]">{t.passengers}</strong>
-                <small className="text-[11.5px] text-ink-600">{t.passengersHint}</small>
+            <div ref={first} className="flex items-center justify-between gap-2 py-1">
+              <span className="flex min-w-0 flex-col">
+                <strong className="text-[13px]">{t.passengers}</strong>
+                <small className="text-[11px] text-ink-600">{t.passengersHint}</small>
               </span>
               <Stepper
                 value={pax}
@@ -143,21 +158,28 @@ export function GuestsPicker({ id, pax, bags, set, onChange, copy: t, tone, labe
                 max={MAX_PASSENGERS}
                 less={t.fewerPassengers}
                 more={t.morePassengers}
-                onChange={(n) => onChange({ pax: n, bags })}
+                onChange={(n) => onChange({ pax: n, bags, small })}
               />
             </div>
-            <div className="flex items-center justify-between gap-3 py-2">
-              <span className="flex flex-col">
-                <strong className="text-[14px]">{t.suitcases}</strong>
-                <small className="text-[11.5px] text-ink-600">{t.suitcasesHint}</small>
+            <div className="flex items-center justify-between gap-2 py-1">
+              <span className="flex min-w-0 flex-col">
+                <strong className="text-[13px]">{t.suitcases}</strong>
+                <small className="text-[11px] text-ink-600">{t.suitcasesHint}</small>
               </span>
-              <Stepper value={bags} label={t.suitcases} min={0} max={MAX_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: n })} />
+              <Stepper value={Math.min(bags, MAX_BAGS)} label={t.suitcases} min={0} max={MAX_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_BAGS, n), small })} />
             </div>
-            <p className="m-0 mt-1 text-[11.5px] text-ink-600">{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
+            <div className="flex items-center justify-between gap-2 py-1">
+              <span className="flex min-w-0 flex-col">
+                <strong className="text-[13px]">{t.smallBags}</strong>
+                <small className="text-[11px] text-ink-600">{t.smallBagsHint}</small>
+              </span>
+              <Stepper value={Math.min(small, MAX_SMALL_BAGS)} label={t.smallBags} min={0} max={MAX_SMALL_BAGS} less={t.fewerSmallBags} more={t.moreSmallBags} onChange={(n) => onChange({ pax, bags, small: Math.min(MAX_SMALL_BAGS, n) })} />
+            </div>
+            <p className="m-0 mt-1 text-[11px] text-ink-600">{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
             <button
               type="button"
               onClick={done}
-              className="mt-3 h-10 w-full cursor-pointer rounded-xl border-0 bg-ink-950 text-[13.5px] font-semibold text-white hover:bg-ink-800"
+              className="mt-2 h-9 w-full cursor-pointer rounded-lg border-0 bg-ink-950 text-[13px] font-semibold text-white hover:bg-ink-800"
             >
               {t.done}
             </button>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { HOURLY_DURATIONS, SERVICES } from "@/lib/quotes/constants";
+import { capacityProblem, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
 import { VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
@@ -47,6 +48,10 @@ export type QuoteMessages = {
   returnBeforePickup: string;
   passengerNameTooLong: string;
   passengerPhoneInvalid: string;
+  luggageInvalid: string;
+  samePlace: string;
+  vehiclePassengers: string;
+  vehicleLuggage: string;
 };
 
 const WALL_CLOCK = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -86,8 +91,9 @@ export const quoteSchema = (t: QuoteMessages) =>
         .refine((h) => (HOURLY_DURATIONS as readonly number[]).includes(h), t.durationRequired)
         .optional(),
     ),
-    passengers: z.coerce.number().int().min(1).max(99).optional(),
-    luggage: z.preprocess(blank, z.coerce.number().int().min(0).max(20).optional()),
+    passengers: z.coerce.number().int().min(1).max(MAX_PASSENGERS).optional(),
+    luggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_BAGS).optional()),
+    handLuggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_SMALL_BAGS).optional()),
     // An airline flight ("KL 1002") or, for a private flight, the aircraft's registration ("PH-ABC")
     flightNumber: z.preprocess(
       blank,
@@ -112,7 +118,7 @@ export const quoteSchema = (t: QuoteMessages) =>
       .optional()
       .transform((v) => (v ? (normalizeVehicleKey(v) ?? v) : undefined))
       .pipe(z.enum(VEHICLE_CHOICES).optional()),
-    // JSON from the car step: [{ "key": "audi", "count": 1 }, ...]. Empty when the visitor asks us to choose.
+    // JSON from the car step: [{ "key": "audi", "count": 1 }]. Empty when the visitor asks us to choose. One car only.
     vehicles: z.preprocess((v) => {
       if (v == null || v === "") return undefined;
       if (typeof v === "string") {
@@ -125,8 +131,8 @@ export const quoteSchema = (t: QuoteMessages) =>
       return v;
     }, z.array(z.object({
       key: z.string().transform((k) => normalizeVehicleKey(k) ?? k).pipe(z.enum(VEHICLE_KEYS)),
-      count: z.coerce.number().int().min(1).max(3),
-    })).max(8).optional()),
+      count: z.coerce.number().int().min(1).max(1),
+    })).max(1).optional()),
     // When the booker books on behalf of a company or organization
     entity: z.preprocess(blank, z.string().trim().max(200).optional()),
     entityKvk: z.preprocess(blank, z.string().trim().max(30).optional()),
@@ -145,6 +151,10 @@ export const quoteSchema = (t: QuoteMessages) =>
     if (!v.destination && v.service !== "hourly") issue("destination", t.destinationRequired);
     if (!v.destination && v.service === "hourly" && !v.durationHours) issue("durationHours", t.durationRequired);
     if (v.returnAt && v.returnAt <= v.pickupAt) issue("returnAt", t.returnBeforePickup);
+    if (v.destination && samePlace(v.collection, v.destination)) issue("destination", t.samePlace);
+    const fit = capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
+    const fitText = [fit.passengers ? t.vehiclePassengers : "", fit.luggage ? t.vehicleLuggage : ""].filter(Boolean).join(" ");
+    if (fitText) issue("vehicle", fitText);
   }).transform(({ phoneCountry, phone, passengerPhoneCountry, passengerPhone, durationHours, ...rest }) => ({
     ...rest,
     phone: `+${phoneCountry} ${phone}`,

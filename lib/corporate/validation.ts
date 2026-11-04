@@ -3,7 +3,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Dictionary } from "@/lib/i18n/types";
 import { phoneLengthOk } from "@/lib/phone";
-import { MAX_PASSENGERS } from "@/app/[locale]/_components/booking/trip";
+import { capacityProblem, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
 
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 128;
@@ -40,6 +40,9 @@ type FormMessages = Pick<
   | "pickupInvalid"
   | "returnInvalid"
   | "returnBeforePickup"
+  | "samePlace"
+  | "vehiclePassengers"
+  | "vehicleLuggage"
 >;
 type CorporateMessages = Pick<
   Dictionary["corporatePartner"],
@@ -70,6 +73,8 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
     position: z.string().trim().min(1, c.positionRequired).max(120, c.positionTooLong),
     companyName: z.string().trim().min(1, c.companyRequired).max(200, c.companyTooLong),
     kvkNumber: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9 .\-/]{2,24}$/, c.companyNumberInvalid),
+    signatory: z.string().trim().min(1, c.signatoryRequired).max(120, c.fieldTooLong),
+    pointOfCall: z.string().trim().min(1, c.pointOfCallRequired).max(120, c.fieldTooLong),
     phoneCountryCode: z.string().trim().min(1).default("+31"),
     phone: z.string().trim(),
     marketingConsent: z.preprocess((v) => v === "on", z.boolean()),
@@ -130,7 +135,8 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
     // Same wall-clock string the date field submits ("YYYY-MM-DDTHH:mm"), stored as Netherlands time
     pickupAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, f.pickupInvalid),
     passengers: z.coerce.number({ error: c.chooseOption }).int().min(1, c.chooseOption).max(MAX_PASSENGERS, c.chooseOption),
-    luggage: z.string().trim().regex(/^(?:[0-9]|1[0-9]|20)$/, c.luggageInvalid).transform(Number),
+    luggage: z.coerce.number({ error: c.luggageInvalid }).int().min(0, c.luggageInvalid).max(MAX_BAGS, c.luggageInvalid),
+    handLuggage: z.coerce.number().int().min(0).max(MAX_SMALL_BAGS),
     returnStatus: z.enum(RETURN_STATUSES, { error: c.chooseOption }),
     // Present only when the booker opened "Add a return journey". Empty means they opened it and did not choose a time.
     returnAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, f.returnInvalid).optional(),
@@ -147,6 +153,11 @@ export const onboardingSchema = (f: FormMessages, c: CorporateMessages) =>
   }).superRefine((v, ctx) => {
     if (!phoneLengthOk(v.phoneCountry, v.phone)) ctx.addIssue({ code: "custom", path: ["phone"], message: f.phoneNumberInvalid });
     if (v.returnAt && v.returnAt <= v.pickupAt) ctx.addIssue({ code: "custom", path: ["returnAt"], message: f.returnBeforePickup });
+    if (samePlace(v.collection, v.destination)) ctx.addIssue({ code: "custom", path: ["destination"], message: f.samePlace });
+    const fleetKey = CORPORATE_VEHICLES.find((car) => car.key === v.vehicle)?.fleetKey;
+    const fit = capacityProblem(fleetKey, v.passengers, v.luggage);
+    if (fit.passengers) ctx.addIssue({ code: "custom", path: ["vehicle"], message: f.vehiclePassengers });
+    if (fit.luggage) ctx.addIssue({ code: "custom", path: ["luggage"], message: f.vehicleLuggage });
   }).transform(({ phoneCountry, phone, ...rest }) => ({ ...rest, phone: `+${phoneCountry} ${phone}` }));
 
 export type RequestField = keyof z.input<ReturnType<typeof requestSchema>>;

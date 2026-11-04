@@ -10,13 +10,14 @@ import { useEffect, useRef } from "react";
  */
 const KEY = "ee-bookings-sent";
 
-const read = () => {
+export const bookingsSent = () => {
   try {
     return Number(sessionStorage.getItem(KEY)) || 0;
   } catch {
     return 0; // storage blocked: the forms then keep what they hold, as they did before
   }
 };
+const read = bookingsSent;
 const write = (n: number) => {
   try {
     sessionStorage.setItem(KEY, String(Math.max(0, n)));

@@ -10,10 +10,10 @@ import { CONTACT_METHODS, CORPORATE_VEHICLES, DURATIONS, TRIP_TIMES } from "@/li
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
-import { MAX_PASSENGERS } from "./booking/trip";
+import { capacityProblem, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, samePlace } from "./booking/trip";
 import { CompanyCombobox, type CompanySearchCopy } from "./company-combobox";
 import { Honeypot, Status, submitClass } from "./corporate-ui";
-import { ActionCard, cardSubmit, CardField, CardGrid, CardSelect, ChoiceGroup, cardControl, CountedTextarea, FormCard, LockedInput, PhoneField, SendIcon } from "./form-cards";
+import { ActionCard, cardSubmit, CardField, CardGrid, ChoiceGroup, cardControl, CountedTextarea, FormCard, LockedInput, PhoneField, SendIcon } from "./form-cards";
 
 export type OnboardingCopy = Record<
   | "formHeading" | "formIntro" | "cardCompany" | "cardCompanyHint" | "cardPeople" | "cardPeopleHint" | "cardBooker" | "cardBookerHint"
@@ -51,6 +51,7 @@ type IntroValues = {
   pickupAt: string;
   passengers: string;
   luggage: string;
+  handLuggage: string;
   returnStatus: string;
   notes: string;
   stops: StopDraft[];
@@ -150,20 +151,67 @@ function LocationInput({
   );
 }
 
+const PARTY = {
+  en: {
+    guestOne: "1 guest", guestMany: "{count} guests",
+    bagOne: "1 bag", bagMany: "{count} bags",
+    largeShort: "large", smallShort: "small",
+    passengerOne: "1 passenger", passengerMany: "{count} passengers",
+    largeOne: "1 large bag", largeMany: "{count} large bags",
+    smallOne: "1 small bag", smallMany: "{count} small bags",
+    large: "Large bags", largeHint: "Suitcases", small: "Small bags", smallHint: "Hand luggage and backpacks",
+    fewerLarge: "One fewer large bag", moreLarge: "One more large bag", fewerSmall: "One fewer small bag", moreSmall: "One more small bag",
+    largeCount: "Large bag count", smallCount: "Small bag count",
+    hint: "Large suitcases follow the car. Small bags ride in the cabin.",
+  },
+  nl: {
+    guestOne: "1 gast", guestMany: "{count} gasten",
+    bagOne: "1 koffer", bagMany: "{count} koffers",
+    largeShort: "grote", smallShort: "kleine",
+    passengerOne: "1 passagier", passengerMany: "{count} passagiers",
+    largeOne: "1 grote koffer", largeMany: "{count} grote koffers",
+    smallOne: "1 kleine tas", smallMany: "{count} kleine tassen",
+    large: "Grote tassen", largeHint: "Koffers", small: "Kleine tassen", smallHint: "Handbagage en rugzakken",
+    fewerLarge: "Eén grote koffer minder", moreLarge: "Eén grote koffer meer", fewerSmall: "Eén kleine tas minder", moreSmall: "Eén kleine tas meer",
+    largeCount: "Aantal grote koffers", smallCount: "Aantal kleine tassen",
+    hint: "Grote koffers volgen de auto. Kleine tassen gaan mee in het interieur.",
+  },
+} as const;
+
+const partyPiece = (n: number, one: string, many: string) => (n === 1 ? one : many.replaceAll("{count}", String(n)));
+
 function PassengersSuitcasesSelector({
+  locale,
   passengers,
   suitcases,
+  smallBags,
+  maxPassengers,
+  maxSuitcases,
+  maxSmallBags,
   onChange,
 }: {
+  locale: Locale;
   passengers: string;
   suitcases: string;
-  onChange: (passengers: string, suitcases: string) => void;
+  smallBags: string;
+  maxPassengers: number;
+  maxSuitcases: number;
+  maxSmallBags: number;
+  onChange: (passengers: string, suitcases: string, smallBags: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const pCount = Math.min(MAX_PASSENGERS, Math.max(1, parseInt(passengers || "1", 10) || 1));
-  const sCount = Math.min(20, Math.max(0, parseInt(suitcases || "0", 10) || 0));
-  const setCount = (nextPassengers: number, nextSuitcases: number) =>
-    onChange(String(Math.min(MAX_PASSENGERS, Math.max(1, nextPassengers))), String(Math.min(20, Math.max(0, nextSuitcases))));
+  const words = PARTY[locale];
+  const pCount = Math.min(maxPassengers, Math.max(1, parseInt(passengers || "1", 10) || 1));
+  const sCount = Math.min(maxSuitcases, Math.max(0, parseInt(suitcases || "0", 10) || 0));
+  const hCount = Math.min(maxSmallBags, Math.max(0, parseInt(smallBags || "0", 10) || 0));
+  const setCount = (nextPassengers: number, nextSuitcases: number, nextSmall: number) =>
+    onChange(
+      String(Math.min(maxPassengers, Math.max(1, nextPassengers))),
+      String(Math.min(maxSuitcases, Math.max(0, nextSuitcases))),
+      String(Math.min(maxSmallBags, Math.max(0, nextSmall))),
+    );
+  const totalBags = sCount + hCount;
+  const summary = `${partyPiece(pCount, words.guestOne, words.guestMany)} · ${partyPiece(totalBags, words.bagOne, words.bagMany)} (${sCount} ${words.largeShort}, ${hCount} ${words.smallShort})`;
 
   return (
     <div className="relative w-full max-w-full">
@@ -176,9 +224,9 @@ function PassengersSuitcasesSelector({
         className={`${cardControl} flex w-full cursor-pointer items-center justify-between gap-2 text-left text-[#ffffff]`}
       >
         <span className="min-w-0 flex-1 whitespace-normal font-medium leading-normal text-[#ffffff]">
-          {pCount} {pCount === 1 ? "passenger" : "passengers"}, {sCount} {sCount === 1 ? "suitcase" : "suitcases"}
+          {summary}
         </span>
-        <span className="text-xs text-zinc-600">▼</span>
+        <span className="text-xs text-zinc-400">▼</span>
       </button>
 
       {isOpen && (
@@ -186,11 +234,11 @@ function PassengersSuitcasesSelector({
           role="dialog"
           aria-label="Passengers and suitcases"
           onClick={(event) => event.stopPropagation()}
-          className="absolute top-12 left-0 z-50 flex w-full flex-col gap-4 rounded-2xl border border-solid border-[#d5dbe8] bg-[#ffffff] p-5 text-[#10224f] shadow-2xl [color-scheme:light]"
+          className="absolute inset-x-0 top-full z-50 mt-2 box-border flex w-auto max-w-full flex-col gap-4 rounded-2xl border border-solid border-[#d5dbe8] bg-[#ffffff] p-4 text-[#10224f] shadow-2xl [color-scheme:light] sm:left-1/2 sm:right-auto sm:w-[360px] sm:-translate-x-1/2 sm:p-5"
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="m-0 text-sm font-semibold text-[#10224f]">Passengers</p>
+              <p className="m-0 text-sm font-bold text-[#10224f]">Passengers</p>
               <p className="m-0 text-xs text-[#5c6b8a]">Including you</p>
             </div>
             <div className="flex items-center gap-2">
@@ -198,8 +246,8 @@ function PassengersSuitcasesSelector({
                 type="button"
                 aria-label="One fewer passenger"
                 disabled={pCount <= 1}
-                onClick={() => setCount(pCount - 1, sCount)}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
+                onClick={() => setCount(pCount - 1, sCount, hCount)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] transition-colors hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 −
               </button>
@@ -207,39 +255,39 @@ function PassengersSuitcasesSelector({
                 type="number"
                 inputMode="numeric"
                 min={1}
-                max={MAX_PASSENGERS}
+                max={maxPassengers}
                 aria-label="Passenger count"
                 value={pCount}
                 onChange={(e) => {
                   const n = Number(e.target.value);
-                  if (e.target.value !== "" && Number.isInteger(n)) setCount(n, sCount);
+                  if (e.target.value !== "" && Number.isInteger(n)) setCount(n, sCount, hCount);
                 }}
-                className="box-border h-8 w-16 rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums"
+                className="box-border h-9 w-14 rounded-xl border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums outline-none focus:border-[#10224f]"
               />
               <button
                 type="button"
                 aria-label="One more passenger"
-                disabled={pCount >= MAX_PASSENGERS}
-                onClick={() => setCount(pCount + 1, sCount)}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
+                disabled={pCount >= maxPassengers}
+                onClick={() => setCount(pCount + 1, sCount, hCount)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] transition-colors hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-solid border-[#d5dbe8] pt-3">
+          <div className="flex items-center justify-between gap-3 border-t border-solid border-[#e2e8f0] pt-4">
             <div>
-              <p className="m-0 text-sm font-semibold text-[#10224f]">Suitcases</p>
-              <p className="m-0 text-xs text-[#5c6b8a]">Large bags</p>
+              <p className="m-0 text-sm font-bold text-[#10224f]">{words.large}</p>
+              <p className="m-0 text-xs text-[#5c6b8a]">{words.largeHint}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                aria-label="One fewer suitcase"
+                aria-label={words.fewerLarge}
                 disabled={sCount <= 0}
-                onClick={() => setCount(pCount, sCount - 1)}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
+                onClick={() => setCount(pCount, sCount - 1, hCount)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] transition-colors hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 −
               </button>
@@ -247,33 +295,73 @@ function PassengersSuitcasesSelector({
                 type="number"
                 inputMode="numeric"
                 min={0}
-                max={20}
-                aria-label="Suitcase count"
+                max={maxSuitcases}
+                aria-label={words.largeCount}
                 value={sCount}
                 onChange={(e) => {
                   const n = Number(e.target.value);
-                  if (e.target.value !== "" && Number.isInteger(n)) setCount(pCount, n);
+                  if (e.target.value !== "" && Number.isInteger(n)) setCount(pCount, n, hCount);
                 }}
-                className="box-border h-8 w-16 rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums"
+                className="box-border h-9 w-14 rounded-xl border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums outline-none focus:border-[#10224f]"
               />
               <button
                 type="button"
-                aria-label="One more suitcase"
-                disabled={sCount >= 20}
-                onClick={() => setCount(pCount, sCount + 1)}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
+                aria-label={words.moreLarge}
+                disabled={sCount >= maxSuitcases}
+                onClick={() => setCount(pCount, sCount + 1, hCount)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] transition-colors hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
               >
                 +
               </button>
             </div>
           </div>
 
-          <p className="m-0 text-center text-[11px] text-[#5c6b8a]">Type the exact number, or use the buttons. We use this to suggest the cars that fit.</p>
+          <div className="flex items-center justify-between gap-3 border-t border-solid border-[#e2e8f0] pt-4">
+            <div>
+              <p className="m-0 text-sm font-bold text-[#10224f]">{words.small}</p>
+              <p className="m-0 text-xs text-[#5c6b8a]">{words.smallHint}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label={words.fewerSmall}
+                disabled={hCount <= 0}
+                onClick={() => setCount(pCount, sCount, hCount - 1)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] transition-colors hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={maxSmallBags}
+                aria-label={words.smallCount}
+                value={hCount}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value !== "" && Number.isInteger(n)) setCount(pCount, sCount, n);
+                }}
+                className="box-border h-9 w-14 rounded-xl border border-solid border-[#c5d0e6] bg-[#ffffff] text-center text-sm font-semibold text-[#10224f] tabular-nums outline-none focus:border-[#10224f]"
+              />
+              <button
+                type="button"
+                aria-label={words.moreSmall}
+                disabled={hCount >= maxSmallBags}
+                onClick={() => setCount(pCount, sCount, hCount + 1)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[18px] leading-none font-bold text-[#10224f] transition-colors hover:bg-[#e8eeff] disabled:cursor-default disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <p className="m-0 text-center text-[12px] leading-normal text-[#5c6b8a]">{words.hint}</p>
 
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-full cursor-pointer rounded-xl border border-solid border-[#10224f] bg-[#10224f] py-2.5 text-xs font-bold tracking-wider text-[#ffffff] uppercase transition-colors hover:bg-[#1d3f8f]"
+            className="w-full cursor-pointer rounded-xl border-0 bg-[#071433] py-3 text-xs font-bold tracking-wider text-[#ffffff] uppercase transition-colors hover:bg-[#10224f]"
           >
             Done
           </button>
@@ -316,6 +404,7 @@ export function OnboardingForm({
     pickupAt: "",
     passengers: "1",
     luggage: "0",
+    handLuggage: "0",
     returnStatus: "",
     notes: "",
     stops: [],
@@ -353,8 +442,23 @@ export function OnboardingForm({
     );
   }
 
+  const placesMatch = samePlace(values.collection, values.destination);
+  const fleetKey = CORPORATE_VEHICLES.find((car) => car.key === values.vehicle)?.fleetKey;
+  const fit = capacityProblem(fleetKey, parseInt(values.passengers, 10) || 1, parseInt(values.luggage, 10) || 0);
+  const rules = locale === "nl"
+    ? {
+        samePlace: "Ophaal- en afleverlocatie mogen niet hetzelfde zijn.",
+        vehiclePassengers: "Deze auto kan dit aantal passagiers niet vervoeren.",
+        vehicleLuggage: "Deze auto kan dit aantal koffers niet meenemen.",
+      }
+    : {
+        samePlace: "Pickup and drop-off locations cannot be the same.",
+        vehiclePassengers: "This car cannot accommodate this count of passengers.",
+        vehicleLuggage: "This car cannot accommodate this count of luggage bags.",
+      };
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (placesMatch || fit.passengers || fit.luggage) return;
     const data = new FormData(e.currentTarget);
     startTransition(() => action(data));
   };
@@ -409,10 +513,27 @@ export function OnboardingForm({
                   aria-invalid={!!err.company} aria-describedby={d("company")} className={cardControl} />
               )}
             </CardField>
+            {/* Company Number / CoC Number field supporting alphanumeric text up to 25 characters */}
             <CardField idPrefix="c" name="companyNumber" label={t.labelCompanyNumber} error={err.companyNumber}>
-              <input id="c-companyNumber" name="companyNumber" type="text" required maxLength={25} placeholder={t.phCompanyNumber}
-                value={values.companyNumber} onChange={(e) => patch({ companyNumber: e.target.value })}
-                aria-invalid={!!err.companyNumber} aria-describedby={d("companyNumber")} className={cardControl} />
+              <input 
+                id="c-companyNumber" 
+                name="companyNumber" 
+                type="text" 
+                inputMode="numeric"
+                pattern="[0-9]*"
+                required 
+                maxLength={8} 
+                placeholder={t.phCompanyNumber}
+                value={values.companyNumber} 
+                onChange={(e) => {
+                  // Strip out non-numeric characters and slice to a maximum of 8 digits
+                  const numericValue = e.target.value.replace(/\D/g, "").slice(0, 8);
+                  patch({ companyNumber: numericValue });
+                }}
+                aria-invalid={!!err.companyNumber} 
+                aria-describedby={d("companyNumber")} 
+                className={cardControl} 
+              />
             </CardField>
           </FormCard>
 
@@ -445,16 +566,28 @@ export function OnboardingForm({
           </FormCard>
 
           <FormCard icon="clock" step={4} title={t.cardTravel} hint={t.cardTravelHint}>
-            <CardField idPrefix="c" name="vehicle" label={t.labelVehicle} error={err.vehicle}>
-              <CardSelect id="c-vehicle" name="vehicle" value={values.vehicle} onChange={(e) => patch({ vehicle: e.target.value })}
-                aria-invalid={!!err.vehicle} aria-describedby={d("vehicle")}>
-                <option value="">{t.vehicleSelect}</option>
-                {CORPORATE_VEHICLES.map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.name}
-                  </option>
-                ))}
-              </CardSelect>
+            <CardField idPrefix="c" name="vehicle" label={t.labelVehicle} error={err.vehicle ?? ([fit.passengers ? rules.vehiclePassengers : "", fit.luggage ? rules.vehicleLuggage : ""].filter(Boolean).join(" ") || undefined)}>
+              <input type="hidden" name="vehicle" value={values.vehicle} />
+              <div role="radiogroup" aria-label={t.labelVehicle} aria-invalid={!!err.vehicle || fit.passengers || fit.luggage} aria-describedby={err.vehicle || fit.passengers || fit.luggage ? "c-vehicle-error" : undefined} className="flex flex-col gap-2">
+                {CORPORATE_VEHICLES.map((car) => {
+                  const selected = values.vehicle === car.key;
+                  const problem = capacityProblem(car.fleetKey, parseInt(values.passengers, 10) || 1, parseInt(values.luggage, 10) || 0);
+                  const cardFit = [problem.passengers ? rules.vehiclePassengers : "", problem.luggage ? rules.vehicleLuggage : ""].filter(Boolean).join(" ");
+                  return (
+                    <button
+                      key={car.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => patch({ vehicle: car.key })}
+                      className={`cursor-pointer rounded-xl border border-solid px-3.5 py-2.5 text-left ${selected ? "border-[#ffffff] bg-[#071433]" : "border-[rgba(116,161,255,0.35)] bg-[#102a63]"}`}
+                    >
+                      <span className="block text-[15px] font-semibold text-[#ffffff]">{car.name}</span>
+                      {cardFit && <span className="mt-1 block text-[12px] leading-snug text-[#ffb4b4]">{cardFit}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </CardField>
             <ChoiceGroup idPrefix="c" name="tripTime" legend={t.labelTripTime} value={values.tripTime}
               onValueChange={(tripTime) => patch({ tripTime })} error={err.tripTime} required columns={3}
@@ -478,7 +611,7 @@ export function OnboardingForm({
                   describedBy={d("collection")}
                 />
               </CardField>
-              <CardField idPrefix="c" name="destination" label={t.labelDestination} error={err.destination}>
+              <CardField idPrefix="c" name="destination" label={t.labelDestination} error={err.destination ?? (placesMatch ? rules.samePlace : undefined)}>
                 <LocationInput
                   id="c-destination"
                   name="destination"
@@ -486,8 +619,8 @@ export function OnboardingForm({
                   value={values.destination}
                   onChange={(destination) => patch({ destination })}
                   required
-                  invalid={!!err.destination}
-                  describedBy={d("destination")}
+                  invalid={!!err.destination || placesMatch}
+                  describedBy={err.destination || placesMatch ? "c-destination-error" : undefined}
                 />
               </CardField>
               <CardField idPrefix="c" name="pickupAt" label="Date & Time" error={err.pickupAt}>
@@ -505,13 +638,19 @@ export function OnboardingForm({
                   className="border-0 bg-transparent p-0 text-[16px] text-[#ffffff] placeholder:text-[#8eaee8]"
                 />
               </CardField>
-              <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage ?? err.passengers}>
+              <CardField idPrefix="c" name="luggage" label={t.labelLuggage} error={err.luggage ?? err.handLuggage ?? err.passengers ?? (fit.luggage ? rules.vehicleLuggage : undefined)}>
                 <input type="hidden" name="passengers" value={values.passengers} />
                 <input type="hidden" name="luggage" value={values.luggage} />
+                <input type="hidden" name="handLuggage" value={values.handLuggage} />
                 <PassengersSuitcasesSelector
+                  locale={locale}
                   passengers={values.passengers}
                   suitcases={values.luggage}
-                  onChange={(passengers, luggage) => patch({ passengers, luggage })}
+                  smallBags={values.handLuggage}
+                  maxPassengers={MAX_PASSENGERS}
+                  maxSuitcases={MAX_BAGS}
+                  maxSmallBags={MAX_SMALL_BAGS}
+                  onChange={(passengers, luggage, handLuggage) => patch({ passengers, luggage, handLuggage })}
                 />
                 <p id="c-luggage-hint" className="m-0 mt-1 text-[12px] text-[#ffffff]">{t.luggageHint}</p>
               </CardField>

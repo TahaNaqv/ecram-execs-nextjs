@@ -28,7 +28,7 @@ import {
 export async function requestCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(
-    ["email", "name", "position", "companyName", "kvkNumber", "phoneCountryCode", "phone", "marketingConsent", "locale"].map((k) => [
+    ["email", "name", "position", "companyName", "kvkNumber", "signatory", "pointOfCall", "phoneCountryCode", "phone", "marketingConsent", "locale"].map((k) => [
       k,
       String(formData.get(k) ?? ""),
     ])
@@ -45,7 +45,7 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as RequestField] ??= issue.message;
     return fail(f.checkHighlighted, fieldErrors);
   }
-  const { email, name, position, companyName, kvkNumber, phone, marketingConsent, locale } = parsed.data;
+  const { email, name, position, companyName, kvkNumber, signatory, pointOfCall, phone, marketingConsent, locale } = parsed.data;
 
   try {
     // Check if a corporate contact with this email already has a completed account registration
@@ -77,6 +77,8 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
         position,
         companyName,
         kvkNumber: kvkNumber || null,
+        signatory,
+        pointOfCall,
         phone: phone || null,
         locale,
         ipHash,
@@ -178,7 +180,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const fields = [
     "company", "companyNumber", "phoneCountry", "phone", "contactMethod", "signatory", "pointOfCall",
-    "vehicle", "tripTime", "duration", "collection", "destination", "pickupAt", "passengers", "luggage", "returnStatus",
+    "vehicle", "tripTime", "duration", "collection", "destination", "pickupAt", "passengers", "luggage", "handLuggage", "returnStatus",
     "notes", "locale",
   ] as const;
   const values: Record<string, string> = Object.fromEntries(fields.map((k) => [k, String(formData.get(k) ?? "")]));
@@ -237,7 +239,8 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       `Passengers: ${input.passengers}`,
       ...(convoy.internalNotes ? [convoy.internalNotes] : []),
       `Stopovers: ${stopLines}`,
-      `Luggage: ${input.luggage}`,
+      `Large bags: ${input.luggage}`,
+      `Small bags: ${input.handLuggage}`,
       `Journey: ${input.returnStatus === "hourly" ? "hourly" : "one way"}`,
       ...(input.returnAt ? [`Return (Netherlands): ${input.returnAt.replace("T", " ")}`] : []),
       `Booker position: ${contact.position}`,
@@ -262,6 +265,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             returnAt: input.returnAt ?? null,
             passengers: input.passengers,
             luggage: input.luggage,
+            handLuggage: input.handLuggage,
             vehicle: chosen.fleetKey,
             vehicleCount: convoy.vehicleCount,
             vehicles: convoy.vehicles,

@@ -74,6 +74,7 @@ export type CardCopy = {
   bagNone: string;
   bagOne: string;
   bagMany: string;
+  bagSplit: string;
   privacyNote: string;
   privacyLink: string;
   seatsUpTo: string;
@@ -519,15 +520,18 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
 }
 
 function BookingRows({ summary: b, c }: { summary: Summary; c: CardCopy }) {
+  const small = b.small ?? 0;
+  const total = b.bags + small;
   const guests = b.passengers === 1 ? c.guestOne : interpolate(c.guestMany, { count: b.passengers });
-  const bags = b.bags === 0 ? c.bagNone : b.bags === 1 ? c.bagOne : interpolate(c.bagMany, { count: b.bags });
+  const all = total === 1 ? c.bagOne : interpolate(c.bagMany, { count: total });
+  const party = `${guests} · ${all} ${interpolate(c.bagSplit, { large: b.bags, small })}`;
   const stops = b.stops.map((s, i) => `${interpolate(c.stopLabel, { number: i + 1 })}: ${s.place}${s.wait ? ` (${interpolate(c.waitMinutes, { minutes: s.wait })})` : ""}`);
   const rows: [string, string][] = [
     [c.summaryRoute, b.mode === "hourly" ? `${b.from} · ${interpolate(c.asDirected, { hours: b.hours ?? "" })}` : [`${b.from} → ${b.to}`, ...stops].join("\n")],
     [c.summaryWhen, b.when],
   ];
   if (b.returning) rows.push([c.summaryReturn, b.returning]);
-  rows.push([c.summaryParty, `${guests}, ${bags}`], [c.stepCar, b.car ?? c.noPreference]);
+  rows.push([c.summaryParty, party], [c.stepCar, b.car ?? c.noPreference]);
   if (b.flight) rows.push([c.summaryFlight, b.flight]);
   rows.push([c.stepDetails, `${b.name}\n${b.email}\n${b.phone}`]);
   if (b.passengerName) rows.push([c.passengerName, [b.passengerName, b.passengerPhone].filter(Boolean).join("\n")]);

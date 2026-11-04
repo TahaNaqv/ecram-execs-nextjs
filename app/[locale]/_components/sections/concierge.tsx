@@ -13,7 +13,7 @@ export async function Concierge() {
     summaryRoute: b.summaryRoute, summaryWhen: b.summaryWhen, summaryReturn: b.summaryReturn, summaryParty: b.summaryParty, summaryFlight: b.summaryFlight,
     stepCar: b.stepCar, stepDetails: b.stepDetails, noPreference: b.noPreference, passengerName: b.passengerName, notes: b.notes,
     stopLabel: b.stopLabel, waitMinutes: b.waitMinutes, asDirected: b.asDirected, guestOne: b.guestOne, guestMany: b.guestMany,
-    bagNone: b.bagNone, bagOne: b.bagOne, bagMany: b.bagMany, privacyNote: b.privacyNote, privacyLink: b.privacyLink,
+    bagNone: b.bagNone, bagOne: b.bagOne, bagMany: b.bagMany, bagSplit: b.bagSplit, privacyNote: b.privacyNote, privacyLink: b.privacyLink,
     seatsUpTo: b.seatsUpTo, carDetails: b.carDetails,
   };
   return (
