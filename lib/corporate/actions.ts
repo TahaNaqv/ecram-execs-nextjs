@@ -9,6 +9,7 @@ import { confirmToClient, notifyNewQuote } from "@/lib/email";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { withinLimit } from "@/lib/rate-limit";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
+import { priceForRequest } from "@/lib/pricing/quote";
 import { readStops } from "@/lib/quotes/stops";
 import { getCorporateContact } from "./access";
 import { contactColumns } from "./columns";
@@ -246,6 +247,23 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
       `Booker position: ${contact.position}`,
     ].join("\n");
 
+    const priceEstimate = await priceForRequest(
+      {
+        service: "business_travel",
+        collection: input.collection,
+        destination: input.destination,
+        destinations: input.stops.length ? input.stops.map((stop) => stop.place) : null,
+        destinationWaits: input.stops.length ? input.stops.map((stop) => stop.wait) : null,
+        pickupAt: input.pickupAt,
+        returnAt: input.returnAt ?? null,
+        passengers: input.passengers,
+        luggage: input.luggage,
+        vehicle: chosen.fleetKey,
+        vehicles: convoy.vehicles,
+      },
+      "corporate",
+    );
+
     let saved: typeof schema.quoteRequests.$inferSelect | undefined;
     for (let i = 0; i < 3 && !saved; i++) {
       try {
@@ -277,6 +295,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             email: contact.email,
             phone: input.phone,
             notes: input.notes ?? null,
+            priceEstimate,
             locale: input.locale,
             reference: makeReference("EE"),
             ipHash,

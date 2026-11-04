@@ -235,7 +235,6 @@ export function CorporateDirectoryHub({
                   <th className="px-6 py-4">{copy.colCompany}</th>
                   <th className="px-5 py-4">{copy.colKvk}</th>
                   <th className="px-5 py-4">{copy.colBooker}</th>
-                  <th className="px-5 py-4">{copy.colVehicle}</th>
                   <th className="px-5 py-4">{copy.colStatus}</th>
                   <th className="px-6 py-4">{copy.colSpend}</th>
                 </tr>
@@ -270,7 +269,6 @@ export function CorporateDirectoryHub({
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-zinc-700 font-medium">{partner.preferredVehicle}</td>
                     <td className="px-5 py-4">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${

@@ -63,8 +63,6 @@ export function PriceBreakdown({
     </div>
   );
   const legs = price.legs.length > 1;
-  const untimed = !hourly && !timed;
-  const notes = [!hourly && t.priceHoursNote, untimed && t.priceUntimed, price.suggested && t.priceSuggested, t.priceConfirm].filter(Boolean) as string[];
 
   return (
     <div className="flex flex-col gap-3">
@@ -87,11 +85,6 @@ export function PriceBreakdown({
         {price.feeVat ? row("feeVat", t.priceFeeVat, euro(price.feeVat)) : null}
         {row("total", t.priceTotal, price.exact ? euro(price.total) : interpolate(t.priceFrom, { price: euro(price.total) }), true)}
       </dl>
-      <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12px] leading-snug text-ink-600">
-        {notes.map((note) => (
-          <li key={note}>{note}</li>
-        ))}
-      </ul>
     </div>
   );
 }

@@ -6,7 +6,7 @@ export type BookingCopy = Dictionary["booking"];
 /** The validation messages the flow shows before anything is sent (the same ones the server uses, `forms.*`). */
 export type TripMessages = Pick<
   Dictionary["forms"],
-  "collectionRequired" | "destinationRequired" | "samePlace" | "vehiclePassengers" | "vehicleLuggage" | "pickupInvalid" | "pickupPast" | "pickupTooFar" | "flightInvalid" | "checkHighlighted" | "guestsRequired" | "nameRequired" | "emailInvalid" | "phoneNumberInvalid"
+  "collectionRequired" | "destinationRequired" | "samePlace" | "vehiclePassengers" | "vehicleLuggage" | "vehicleBoth" | "pickupInvalid" | "pickupPast" | "pickupTooFar" | "flightInvalid" | "checkHighlighted" | "guestsRequired" | "nameRequired" | "emailInvalid" | "phoneNumberInvalid"
 >;
 
 /** The current wall-clock time in the Netherlands as "YYYY-MM-DDTHH:mm": pick-ups are Dutch times, whatever the visitor's zone. */

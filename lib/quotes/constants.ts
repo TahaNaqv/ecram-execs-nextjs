@@ -2,6 +2,10 @@
 export const REQUEST_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
+/** Statuses the dashboard offers. Contacted and quoted stay on older rows only, so they can still be read. */
+export const ACTIVE_STATUSES = ["new", "confirmed", "completed", "cancelled"] as const;
+export type ActiveStatus = (typeof ACTIVE_STATUSES)[number];
+
 /**
  * Stable keys, never labels. The visitor picks a service in their own language, so the label
  * lives in the dictionaries (`services.*`) and only the key is written to the database.

@@ -140,21 +140,20 @@ export function StatCard({
   const accent = tone === "accent";
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border p-4 shadow-card sm:p-5 ${
+      className={`relative flex h-full min-w-0 flex-col rounded-xl border p-4 shadow-card sm:p-5 ${
         accent ? "border-zinc-900 bg-zinc-950 text-white" : "border-zinc-200/80 bg-white"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className={`text-[13px] font-medium ${accent ? "text-zinc-400" : "text-zinc-500"}`}>{label}</p>
-        <span className={`grid size-8 place-items-center rounded-lg ${accent ? "bg-white/10 text-zinc-200" : "bg-zinc-100 text-zinc-500"}`}>
+        <p className={`min-w-0 text-[13px] font-medium ${accent ? "text-zinc-400" : "text-zinc-500"}`}>{label}</p>
+        <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${accent ? "bg-white/10 text-zinc-200" : "bg-zinc-100 text-zinc-500"}`}>
           {icon}
         </span>
       </div>
-      {/* Updated value class with responsive scaling and text truncation to prevent multi-million euro overflows */}
-      <div className="mt-3 text-xl sm:text-2xl lg:text-[28px] font-semibold tabular-nums tracking-tight truncate" title={typeof value === "string" ? value : undefined}>
+      <div className="mt-3 whitespace-nowrap text-2xl font-semibold tabular-nums tracking-tight">
         {value}
       </div>
-      {hint && <p className={`mt-1 line-clamp-2 text-xs ${accent ? "text-zinc-400" : "text-zinc-500"}`}>{hint}</p>}
+      {hint && <p className={`mt-auto pt-1 line-clamp-2 text-xs ${accent ? "text-zinc-400" : "text-zinc-500"}`}>{hint}</p>}
     </div>
   );
 }

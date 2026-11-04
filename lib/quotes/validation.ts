@@ -52,6 +52,7 @@ export type QuoteMessages = {
   samePlace: string;
   vehiclePassengers: string;
   vehicleLuggage: string;
+  vehicleBoth: string;
 };
 
 const WALL_CLOCK = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -153,7 +154,7 @@ export const quoteSchema = (t: QuoteMessages) =>
     if (v.returnAt && v.returnAt <= v.pickupAt) issue("returnAt", t.returnBeforePickup);
     if (v.destination && samePlace(v.collection, v.destination)) issue("destination", t.samePlace);
     const fit = capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
-    const fitText = [fit.passengers ? t.vehiclePassengers : "", fit.luggage ? t.vehicleLuggage : ""].filter(Boolean).join(" ");
+    const fitText = fit.passengers && fit.luggage ? t.vehicleBoth : fit.passengers ? t.vehiclePassengers : fit.luggage ? t.vehicleLuggage : "";
     if (fitText) issue("vehicle", fitText);
   }).transform(({ phoneCountry, phone, passengerPhoneCountry, passengerPhone, durationHours, ...rest }) => ({
     ...rest,

@@ -12,7 +12,7 @@ async function signIn(page: Page) {
   // Signing in lands on the dashboard; the requests have their own page
   await expect(page.getByRole("heading", { name: en.admin.dashboard.title })).toBeVisible();
   await page.goto("/admin/requests");
-  await expect(page.getByRole("heading", { name: "Quote requests" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bookings" })).toBeVisible();
 }
 
 test("the booking flow checks the journey in the bar, then the details on the server", async ({ page }) => {
@@ -95,7 +95,7 @@ test("a quote request flows from the website into the admin panel and can be man
   // 5. GDPR deletion
   await page.getByRole("button", { name: /delete this request/i }).click();
   await page.getByRole("button", { name: /yes, delete permanently/i }).click();
-  await expect(page.getByRole("heading", { name: "Quote requests" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bookings" })).toBeVisible();
   await page.goto(`/admin/requests?q=${reference}`);
   await expect(page.getByText("No requests match these filters").first()).toBeAttached();
 });

@@ -26,7 +26,7 @@ import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 import { formatCents, type Price } from "@/lib/pricing/rates";
 
-const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"];
+const PIPELINE: RequestStatus[] = ["new", "confirmed", "completed", "cancelled"];
 
 function Pipeline({ status }: { status: RequestStatus }) {
   if (status === "cancelled") {
@@ -36,9 +36,9 @@ function Pipeline({ status }: { status: RequestStatus }) {
       </div>
     );
   }
-  const at = PIPELINE.indexOf(status);
+  const at = status === "contacted" || status === "quoted" ? 0 : PIPELINE.indexOf(status);
   return (
-    <ol className="grid grid-cols-6 gap-1" aria-label="Progress">
+    <ol className="grid grid-cols-4 gap-1" aria-label="Progress">
       {PIPELINE.map((s, i) => {
         const done = i < at;
         const current = i === at;
@@ -80,7 +80,7 @@ export function RequestDetailClient({ initialData, dictionary }: { initialData: 
   const d = dictionary;
   const waNumber = r.phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${r.name}, thank you for your request ${r.reference} with Ecram Execs.`);
-  const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs quotation ${r.reference}`)}`;
+  const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs booking ${r.reference}`)}`;
   const tel = `tel:${r.phone.replace(/\s/g, "")}`;
   const rd = d.admin.requestDetail;
   const links = routeMapLinks(r, browserMapKey());

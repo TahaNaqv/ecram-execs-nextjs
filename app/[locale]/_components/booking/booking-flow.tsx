@@ -444,11 +444,18 @@ function galleryCopy(t: FleetDictionary): GalleryCopy {
   };
 }
 
-function fitText(trip: Trip, messages: { vehiclePassengers: string; vehicleLuggage: string }): string | null {
+type CapacityMessages = { vehiclePassengers: string; vehicleLuggage: string; vehicleBoth: string };
+
+function capacityWarning(problem: { passengers: boolean; luggage: boolean }, messages: CapacityMessages): string | null {
+  if (problem.passengers && problem.luggage) return messages.vehicleBoth;
+  if (problem.passengers) return messages.vehiclePassengers;
+  if (problem.luggage) return messages.vehicleLuggage;
+  return null;
+}
+
+function fitText(trip: Trip, messages: CapacityMessages): string | null {
   const key = trip.cars[0]?.key ?? (trip.vehicle && trip.vehicle !== "advise" ? trip.vehicle : "");
-  const fit = capacityProblem(key, trip.pax, trip.bags);
-  const text = [fit.passengers ? messages.vehiclePassengers : "", fit.luggage ? messages.vehicleLuggage : ""].filter(Boolean).join(" ");
-  return text || null;
+  return capacityWarning(capacityProblem(key, trip.pax, trip.bags), messages);
 }
 
 function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
@@ -466,7 +473,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
   /** Cars left out because a confirmed booking already holds them at this time */
   bookedCount: number;
   copy: BookingCopy;
-  messages: { vehiclePassengers: string; vehicleLuggage: string };
+  messages: CapacityMessages;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
   onCars: (key: VehicleKey, count: number) => void;
@@ -484,6 +491,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
   const fitting = cars.filter((c) => c.seats === null || c.seats >= trip.pax).length;
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
+  const recommendation = suggestVehicle(cars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
   // The rate card's column for the day of the pick-up
   const day = trip.at ? dayKind(trip.at) : null;
   const rateOf = (key: string) => {
@@ -491,14 +499,20 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
     return rate === null ? null : interpolate(t.carRate, { price: formatCents(rate, locale) });
   };
   const overCapacity = fitText(trip, messages);
+  const blocked = (key: string) => {
+    const problem = capacityProblem(key, trip.pax, trip.bags);
+    return problem.passengers || problem.luggage;
+  };
+  const someBlocked = cars.some((c) => blocked(c.vehicle.key));
   const card = (c: (typeof cars)[number]) => {
     const selected = trip.cars.length === 1 && trip.cars[0].key === c.vehicle.key;
-    const unfit = capacityProblem(c.vehicle.key, trip.pax, trip.bags);
-    const cardFit = [unfit.passengers ? messages.vehiclePassengers : "", unfit.luggage ? messages.vehicleLuggage : ""].filter(Boolean).join(" ");
+    const unavailable = blocked(c.vehicle.key);
     return (
       <li key={c.vehicle.key} className="relative">
         <div
           className={`flex flex-col rounded-2xl bg-white text-ink-950 ${
+            unavailable ? "opacity-50" : ""
+          } ${
             selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-2"
           }`}
         >
@@ -506,10 +520,12 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
             type="button"
             role="radio"
             aria-checked={selected}
+            aria-disabled={unavailable}
+            disabled={unavailable}
             onClick={() => {
-              if (!selected) onCars(c.vehicle.key, 1);
+              if (!unavailable && !selected) onCars(c.vehicle.key, 1);
             }}
-            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-default"
+            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-not-allowed"
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here */}
             <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
@@ -537,7 +553,6 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
                 t.carSelect
               )}
             </span>
-            {cardFit && <span className="px-1.5 pb-2 text-[12px] leading-snug text-error">{cardFit}</span>}
           </button>
           {selected && (
             <span aria-hidden="true" className="absolute top-[18px] left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white">
@@ -575,30 +590,33 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
       )}
       {convoy && <p className="m-0 mt-3 rounded-xl border border-solid border-ink-225 bg-white px-4 py-3 text-[14px] text-ink-950">{convoy}</p>}
       {bookedCount > 0 && <p className="m-0 mt-2 text-[14px] text-ink-600">{interpolate(t.carsBookedNote, { count: bookedCount })}</p>}
-      {(overCapacity || error) && (
-        <p role="alert" className="m-0 mt-3 text-[14px] text-error">
-          {overCapacity ?? error}
-        </p>
-      )}
-      <ul role="radiogroup" aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      {error && !someBlocked && <p role="alert" className="m-0 mt-3 text-xs leading-snug text-[#9a6240]">{error}</p>}
+      {someBlocked && <p className="m-0 mt-6 text-xs leading-snug text-[#9a6240]">{t.carsDisabledNote}</p>}
+      <ul role="radiogroup" aria-labelledby="booking-car" className={`m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 ${someBlocked ? "mt-3" : "mt-6"}`}>
         {cars.map(card)}
         <li>
           <button
             type="button"
             role="radio"
             aria-checked={advise}
+            aria-label={recommendation ? `${t.noPreference}. ${recommendation.name}` : undefined}
             onClick={onAdvise}
             className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl p-[22px] text-left text-ink-950 ${
               advise ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent hover:border-ink-950"
             }`}
           >
-            <span className="grid size-11 place-items-center rounded-xl border border-solid border-ink-225 bg-white">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z" />
-              </svg>
-            </span>
+            {recommendation ? (
+              // eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here
+              <img src={recommendation.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
+            ) : (
+              <span className="grid size-11 place-items-center rounded-xl border border-solid border-ink-225 bg-white">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                  <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z" />
+                </svg>
+              </span>
+            )}
             <span className="flex flex-col gap-1.5">
-              <span className="font-serif text-[26px] leading-none">{t.noPreference}</span>
+              <span className="font-serif text-[26px] leading-none">{recommendation?.name || t.noPreference}</span>
               <span className="text-[13px] text-ink-600">{interpolate(t.noPreferenceNote, { party, bags: luggageLine(t, trip.bags, trip.small) })}</span>
             </span>
           </button>
@@ -620,13 +638,22 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, bookedCount, cop
               <ArrowLeft />
               {t.back}
             </button>
-            <button type="button" onClick={onNext} className="h-[52px] flex-1 cursor-pointer rounded-xl border-0 bg-ink-950 px-6 text-[14px] font-semibold text-white hover:bg-ink-800 md:flex-none">
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={Boolean(overCapacity)}
+              className={`h-[52px] flex-1 rounded-xl border-0 px-6 text-[14px] font-semibold md:flex-none ${
+                overCapacity ? "cursor-not-allowed bg-ink-225 text-ink-600" : "cursor-pointer bg-ink-950 text-white hover:bg-ink-800"
+              }`}
+            >
               {totalCars > 1
                 ? interpolate(t.continueWithCount, { count: totalCars })
                 : totalCars === 1
                   ? interpolate(t.continueWith, { car: vehicleByKey(trip.cars[0].key)?.name ?? "" })
                   : advise
-                    ? t.continueWithout
+                    ? recommendation
+                      ? interpolate(t.continueWith, { car: recommendation.name })
+                      : t.continueWithout
                     : t.skipCar}
             </button>
           </div>
@@ -998,7 +1025,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
   const mix = previewCars(trip);
   const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
   const shown = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen ?? advised;
-  const displayName = trip.vehicle === "advise" && picks.length === 0 ? vehicleAdvise : label ?? shown?.name ?? vehicleAdvise;
+  const displayName = advised?.name || label || shown?.name || vehicleAdvise;
   const galleryImages = mix.length > 0 ? [] : (shown?.images ?? []);
   const seats = label ? null : (shown?.specs?.passengers ?? null);
 

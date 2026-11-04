@@ -317,7 +317,7 @@ export function JourneyBar({
         id={ids.from}
         value={trip.from}
         onChange={(from) => update({ from })}
-        onPicked={() => document.getElementById(trip.mode === "oneway" ? (stops.length > 0 && stacked ? `${uid}-stop-0` : ids.to) : ids.at)?.focus()}
+        onPicked={() => document.getElementById(trip.mode === "oneway" ? ids.to : ids.at)?.focus()}
         placeholder={t.addressPlaceholder}
         locale={locale}
         copy={t}
@@ -564,20 +564,18 @@ export function JourneyBar({
     </p>
   );
 
-  // The journey step of /book and the portal: one field under the other, in the order the car drives them
+  // The journey step of /book and the portal: one field under the other, then the action
   if (stacked) {
     return (
       <form onSubmit={submit} noValidate className="flex w-full min-w-0 max-w-full flex-col gap-3">
         <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950 md:p-6">
           <div className="mb-1">{modeToggle}</div>
           {fromCell}
-          {stopCells}
           {toCell}
+          {whenCell}
+          {guestsCell}
+          {stopCells}
           {addButtons}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {whenCell}
-            {guestsCell}
-          </div>
           {flightCell}
         </div>
         {errorLine}
@@ -611,20 +609,11 @@ export function JourneyBar({
           {addButtons}
         </div>
 
-        <div className="relative mt-1.5 grid min-w-0 grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(205px,1.1fr)_minmax(205px,0.95fr)_auto]">
+        <div className="relative mt-1.5 grid min-w-0 grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(190px,0.9fr)_minmax(250px,1.2fr)]">
           {fromCell}
           {toCell}
           {whenCell}
           {guestsCell}
-          <button
-            type="submit"
-            className={`m-1 flex min-h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold md:col-span-2 lg:col-span-1 ${
-              dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
-            }`}
-          >
-            {t.continue}
-            <ArrowIcon />
-          </button>
         </div>
 
         {hasExtras && (
@@ -633,9 +622,20 @@ export function JourneyBar({
             {flightCell}
           </div>
         )}
-      </div>
 
-      {errorLine}
+        <div className="px-1.5">{errorLine}</div>
+        <div className={`mt-1.5 flex border-0 border-t border-solid pt-1.5 ${divider}`}>
+          <button
+            type="submit"
+            className={`m-1 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold sm:ml-auto sm:w-auto ${
+              dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
+            }`}
+          >
+            {t.continue}
+            <ArrowIcon />
+          </button>
+        </div>
+      </div>
     </>
   );
 

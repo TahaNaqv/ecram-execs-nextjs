@@ -127,11 +127,11 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
         aria-describedby={describedBy}
         onClick={() => setOpen((o) => !o)}
         // The empty after: element stretches the press area over the whole cell, label and padding included
-        className={`flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-[16px] font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-inset ${
+        className={`flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-[14px] leading-snug font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-inset ${
           dark ? "after:ring-white/60" : "after:ring-ink-950"
         } ${set ? (dark ? "text-white" : "text-ink-950") : dark ? "font-normal text-ink-400" : "font-normal text-ink-475"}`}
       >
-        <span className="whitespace-normal">{set ? partyLine(t, pax, bags, small) : t.guestsPlaceholder}</span>
+        <span className="min-w-0 flex-1 whitespace-normal">{set ? partyLine(t, pax, bags, small) : t.guestsPlaceholder}</span>
         <span className={`shrink-0 ${dark ? "text-ink-250" : "text-ink-600"}`} aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? "rotate-180" : ""}`}>
             <path d="M6 9l6 6 6-6" />

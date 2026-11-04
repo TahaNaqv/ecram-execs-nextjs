@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { routeBlockMinutes } from "@/lib/fleet/route";
-import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 import { after } from "next/server";
 import { emailPartnerBooking, emailEnquiryStatus } from "@/lib/email";
 
@@ -21,7 +21,7 @@ export async function POST(
     const amount = Number(body.amount ?? 0);
     const amountStr = amount > 0 ? amount.toFixed(2) : null;
     const sendMail = Boolean(body.sendMail ?? false);
-    const parsedStatus = z.enum(REQUEST_STATUSES).safeParse(body.status ?? "quoted");
+    const parsedStatus = z.enum(ACTIVE_STATUSES).safeParse(body.status ?? "confirmed");
     if (!parsedStatus.success) return NextResponse.json({ error: "Unknown status" }, { status: 400 });
     const newStatus = parsedStatus.data;
 
@@ -97,10 +97,7 @@ export async function POST(
       console.log(`Target Status / Email Kind: ${newStatus}`);
       console.log(`Amount: €${amountStr}`);
 
-      // Map request status to valid email kinds ("quoted", "confirmed", "completed", "cancelled", "contacted")
-      const emailKind = ["quoted", "confirmed", "completed", "cancelled", "contacted"].includes(newStatus)
-        ? (newStatus as any)
-        : "quoted";
+      const emailKind = newStatus === "completed" || newStatus === "cancelled" ? newStatus : "confirmed";
 
       if (updated.corporateContactId && updated.source !== "website-corporate") {
         const [partner] = await db

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
+import { ACTIVE_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { updateRequest, type UpdateState } from "../../../actions";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
@@ -27,8 +27,8 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
           {copy.status}
         </label>
         <div className="relative">
-          <select id="req-status" name="status" defaultValue={status} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
-            {REQUEST_STATUSES.map((s) => (
+          <select id="req-status" name="status" defaultValue={(ACTIVE_STATUSES as readonly string[]).includes(status) ? status : "new"} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
+            {ACTIVE_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {statusLabels[s]}
               </option>

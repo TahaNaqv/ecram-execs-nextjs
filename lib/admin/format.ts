@@ -42,8 +42,31 @@ export function formatTimestamp(value: Date, locale: Locale = "en") {
  * language the panel is in.
  */
 export function formatEuro(value: string | number | null | undefined) {
-  if (value === null || value === undefined) return "—";
-  return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(Number(value));
+  if (value === null || value === undefined || value === "") return "—";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "—";
+  // Two decimals first, so a summed numeric never reaches the formatter with stray precision.
+  const rounded = Number(amount.toFixed(2));
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rounded);
+}
+
+/** Headline totals: whole euros ("€ 34.932") so the symbol and the amount stay on one line. */
+export function formatEuroCompact(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "—";
+  const rounded = Number(amount.toFixed(0));
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(rounded);
 }
 
 /** Status labels live in `dictionary.admin.statuses`; this is only the styling. */

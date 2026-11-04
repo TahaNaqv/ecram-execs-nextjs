@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { dashboardFigures, fleetStatus, recentRequests, upcomingPickups } from "@/lib/admin/dashboard";
-import { formatEuro, formatRelative, pickupParts } from "@/lib/admin/format";
+import { formatEuroCompact, formatRelative, pickupParts } from "@/lib/admin/format";
 import { systemHealth, type HealthKey, type HealthState } from "@/lib/admin/health";
 import { requireAdmin } from "@/lib/auth/session";
 import { normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
@@ -108,7 +108,7 @@ async function Figures() {
   const { fleet, jobs, partners, revenue } = await dashboardFigures();
   const switchedOff = fleet.total - fleet.available;
   return (
-    <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <div className="mt-6 grid grid-cols-2 items-stretch gap-3 sm:gap-4 xl:grid-cols-4">
       <StatCard
         tone="accent"
         label={d.fleetLabel}
@@ -125,7 +125,7 @@ async function Figures() {
       <StatCard label={d.partnersLabel} value={partners.total} hint={d.partnersHint} icon={<BriefcaseIcon />} />
       <StatCard
         label={d.revenueLabel}
-        value={formatEuro(revenue.amount)}
+        value={formatEuroCompact(revenue.amount)}
         hint={interpolate(d.revenueHint, { count: revenue.count })}
         icon={<EuroIcon />}
       />

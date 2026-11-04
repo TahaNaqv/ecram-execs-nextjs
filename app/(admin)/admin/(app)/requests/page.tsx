@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { formatEuro, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
+import { formatEuro, formatEuroCompact, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
 import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
-import { REQUEST_STATUSES, serviceLabel } from "@/lib/quotes/constants";
+import { ACTIVE_STATUSES, serviceLabel } from "@/lib/quotes/constants";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { QuoteRequest } from "@/lib/db/schema";
+import { priceForRequest } from "@/lib/pricing/quote";
+import type { Segment } from "@/lib/pricing/rates";
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -84,6 +86,22 @@ export default function RequestsPage({ searchParams }: PageProps<"/admin/request
   );
 }
 
+/** The amount shown in the list: the amount saved on the booking, otherwise the rate-card price of the journey. */
+async function listedAmount(r: QuoteRequest): Promise<string | null> {
+  if (r.quotedAmount != null && r.quotedAmount !== "") return formatEuro(r.quotedAmount);
+  const stored = r.priceEstimate?.total;
+  if (typeof stored === "number") return formatEuro(stored / 100);
+  if (!r.pickupAt) return null;
+  // A company introduction is stored as bespoke, but it is one journey and can be priced like any other transfer.
+  const service =
+    r.service !== "bespoke" ? r.service : r.collection && r.destination ? "business_travel" : r.durationHours ? "hourly" : null;
+  if (!service) return null;
+  const segment: Segment =
+    r.corporateContactId || r.source === "portal" || r.source === "website-corporate" ? "corporate" : "public";
+  const price = await priceForRequest({ ...r, service }, segment);
+  return price ? formatEuro(price.total / 100) : null;
+}
+
 function href(params: Search) {
   const sp = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]);
   const s = sp.toString();
@@ -93,9 +111,8 @@ function href(params: Search) {
 async function Stats() {
   const { admin: t } = await adminDictionary();
   const [counts, stats] = await Promise.all([statusCounts(), requestStats()]);
-  const inProgress = counts.contacted + counts.quoted;
   return (
-    <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <div className="mt-6 grid grid-cols-2 items-stretch gap-3 sm:gap-4 xl:grid-cols-4">
       <StatCard
         tone="accent"
         label={t.requests.statAwaiting}
@@ -105,11 +122,16 @@ async function Stats() {
       />
       <StatCard
         label={t.requests.statInProgress}
-        value={inProgress}
-        hint={`${counts.contacted} contacted · ${counts.quoted} quoted`}
+        value={counts.confirmed}
+        hint={t.requests.statInProgressNote}
         icon={<CheckCircleIcon />}
       />
-      <StatCard label={t.requests.statOpenQuotes} value={formatEuro(stats.openValue)} hint={t.requests.statOpenQuotesNote} icon={<EuroIcon />} />
+      <StatCard
+        label={t.requests.statOpenQuotes}
+        value={formatEuroCompact(stats.openValue)}
+        hint={t.requests.statOpenQuotesNote}
+        icon={<EuroIcon />}
+      />
       <StatCard
         label={t.requests.statUpcoming}
         value={stats.upcoming}
@@ -142,6 +164,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const t = dict.admin;
   // Requests on this page where a partner has written and nobody on the team has opened it yet
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
+  const amounts = new Map(await Promise.all(rows.map(async (r: QuoteRequest) => [r.id, await listedAmount(r)] as const)));
   const partnerBadge = (id: string) =>
     unseen.has(id) ? <span className="mt-1 inline-block rounded bg-zinc-950 px-1.5 py-0.5 text-[10px] font-medium text-white">{t.requests.partnerMessage}</span> : null;
   // Where a journey ends: its destination, or for an hourly booking without one, how long the chauffeur is booked
@@ -152,7 +175,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const tabs = [
     { key: "", label: t.requests.all, n: all, dot: "" },
-    ...REQUEST_STATUSES.map((s) => ({ key: s, label: t.statuses[s], n: counts[s], dot: STATUS_DOT[s] })),
+    ...ACTIVE_STATUSES.map((s) => ({ key: s, label: t.statuses[s], n: counts[s], dot: STATUS_DOT[s] })),
   ];
   const filtered = Boolean(q || status || queue);
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -301,7 +324,10 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           {pickup ? `${pickup.date} · ${pickup.time}` : "—"}
                         </span>
                         <span>{serviceLabel(r.service, serviceLabels)}</span>
-                        <span className="ml-auto font-mono text-[11px] text-zinc-400">{r.reference}</span>
+                        <span className="ml-auto flex items-center gap-3">
+                          {amounts.get(r.id) && <span className="font-medium tabular-nums text-zinc-900">{amounts.get(r.id)}</span>}
+                          <span className="font-mono text-[11px] text-zinc-400">{r.reference}</span>
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -404,7 +430,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-zinc-600">{serviceLabel(r.service, serviceLabels)}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-zinc-900">
-                        {r.quotedAmount === null ? <span className="text-zinc-300">—</span> : formatEuro(r.quotedAmount)}
+                        {amounts.get(r.id) ?? <span className="text-zinc-300">—</span>}
                       </td>
                       <td className="px-3 py-3.5">
                         <span className="flex flex-col items-start gap-1">

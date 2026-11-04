@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { FLEET, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
-import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 import { asc, isNotNull } from "drizzle-orm";
 import { ArrowLeftIcon } from "../../../_components/icons";
 import { Card, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
@@ -53,7 +53,7 @@ async function Form() {
       <NewBookingForm
         partners={partners.map((p) => ({ value: p.id, label: `${p.name}${p.companyName ? ` — ${p.companyName}` : ""} (${p.email})` }))}
         services={(["airport_transfer", "business_travel", "hourly", "private_occasion"] as const).map((s) => ({ value: s, label: d.services[s] }))}
-        statuses={REQUEST_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
+        statuses={ACTIVE_STATUSES.map((s) => ({ value: s, label: d.admin.statuses[s] }))}
         vehicles={vehicleOptions}
         copy={t}
         locale={sessionAdmin.locale}

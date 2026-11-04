@@ -41,7 +41,7 @@ export type DashboardFigures = {
   jobs: { today: number; nextAt: string | null };
   /** Every corporate partner account, the same set as the Corporate Partners list */
   partners: { total: number };
-  /** Confirmed and completed bookings whose pick-up is in the current month, at the amounts quoted: trips, not payments received (one without a quote adds nothing; a bespoke one has no pick-up and is not counted) */
+  /** Confirmed and completed bookings whose pick-up is in the current month, at the calculated price: trips, not payments received (a bespoke one has no pick-up and is not counted) */
   revenue: { amount: string; count: number };
 };
 
@@ -62,7 +62,14 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
     db.select({ total: sql<number>`count(*)`.mapWith(Number) }).from(contacts),
     db
       .select({
-        amount: sql<string>`coalesce(sum(${q.quotedAmount}), 0)`,
+        amount: sql<string>`coalesce(sum(coalesce(
+          case
+            when ${q.priceEstimate} is not null and (${q.priceEstimate}->>'total') ~ '^[0-9]+(\\.[0-9]+)?$'
+            then (${q.priceEstimate}->>'total')::numeric / 100
+          end,
+          ${q.quotedAmount},
+          0
+        )), 0)`,
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(q)

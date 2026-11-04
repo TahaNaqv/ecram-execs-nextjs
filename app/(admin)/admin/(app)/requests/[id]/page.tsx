@@ -116,7 +116,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
   const chatId = await chatForRequest(r.id);
   const waNumber = r.phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${r.name}, thank you for your request ${r.reference} with Ecram Execs.`);
-  const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs quotation ${r.reference}`)}`;
+  const mailto = `mailto:${r.email}?subject=${encodeURIComponent(`Your Ecram Execs booking ${r.reference}`)}`;
   const tel = `tel:${r.phone.replace(/\s/g, "")}`;
   const rd = d.admin.requestDetail;
   // The embedded map needs a browser key (restricted to this site and to the Maps Embed API); without one only the link is shown

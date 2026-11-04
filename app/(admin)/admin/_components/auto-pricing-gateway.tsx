@@ -10,7 +10,9 @@ import { interpolate } from "@/lib/i18n/interpolate";
 type PricingCopy = Dictionary["admin"]["pricing"];
 type StatusCopy = Dictionary["admin"]["statuses"];
 const STATUSES = ["new", "confirmed", "completed", "cancelled"] as const;
-type StatusChoice = (typeof STATUSES)[number] | "contacted" | "quoted";
+type StatusChoice = (typeof STATUSES)[number];
+
+const asStatus = (value: string): StatusChoice => ((STATUSES as readonly string[]).includes(value) ? (value as StatusChoice) : "new");
 
 function esc(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
@@ -48,9 +50,9 @@ export function AutoPricingGateway({
 }) {
   const router = useRouter();
   // Confirmed status stored from the request/backend
-  const [status, setStatus] = useState<StatusChoice>(request.status as StatusChoice);
+  const [status, setStatus] = useState<StatusChoice>(asStatus(request.status));
   // Temporary dropdown choice before confirmation button is clicked
-  const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(request.status as StatusChoice);
+  const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(asStatus(request.status));
   
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -145,7 +147,7 @@ export function AutoPricingGateway({
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Ecram Execs quote ${esc(request.reference)}</title>
+<title>Ecram Execs booking ${esc(request.reference)}</title>
 <style>
   @page { size: A4 portrait; margin: 18mm; }
   * { box-sizing: border-box; }
@@ -205,7 +207,7 @@ export function AutoPricingGateway({
       return;
     }
     const previousTitle = document.title;
-    document.title = `Ecram Execs quote ${request.reference}`;
+    document.title = `Ecram Execs booking ${request.reference}`;
     doc.open();
     doc.write(html);
     doc.close();
@@ -225,7 +227,7 @@ export function AutoPricingGateway({
 
   function handleWhatsappLink() {
     const waNumber = request.phone.replace(/[^\d]/g, "");
-    const text = encodeURIComponent(`Dear ${request.name}, your Ecram Execs quote (${request.reference}) of ${formatEuro(grandTotal)} is ready. Secure payment link via Mollie: https://ecramexecs.com/pay/${request.reference}`);
+    const text = encodeURIComponent(`Dear ${request.name}, your Ecram Execs booking (${request.reference}) of ${formatEuro(grandTotal)} is ready. Secure payment link via Mollie: https://ecramexecs.com/pay/${request.reference}`);
     if (waNumber.length >= 8) {
       window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
     } else {

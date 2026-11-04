@@ -158,8 +158,8 @@ function distanceText(est: { meters: number; seconds: number }, t: BookingCopy, 
 }
 
 /**
- * The last step: everything the visitor is about to send, in three cards they can each go back to change, then one
- * agreement and the send. Distance and driving time are asked of Google here, once, and not before (see /api/route-estimate).
+ * The last step: the trip and party, then the vehicle and price, then the agreement, then the send.
+ * Distance and driving time are asked of Google here, once, and not before (see /api/route-estimate).
  */
 export function ReviewStep({
   headingRef,
@@ -258,7 +258,7 @@ export function ReviewStep({
   const mix = previewCars(trip);
   const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
   const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? chosen ?? advised;
-  const name = trip.vehicle === "advise" && picks.length === 0 ? vehicleAdvise : label ?? lead?.name ?? vehicleAdvise;
+  const name = advised?.name || label || lead?.name || vehicleAdvise;
   const photos = (lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
   const seats = label ? null : (lead?.specs?.passengers ?? null);
 
@@ -287,80 +287,18 @@ export function ReviewStep({
       <h2 id="booking-review" ref={headingRef} tabIndex={-1} className="m-0 mb-6 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
         {t.reviewTitle}
       </h2>
-      <div className="grid items-start gap-5 lg:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
-          <div className="grid items-stretch gap-5 md:grid-cols-2">
-            {card(t.reviewContact, rows(contact))}
-            {card(t.reviewRide, rows(ride))}
-          </div>
-          <div className="rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:px-6">
-            <div className="flex max-w-[60ch] flex-col gap-1">
-              <label htmlFor={`${uid}-agree`} className="flex cursor-pointer items-start gap-3 text-[14px]">
-                <input
-                  id={`${uid}-agree`}
-                  type="checkbox"
-                  checked={agreed}
-                  aria-invalid={mustAgree || undefined}
-                  aria-describedby={mustAgree ? `${uid}-agree-error` : undefined}
-                  onChange={(e) => {
-                    setAgreed(e.target.checked);
-                    if (e.target.checked) setMustAgree(false);
-                  }}
-                  className="mt-0.5 size-[18px] shrink-0 cursor-pointer accent-[#0a0a0b]"
-                />
-                <span>
-                  {t.reviewAgree}{" "}
-                  {privacyHref ? (
-                    <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
-                      {t.privacyLink.toLowerCase()}
-                    </a>
-                  ) : (
-                    t.privacyLink.toLowerCase()
-                  )}
-                  .
-                </span>
-              </label>
-              {mustAgree && (
-                <span id={`${uid}-agree-error`} className="pl-[30px] text-[12px] text-error">
-                  {t.reviewAgreeRequired}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-4">
-            <div className="flex w-full gap-2.5 sm:w-auto">
-              <button type="button" onClick={() => onEdit("details")} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
-                <ArrowLeft />
-                {t.back}
-              </button>
-              {lockedNotice ?? (
-                <button
-                  type="button"
-                  disabled={result.pending}
-                  onClick={() => {
-                    if (!agreed) {
-                      setMustAgree(true);
-                      document.getElementById(`${uid}-agree`)?.focus();
-                      return;
-                    }
-                    onSend();
-                  }}
-                  className="flex h-[52px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
-                >
-                  {result.pending ? t.sending : t.submit}
-                  {!result.pending && <ArrowRight />}
-                </button>
-              )}
-            </div>
-          </div>
+      <div className="flex min-w-0 flex-col gap-5">
+        <div className="grid items-stretch gap-5 md:grid-cols-2">
+          {card(t.reviewContact, rows(contact))}
+          {card(t.reviewRide, rows(ride))}
         </div>
-        {card(
-          t.reviewVehicle,
-          <>
+        <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
+          <section aria-label={t.reviewVehicle} className="box-border flex h-full w-full max-w-md min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950">
+            <h3 className="m-0 text-[16px] font-semibold">{t.reviewVehicle}</h3>
             {mix.length > 0 ? (
               <CarMixPreview cars={mix} copy={gallery} />
             ) : photos.length > 0 ? (
-              <div className="relative aspect-[16/9.5] w-full overflow-hidden rounded-[12px]">
+              <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-[12px]">
                 <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} />
               </div>
             ) : null}
@@ -384,23 +322,80 @@ export function ReviewStep({
               )}
             </div>
             {convoy && <p className="m-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
-            <section aria-label={t.reviewPrice} className="flex flex-col gap-1 border-0 border-t border-solid border-ink-150 pt-4">
-              <h4 className="m-0 text-[15px] font-semibold">{t.reviewPrice}</h4>
-              <PriceBreakdown price={price} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
-            </section>
-          </>,
+          </section>
+          <section aria-label={t.reviewPrice} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+            <h3 className="m-0 text-[16px] font-semibold">{t.reviewPrice}</h3>
+            <PriceBreakdown price={price} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
+            <div className="mt-auto border-0 border-t border-solid border-ink-150 pt-3">
+              <label htmlFor={`${uid}-agree`} className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug">
+                <input
+                  id={`${uid}-agree`}
+                  type="checkbox"
+                  checked={agreed}
+                  aria-invalid={mustAgree || undefined}
+                  aria-describedby={mustAgree ? `${uid}-agree-error` : undefined}
+                  onChange={(e) => {
+                    setAgreed(e.target.checked);
+                    if (e.target.checked) setMustAgree(false);
+                  }}
+                  className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[#0a0a0b]"
+                />
+                <span>
+                  {t.reviewAgree}{" "}
+                  {privacyHref ? (
+                    <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
+                      {t.privacyLink.toLowerCase()}
+                    </a>
+                  ) : (
+                    t.privacyLink.toLowerCase()
+                  )}
+                  .
+                </span>
+              </label>
+              {mustAgree && (
+                <span id={`${uid}-agree-error`} className="mt-1 block pl-[26px] text-[12px] text-error">
+                  {t.reviewAgreeRequired}
+                </span>
+              )}
+            </div>
+          </section>
+        </div>
+        {!portal && (
+          <p className="m-0 flex items-center gap-2 text-[13px] text-ink-600">
+            <Check />
+            {t.next1}
+          </p>
         )}
-      </div>
-
-      <p aria-live="polite" className="m-0 mt-3 min-h-5 text-[13px] text-error">
-        {result.message ?? ""}
-      </p>
-      {!portal && (
-        <p className="m-0 flex items-center gap-2 text-[13px] text-ink-600">
-          <Check />
-          {t.next1}
+        <p aria-live="polite" className={result.message ? "m-0 text-[13px] text-error" : "sr-only"}>
+          {result.message ?? ""}
         </p>
-      )}
+        <div className="flex flex-wrap items-center justify-end gap-4">
+          <div className="flex w-full gap-2.5 sm:w-auto">
+            <button type="button" onClick={() => onEdit("details")} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
+              <ArrowLeft />
+              {t.back}
+            </button>
+            {lockedNotice ?? (
+              <button
+                type="button"
+                disabled={result.pending}
+                onClick={() => {
+                  if (!agreed) {
+                    setMustAgree(true);
+                    document.getElementById(`${uid}-agree`)?.focus();
+                    return;
+                  }
+                  onSend();
+                }}
+                className="flex h-[52px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
+              >
+                {result.pending ? t.sending : t.submit}
+                {!result.pending && <ArrowRight />}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

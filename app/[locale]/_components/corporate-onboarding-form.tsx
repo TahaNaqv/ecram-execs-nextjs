@@ -450,11 +450,13 @@ export function OnboardingForm({
         samePlace: "Ophaal- en afleverlocatie mogen niet hetzelfde zijn.",
         vehiclePassengers: "Deze auto kan dit aantal passagiers niet vervoeren.",
         vehicleLuggage: "Deze auto kan dit aantal koffers niet meenemen.",
+        vehicleBoth: "Deze auto kan dit aantal passagiers en koffers niet vervoeren.",
       }
     : {
         samePlace: "Pickup and drop-off locations cannot be the same.",
         vehiclePassengers: "This car cannot accommodate this count of passengers.",
         vehicleLuggage: "This car cannot accommodate this count of luggage bags.",
+        vehicleBoth: "This car cannot accommodate this count of passengers and luggage bags.",
       };
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -566,13 +568,13 @@ export function OnboardingForm({
           </FormCard>
 
           <FormCard icon="clock" step={4} title={t.cardTravel} hint={t.cardTravelHint}>
-            <CardField idPrefix="c" name="vehicle" label={t.labelVehicle} error={err.vehicle ?? ([fit.passengers ? rules.vehiclePassengers : "", fit.luggage ? rules.vehicleLuggage : ""].filter(Boolean).join(" ") || undefined)}>
+            <CardField idPrefix="c" name="vehicle" label={t.labelVehicle} error={err.vehicle ?? (fit.passengers && fit.luggage ? rules.vehicleBoth : fit.passengers ? rules.vehiclePassengers : fit.luggage ? rules.vehicleLuggage : undefined)}>
               <input type="hidden" name="vehicle" value={values.vehicle} />
               <div role="radiogroup" aria-label={t.labelVehicle} aria-invalid={!!err.vehicle || fit.passengers || fit.luggage} aria-describedby={err.vehicle || fit.passengers || fit.luggage ? "c-vehicle-error" : undefined} className="flex flex-col gap-2">
                 {CORPORATE_VEHICLES.map((car) => {
                   const selected = values.vehicle === car.key;
                   const problem = capacityProblem(car.fleetKey, parseInt(values.passengers, 10) || 1, parseInt(values.luggage, 10) || 0);
-                  const cardFit = [problem.passengers ? rules.vehiclePassengers : "", problem.luggage ? rules.vehicleLuggage : ""].filter(Boolean).join(" ");
+                  const cardFit = problem.passengers && problem.luggage ? rules.vehicleBoth : problem.passengers ? rules.vehiclePassengers : problem.luggage ? rules.vehicleLuggage : "";
                   return (
                     <button
                       key={car.key}
@@ -583,7 +585,7 @@ export function OnboardingForm({
                       className={`cursor-pointer rounded-xl border border-solid px-3.5 py-2.5 text-left ${selected ? "border-[#ffffff] bg-[#071433]" : "border-[rgba(116,161,255,0.35)] bg-[#102a63]"}`}
                     >
                       <span className="block text-[15px] font-semibold text-[#ffffff]">{car.name}</span>
-                      {cardFit && <span className="mt-1 block text-[12px] leading-snug text-[#ffb4b4]">{cardFit}</span>}
+                      {cardFit && <span className="mt-1 block text-xs leading-snug text-[#e4c9a0]">{cardFit}</span>}
                     </button>
                   );
                 })}
@@ -725,7 +727,7 @@ export function OnboardingForm({
           <input type="hidden" name="locale" value={locale} />
           <Honeypot />
           <ActionCard>
-            <button type="submit" disabled={pending} className={cardSubmit}>
+            <button type="submit" disabled={pending || fit.passengers || fit.luggage} className={cardSubmit}>
               <SendIcon />
               {pending ? t.submitting : t.submit}
             </button>

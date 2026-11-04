@@ -4,7 +4,7 @@ import { tripFields, emptyTrip, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, normal
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { busyVehicleKeys } from "@/lib/fleet/availability";
-import { FLEET, VEHICLE_CHOICES, normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { FLEET, VEHICLE_CHOICES, normalizeVehicleKey, suggestVehicle } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
 import { plain } from "./plain";
@@ -347,7 +347,8 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
   const ready = missing.length === 0 && parsed.success && Object.keys(errors).length === 0;
   if (!ready) return { missing, errors, ready: false };
 
-  const car = draft.vehicle && draft.vehicle !== "advise" ? (FLEET.find((v) => v.key === draft.vehicle)?.name ?? null) : null;
+  const suggested = draft.vehicle === "advise" ? suggestVehicle(FLEET, { pax: draft.passengers ?? 1, bags: draft.bags ?? 0 }) : undefined;
+  const car = draft.vehicle && draft.vehicle !== "advise" ? (FLEET.find((v) => v.key === draft.vehicle)?.name ?? null) : (suggested?.name ?? null);
   const national = (p: { country: string; number: string } | null, fallback: string) => (p ? `+${p.country || fallback} ${p.number}` : "");
   return {
     missing,
