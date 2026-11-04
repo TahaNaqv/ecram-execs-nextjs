@@ -35,6 +35,9 @@ export const bar = (page: Page) =>
  */
 export async function pickDateTime(page: Page, field: Locator, at: string, copy: typeof en.dateTimePicker = en.dateTimePicker) {
   const [, dd, mm, yyyy, hh, min] = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/.exec(at)!;
+  // The picker is pinned to the screen under the box, so with the box low on the screen its lower half is out of view and
+  // cannot be scrolled to by a click: bring the box to the top first, as a visitor scrolls before choosing
+  await field.evaluate((el) => el.scrollIntoView({ block: "start" }));
   // The box is covered by a press area as wide as its cell (fillCell), so a click on the box itself never lands: open it as a keyboard user does
   await field.focus();
   await field.press("Enter");
