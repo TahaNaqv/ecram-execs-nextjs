@@ -8,7 +8,9 @@ import type { PlaceHit, PlaceKind } from "./types";
  * Billing works per session: the visitor's keystrokes share one session token, and the session is closed by a details
  * request for the place they picked. Asking that request for the id alone keeps it on Google's free "IDs only" tier.
  */
-const API = "https://places.googleapis.com/v1";
+// PLACES_API_URL points the e2e tests at a stand-in (tests/e2e/global-setup.ts); never set in production
+const LOOPBACK = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+const API = process.env.PLACES_API_URL && LOOPBACK.test(process.env.PLACES_API_URL) ? process.env.PLACES_API_URL : "https://places.googleapis.com/v1";
 // Suggestions are for places in the Netherlands only, for now: to serve Belgium or Germany again, add "be" or "de" here
 const REGIONS = ["nl"];
 const NETHERLANDS = { low: { latitude: 50.7, longitude: 3.3 }, high: { latitude: 53.6, longitude: 7.3 } };

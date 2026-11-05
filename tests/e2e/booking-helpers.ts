@@ -56,6 +56,16 @@ export async function pickDateTime(page: Page, field: Locator, at: string, copy:
 }
 
 /** Fills step one of the booking flow the way a visitor does, and presses Continue. */
+/**
+ * Types an address and picks the first suggestion: the bar takes only a picked address (aish, 4 Nov). Without a Google
+ * key only our own airports and stations are suggested, so run with the Places stand-in (E2E_FAKE_PLACES, see
+ * tests/e2e/global-setup.ts), which suggests whatever was typed.
+ */
+export async function pickAddress(root: Locator, field: Locator, text: string) {
+  await field.fill(text);
+  await root.getByRole("option").first().click();
+}
+
 export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, scope?: Locator) {
   const root = scope ?? page.locator("main");
   const dt = t === en.booking ? en.dateTimePicker : nl.dateTimePicker;
@@ -64,20 +74,13 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
     await root.getByLabel(t.duration).click();
     await root.getByRole("option", { name: t.hoursOption.replace("{hours}", String(j.hours)), exact: true }).click();
   }
-  const from = root.getByLabel(either(t.from, t.pickupLabel));
-  await from.fill(j.from);
-  await from.press("Escape");
-  if (j.to) {
-    const to = root.getByLabel(either(t.to, t.dropoffLabel));
-    await to.fill(j.to);
-    await to.press("Escape");
-  }
+  await pickAddress(root, root.getByLabel(either(t.from, t.pickupLabel)), j.from);
+  if (j.to) await pickAddress(root, root.getByLabel(either(t.to, t.dropoffLabel)), j.to);
   await pickDateTime(page, root.getByLabel(either(t.when, t.pickupWhen)), j.at, dt);
   for (const [i, stop] of (j.stops ?? []).entries()) {
     await root.getByRole("button", { name: t.addStop }).click();
     const field = root.getByLabel(t.stopLabel.replace("{number}", String(i + 1)), { exact: true });
-    await field.fill(stop.place);
-    await field.press("Escape");
+    await pickAddress(root, field, stop.place);
     if (stop.wait) await root.getByLabel(t.stopWaitLabel.replace("{number}", String(i + 1))).selectOption(String(stop.wait));
   }
   if (j.flight) await root.getByLabel(t.flight, { exact: true }).fill(j.flight);

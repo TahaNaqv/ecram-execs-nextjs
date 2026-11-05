@@ -6,8 +6,8 @@ export type ReceiptPdfInput = {
   clientPhone: string;
   route: string;
   when: string;
-  base: string;
-  vat: string;
+  /** The price lines above the total, already formatted; none when the total cannot be split */
+  lines: { label: string; value: string }[];
   total: string;
 };
 
@@ -52,8 +52,8 @@ function assemble(stream: string): Uint8Array {
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>",
     `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
   ];
   let body = "%PDF-1.4\n";
   const offsets = [0];
@@ -113,10 +113,9 @@ export function buildReceiptPdf(input: ReceiptPdfInput): Uint8Array {
     textRight("F2", 11, 547, y, ink, value);
     y -= 22;
   };
-  money("Total Base (excl. BTW)", input.base);
-  money("9% BTW (Passenger Transport)", input.vat);
+  for (const line of input.lines) money(line.label, line.value);
 
-  y -= 6;
+  y -= 14;
   fill(navy, 48, y - 16, 499, 42);
   text("F2", 11, 64, y, "0.9 0.92 0.96", "FINAL AMOUNT (INCL. TAX)");
   textRight("F2", 14, 531, y - 1, mint, input.total);

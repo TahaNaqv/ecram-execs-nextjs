@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import en from "../../lib/i18n/dictionaries/en.json";
 import { HOURLY_DURATIONS } from "../../lib/quotes/constants";
-import { bar, chooseCar, confirmedReference, fillDetails, fillJourney, nextYear, pickDateTime } from "./booking-helpers";
+import { bar, chooseCar, confirmedReference, fillDetails, fillJourney, nextYear, pickAddress, pickDateTime } from "./booking-helpers";
 import { newEmail, signedInPartner, sql } from "./corporate-helpers";
 
 /**
@@ -235,10 +235,8 @@ test("bug 11: the booking bar opens on the current date and time in the Netherla
 test("bug 11: a bar left on its starting time is accepted when the visitor continues a few minutes later", async ({ page }) => {
   await page.goto("/en");
   const hero = page.locator("#enquire");
-  await hero.getByLabel(b.from, { exact: true }).fill("Schiphol Airport, Arrivals 2");
-  await hero.getByLabel(b.from, { exact: true }).press("Escape");
-  await hero.getByLabel(b.to, { exact: true }).fill("Hotel Des Indes, The Hague");
-  await hero.getByLabel(b.to, { exact: true }).press("Escape");
+  await pickAddress(hero, hero.getByLabel(b.from, { exact: true }), "Schiphol Airport, Arrivals 2");
+  await pickAddress(hero, hero.getByLabel(b.to, { exact: true }), "Hotel Des Indes, The Hague");
   await guestsButton(hero).click();
   await page.getByRole("dialog", { name: b.guestsDialog }).getByRole("button", { name: b.done }).click();
   await hero.getByRole("button", { name: b.continue }).click();

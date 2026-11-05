@@ -8,7 +8,8 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
-import { dayKind, formatCents, hourlyRate, SERVICE_FEE_CENTS, type Price, type Segment } from "@/lib/pricing/rates";
+import { dayKind, formatCents, hasHighRateExtras, hourlyRate, priceNet, SERVICE_FEE_CENTS, vatByRate, type Price, type Segment } from "@/lib/pricing/rates";
+import { extraName } from "@/lib/pricing/extras";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
@@ -372,7 +373,7 @@ export function BookingFlow({
           gallery={galleryCopy(fleetDict)}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
           onSend={(quoted) => {
-            rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, locale }));
+            rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, addOns, locale }));
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
             for (const [k, v] of tripFields(trip, entered.purpose)) data.append(k, v);
@@ -1001,6 +1002,8 @@ export type RideReceipt = {
   hourly: boolean;
   stops: string[];
   price: Price | null;
+  /** The add-ons' names as shown when booking, in the order of `price.extras` */
+  extraNames?: string[];
 };
 
 const detailValue = (entry: DetailsEntry, key: string) => (entry.fields.find(([name]) => name === key)?.[1] ?? "").trim();
@@ -1020,6 +1023,7 @@ const storedPrice = (quoted: (Price & { suggested?: boolean }) | null): Price | 
     vat: quoted.vat,
     fee: quoted.fee,
     feeVat: quoted.feeVat,
+    ...(quoted.extras ? { extras: quoted.extras, extrasVat: quoted.extrasVat } : {}),
     total: quoted.total,
     exact: quoted.exact,
   };
@@ -1031,6 +1035,7 @@ function buildRideReceipt({
   booker,
   quoted,
   copy: t,
+  addOns,
   locale,
 }: {
   trip: Trip;
@@ -1038,6 +1043,7 @@ function buildRideReceipt({
   booker?: { name: string; email: string };
   quoted: (Price & { suggested?: boolean }) | null;
   copy: BookingCopy;
+  addOns: AddOnsCopy;
   locale: Locale;
 }): RideReceipt {
   const hourly = trip.mode === "hourly";
@@ -1055,6 +1061,7 @@ function buildRideReceipt({
     hourly,
     stops: hourly ? [] : trip.stops.map((s) => s.place.trim()).filter(Boolean),
     price: storedPrice(quoted),
+    extraNames: (quoted?.extras ?? []).map((line) => extraName(addOns, line)),
   };
 }
 
@@ -1070,6 +1077,7 @@ function isRideReceipt(value: unknown): value is RideReceipt {
   if (typeof receipt.passengerName !== "string" || typeof receipt.passengerEmail !== "string" || typeof receipt.passengerPhone !== "string") return false;
   if (typeof receipt.leadPassenger !== "string" || typeof receipt.pickup !== "string" || typeof receipt.dropoff !== "string") return false;
   if (typeof receipt.when !== "string" || typeof receipt.hourly !== "boolean" || !Array.isArray(receipt.stops)) return false;
+  if (receipt.extraNames !== undefined && !(Array.isArray(receipt.extraNames) && receipt.extraNames.every((n) => typeof n === "string"))) return false;
   if (receipt.price == null) return true;
   return typeof receipt.price === "object" && typeof receipt.price.total === "number" && Array.isArray(receipt.price.legs);
 }
@@ -1113,6 +1121,27 @@ export function BookingStatusBadge({ label }: { label: string }) {
   );
 }
 
+/**
+ * The receipt's price lines: the chauffeur service, each add-on, the service fee, the total before VAT and the VAT by
+ * rate (9% on the rides and flowers, 21% on the service fee and the other add-ons), from the price the visitor confirmed.
+ * None when that price is unknown or the server's total differs from it, so the receipt never splits a total it cannot.
+ */
+function receiptLines(p: Price | null, serverTotal: number | null, names: string[], t: BookingCopy): { label: string; cents: number }[] {
+  if (!p || (serverTotal !== null && serverTotal !== p.total)) return [];
+  const vat = vatByRate(p);
+  // A receipt kept from an older page may lack the add-on lines: show no breakdown rather than one that does not add up
+  const extrasNet = (p.extras ?? []).reduce((sum, line) => sum + line.amount, 0);
+  if (p.rides + extrasNet + p.fee !== priceNet(p) || priceNet(p) + vat.low + vat.high !== p.total) return [];
+  return [
+    { label: t.receiptRides, cents: p.rides },
+    ...(p.extras ?? []).map((line, i) => ({ label: `${line.count} × ${names[i] ?? line.key}`, cents: line.amount })),
+    { label: t.priceServiceFee, cents: p.fee },
+    { label: t.receiptNet, cents: priceNet(p) },
+    { label: t.priceVat, cents: vat.low },
+    ...(vat.high ? [{ label: hasHighRateExtras(p) ? t.priceVatHigh : t.priceFeeVat, cents: vat.high }] : []),
+  ];
+}
+
 /** Small pill button on the side that opens the complete styled booking confirmation receipt modal */
 export function DownloadableReceiptCard({
   copy: t,
@@ -1150,8 +1179,7 @@ export function DownloadableReceiptCard({
   const quoted = receipt?.price ?? null;
   const totalAmount = price?.total ?? quoted?.total ?? 0;
   const euro = (cents: number) => formatCents(cents, locale);
-  const base = euro(Math.round(totalAmount / 1.09));
-  const vat = euro(Math.round(totalAmount - totalAmount / 1.09));
+  const lines = receiptLines(quoted, price?.total ?? null, receipt?.extraNames ?? [], t).map(({ label, cents }) => ({ label, value: euro(cents) }));
   const total = euro(totalAmount);
   const clientName = receipt?.passengerName || name;
   const route = receipt ? `${receipt.pickup} → ${receipt.dropoff}` : "";
@@ -1168,8 +1196,7 @@ export function DownloadableReceiptCard({
         clientPhone: receipt?.passengerPhone ?? "",
         route,
         when: receipt?.when ?? "",
-        base,
-        vat,
+        lines,
         total,
       }),
     );
@@ -1225,14 +1252,12 @@ export function DownloadableReceiptCard({
               </div>
 
               <div className="mt-3 flex flex-col gap-1.5 border-t border-zinc-400/30 pt-3 text-[13px] text-zinc-200">
-                <div className="flex items-center justify-between gap-3">
-                  <span>Total base (excl. BTW)</span>
-                  <span className="shrink-0 font-medium text-[#ffffff]">{base}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>9% BTW</span>
-                  <span className="shrink-0 font-medium text-[#ffffff]">{vat}</span>
-                </div>
+                {lines.map((line) => (
+                  <div key={line.label} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0">{line.label}</span>
+                    <span className="shrink-0 font-medium text-[#ffffff] tabular-nums">{line.value}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#06144a] px-3.5 py-3">

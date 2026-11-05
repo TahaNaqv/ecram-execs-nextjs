@@ -27,19 +27,25 @@ function lockedTotal(request: QuoteRequest): number | null {
   return Number.isFinite(amount) ? amount : null;
 }
 
-/** The stored rate-card lines, in euros. Empty when the booking has no snapshot. */
-function fareRows(price: Price | null, copy: PricingCopy): { label: string; amount: number }[] {
+/**
+ * The stored rate-card lines, in euros: the ride, each add-on, the service fee and the VAT by rate (9% on the ride and
+ * the flowers, 21% on the service fee and the other add-ons), so they add up to the stored total. Empty without a snapshot.
+ */
+function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): { label: string; amount: number }[] {
   if (!price || typeof price.total !== "number") return [];
+  const vat = vatByRate(price);
   const rows = [
     { label: copy.baseFare, amount: price.rides / 100 },
-    { label: copy.btw9, amount: price.vat / 100 },
+    ...(price.extras ?? []).map((line) => ({ label: `${line.count} × ${names ? extraName(names, line) : line.key}`, amount: line.amount / 100 })),
+    { label: copy.btw9, amount: vat.low / 100 },
     { label: copy.serviceFee, amount: price.fee / 100 },
   ];
-  if (price.feeVat) rows.push({ label: copy.serviceFeeVat, amount: price.feeVat / 100 });
+  if (vat.high) rows.push({ label: hasHighRateExtras(price) ? copy.serviceFeeAddOnsVat : copy.serviceFeeVat, amount: vat.high / 100 });
   return rows;
 }
 import { formatEuro, formatTimestamp, pickupParts } from "@/lib/admin/format";
-import { storedQuoteEuros, type Price } from "@/lib/pricing/rates";
+import { hasHighRateExtras, storedQuoteEuros, vatByRate, type Price } from "@/lib/pricing/rates";
+import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { 
   ShieldIcon,
@@ -62,6 +68,7 @@ export function AutoPricingGateway({
   statuses,
   routeMap,
   addOns,
+  addOnNames,
   children,
 }: {
   request: QuoteRequest;
@@ -70,6 +77,8 @@ export function AutoPricingGateway({
   routeMap?: RouteMapProps | null;
   /** The add-ons to have ready in the car, as one line ("1 × Luxury Floral Arrangement"), or nothing */
   addOns?: string | null;
+  /** The add-ons' names, for the fare lines */
+  addOnNames?: ExtraNames;
   /** Sits above Authorisation in the left column, usually the rate-card price */
   children?: React.ReactNode;
 }) {
@@ -84,7 +93,7 @@ export function AutoPricingGateway({
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
-  const fare = fareRows(request.priceEstimate, copy);
+  const fare = fareRows(request.priceEstimate, copy, addOnNames);
   const grandTotal = lockedTotal(request);
 
   // Real data extracted from request

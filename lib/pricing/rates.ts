@@ -180,7 +180,7 @@ export const hasHighRateExtras = (p: Price) => (p.extras ?? []).some((line) => l
 
 /**
  * The rate-card total saved with a booking, as a two-decimal euro string. This is the amount the visitor confirmed
- * (rides, 9% VAT, service fee, and its VAT). Null when that snapshot was not stored. It is not worked out again.
+ * (rides, 9% VAT, service fee and its VAT, and any add-ons with their VAT). Null when that snapshot was not stored. It is not worked out again.
  */
 export function storedQuoteEuros(price: Pick<Price, "total"> | null | undefined): string | null {
   if (!price || typeof price.total !== "number" || !Number.isFinite(price.total)) return null;

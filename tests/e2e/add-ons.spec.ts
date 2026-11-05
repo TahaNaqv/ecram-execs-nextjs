@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
+import { fillAdminLogin } from "./helpers";
 import { carChoice, chooseExtras, confirmedReference, fillJourney, forgetRecentRequests, nextYear } from "./booking-helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
 
@@ -69,8 +70,19 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   await page.getByRole("button", { name: en.booking.submit }).click();
   const reference = await confirmedReference(page, "Thank you, Anna");
 
+  // The receipt lists the add-ons and splits the VAT by rate, as the review did
+  await page.getByRole("button", { name: en.booking.receiptTitle }).click();
+  const receipt = page.getByRole("dialog");
+  await expect(receipt).toContainText(en.booking.receiptRides);
+  await expect(receipt).toContainText(`2 × ${en.addOns.champagne}`);
+  await expect(receipt).toContainText(`1 × ${en.addOns.chocolates} (${en.addOns.chocolatesDairyFree})`);
+  await expect(receipt).toContainText(en.booking.receiptNet);
+  await expect(receipt).toContainText(en.booking.priceVatHigh);
+  await expect(receipt).toContainText("€44.21");
+  await receipt.getByRole("button", { name: "Close", exact: true }).last().click();
+
   const db = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
-  const [row] = await db`select extras, price_estimate from quote_requests where reference = ${reference}`;
+  const [row] = await db`select id, extras, price_estimate from quote_requests where reference = ${reference}`;
   await db.end();
   expect(row.extras).toEqual([
     { key: "champagne", count: 2 },
@@ -80,6 +92,17 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   const p = row.price_estimate;
   expect(p.extrasVat).toBe(3276 + 882);
   expect(p.total).toBe(p.rides + p.vat + p.fee + p.feeVat + 15600 + 4200 + 4158);
+
+  // The team's booking PDF lists the add-ons and the VAT by rate, so its lines add up to the total
+  await page.goto("/admin/login");
+  await fillAdminLogin(page);
+  await page.waitForURL((url) => !url.pathname.endsWith("/login"));
+  await page.goto(`/admin/requests/${row.id}`);
+  await page.getByText(en.admin.pricing.pdfQuote, { exact: true }).click();
+  const quote = page.locator("#official-quote");
+  await expect(quote.getByText(`2 × ${en.addOns.champagne}`, { exact: true })).toBeVisible();
+  await expect(quote.getByText(`1 × ${en.addOns.chocolates} (${en.addOns.chocolatesDairyFree})`, { exact: true })).toBeVisible();
+  await expect(quote.getByText(en.admin.pricing.serviceFeeAddOnsVat, { exact: true })).toBeVisible();
 });
 
 test("skipping the add-ons sends none", async ({ page }) => {
