@@ -48,7 +48,7 @@ export default async function DriveWithUsPage() {
         {dict.common.skipToContent}
       </a>
       <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-5 py-[22px] md:px-6 2xl:max-w-[1440px]">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4 py-4 sm:px-6 md:px-8 md:py-[22px] 2xl:max-w-[1440px]">
         <Link href="/" className="inline-flex items-center gap-2 whitespace-nowrap chrome font-display text-[13px] tracking-[0.15em] md:gap-3 md:text-[22px] no-underline md:tracking-[0.32em]">
             <Image className="h-9 w-9 shrink-0 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} />
             <span>ECRAM EXECS</span>
@@ -68,7 +68,7 @@ export default async function DriveWithUsPage() {
 
       <main id="main">
         <section className="border-b border-ink-850">
-          <div className="mx-auto flex max-w-[1280px] flex-wrap gap-12 px-5 pt-16 pb-20 md:px-6 md:pt-24 md:pb-28 2xl:max-w-[1440px]">
+          <div className="mx-auto flex max-w-[1280px] flex-wrap gap-8 px-4 pt-12 pb-14 sm:px-6 md:gap-10 md:px-8 md:pt-16 md:pb-16 lg:gap-12 lg:pt-20 lg:pb-24 2xl:max-w-[1440px]">
             <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-6">
               <span className="font-display text-[12px] tracking-[0.3em] text-ink-450 md:tracking-[0.42em]">{t.eyebrow}</span>
               <h1 className="m-0 font-serif text-[clamp(36px,8.6vw,40px)] leading-[1.05] font-light text-white md:text-[clamp(40px,5vw,68px)]">
@@ -91,7 +91,7 @@ export default async function DriveWithUsPage() {
               </ol>
             </div>
 
-            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-6 self-start border border-ink-800 bg-ink-900 p-6 md:p-10">
+            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-6 self-start border border-ink-800 bg-ink-900 p-6 md:p-8 lg:p-10">
               <span className="font-display text-[12px] tracking-[0.3em] text-ink-450 md:tracking-[0.42em]">{t.criteriaEyebrow}</span>
               <h2 className="m-0 font-serif text-[30px] leading-[1.1] font-light text-white">{t.criteriaHeading}</h2>
               <Criteria />
@@ -114,7 +114,7 @@ export default async function DriveWithUsPage() {
         </section>
 
         <section className="light-surface bg-ink-50 text-ink-950" id="apply">
-          <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-5 py-12 md:px-6 md:py-16 2xl:max-w-[1440px]">
+          <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-12 sm:px-6 md:px-8 md:py-14 lg:py-16 2xl:max-w-[1440px]">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="m-0 font-serif text-[30px] leading-[1.1] font-normal md:text-[34px]">{t.applyHeading}</h2>
               <p className="m-0 text-[14px] text-ink-600">{t.applyNote}</p>

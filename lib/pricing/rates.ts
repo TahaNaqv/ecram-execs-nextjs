@@ -146,6 +146,15 @@ export function priceNet(p: Price): number {
   return p.total - p.vat - (p.feeVat ?? 0);
 }
 
+/**
+ * The rate-card total saved with a booking, as a two-decimal euro string. This is the amount the visitor confirmed
+ * (rides, 9% VAT, service fee, and its VAT). Null when that snapshot was not stored. It is not worked out again.
+ */
+export function storedQuoteEuros(price: Pick<Price, "total"> | null | undefined): string | null {
+  if (!price || typeof price.total !== "number" || !Number.isFinite(price.total)) return null;
+  return (price.total / 100).toFixed(2);
+}
+
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */
 export function formatCents(cents: number, locale: string): string {
   return new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { style: "currency", currency: "EUR" }).format(cents / 100);

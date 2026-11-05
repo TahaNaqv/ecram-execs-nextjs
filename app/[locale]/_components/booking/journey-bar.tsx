@@ -185,6 +185,15 @@ export function JourneyBar({
       if (hidden instanceof HTMLInputElement) hidden.value = fresh;
     }
     const found = tripProblems(current, netherlandsNow());
+    
+    // Strict dropdown suggestion check for origin and destination
+    if (!current.from.id && !found.includes("collection")) {
+      found.push("collection");
+    }
+    if (current.mode === "oneway" && !current.to.id && !found.includes("destination")) {
+      found.push("destination");
+    }
+
     setProblems(found);
     if (found.length > 0) {
       e.preventDefault();
@@ -215,7 +224,7 @@ export function JourneyBar({
           ? `relative flex min-w-0 cursor-pointer flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 [--field-pad:14px] focus-within:border-ink-950 ${
               field && invalid(field) ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"
             } ${extra}`
-          : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-[18px] py-3 [--field-pad:18px] ${
+          : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-3.5 py-2.5 [--field-pad:14px] sm:px-4 sm:py-3 sm:[--field-pad:16px] ${
               dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
             } ${field && invalid(field) ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`
       }
@@ -396,7 +405,7 @@ export function JourneyBar({
                   id={`${ids.hours}-list`}
                   role="listbox"
                   aria-label={t.duration}
-                  className="absolute top-full left-0 z-50 mt-2 box-border max-h-60 w-full overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
+                  className="absolute top-full left-0 z-50 mt-2 box-border max-h-60 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light]"
                 >
                   {HOURLY_DURATIONS.map((h) => {
                     const selected = trip.hours === h;
@@ -508,7 +517,7 @@ export function JourneyBar({
                 id={`${uid}-wait-${i}`}
                 role="listbox"
                 aria-label={interpolate(t.stopWaitLabel, { number: i + 1 })}
-                className="absolute top-full left-0 z-50 mt-1 box-border max-h-60 w-full min-w-0 list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light] sm:left-auto sm:right-0 sm:w-auto sm:min-w-[148px]"
+                className="absolute top-full left-0 z-50 mt-1 box-border max-h-60 w-full min-w-0 max-w-[calc(100vw-2rem)] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light] sm:left-auto sm:right-0 sm:w-auto sm:min-w-[148px]"
               >
                 {STOP_WAITS.map((w) => {
                   const selected = stop.wait === w;
@@ -596,7 +605,7 @@ export function JourneyBar({
     );
   }
 
-  // Calculate items in the last grid row (3 columns on lg) to decide if button fits inline or needs a centered wide row
+  // Extras sit in 3 columns from xl. When the last row still has a free cell, Continue sits in it.
   const totalExtraItems = stops.length + (flightCell ? 1 : 0);
   const remainderInRow = totalExtraItems % 3;
   const buttonFitsInline = totalExtraItems > 0 && remainderInRow !== 0;
@@ -626,7 +635,7 @@ export function JourneyBar({
           {addButtons}
         </div>
 
-        <div className="relative mt-1.5 grid min-w-0 grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(190px,0.9fr)_minmax(250px,1.2fr)]">
+        <div className="relative mt-1.5 grid min-w-0 grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-x-5 md:grid-cols-2 md:gap-x-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.15fr)]">
           {fromCell}
           {toCell}
           {whenCell}
@@ -634,7 +643,7 @@ export function JourneyBar({
         </div>
 
         {hasExtras && (
-          <div className={`mx-1.5 mt-1 grid grid-cols-1 gap-2 border-0 border-t border-solid pt-3 md:grid-cols-2 lg:grid-cols-3 ${divider}`}>
+          <div className={`mx-1.5 mt-1 grid min-w-0 grid-cols-1 gap-2 border-0 border-t border-solid pt-3 md:grid-cols-2 xl:grid-cols-3 ${divider}`}>
             {stopCells}
             {flightCell}
             {buttonFitsInline && <div className="col-span-1 flex items-center">{continueButton}</div>}

@@ -8,9 +8,9 @@ import { AskConciergeLink } from "../concierge-launcher";
 
 export async function Hero() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
-  // Clipped sideways only: the booking bar's suggestions and calendar may hang below the hero
+  // The background is clipped on its own. The section is not, so the booking calendar can sit above the floating buttons.
   return (
-    <section className="keep-navy overflow-x-clip relative flex flex-col justify-center md:min-h-[860px]" id="top">
+    <section className="keep-navy relative flex min-w-0 flex-col justify-center md:min-h-[720px] xl:min-h-[860px]" id="top">
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
         <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/hero-jet-arrival-v2.png" alt={d.hero.imageAlt} fill priority sizes="100vw" />
         {/* A blue dusk, not black. Desktop: the deepest blue behind the copy (white text needs it: about 5:1), lighter at the
@@ -19,7 +19,7 @@ export async function Hero() {
         {/* Phones: the same blue behind the headline, lighter lower down so the vehicle stays visible */}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--ec-sky-rgb),0.84)_0%,rgba(var(--ec-sky-rgb),0.72)_45%,rgba(var(--ec-sky-rgb),0.22)_75%,rgba(var(--ec-deep-rgb),0.76)_100%)] md:hidden"></div>
       </div>
-      <div className="relative mx-auto my-0 box-border flex w-full max-w-[1280px] flex-col items-center gap-4 px-4 pt-8 pb-8 text-center md:gap-7 md:px-6 md:pt-20 md:pb-24 2xl:max-w-[1440px]">
+      <div className="relative mx-auto my-0 box-border flex w-full min-w-0 max-w-[1280px] flex-col items-center gap-4 px-4 pt-8 pb-8 text-center sm:px-6 md:gap-6 md:px-8 md:pt-12 md:pb-12 lg:gap-7 lg:pt-20 lg:pb-20 xl:pb-24 2xl:max-w-[1440px]">
         <h1 className="rise d2 mx-0 mt-1 mb-0 font-serif text-[clamp(28px,8vw,40px)] leading-[1.08] font-light tracking-[-0.01em] text-white md:mt-2 md:text-[clamp(40px,5.4vw,76px)] md:leading-[1.05]">
           {d.hero.headingBefore}{" "}
           <br className="hidden md:inline" />
@@ -32,7 +32,7 @@ export async function Hero() {
         </p>
         {/* The booking bar. `enquire` is the anchor every "Request a quote" link on the site points to. Raised above the
             rest of the hero, so its suggestions and calendar open over the scroll cue and the strip below it */}
-        <div id="enquire" className="rise d4 relative z-30 mt-2 w-full max-w-[1180px] scroll-mt-28 text-left">
+        <div id="enquire" className="rise d4 relative z-30 mt-2 w-full min-w-0 max-w-[1180px] scroll-mt-28 text-left">
           <Suspense
             fallback={
               <JourneyBar
@@ -83,7 +83,7 @@ export async function Hero() {
         <span className="cue" aria-hidden="true"></span>
       </div>
       <div className="border-t border-t-white/15 relative bg-[rgba(var(--ec-deep-rgb),0.74)]">
-        <div className="p-5 my-0 mx-auto items-center text-ink-100 gap-x-10 flex flex-col flex-wrap font-display text-[10px] justify-center tracking-[0.28em] max-w-[1280px] gap-y-[10px] text-center md:py-[22px] md:px-6 md:text-[12px] md:tracking-[0.38em] md:gap-y-4 md:gap-x-10 md:items-stretch md:flex-row xl:gap-4 xl:justify-between xl:text-start 2xl:max-w-[1440px]">
+        <div className="mx-auto my-0 flex max-w-[1280px] flex-col flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-4 text-center font-display text-[10px] tracking-[0.22em] text-ink-100 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-x-6 md:px-8 md:py-4 md:text-[11px] md:tracking-[0.24em] lg:gap-x-8 lg:text-[12px] lg:tracking-[0.32em] xl:justify-between xl:text-start 2xl:max-w-[1440px]">
           <span>
             {d.hero.stripQuiet}
           </span>

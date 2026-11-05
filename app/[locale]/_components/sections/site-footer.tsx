@@ -20,15 +20,15 @@ export async function SiteFooter() {
   const home = localizedPath("/", locale);
   return (
     <footer className="keep-navy border-t border-t-ink-850 bg-ink-975">
-      <div className="px-5 pt-14 pb-10 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:px-6 md:pt-18 md:pb-10 md:gap-14 2xl:max-w-[1440px]">
-        <div className="gap-12 flex flex-wrap justify-between">
-          <div className="gap-[10px] items-center flex flex-col max-w-[360px] text-center">
-            <Image className="h-auto w-full max-w-[300px]" src="/assets/logo.png" alt={d.footer.logoAlt} width={1584} height={865} sizes="300px" />
-            <p className="mx-0 mt-3 mb-0 text-ink-450 text-[14px] font-light text-center">
+      <div className="mx-auto flex max-w-[1280px] flex-col px-4 pt-10 pb-8 sm:px-6 md:px-8 md:pt-12 lg:pt-16 2xl:max-w-[1440px]">
+        <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] md:gap-8 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:gap-12">
+          <div className="mx-auto flex max-w-[260px] flex-col items-center gap-2.5 text-center md:mx-0 md:items-start md:text-left">
+            <Image className="h-auto w-full max-w-[220px] lg:max-w-[240px]" src="/assets/logo.png" alt={d.footer.logoAlt} width={1584} height={865} sizes="240px" />
+            <p className="m-0 mt-2 text-center text-[14px] font-light text-ink-450 md:text-left">
               {d.footer.blurb}
             </p>
           </div>
-          <div className="flex-[0_1_100%] gap-x-5 grid grid-cols-[1fr_1fr] gap-y-8 md:gap-10 md:flex-[0_1_640px] md:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+          <div className="grid grid-cols-2 items-start gap-x-6 gap-y-6 md:grid-cols-3 md:gap-x-8">
             <nav className="gap-[10px] flex flex-col items-start text-[14px]" aria-label={d.footer.servicesLabel}>
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.servicesLabel}
@@ -69,7 +69,7 @@ export async function SiteFooter() {
               </Link>
               
             </nav>
-            <div className="gap-[10px] col-[1/-1] text-ink-250 flex flex-col items-start text-[14px] md:col-auto">
+            <div className="col-span-2 flex flex-col items-start gap-[10px] text-[14px] text-ink-250 md:col-span-1">
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.contactLabel}
               </span>
@@ -89,8 +89,8 @@ export async function SiteFooter() {
         </div>
       </div>
       <div className="light-surface bg-white text-ink-600">
-        {/* The icons sit in the middle of the page: from lg the copyright takes the left third (its right third stays empty), below that they stack */}
-        <div className="px-5 pt-6 pb-20 my-0 mx-auto gap-5 grid text-[12px] max-w-[1280px] md:px-6 md:py-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center 2xl:max-w-[1440px]">
+        {/* From md the copyright and icons share one row. From lg the icons sit in the middle. */}
+        <div className="mx-auto grid max-w-[1280px] gap-4 px-4 pt-5 pb-16 text-[12px] sm:px-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-8 md:py-5 lg:grid-cols-[1fr_auto_1fr] 2xl:max-w-[1440px]">
           <span>
             © <CopyrightYear /> Ecram Execs{siteConfig.kvk && ` · KvK ${siteConfig.kvk}`} ·{" "}
             <Link className="text-inherit" href={localizedPath("/privacy", locale)}>
@@ -99,7 +99,7 @@ export async function SiteFooter() {
             ·{" "}
             <CookieSettingsButton label={d.cookieConsent.settingsLink} className="cursor-pointer border-none bg-transparent p-0 font-[inherit] text-[length:inherit] text-inherit underline underline-offset-2" />
           </span>
-          <nav className="gap-4 items-center justify-center justify-self-center flex flex-wrap" aria-label={d.footer.socialLabel}>
+          <nav className="flex flex-wrap items-center justify-center gap-3 justify-self-center md:justify-self-end md:gap-4 lg:justify-self-center" aria-label={d.footer.socialLabel}>
             {socialLinks.map(([label, url]) => (
               <a className="inline-flex h-9 w-9 items-center justify-center transition-opacity hover:opacity-70" key={label} href={url} aria-label={label} title={label} {...(url.startsWith("http") && { target: "_blank", rel: "noopener noreferrer" })}>
                 <SocialIcon label={label} />

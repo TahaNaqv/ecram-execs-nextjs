@@ -18,7 +18,7 @@ export async function Services() {
   ];
   return (
     <section className="border-b border-b-ink-850" id="services">
-      <div className="py-12 px-5 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:py-16 md:px-6 md:gap-14 2xl:max-w-[1440px]">
+      <div className="mx-auto my-0 flex max-w-[1280px] flex-col gap-8 px-4 py-12 sm:px-6 md:gap-10 md:px-8 md:py-14 lg:py-16 2xl:max-w-[1440px]">
         <div className="flex flex-col items-center text-center">
           <div className="gap-4 flex flex-col max-w-[640px]">
             <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">{s.eyebrow}</span>

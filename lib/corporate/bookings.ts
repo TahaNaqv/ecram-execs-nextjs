@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { cache } from "react";
 import { db, schema } from "@/lib/db";
 import type { RequestEventParams } from "@/lib/admin/events";
@@ -15,8 +15,8 @@ import { getCorporateContact } from "./access";
 const q = schema.quoteRequests;
 
 export const PORTAL_PAGE_SIZE = 20;
-export type PortalTab = "answer" | "open" | "past";
-export const PORTAL_TABS: readonly PortalTab[] = ["answer", "open", "past"];
+export type PortalTab = "open" | "past" | "cancelled";
+export const PORTAL_TABS: readonly PortalTab[] = ["open", "past", "cancelled"];
 export const isPortalTab = (value: unknown): value is PortalTab => PORTAL_TABS.includes(value as PortalTab);
 
 /** A booking reference as the system makes them (see makeReference). */
@@ -63,21 +63,24 @@ async function owner() {
   return contact;
 }
 
-/** A quote is waiting for the partner's answer only when it has an amount: that is what they would be accepting. */
-const waiting = and(eq(q.status, "quoted"), isNotNull(q.quotedAmount))!;
+// Pick-up times are Netherlands wall-clock timestamps, so "already happened" is compared in that zone.
+const amsterdamNow = sql`(now() at time zone 'Europe/Amsterdam')`;
+
 const tabFilter: Record<PortalTab, SQL> = {
-  answer: waiting,
-  open: or(inArray(q.status, ["new", "contacted", "confirmed"]), and(eq(q.status, "quoted"), isNull(q.quotedAmount)))!,
-  past: inArray(q.status, ["completed", "cancelled"]),
+  // Every new or confirmed booking stays here, including one whose pick-up has already passed.
+  open: inArray(q.status, ["new", "contacted", "quoted", "confirmed"]),
+  // Marked completed, or confirmed and already driven. The second case is still listed under Open as well.
+  past: or(eq(q.status, "completed"), and(eq(q.status, "confirmed"), sql`${q.pickupAt} < ${amsterdamNow}`))!,
+  cancelled: eq(q.status, "cancelled"),
 };
 
 export async function bookingTabCounts() {
   const contact = await owner();
   const [row] = await db
     .select({
-      answer: sql<number>`count(*) filter (where ${tabFilter.answer})`.mapWith(Number),
       open: sql<number>`count(*) filter (where ${tabFilter.open})`.mapWith(Number),
       past: sql<number>`count(*) filter (where ${tabFilter.past})`.mapWith(Number),
+      cancelled: sql<number>`count(*) filter (where ${tabFilter.cancelled})`.mapWith(Number),
     })
     .from(q)
     .where(eq(q.corporateContactId, contact.id));
@@ -88,7 +91,7 @@ export async function listBookings(tab: PortalTab, page: number) {
   const contact = await owner();
   const where = and(eq(q.corporateContactId, contact.id), tabFilter[tab]);
   // Open work is ordered by when the trip is (undated bespoke programmes last); the past by when it was asked for
-  const order = tab === "past" ? [desc(q.createdAt)] : [sql`${q.pickupAt} asc nulls last`, desc(q.createdAt)];
+  const order = tab === "open" ? [sql`${q.pickupAt} asc nulls last`, desc(q.createdAt)] : [desc(q.createdAt)];
   const [rows, [counted]] = await Promise.all([
     db
       .select(bookingColumns)

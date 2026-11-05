@@ -8,7 +8,7 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
-import { dayKind, formatCents, hourlyRate, SERVICE_FEE_CENTS, type Segment } from "@/lib/pricing/rates";
+import { dayKind, formatCents, hourlyRate, SERVICE_FEE_CENTS, type Price, type Segment } from "@/lib/pricing/rates";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
@@ -18,11 +18,11 @@ import { capacityProblem, involvesAirport, isTripReady, normalizeTrip, pickupAtA
 import { Check, pretty, SeatIcon } from "./parts";
 import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
+import { buildReceiptPdf, downloadReceiptPdf } from "./receipt-pdf";
 import { bookingsSent } from "./sent";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 
 export type BookingStep = "journey" | "car" | "details" | "review";
-/** What the last submission came back with, the same for the website's action and the portal's. */
 export type BookingResult = {
   pending: boolean;
   message: string | null;
@@ -37,20 +37,15 @@ export type DetailDefaults = {
   entityKvk?: string;
 };
 
-// Fields the server checks, by the step that asks for them: an error sends the visitor back there
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
 const CAR_FIELDS = ["vehicle"];
 const DETAILS_FIELDS = ["name", "email", "phone", "phoneCountry", "passengerName", "passengerPhone", "passengerPhoneCountry", "entity", "entityKvk", "notes"];
 
-/** What the visitor typed on the details step, kept while they review (and go back to change it). */
 export type DetailsEntry = { who: "me" | "other"; purpose: "business" | "private"; fields: [string, string][] };
 
 const PASSENGER_FIELDS = ["passengerName", "passengerPhone", "passengerPhoneCountry"];
 const COMPANY_FIELDS = ["entity", "entityKvk"];
-/**
- * The details that are sent: everything typed is kept (so switching back to "someone else" or "business" finds it again),
- * but a passenger is only sent when someone else travels, and a company only for a business trip.
- */
+
 export function sentFields(entry: DetailsEntry, _variant: "public" | "portal"): [string, string][] {
   return entry.fields.filter(
     ([k]) => !(entry.who === "me" && PASSENGER_FIELDS.includes(k)) && !(entry.purpose === "private" && COMPANY_FIELDS.includes(k)),
@@ -103,12 +98,6 @@ const ArrowRight = () => (
   </svg>
 );
 
-
-/**
- * The booking flow after the journey: the car, then who is travelling and how to reach them, then one submission of
- * everything to the action the page gives it (the website's quote request or the portal's booking). Shared by /book and
- * the Corporate Partner portal; `variant` decides the few differences (who the booker is, what the summary promises).
- */
 export function BookingFlow({
   variant,
   locale,
@@ -137,37 +126,27 @@ export function BookingFlow({
   messages: TripMessages;
   fleetDict: FleetDictionary;
   vehicleAdvise: string;
-  /** The cars on offer (switched-off cars already left out) */
   vehicles: OfferedVehicle[];
   initialTrip: Trip;
   initialStep: BookingStep;
   result: BookingResult;
   submit: (data: FormData) => void;
-  /** Portal: the signed-in partner, shown instead of name and email fields */
   booker?: { name: string; email: string; companyName?: string | null };
   defaultPhone?: { country: string; number: string };
-  /** Portal "repeat this booking": the details step starts from the earlier booking's notes and passenger */
   defaults?: DetailDefaults;
   privacyHref?: string;
-  /** Where the journey step's Cancel leads */
   cancelHref?: string;
-  /** Shown above the flow, e.g. "Filled in from EE-XXXXXX" in the portal */
   notice?: string;
-  /** Portal: the session ran out; a sign-in link in place of the submit button */
   lockedNotice?: ReactNode;
 }) {
   const [trip, setTrip] = useState<Trip>(initialTrip);
-  // The journey as it is being typed, for the outline beside the form; the trip itself changes when the step is done
   const [draft, setDraft] = useState<Trip>(initialTrip);
-  // Bumps when Edit is pressed so the journey form mounts again from the trip as it is now
   const [journeyEdit, setJourneyEdit] = useState(0);
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [entered, setEntered] = useState<DetailsEntry | null>(null);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
   const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
-  // The step whose heading last had the focus. Not the first render, and not when Next shows the page again after Back
-  // (it re-runs effects on pages it kept): only a real change of step moves the focus and the scroll
   const focused = useRef<BookingStep>(initialStep);
 
   useEffect(() => {
@@ -177,7 +156,6 @@ export function BookingFlow({
     heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [step]);
 
-  // A reload keeps the step and what was typed. A booking that was actually sent starts this page empty again.
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const saved = readDraft();
@@ -196,13 +174,10 @@ export function BookingFlow({
     try {
       const saved: BookingDraft = { sent: bookingsSent(), step, trip, draft, entered };
       sessionStorage.setItem(draftKey(), JSON.stringify(saved));
-    } catch {
-      // storage blocked: the form still works, it just cannot survive a reload
-    }
+    } catch {}
   }, [ready, step, trip, draft, entered]);
   const go = setStep;
 
-  // A server error belongs to a step: go back to it (once per answer from the server)
   const errorKeys = Object.keys(result.fieldErrors);
   const [answered, setAnswered] = useState(result.fieldErrors);
   if (answered !== result.fieldErrors) {
@@ -216,13 +191,11 @@ export function BookingFlow({
   const chosen = vehicleByKey(trip.vehicle);
   const steps: [BookingStep, string][] = [["journey", t.stepJourney], ["car", t.stepCar], ["details", t.stepDetails], ["review", t.stepReview]];
   const stepIndex = steps.findIndex(([s]) => s === step);
-  // The book page's own journey step. The review step uses it so the contact details already typed stay on the page.
   const showJourney = () => {
     setDraft(trip);
     setJourneyEdit((n) => n + 1);
     go("journey");
   };
-  // Website: Edit and Back return to the homepage bar, with this trip in the URL so the fields are filled.
   const editJourney = () => {
     if (variant === "public" && cancelHref) {
       const q = tripToParams(trip).toString();
@@ -238,11 +211,8 @@ export function BookingFlow({
       : [shortPlace(trip.from), ...trip.stops.filter((s) => s.place).map(() => "…"), shortPlace(trip.to)].join(" → "),
     trip.at ? pretty(trip.at, locale) : "",
     partyLine(t, trip.pax, trip.bags, trip.small),
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
+  ].filter(Boolean).join("  ·  ");
 
-  // Wait until any saved step is read, so a reload does not paint step 1 and then jump.
   if (!ready) return <div className="min-h-[480px]" aria-hidden="true" />;
 
   return (
@@ -381,7 +351,8 @@ export function BookingFlow({
           lockedNotice={lockedNotice}
           gallery={galleryCopy(fleetDict)}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
-          onSend={() => {
+          onSend={(quoted) => {
+            rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, locale }));
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
             for (const [k, v] of tripFields(trip, entered.purpose)) data.append(k, v);
@@ -416,7 +387,6 @@ function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
 function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
-  /** Whose rates the cards show: the website's standard rates or a corporate partner's */
   segment: Segment;
   locale: Locale;
   vehicles: OfferedVehicle[];
@@ -436,7 +406,6 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
   const recommendation = suggestVehicle(cars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
-  // The rate card's column for the day of the pick-up
   const day = trip.at ? dayKind(trip.at) : null;
   const rateOf = (key: string) => {
     const rate = day ? hourlyRate(key, segment, day) : null;
@@ -468,7 +437,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
             }}
             className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-not-allowed"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
             <span className="flex min-w-0 items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
               <span className="min-w-0 text-[15px] font-semibold">{c.vehicle.name}</span>
@@ -541,7 +510,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
             }`}
           >
             {recommendation ? (
-              // eslint-disable-next-line @next/next/no-img-element -- small cover photo from /public; next/image would need sizes per breakpoint for no gain here
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={recommendation.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
             ) : (
               <span className="grid size-11 place-items-center rounded-xl border border-solid border-ink-225 bg-white">
@@ -599,7 +568,6 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   );
 }
 
-/** Calling-code list drawn by us. The browser's own menu paints pale type on white inside the navy page, so the codes disappear. */
 function CountryCode({ name, label, country, onChange }: { name: string; label: string; country: string; onChange: (country: string) => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -669,18 +637,15 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   defaultPhone?: { country: string; number: string };
   defaults?: DetailDefaults;
   privacyHref?: string;
-  /** What was typed here before the visitor went on to the review: the form starts from it when they come back */
   entered: DetailsEntry | null;
   messages: TripMessages;
   gallery: GalleryCopy;
-  /** Keeps the details typed so far, so a reload can put them back */
   onDraft: (entry: DetailsEntry) => void;
   onBack: () => void;
   onReview: (entry: DetailsEntry) => void;
 }) {
   const uid = useId();
   const saved = new Map(entered?.fields);
-  // A value typed earlier, else what the page brought (the portal's "repeat this booking")
   const typed = (name: string, fallback?: string) => saved.get(name) ?? fallback;
   const [who, setWho] = useState<"me" | "other">(entered?.who ?? (defaults?.passengerName ? "other" : "me"));
   const [purpose, setPurpose] = useState<"business" | "private">(entered?.purpose ?? "business");
@@ -699,7 +664,6 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     return { who, purpose, fields: [...fields] };
   };
 
-  // Who/purpose are not form fields. Skip the first run so a restored draft is not replaced by an empty form.
   useEffect(() => {
     if (purposeStarted.current) {
       purposeStarted.current = false;
@@ -707,11 +671,8 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     }
     const form = formRef.current;
     if (form) onDraft(snapshot(form));
-    // snapshot reads the latest who, purpose and dial codes; typed text is saved by the form's input handler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [who, purpose, phoneCountry, passengerCountry]);
 
-  // Checked here, before the review, so the review only ever shows a booking that can be sent; the server checks again
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -722,7 +683,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     if (value("phone").replace(/\D/g, "").length < 6) found.phone = messages.phoneNumberInvalid;
     if (who === "other" && !value("passengerName")) found.passengerName = t.passengerNameRequired;
     if (purpose === "business" && !value("entity")) found.entity = locale === "nl" ? "Vul het bedrijf in." : "Please enter the company or organization.";
-    if (purpose === "business" && !value("entityKvk")) found.entityKvk = locale === "nl" ? "Vul het KVK-nummer in." : "Please enter the KVK / CoC number.";
+    if (purpose === "business" && value("entityKvk").replace(/\D/g, "").length !== 8) found.entityKvk = locale === "nl" ? "Vul een KVK-nummer van 8 cijfers in." : "Enter an 8-digit KVK / CoC number.";
     setLocalErrors(found);
     const first = ["name", "email", "phone", "passengerName", "entity", "entityKvk"].find((k) => found[k]);
     if (first) {
@@ -736,15 +697,9 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
 
   const field = (name: string, label: string, control: ReactNode, wide = false) => (
     <div className={`flex min-w-0 flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 focus-within:border-ink-950 focus-within:shadow-[0_0_0_1px_#0a0a0b] ${errors[name] ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"} ${wide ? "md:col-span-2" : ""}`}>
-      <label htmlFor={`${uid}-${name}`} className="text-[12px] text-ink-600">
-        {label}
-      </label>
+      <label htmlFor={`${uid}-${name}`} className="text-[12px] text-ink-600">{label}</label>
       {control}
-      {errors[name] && (
-        <span id={`${uid}-${name}-error`} className="text-[12px] text-error">
-          {errors[name]}
-        </span>
-      )}
+      {errors[name] && <span id={`${uid}-${name}-error`} className="text-[12px] text-error">{errors[name]}</span>}
     </div>
   );
   const input = "w-full min-w-0 border-0 bg-transparent p-0 font-sans text-[16px] font-medium text-ink-950 outline-none placeholder:font-normal placeholder:text-ink-475";
@@ -775,9 +730,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           maxLength={PASTE_MAX}
           defaultValue={defaultValue}
           placeholder={t.phonePlaceholder}
-          onInput={(e) => {
-            e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, country);
-          }}
+          onInput={(e) => { e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, country); }}
           className={`${input} flex-1`}
         />
       </span>,
@@ -832,9 +785,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
               <div className="flex flex-col gap-1 rounded-xl bg-ink-50 px-3.5 py-2.5 md:col-span-2">
                 <span className="text-[12px] text-ink-600">{t.yourName}</span>
                 <span className="text-[16px] font-medium text-ink-950">
-                  {booker.name}
-                  {booker.companyName ? ` (${booker.companyName})` : ""} ·{" "}
-                  <span className="font-normal text-ink-700">{booker.email}</span>
+                  {booker.name}{booker.companyName ? ` (${booker.companyName})` : ""} · <span className="font-normal text-ink-700">{booker.email}</span>
                 </span>
               </div>
             ) : (
@@ -853,9 +804,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           </div>
 
           <div>
-            <p id={`${uid}-purpose`} className="m-0 mb-2.5 text-[13px] font-semibold">
-              {t.purposeLabel}
-            </p>
+            <p id={`${uid}-purpose`} className="m-0 mb-2.5 text-[13px] font-semibold">{t.purposeLabel}</p>
             <div role="group" aria-labelledby={`${uid}-purpose`} className="flex flex-wrap gap-2">
               {(["business", "private"] as const).map((p) => (
                 <button
@@ -863,9 +812,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                   type="button"
                   aria-pressed={purpose === p}
                   onClick={() => setPurpose(p)}
-                  className={`purpose-choice h-11 cursor-pointer rounded-xl border border-solid bg-white px-[18px] text-[14px] text-ink-950 ${
-                    purpose === p ? "border-ink-950 font-semibold" : "border-ink-225 font-medium"
-                  }`}
+                  className={`purpose-choice h-11 cursor-pointer rounded-xl border border-solid bg-white px-[18px] text-[14px] text-ink-950 ${purpose === p ? "border-ink-950 font-semibold" : "border-ink-225 font-medium"}`}
                 >
                   {p === "business" ? t.purposeBusiness : t.purposePrivate}
                 </button>
@@ -878,17 +825,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
               {field(
                 "entity",
                 locale === "nl" ? "Bedrijfsnaam *" : "Company / Organization *",
-                <input
-                  {...aria("entity")}
-                  name="entity"
-                  type="text"
-                  required
-                  autoComplete="organization"
-                  maxLength={200}
-                  defaultValue={typed("entity", defaults?.entity ?? booker?.companyName ?? undefined)}
-                  placeholder={locale === "nl" ? "Verplicht, bv. Acme B.V." : "Required, e.g. Acme Corporation"}
-                  className={input}
-                />,
+                <input {...aria("entity")} name="entity" type="text" required autoComplete="organization" maxLength={200} defaultValue={typed("entity", defaults?.entity ?? booker?.companyName ?? undefined)} placeholder={locale === "nl" ? "Verplicht, bv. Acme B.V." : "Required, e.g. Acme Corporation"} className={input} />,
               )}
               {field(
                 "entityKvk",
@@ -897,11 +834,15 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
                   {...aria("entityKvk")}
                   name="entityKvk"
                   type="text"
+                  inputMode="numeric"
                   required
                   autoComplete="off"
-                  maxLength={30}
+                  maxLength={8}
                   defaultValue={typed("entityKvk", defaults?.entityKvk)}
                   placeholder={locale === "nl" ? "Verplicht, 8 cijfers" : "Required, 8 digits"}
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "").slice(0, 8);
+                  }}
                   className={input}
                 />,
               )}
@@ -921,17 +862,12 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
               {portal ? null : (
                 <>
                   {t.privacyNote}{" "}
-                  {privacyHref && (
-                    <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
-                      {t.privacyLink}
-                    </a>
-                  )}
+                  {privacyHref && <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">{t.privacyLink}</a>}
                 </>
               )}
             </p>
             <div className="hidden lg:block">{actionButtons()}</div>
           </div>
-          {/* A send the server turned back lands here: say why, as well as marking the fields */}
           <p aria-live="polite" className="m-0 min-h-5 text-[13px] text-error">
             {Object.keys(result.fieldErrors).some((k) => DETAILS_FIELDS.includes(k)) ? (result.message ?? "") : ""}
           </p>
@@ -994,9 +930,7 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
           {listed ? (
             <span className="flex flex-col gap-1 font-serif text-[22px] leading-tight font-normal">
               {picks.map((p) => (
-                <span key={p.key}>
-                  {p.count} × {vehicleByKey(p.key)?.name ?? p.key}
-                </span>
+                <span key={p.key}>{p.count} × {vehicleByKey(p.key)?.name ?? p.key}</span>
               ))}
             </span>
           ) : (
@@ -1034,45 +968,325 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
   );
 }
 
-/** The thank-you after a website request (the portal goes to the booking's own page instead). */
+const RECEIPT_KEY = "ee-booking-receipt";
+
+export type RideReceipt = {
+  passengerName: string;
+  passengerEmail: string;
+  passengerPhone: string;
+  leadPassenger: string;
+  pickup: string;
+  dropoff: string;
+  when: string;
+  hourly: boolean;
+  stops: string[];
+  price: Price | null;
+};
+
+const detailValue = (entry: DetailsEntry, key: string) => (entry.fields.find(([name]) => name === key)?.[1] ?? "").trim();
+
+const phoneText = (country: string, number: string) => {
+  const trimmed = number.trim();
+  return trimmed ? `+${country.trim()} ${trimmed}` : "";
+};
+
+const storedPrice = (quoted: (Price & { suggested?: boolean }) | null): Price | null => {
+  if (!quoted) return null;
+  return {
+    version: quoted.version,
+    segment: quoted.segment,
+    legs: quoted.legs,
+    rides: quoted.rides,
+    vat: quoted.vat,
+    fee: quoted.fee,
+    feeVat: quoted.feeVat,
+    total: quoted.total,
+    exact: quoted.exact,
+  };
+};
+
+function buildRideReceipt({
+  trip,
+  entered,
+  booker,
+  quoted,
+  copy: t,
+  locale,
+}: {
+  trip: Trip;
+  entered: DetailsEntry;
+  booker?: { name: string; email: string };
+  quoted: (Price & { suggested?: boolean }) | null;
+  copy: BookingCopy;
+  locale: Locale;
+}): RideReceipt {
+  const hourly = trip.mode === "hourly";
+  const lead = entered.who === "other"
+    ? [detailValue(entered, "passengerName"), phoneText(detailValue(entered, "passengerPhoneCountry") || detailValue(entered, "phoneCountry"), detailValue(entered, "passengerPhone"))].filter(Boolean).join(" · ")
+    : t.reviewSameAsBooker;
+  return {
+    passengerName: (booker?.name ?? detailValue(entered, "name")).trim(),
+    passengerEmail: (booker?.email ?? detailValue(entered, "email")).trim(),
+    passengerPhone: phoneText(detailValue(entered, "phoneCountry"), detailValue(entered, "phone")),
+    leadPassenger: lead,
+    pickup: trip.from.text.trim(),
+    dropoff: hourly ? (trip.hours === "" ? "" : interpolate(t.asDirected, { hours: trip.hours })) : trip.to.text.trim(),
+    when: trip.at ? pretty(trip.at, locale) : "",
+    hourly,
+    stops: hourly ? [] : trip.stops.map((s) => s.place.trim()).filter(Boolean),
+    price: storedPrice(quoted),
+  };
+}
+
+function rememberRideReceipt(receipt: RideReceipt) {
+  try {
+    sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(receipt));
+  } catch {}
+}
+
+function isRideReceipt(value: unknown): value is RideReceipt {
+  if (!value || typeof value !== "object") return false;
+  const receipt = value as RideReceipt;
+  if (typeof receipt.passengerName !== "string" || typeof receipt.passengerEmail !== "string" || typeof receipt.passengerPhone !== "string") return false;
+  if (typeof receipt.leadPassenger !== "string" || typeof receipt.pickup !== "string" || typeof receipt.dropoff !== "string") return false;
+  if (typeof receipt.when !== "string" || typeof receipt.hourly !== "boolean" || !Array.isArray(receipt.stops)) return false;
+  if (receipt.price == null) return true;
+  return typeof receipt.price === "object" && typeof receipt.price.total === "number" && Array.isArray(receipt.price.legs);
+}
+
+function readRideReceipt(): RideReceipt | null {
+  try {
+    const raw = sessionStorage.getItem(RECEIPT_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as unknown;
+    return isRideReceipt(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+const DownloadIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+  </svg>
+);
+
+const ReceiptIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" />
+    <path d="M8 8h8M8 12h8M8 16h4" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+
+export function BookingStatusBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ink-950 px-3.5 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-white uppercase">
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />
+      {label}
+    </span>
+  );
+}
+
+/** Small pill button on the side that opens the complete styled booking confirmation receipt modal */
+export function DownloadableReceiptCard({
+  copy: t,
+  locale,
+  reference,
+  status,
+  name,
+  receipt,
+  price,
+}: {
+  copy: BookingCopy;
+  locale: Locale;
+  reference: string;
+  status: string;
+  name: string;
+  receipt: RideReceipt | null;
+  price?: { total: number; exact: boolean } | null;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const quoted = receipt?.price ?? null;
+  const totalAmount = price?.total ?? quoted?.total ?? 0;
+  const euro = (cents: number) => formatCents(cents, locale);
+  const base = euro(Math.round(totalAmount / 1.09));
+  const vat = euro(Math.round(totalAmount - totalAmount / 1.09));
+  const total = euro(totalAmount);
+  const clientName = receipt?.passengerName || name;
+  const route = receipt ? `${receipt.pickup} → ${receipt.dropoff}` : "";
+
+  const onDownload = () => {
+    const safe = reference.replace(/[^\w.-]+/g, "") || "receipt";
+    downloadReceiptPdf(
+      `ecram-execs-receipt-${safe}.pdf`,
+      buildReceiptPdf({
+        reference,
+        status,
+        clientName,
+        clientEmail: receipt?.passengerEmail ?? "",
+        clientPhone: receipt?.passengerPhone ?? "",
+        route,
+        when: receipt?.when ?? "",
+        base,
+        vat,
+        total,
+      }),
+    );
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#ffffff] px-4 py-2 text-[14px] font-semibold text-[#10224f] shadow-sm transition-all hover:bg-[#f2f5ff]"
+      >
+        <ReceiptIcon />
+        <span>{t.receiptTitle}</span>
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-3" onClick={() => setIsOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="receipt-title"
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[calc(100dvh-24px)] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-[#081b62] font-sans text-[#ffffff] shadow-2xl"
+          >
+            <div className="relative shrink-0 px-5 pt-4 pb-3 text-center">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close"
+                className="absolute top-3 right-3 grid size-7 cursor-pointer place-items-center rounded-full bg-[#ffffff] text-[#10224f] hover:bg-[#e7edff]"
+              >
+                <CloseIcon />
+              </button>
+              <p className="m-0 font-serif text-[11px] tracking-[0.22em] text-zinc-300 uppercase">Ecram Execs</p>
+              <h3 id="receipt-title" className="m-0 mt-1 font-serif text-[20px] leading-none font-normal tracking-wide text-[#ffffff] uppercase">Booking confirmation</h3>
+              <p className="m-0 mt-1.5 text-[12px] text-zinc-200">Reference: {reference}</p>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
+              <div className="grid grid-cols-2 gap-3 border-t border-zinc-400/30 pt-3 text-[13px]">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">Client</span>
+                  <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{clientName}</strong>
+                  {receipt?.passengerEmail && <span className="break-all text-[12px] text-zinc-200">{receipt.passengerEmail}</span>}
+                  {receipt?.passengerPhone && <span className="text-[12px] text-zinc-200">{receipt.passengerPhone}</span>}
+                </div>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">Itinerary</span>
+                  <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{route}</strong>
+                  {receipt?.when && <span className="text-[12px] text-zinc-200">{receipt.when}</span>}
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-1.5 border-t border-zinc-400/30 pt-3 text-[13px] text-zinc-200">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Total base (excl. BTW)</span>
+                  <span className="shrink-0 font-medium text-[#ffffff]">{base}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>9% BTW</span>
+                  <span className="shrink-0 font-medium text-[#ffffff]">{vat}</span>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#06144a] px-3.5 py-3">
+                <span className="font-serif text-[12px] tracking-wide text-zinc-200 uppercase">Final amount</span>
+                <span className="shrink-0 font-serif text-[18px] font-bold text-[#6ee7b7]">{total}</span>
+              </div>
+
+              <p className="m-0 mt-3 text-center text-[11px] text-zinc-400">Ecram Execs · Amsterdam, Netherlands</p>
+            </div>
+
+            <div className="flex shrink-0 gap-2 border-t border-zinc-400/30 px-5 py-3">
+              <button
+                type="button"
+                onClick={onDownload}
+                className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffffff] text-[13px] font-semibold text-[#10224f] hover:bg-[#e8eeff]"
+              >
+                <DownloadIcon />
+                {t.receiptDownload}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="flex h-10 cursor-pointer items-center justify-center rounded-xl border border-solid border-[#ffffff]/40 bg-transparent px-4 text-[13px] font-semibold text-[#ffffff] hover:bg-[#ffffff]/10"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** The thank-you after a website request */
 export function BookingDone({ copy: t, locale, name, reference, map, price, onAgain }: {
   copy: BookingCopy;
   locale: Locale;
   name: string;
   reference: string;
   map?: RouteMapLinks | null;
-  /** The price the server worked out and stored with the request, VAT included */
   price?: { total: number; exact: boolean } | null;
   onAgain: () => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef(false);
+  const [receipt, setReceipt] = useState<RideReceipt | null>(null);
   useEffect(() => {
     if (shown.current) return;
     shown.current = true;
+    setReceipt(readRideReceipt());
     heading.current?.focus({ preventScroll: true });
-    heading.current?.scrollIntoView({ block: "center" });
+    heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, []);
   return (
-    <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-5 py-10">
-      <span className="grid size-[60px] place-items-center rounded-full bg-ink-950 text-white">
-        <Check size={28} />
-      </span>
-      <span className="text-[11px] font-semibold tracking-[0.2em] text-ink-600 uppercase">
-        {t.doneEyebrow} · {reference}
-      </span>
+    <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-6 py-10">
+      <div className="flex items-center justify-between">
+        <span className="grid size-[60px] place-items-center rounded-full bg-ink-950 text-white">
+          <Check size={28} />
+        </span>
+        <DownloadableReceiptCard copy={t} locale={locale} reference={reference} status={t.doneEyebrow} name={name} receipt={receipt} price={price} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <BookingStatusBadge label={t.doneEyebrow} />
+        <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span>
+      </div>
       <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(34px,5vw,48px)] leading-[1.05] font-normal outline-none">
         {interpolate(t.doneHeading, { name })}
       </h2>
       <p className="m-0 text-[15px] text-ink-600">{t.doneNote}</p>
-      {price && (
-        <p className="m-0 text-[15px] text-ink-950">
-          {interpolate(t.doneEstimate, { price: price.exact ? formatCents(price.total, locale) : interpolate(t.priceFrom, { price: formatCents(price.total, locale) }) })}
-        </p>
-      )}
       {map && <RouteMap map={map} copy={t} />}
       <div>
         <button type="button" onClick={onAgain} className="h-[52px] cursor-pointer rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800">
+          {t.doneHeading ? null : null}
           {t.doneAgain}
         </button>
       </div>
@@ -1080,10 +1294,6 @@ export function BookingDone({ copy: t, locale, name, reference, map, price, onAg
   );
 }
 
-/**
- * The booking's route on Google's map, on the confirmation only: no step before it loads a map. A short frame, shown
- * straight away. With no browser key the frame still draws the route; the page does not fall back to a text link.
- */
 export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<BookingCopy, "doneMapTitle" | "doneMapFrame"> }) {
   return (
     <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950">
@@ -1095,5 +1305,4 @@ export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<Book
   );
 }
 
-/** Whether a trip from the URL can skip straight to choosing a car. */
 export const startsAtCar = (trip: Trip) => isTripReady(trip, netherlandsNow());

@@ -192,7 +192,7 @@ export function ReviewStep({
   lockedNotice?: ReactNode;
   gallery: GalleryCopy;
   onEdit: (step: BookingStep) => void;
-  onSend: () => void;
+  onSend: (quoted: ReturnType<typeof tripPrice>) => void;
 }) {
   const uid = useId();
   const portal = variant === "portal";
@@ -380,7 +380,7 @@ export function ReviewStep({
                     document.getElementById(`${uid}-agree`)?.focus();
                     return;
                   }
-                  onSend();
+                  onSend(price);
                 }}
                 className="flex h-[52px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
               >

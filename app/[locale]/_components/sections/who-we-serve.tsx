@@ -18,7 +18,7 @@ export async function WhoWeServe() {
   ];
   return (
     <section className="border-b border-b-ink-850" id="corporate">
-      <div className="py-12 px-5 my-0 mx-auto gap-12 flex flex-wrap max-w-[1280px] md:py-16 md:px-6 md:gap-20 2xl:max-w-[1440px]">
+      <div className="mx-auto my-0 flex max-w-[1280px] flex-wrap gap-8 px-4 py-12 sm:px-6 md:gap-10 md:px-8 md:py-14 lg:gap-16 lg:py-16 2xl:max-w-[1440px]">
         {/* Beside the cards the heading stays in view while they are read. The columns sit side by side from 1068px; this starts 20px later because a media query counts a classic scrollbar that the layout does not, and the heading must not pin while the columns are still stacked */}
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0 min-[1088px]:sticky min-[1088px]:top-32 min-[1088px]:self-start">
          <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
@@ -38,8 +38,8 @@ export async function WhoWeServe() {
           <PictureAccordion items={items} variant="audience" />
         </div>
       </div>
-      <div className="px-5 pt-0 pb-20 my-0 mx-auto gap-8 grid grid-cols-[1fr] max-w-[1280px] md:px-6 md:pt-0 md:pb-30 md:grid-cols-[repeat(2,minmax(0px,1fr))] lg:grid-cols-[repeat(4,minmax(0px,1fr))] 2xl:max-w-[1440px]">
-        <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
+      <div className="mx-auto my-0 grid max-w-[1280px] grid-cols-1 gap-4 px-4 pt-0 pb-12 sm:px-6 md:grid-cols-2 md:gap-5 md:px-8 md:pb-16 lg:grid-cols-4 lg:pb-20 2xl:max-w-[1440px]">
+        <div className="reveal flex flex-col items-center gap-3 border border-ink-800 px-5 py-8 text-center md:px-6">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
             <path d="M4 20L20 4"></path>
@@ -51,7 +51,7 @@ export async function WhoWeServe() {
             {d.whoWeServe.valueDiscretionText}
           </span>
         </div>
-        <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
+        <div className="reveal flex flex-col items-center gap-3 border border-ink-800 px-5 py-8 text-center md:px-6">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <circle cx="12" cy="12" r="9"></circle>
             <path d="M12 7v5l3 2"></path>
@@ -63,7 +63,7 @@ export async function WhoWeServe() {
             {d.whoWeServe.valuePunctualityText}
           </span>
         </div>
-        <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
+        <div className="reveal flex flex-col items-center gap-3 border border-ink-800 px-5 py-8 text-center md:px-6">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6L3.3 9.2l6.1-.6z"></path>
           </svg>
@@ -74,7 +74,7 @@ export async function WhoWeServe() {
             {d.whoWeServe.valueProfessionalismText}
           </span>
         </div>
-        <div className="reveal py-10 px-6 gap-3 border border-ink-800 items-center flex flex-col text-center">
+        <div className="reveal flex flex-col items-center gap-3 border border-ink-800 px-5 py-8 text-center md:px-6">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
             <circle cx="11" cy="11" r="6"></circle>
             <path d="M20 20l-4.5-4.5"></path>

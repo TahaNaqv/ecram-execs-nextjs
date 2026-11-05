@@ -13,8 +13,8 @@ import { PortalPage } from "../../_components/portal-shell";
 import { PortalStatus } from "../../_components/portal-status";
 
 /**
- * The partner's bookings: what needs their answer, what is open, what is past. The sign-in is checked against the
- * database here; without one the visitor is sent to log in. The list only ever holds this partner's own bookings.
+ * The partner's bookings: open, past, and cancelled. The sign-in is checked against the database here; without one
+ * the visitor is sent to log in. The list only ever holds this partner's own bookings.
  */
 async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-partner/account">, "searchParams">) {
   const { tab: rawTab, page: rawPage } = await searchParams;
@@ -23,38 +23,33 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
   const p = d.portal;
 
   const counts = await bookingTabCounts();
-  const tab: PortalTab = isPortalTab(rawTab) ? rawTab : counts.answer > 0 ? "answer" : "open";
+  const tab: PortalTab = isPortalTab(rawTab) ? rawTab : "open";
   const page = Math.max(1, Math.floor(Number(rawPage)) || 1);
   const { rows, total } = await listBookings(tab, page);
   const pages = Math.max(1, Math.ceil(total / PORTAL_PAGE_SIZE));
 
   const base = localizedPath("/corporate-partner/account", locale);
   const detail = (reference: string) => `${localizedPath("/corporate-partner/account/booking", locale)}?ref=${reference}`;
-  const tabLabel: Record<PortalTab, string> = { answer: p.tabAnswer, open: p.tabOpen, past: p.tabPast };
-  const empty: Record<PortalTab, string> = { answer: p.emptyAnswer, open: p.emptyOpen, past: p.emptyPast };
+  const tabLabel: Record<PortalTab, string> = { open: p.tabOpen, past: p.tabPast, cancelled: p.tabCancelled };
+  const empty: Record<PortalTab, string> = { open: p.emptyOpen, past: p.emptyPast, cancelled: p.emptyCancelled };
 
   return (
     <div className="flex flex-col gap-8">
-      {counts.answer > 0 && tab !== "answer" && (
-        <p className="m-0 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-[15px] text-[#10224f]">
-          <Link href={`${base}?tab=answer`} className="text-[#10224f] underline underline-offset-4 hover:text-[#10224f]">
-            {interpolate(p.answerBanner, { count: counts.answer })}
-          </Link>
-        </p>
-      )}
-
-      <ul className="m-0 flex list-none flex-wrap gap-x-8 gap-y-2 border-b border-ink-225 p-0" aria-label={p.headingBookings}>
-        {PORTAL_TABS.map((key) => (
-          <li key={key}>
-            <Link
-              href={`${base}?tab=${key}`}
-              aria-current={key === tab ? "page" : undefined}
-              className={`inline-block pb-3 text-[12px] font-semibold tracking-[0.2em] uppercase no-underline ${key === tab ? "border-b-2 border-ink-950 text-ink-950" : "text-ink-600 hover:text-ink-950"}`}
-            >
-              {tabLabel[key]} <span className="text-ink-450">({counts[key]})</span>
-            </Link>
-          </li>
-        ))}
+      <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 border-b border-[#ffffff]/20 p-0 sm:gap-x-8" aria-label={p.headingBookings}>
+        {PORTAL_TABS.map((key) => {
+          const current = key === tab;
+          return (
+            <li key={key}>
+              <Link
+                href={`${base}?tab=${key}`}
+                aria-current={current ? "page" : undefined}
+                className={`inline-block pb-3 text-[12px] tracking-[0.18em] uppercase no-underline sm:tracking-[0.2em] ${current ? "border-b-2 border-[#ffffff] font-bold text-[#ffffff]" : "font-semibold text-zinc-400 hover:text-[#ffffff]"}`}
+              >
+                {tabLabel[key]} <span className={current ? "text-[#ffffff]/70" : "text-zinc-500"}>({counts[key]})</span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
 
       {rows.length === 0 ? (

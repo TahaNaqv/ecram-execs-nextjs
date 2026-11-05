@@ -63,7 +63,7 @@ export function CookieConsent({ copy, policyHref }: { copy: Copy; policyHref: st
     <>
       {!consent && (
         <div ref={bar} role="region" aria-label={copy.bannerTitle} className="fixed inset-x-0 bottom-0 z-[60] border-t border-solid border-ink-700 bg-ink-950 font-sans text-ink-150 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]">
-          <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:gap-10 md:px-6 2xl:max-w-[1440px]">
+          <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-6 md:px-8 md:py-5 2xl:max-w-[1440px]">
             <div className="flex min-w-0 flex-col gap-1.5 md:max-w-[760px]">
               <p className="m-0 font-serif text-[20px] leading-tight text-white">{copy.bannerTitle}</p>
               <p className="m-0 text-[13px] leading-relaxed font-light text-ink-300">

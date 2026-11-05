@@ -9,7 +9,7 @@ export async function Destinations() {
   const shown = siteConfig.destinations.filter((place) => place.image);
   return (
     <section className="border-b border-b-ink-850" id="netherlands">
-      <div className="py-12 px-5 my-0 mx-auto gap-10 flex flex-col max-w-[1280px] md:py-16 md:px-6 md:gap-14 2xl:max-w-[1440px]">
+      <div className="mx-auto my-0 flex max-w-[1280px] flex-col gap-8 px-4 py-12 sm:px-6 md:gap-10 md:px-8 md:py-14 lg:py-16 2xl:max-w-[1440px]">
         <div className="gap-6 items-end flex flex-wrap justify-between">
           <div className="gap-4 flex flex-col max-w-[640px]">
             <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
@@ -26,14 +26,14 @@ export async function Destinations() {
           </div>
         </div>
         {/* Uniform 4-column grid where every card has the exact same dimensions */}
-        <div className="gap-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
           {shown.map((place) => {
             return (
               <figure
                 key={place.key}
                 className="dest reveal m-0 gap-[14px] flex flex-col"
               >
-                <div className="shot relative h-[220px] w-full md:h-[260px]">
+                <div className="shot relative h-[200px] w-full md:h-[220px] lg:h-[240px]">
                   <Image
                     style={{ 
                       objectPosition: place.focus,

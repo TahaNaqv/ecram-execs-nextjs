@@ -113,7 +113,7 @@ test("the model is briefed on the fleet, on how booking works and on what it can
 test("a Dutch visitor's model is briefed with the Dutch button names", async ({ playwright, baseURL }) => {
   await ask(playwright, baseURL, { message: "Hoe boek ik een rit per uur?", locale: "nl" });
   const prompt = calls[0].body.system;
-  for (const label of [nl.booking.modeHourly, nl.booking.stepDetails, nl.booking.submit, nl.portal.tabAnswer, nl.corporatePartner.optionSignupCta]) {
+  for (const label of [nl.booking.modeHourly, nl.booking.stepDetails, nl.booking.submit, nl.portal.tabCancelled, nl.corporatePartner.optionSignupCta]) {
     expect(prompt, label).toContain(`"${label}"`);
   }
   expect(prompt).toContain(nl.conciergeSection.faq14Q);

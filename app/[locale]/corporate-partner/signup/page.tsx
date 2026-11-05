@@ -15,7 +15,7 @@ async function Flow() {
   const staleChallengeId = jar.get(CHALLENGE_COOKIE)?.value ?? "";
 
   return (
-    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
       <AccountFlow
         key={epoch}
         mode="signup"
@@ -34,7 +34,7 @@ async function Flow() {
 export default async function SignupPage() {
   const t = (await getDict()).corporatePartner;
   return (
-    <CorporateShell route="/corporate-partner/signup" heading={t.signupHeading} intro={interpolate(t.signupIntro, { minutes: CODE_MINUTES })}>
+    <CorporateShell route="/corporate-partner/signup" heading={t.signupHeading} >
       <Suspense fallback={<PanelSkeleton />}>
         <Flow />
       </Suspense>
