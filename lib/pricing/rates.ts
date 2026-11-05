@@ -1,14 +1,16 @@
 import { normalizeVehicleKey, type VehicleKey } from "../fleet/vehicles.ts";
+import { priceExtras, type ExtraLine, type ExtraPick } from "./extras.ts";
 
 /**
  * The client's rate card (November 2026), as data. Every booking is billed by the hour per car, at a rate that depends on
  * the car, on whether the booker is a corporate partner, and on the day of the week, in whole hours and at least two. At
- * the end 9% VAT is added to the rides, then the €12.50 service fee, once per booking, with 21% VAT of its own.
+ * the end 9% VAT is added to the rides, then the €12.50 service fee, once per booking, with 21% VAT of its own. Add-ons
+ * (lib/pricing/extras.ts) are added at their own prices, each with its own VAT.
  *
  * Read by the booking flow in the browser and by the server, which works the price out again when a booking is sent and
  * stores it: nothing here may import server-only code. Amounts are whole euro cents throughout.
  */
-export const RATE_CARD_VERSION = "2026-11d";
+export const RATE_CARD_VERSION = "2026-11e";
 
 export type Segment = "corporate" | "public";
 export type DayKind = "weekday" | "saturday" | "sunday";
@@ -85,7 +87,11 @@ export type Price = {
   fee: number;
   /** 21% of the service fee. Missing on prices stored before 4 Nov 2026, when the fee carried no VAT. */
   feeVat?: number;
-  /** What the booking costs: rides + their VAT + service fee + its VAT. Paid when booked (website) or invoiced (corporate partners). */
+  /** The add-ons chosen, each before and with its VAT. Missing on prices stored before add-ons (5 Nov 2026), and when there are none. */
+  extras?: ExtraLine[];
+  /** The add-ons' VAT, all rates together (each line has its own). */
+  extrasVat?: number;
+  /** What the booking costs: rides + their VAT + service fee + its VAT + add-ons + their VAT. Paid when booked (website) or invoiced (corporate partners). */
   total: number;
   /**
    * False when the price is a lower bound: the drive could not be timed (so only the minimum hours are counted), or the
@@ -110,6 +116,8 @@ export type PriceInput = {
   cars: { key: string; count: number }[];
   /** The cars are our suggestion, not the visitor's choice */
   suggested?: boolean;
+  /** The add-ons chosen */
+  extras?: ExtraPick[];
 };
 
 /** The price of a booking by the rate card; null when it cannot be priced (no date, or no car the card lists). */
@@ -138,13 +146,37 @@ export function priceBooking(input: PriceInput): Price | null {
   const vat = Math.round(rides * VAT_RATE);
   const fee = SERVICE_FEE_CENTS;
   const feeVat = Math.round(fee * SERVICE_FEE_VAT_RATE);
-  return { version: RATE_CARD_VERSION, segment: input.segment, legs, rides, vat, fee, feeVat, total: rides + vat + fee + feeVat, exact: timed !== null && !input.suggested };
+  const extras = priceExtras(input.extras ?? []);
+  const extrasNet = extras.reduce((sum, line) => sum + line.amount, 0);
+  const extrasVat = extras.reduce((sum, line) => sum + line.vat, 0);
+  return {
+    version: RATE_CARD_VERSION,
+    segment: input.segment,
+    legs,
+    rides,
+    vat,
+    fee,
+    feeVat,
+    ...(extras.length > 0 ? { extras, extrasVat } : {}),
+    total: rides + vat + fee + feeVat + extrasNet + extrasVat,
+    exact: timed !== null && !input.suggested,
+  };
 }
 
-/** A stored price before any VAT: the rides and the service fee. */
+/** A stored price before any VAT: the rides, the service fee and the add-ons. */
 export function priceNet(p: Price): number {
-  return p.total - p.vat - (p.feeVat ?? 0);
+  return p.total - p.vat - (p.feeVat ?? 0) - (p.extrasVat ?? 0);
 }
+
+/** The price's VAT by rate, as an invoice shows it: 9% on the rides (and flowers), 21% on the service fee and the other add-ons. */
+export function vatByRate(p: Price): { low: number; high: number } {
+  // Flowers are the add-on at the low rate; every other add-on's VAT is counted with the service fee's, so none is left out
+  const low = (p.extras ?? []).filter((line) => line.vatRate === VAT_RATE).reduce((sum, line) => sum + line.vat, 0);
+  return { low: p.vat + low, high: (p.feeVat ?? 0) + (p.extrasVat ?? 0) - low };
+}
+
+/** Whether any add-on carries the high rate, so the 21% line is not the service fee's alone. */
+export const hasHighRateExtras = (p: Price) => (p.extras ?? []).some((line) => line.vatRate === SERVICE_FEE_VAT_RATE);
 
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */
 export function formatCents(cents: number, locale: string): string {

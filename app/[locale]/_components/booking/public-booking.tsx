@@ -11,6 +11,7 @@ import type { BookingCopy, TripMessages } from "./copy";
 import { markBookingSent, useResetAfterBooking } from "./sent";
 import { tripFromParams } from "./trip";
 import type { FleetDictionary } from "./vehicle-details";
+import type { AddOnsCopy } from "./copy";
 
 // One object for "no errors": the flow treats a new errors object as a new answer from the server
 const NO_ERRORS = {};
@@ -18,6 +19,7 @@ const NO_ERRORS = {};
 type Props = {
   locale: Locale;
   copy: BookingCopy;
+  addOns: AddOnsCopy;
   dateTimeCopy: DateTimeCopy;
   messages: TripMessages;
   fleetDict: FleetDictionary;
@@ -41,7 +43,7 @@ export function PublicBooking(props: Props) {
   return <Run key={`${search}#${round}`} search={search} onAgain={() => setRound((r) => r + 1)} {...props} />;
 }
 
-function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, privacyHref, homeHref }: Props & { search: string; onAgain: () => void }) {
+function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, privacyHref, homeHref }: Props & { search: string; onAgain: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
   const trip = useMemo(() => tripFromParams(new URLSearchParams(search)), [search]);
@@ -76,6 +78,7 @@ function Run({ search, onAgain, locale, copy, dateTimeCopy, messages, fleetDict,
       variant="public"
       locale={locale}
       copy={copy}
+      addOns={addOns}
       dateTimeCopy={dateTimeCopy}
       messages={messages}
       fleetDict={fleetDict}

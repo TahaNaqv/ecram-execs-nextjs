@@ -52,6 +52,7 @@ export default async function BookPage() {
             <PublicBooking
               locale={locale}
               copy={t}
+              addOns={d.addOns}
               dateTimeCopy={d.dateTimePicker}
               messages={d.forms}
               fleetDict={d.fleetSection}

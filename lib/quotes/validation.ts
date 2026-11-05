@@ -4,6 +4,7 @@ import { capacityProblem, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, samePlace } 
 import { VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
+import { cleanExtras } from "@/lib/pricing/extras";
 
 const AMS = "Europe/Amsterdam";
 
@@ -134,6 +135,18 @@ export const quoteSchema = (t: QuoteMessages) =>
       key: z.string().transform((k) => normalizeVehicleKey(k) ?? k).pipe(z.enum(VEHICLE_KEYS)),
       count: z.coerce.number().int().min(1).max(1),
     })).max(1).optional()),
+    // JSON from the add-ons step: [{ "key": "chocolates", "option": "classic", "count": 1 }]. Anything not on the list is left out.
+    extras: z.preprocess((v) => {
+      if (typeof v !== "string" || v === "") return undefined;
+      try {
+        return JSON.parse(v);
+      } catch {
+        return undefined;
+      }
+    }, z.unknown().transform((v) => {
+      const picks = cleanExtras(v);
+      return picks.length > 0 ? picks : undefined;
+    })),
     // When the booker books on behalf of a company or organization
     entity: z.preprocess(blank, z.string().trim().max(200).optional()),
     entityKvk: z.preprocess(blank, z.string().trim().max(30).optional()),

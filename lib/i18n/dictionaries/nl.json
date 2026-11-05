@@ -55,6 +55,7 @@
     "fieldPlate": "Kenteken",
     "fieldVehicle": "Voertuig",
     "fieldPrice": "Geschatte prijs (tarievenkaart)",
+    "fieldExtras": "Extra's",
     "priceValue": "{price} incl. BTW / VAT",
     "priceValueFrom": "vanaf {price} incl. BTW / VAT",
     "bespokeSubject": "Uw aanvraag op maat bij Ecram Execs {reference}",
@@ -958,6 +959,8 @@
       "rateCardSunday": "zondag",
       "rateCardFee": "Servicekosten",
       "rateCardFeeVat": "BTW / VAT 21% (servicekosten)",
+      "rateCardVatHigh": "BTW / VAT 21% (servicekosten en extra's)",
+      "addOns": "Extra's",
       "rateCardVat": "BTW / VAT 9%",
       "rateCardTotal": "Totaal incl. BTW / VAT en servicekosten",
 
@@ -1434,6 +1437,7 @@
       "csvNote": "Afstemming grootboek in Excel"
     },
     "pricing": {
+      "addOns": "Extra's",
       "savedNoMail": "Boeking opgeslagen (geen e-mail verstuurd).",
       "saved": "Boeking opgeslagen.",
       "statusUpdated": "Status bijgewerkt naar {status} en de e-mail is verstuurd.",
@@ -1880,6 +1884,18 @@
     "cardNotesHint": "Vluchtnummer, bagage, ontmoetingspunt, protocol of toegankelijkheidswensen.",
     "submitHint": "De prijs wordt voor de rit berekend. De status volgt u onder uw boekingen."
   },
+  "addOns": {
+    "champagne": "Moët & Chandon Brut Impérial (75cl)",
+    "chocolates": "Van Soest luxe chocoladedoos",
+    "flowers": "Luxe bloemstuk",
+    "newspapers": "Financiële kranten (FT & FD)",
+    "chocolatesClassic": "Klassieke selectie",
+    "chocolatesDairyFree": "Zuivelvrije selectie",
+    "champagneNote": "Een fles staat voor u klaar in de auto.",
+    "chocolatesNote": "Handgemaakt in Amsterdam. Kies de selectie die bij u past.",
+    "flowersNote": "Een vers seizoensboeket, klaar in de auto.",
+    "newspapersNote": "De Financial Times en Het Financieele Dagblad van vandaag."
+  },
   "booking": {
     "pageTitle": "Boek uw chauffeur",
     "pageDescription": "Plan uw rit, kies een auto en boek een chauffeur bij Ecram Execs. Geen account nodig.",
@@ -2066,6 +2082,21 @@
     "priceVat": "BTW / VAT 9%",
     "priceTotal": "Totaal incl. BTW / VAT en servicekosten",
     "priceFrom": "vanaf {price}",
+    "stepExtras": "Extra's",
+    "extrasTitle": "Maak uw rit compleet",
+    "extrasIntro": "Optioneel. Elke extra ligt klaar in de auto wanneer uw rit begint. Prijzen zijn exclusief BTW / VAT, die bij uw totaal wordt opgeteld.",
+    "extrasPrice": "{price} excl. {rate}% BTW / VAT",
+    "extrasAdd": "Toevoegen",
+    "extrasAdded": "Toegevoegd",
+    "extrasFewer": "Eén minder: {item}",
+    "extrasMore": "Eén meer: {item}",
+    "extrasCount": "{count} × {item}",
+    "extrasSelection": "Keuze chocolade",
+    "extrasSubtotal": "Extra's: {price} excl. BTW / VAT",
+    "extrasContinue": "Verder",
+    "extrasSkip": "Overslaan, geen extra's",
+    "reviewExtras": "Extra's",
+    "priceVatHigh": "BTW / VAT 21% (servicekosten en extra's)",
     
     "priceEstimateLabel": "Prijs volgens tarief",
     "priceEstimateValue": "{net} excl. BTW / VAT · {total} incl. BTW / VAT",

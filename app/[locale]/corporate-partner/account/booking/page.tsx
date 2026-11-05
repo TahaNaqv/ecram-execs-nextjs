@@ -13,6 +13,7 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { formatCents, priceNet } from "@/lib/pricing/rates";
+import { extrasLine } from "@/lib/pricing/extras";
 import { RouteMap } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { outlineButton } from "../../../_components/corporate-styles";
@@ -133,6 +134,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
           {booking.vehicle && (
             <Fact label={d.quoteForm.labelVehicle}>{convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Fact>
           )}
+          {extrasLine(d.addOns, booking.extras) && <Fact label={d.booking.reviewExtras}>{extrasLine(d.addOns, booking.extras)}</Fact>}
           {booking.quotedAmount && <Fact label={p.labelQuote}>{formatPartnerAmount(booking.quotedAmount, locale)}</Fact>}
           {/* Until the team sends its quote, the rate card's price for the booking as it was made */}
           {!booking.quotedAmount && booking.priceEstimate && (

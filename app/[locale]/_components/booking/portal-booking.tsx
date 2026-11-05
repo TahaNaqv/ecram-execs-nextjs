@@ -11,6 +11,7 @@ import type { BookingCopy, TripMessages } from "./copy";
 import { markBookingSent, unmarkBookingSent, useResetAfterBooking } from "./sent";
 import type { Trip } from "./trip";
 import type { FleetDictionary } from "./vehicle-details";
+import type { AddOnsCopy } from "./copy";
 
 // One object for "no errors": the flow treats a new errors object as a new answer from the server
 const NO_ERRORS = {};
@@ -23,6 +24,7 @@ const NO_ERRORS = {};
 export function PortalBooking({
   locale,
   copy,
+  addOns,
   dateTimeCopy,
   messages,
   fleetDict,
@@ -38,6 +40,7 @@ export function PortalBooking({
 }: {
   locale: Locale;
   copy: BookingCopy;
+  addOns: AddOnsCopy;
   dateTimeCopy: DateTimeCopy;
   messages: TripMessages;
   fleetDict: FleetDictionary;
@@ -70,6 +73,7 @@ export function PortalBooking({
         variant="portal"
         locale={locale}
         copy={copy}
+        addOns={addOns}
         dateTimeCopy={dateTimeCopy}
         messages={messages}
         fleetDict={fleetDict}

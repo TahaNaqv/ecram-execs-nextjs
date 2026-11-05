@@ -39,7 +39,7 @@ const FIELDS = [
   // No "returnAt": the client takes no return journeys, so one sent anyway is not read
   "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "handLuggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry", "passengerPhone",
-  "vehicle", "vehicles", "notes", "locale", "entity", "entityKvk",
+  "vehicle", "vehicles", "extras", "notes", "locale", "entity", "entityKvk",
 ] as const;
 
 /** A new booking request from inside the portal: the partner's own details, the usual trip fields. */

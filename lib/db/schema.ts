@@ -19,6 +19,7 @@ import { APPLICATION_STATUSES, type ApplicationDocument } from "@/lib/partners/c
 import { LOCALES } from "@/lib/i18n/config";
 import type { RequestEventParams } from "@/lib/admin/events";
 import type { Price } from "@/lib/pricing/rates";
+import type { ExtraPick } from "@/lib/pricing/extras";
 
 export { REQUEST_STATUSES, SERVICES, type RequestStatus, type Service } from "@/lib/quotes/constants";
 export { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/partners/criteria";
@@ -64,6 +65,8 @@ export const quoteRequests = pgTable(
     vehicleCount: integer("vehicle_count").notNull().default(1),
     // The cars the visitor chose, each with a quantity. Null when they asked us to choose, or for a booking stored before this column.
     vehicles: jsonb("vehicles").$type<{ key: string; count: number }[]>(),
+    // The add-ons chosen (lib/pricing/extras.ts), each with how many. Null when none, or for a booking stored before add-ons.
+    extras: jsonb("extras").$type<ExtraPick[]>(),
     corporateContactId: uuid("corporate_contact_id").references(() => corporateContacts.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     email: text("email").notNull(),

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { carsToPrice } from "../../lib/pricing/booking";
-import { billedHours, dayKind, hourlyRate, priceBooking, priceNet } from "../../lib/pricing/rates";
+import { billedHours, dayKind, hourlyRate, priceBooking, priceNet, vatByRate } from "../../lib/pricing/rates";
+import { cleanExtras, priceExtras } from "../../lib/pricing/extras";
 
 // The client's rate card (November 2026): per car per hour, in whole hours and at least 2; then 9% VAT on the rides,
 // then a €12.50 service fee with 21% VAT on it (€2.63). 2027-06-14 is a Monday, 2027-06-19 a Saturday, 2027-06-20 a Sunday.
@@ -106,4 +107,46 @@ test("the cars priced are the ones chosen, else the car or the set of cars we wo
   const large = carsToPrice({ vehicle: "advise", passengers: 12 });
   expect(large.suggested).toBe(true);
   expect(large.cars.reduce((n, c) => n + c.count, 0)).toBeGreaterThan(1);
+});
+
+test("add-ons are added at their own prices, each with its own VAT", () => {
+  // Champagne €78 + 21%, flowers €66 + 9%, on the same two-hour weekday ride in an Audi
+  const price = priceBooking({
+    segment: "public",
+    pickupAt: "2027-06-14T08:30",
+    driveSeconds: 45 * 60,
+    cars: [{ key: "audi", count: 1 }],
+    extras: [{ key: "champagne", count: 1 }, { key: "flowers", count: 1 }],
+  })!;
+  expect(price.extras?.map((e) => [e.key, e.amount, e.vat])).toEqual([["champagne", 7800, 1638], ["flowers", 6600, 594]]);
+  expect(price.extrasVat).toBe(1638 + 594);
+  expect(price.total).toBe(16800 + 1512 + 1250 + 263 + 7800 + 1638 + 6600 + 594);
+  expect(priceNet(price)).toBe(16800 + 1250 + 7800 + 6600);
+  // On the invoice: 9% on the rides and the flowers, 21% on the service fee and the champagne
+  expect(vatByRate(price)).toEqual({ low: 1512 + 594, high: 263 + 1638 });
+
+  // Without add-ons the price is as it was
+  const plain = priceBooking({ segment: "public", pickupAt: "2027-06-14T08:30", driveSeconds: 45 * 60, cars: [{ key: "audi", count: 1 }] })!;
+  expect(plain.extras).toBeUndefined();
+  expect(plain.total).toBe(19825);
+  expect(vatByRate(plain)).toEqual({ low: 1512, high: 263 });
+});
+
+test("only the add-ons on the list are taken, each once, with the chocolate box in one of its two selections", () => {
+  expect(
+    cleanExtras([
+      { key: "newspapers", count: 2, option: "classic" },
+      { key: "caviar", count: 1 },
+      { key: "chocolates", count: 9 },
+      { key: "chocolates", option: "dairy_free", count: 1 },
+      { key: "champagne", count: 0 },
+      "nonsense",
+    ]),
+  ).toEqual([
+    { key: "chocolates", option: "classic", count: 5 },
+    { key: "newspapers", count: 2 },
+  ]);
+  expect(cleanExtras([{ key: "chocolates", option: "dairy_free", count: 1 }])).toEqual([{ key: "chocolates", option: "dairy_free", count: 1 }]);
+  expect(cleanExtras("champagne")).toEqual([]);
+  expect(priceExtras([{ key: "newspapers", count: 3 }])).toEqual([{ key: "newspapers", count: 3, unit: 1500, amount: 4500, vatRate: 0.21, vat: 945 }]);
 });

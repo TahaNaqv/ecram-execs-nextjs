@@ -56,6 +56,8 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
       guestsSet: true, // the earlier booking's party is the answer; a new booking starts without one
       vehicle: cars[0]?.key ?? ((VEHICLE_CHOICES as readonly string[]).includes(vehicle) ? (vehicle as VehicleChoice) : ""),
       cars,
+      // The same add-ons as last time; they can be changed on their own step
+      extras: source.extras ?? [],
     }));
   }
   const passengerPhone = source?.passengerPhone?.match(/^\+(\d{1,4}) (.+)$/);
@@ -69,6 +71,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
         key={source?.reference ?? "new"}
         locale={locale}
         copy={d.booking}
+        addOns={d.addOns}
         dateTimeCopy={d.dateTimePicker}
         messages={d.forms}
         fleetDict={d.fleetSection}

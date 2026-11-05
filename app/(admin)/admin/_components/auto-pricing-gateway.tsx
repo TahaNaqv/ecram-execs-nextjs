@@ -39,12 +39,15 @@ export function AutoPricingGateway({
   copy,
   statuses,
   routeMap,
+  addOns,
   children,
 }: {
   request: QuoteRequest;
   copy: PricingCopy;
   statuses: StatusCopy;
   routeMap?: RouteMapProps | null;
+  /** The add-ons to have ready in the car, as one line ("1 × Luxury Floral Arrangement"), or nothing */
+  addOns?: string | null;
   /** Sits above Authorisation in the left column, usually the rate-card price */
   children?: React.ReactNode;
 }) {
@@ -562,6 +565,12 @@ export function AutoPricingGateway({
                 <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>
               ) : null}
             </div>
+            {addOns ? (
+              <div className="col-span-2 pt-2 border-t border-zinc-100">
+                <p className="text-[10px] uppercase font-semibold text-zinc-400">{copy.addOns}</p>
+                <p className="mt-0.5 font-medium whitespace-normal text-zinc-900">{addOns}</p>
+              </div>
+            ) : null}
             {request.notes?.trim() ? (
               <div className="col-span-2 pt-2 border-t border-zinc-100">
                 <p className="text-[10px] uppercase font-semibold text-zinc-400">{copy.note}</p>

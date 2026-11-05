@@ -55,6 +55,7 @@
     "fieldPlate": "Licence plate",
     "fieldVehicle": "Vehicle",
     "fieldPrice": "Estimated price (rate card)",
+    "fieldExtras": "Add-ons",
     "priceValue": "{price} incl. BTW / VAT",
     "priceValueFrom": "from {price} incl. BTW / VAT",
     "bespokeSubject": "Your Ecram Execs bespoke inquiry {reference}",
@@ -958,6 +959,8 @@
       "rateCardSunday": "Sunday",
       "rateCardFee": "Service fee",
       "rateCardFeeVat": "BTW / VAT 21% (service fee)",
+      "rateCardVatHigh": "BTW / VAT 21% (service fee and add-ons)",
+      "addOns": "Add-ons",
       "rateCardVat": "BTW / VAT 9%",
       "rateCardTotal": "Total incl. BTW / VAT and service fee",
 
@@ -1434,6 +1437,7 @@
       "csvNote": "Excel Ledger Reconciliation"
     },
     "pricing": {
+      "addOns": "Add-ons",
       "savedNoMail": "Booking saved successfully (No mail sent).",
       "saved": "Booking saved successfully.",
       "statusUpdated": "Status updated to {status} and the email was sent.",
@@ -1879,6 +1883,18 @@
     "cardNotesHint": "Flight number, luggage, meeting point, protocol or accessibility needs.",
     "submitHint": "The price is calculated for the journey. You can follow its status in your bookings."
   },
+  "addOns": {
+    "champagne": "Moët & Chandon Brut Impérial (75cl)",
+    "chocolates": "Van Soest Luxury Chocolate Box",
+    "flowers": "Luxury Floral Arrangement",
+    "newspapers": "Financial Newspaper Bundle (FT & FD)",
+    "chocolatesClassic": "Classic selection",
+    "chocolatesDairyFree": "Dairy-free selection",
+    "champagneNote": "A bottle waiting for you in the car.",
+    "chocolatesNote": "Handmade in Amsterdam. Choose the selection that suits you.",
+    "flowersNote": "A fresh seasonal bouquet, ready in the car.",
+    "newspapersNote": "Today's Financial Times and Het Financieele Dagblad."
+  },
   "booking": {
     "pageTitle": "Book your chauffeur",
     "pageDescription": "Plan your journey, choose a car and book a chauffeur with Ecram Execs. No account needed.",
@@ -2065,6 +2081,21 @@
     "priceVat": "BTW / VAT 9%",
     "priceTotal": "Total incl. BTW / VAT and service fee",
     "priceFrom": "from {price}",
+    "stepExtras": "Add-ons",
+    "extrasTitle": "Add a finishing touch",
+    "extrasIntro": "Optional. Each add-on is ready in the car when your journey starts. Prices exclude BTW / VAT, which is added to your total.",
+    "extrasPrice": "{price} excl. {rate}% BTW / VAT",
+    "extrasAdd": "Add",
+    "extrasAdded": "Added",
+    "extrasFewer": "One fewer: {item}",
+    "extrasMore": "One more: {item}",
+    "extrasCount": "{count} × {item}",
+    "extrasSelection": "Chocolate selection",
+    "extrasSubtotal": "Add-ons: {price} excl. BTW / VAT",
+    "extrasContinue": "Continue",
+    "extrasSkip": "Skip, no add-ons",
+    "reviewExtras": "Add-ons",
+    "priceVatHigh": "BTW / VAT 21% (service fee and add-ons)",
    
     "priceEstimateLabel": "Rate-card price",
     "priceEstimateValue": "{net} excl. BTW / VAT · {total} incl. BTW / VAT",

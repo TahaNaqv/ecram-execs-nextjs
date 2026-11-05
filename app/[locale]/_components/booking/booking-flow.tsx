@@ -11,7 +11,7 @@ import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { dayKind, formatCents, hourlyRate, SERVICE_FEE_CENTS, type Segment } from "@/lib/pricing/rates";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
-import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
+import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
 import { guestsText, luggageLine, partyLine } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
 import { capacityProblem, involvesAirport, isTripReady, normalizeTrip, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
@@ -20,8 +20,9 @@ import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
 import { bookingsSent } from "./sent";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
+import { ExtrasStep } from "./extras-step";
 
-export type BookingStep = "journey" | "car" | "details" | "review";
+export type BookingStep = "journey" | "car" | "extras" | "details" | "review";
 /** What the last submission came back with, the same for the website's action and the portal's. */
 export type BookingResult = {
   pending: boolean;
@@ -40,6 +41,7 @@ export type DetailDefaults = {
 // Fields the server checks, by the step that asks for them: an error sends the visitor back there
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
 const CAR_FIELDS = ["vehicle"];
+const EXTRAS_FIELDS = ["extras"];
 const DETAILS_FIELDS = ["name", "email", "phone", "phoneCountry", "passengerName", "passengerPhone", "passengerPhoneCountry", "entity", "entityKvk", "notes"];
 
 /** What the visitor typed on the details step, kept while they review (and go back to change it). */
@@ -57,7 +59,7 @@ export function sentFields(entry: DetailsEntry, _variant: "public" | "portal"): 
   );
 }
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DRAFT_STEPS: BookingStep[] = ["journey", "car", "details", "review"];
+const DRAFT_STEPS: BookingStep[] = ["journey", "car", "extras", "details", "review"];
 
 type BookingDraft = { sent: number; step: BookingStep; trip: Trip; draft: Trip; entered: DetailsEntry | null };
 
@@ -113,6 +115,7 @@ export function BookingFlow({
   variant,
   locale,
   copy: t,
+  addOns,
   dateTimeCopy,
   messages,
   fleetDict,
@@ -133,6 +136,8 @@ export function BookingFlow({
   variant: "public" | "portal";
   locale: Locale;
   copy: BookingCopy;
+  /** The add-ons' names and notes */
+  addOns: AddOnsCopy;
   dateTimeCopy: DateTimeCopy;
   messages: TripMessages;
   fleetDict: FleetDictionary;
@@ -209,12 +214,13 @@ export function BookingFlow({
     setAnswered(result.fieldErrors);
     if (errorKeys.some((k) => JOURNEY_FIELDS.includes(k))) setStep("journey");
     else if (errorKeys.some((k) => CAR_FIELDS.includes(k))) setStep("car");
+    else if (errorKeys.some((k) => EXTRAS_FIELDS.includes(k))) setStep("extras");
     else if (errorKeys.some((k) => DETAILS_FIELDS.includes(k))) setStep("details");
   }
   const journeyErrors = errorKeys.filter((k) => JOURNEY_FIELDS.includes(k)).map((k) => result.fieldErrors[k]);
 
   const chosen = vehicleByKey(trip.vehicle);
-  const steps: [BookingStep, string][] = [["journey", t.stepJourney], ["car", t.stepCar], ["details", t.stepDetails], ["review", t.stepReview]];
+  const steps: [BookingStep, string][] = [["journey", t.stepJourney], ["car", t.stepCar], ["extras", t.stepExtras], ["details", t.stepDetails], ["review", t.stepReview]];
   const stepIndex = steps.findIndex(([s]) => s === step);
   // The book page's own journey step. The review step uses it so the contact details already typed stay on the page.
   const showJourney = () => {
@@ -250,7 +256,7 @@ export function BookingFlow({
       {notice && <p className="m-0 rounded-xl bg-ink-100 px-4 py-3 text-[14px] text-ink-800">{notice}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        {step === "car" || step === "details" ? (
+        {step === "car" || step === "extras" || step === "details" ? (
           <button
             type="button"
             onClick={editJourney}
@@ -334,8 +340,21 @@ export function BookingFlow({
               }
             }
             setTrip(next);
-            go("details");
+            go("extras");
           }}
+        />
+      )}
+
+      {step === "extras" && (
+        <ExtrasStep
+          headingRef={heading}
+          extras={trip.extras}
+          locale={locale}
+          copy={t}
+          names={addOns}
+          onChange={(extras) => setTrip((current) => ({ ...current, extras }))}
+          onBack={() => go("car")}
+          onNext={() => go("details")}
         />
       )}
 
@@ -357,7 +376,7 @@ export function BookingFlow({
           messages={messages}
           gallery={galleryCopy(fleetDict)}
           onDraft={setEntered}
-          onBack={() => go("car")}
+          onBack={() => go("extras")}
           onReview={(entry) => {
             setEntered(entry);
             go("review");
@@ -372,6 +391,7 @@ export function BookingFlow({
           trip={trip}
           entered={entered}
           copy={t}
+          addOns={addOns}
           locale={locale}
           chosen={chosen}
           vehicleAdvise={vehicleAdvise}

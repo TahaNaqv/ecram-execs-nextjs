@@ -3,6 +3,7 @@ import en from "../../lib/i18n/dictionaries/en.json";
 import nl from "../../lib/i18n/dictionaries/nl.json";
 import { FLEET } from "../../lib/fleet/vehicles";
 import { CONSENTED_STATE } from "./helpers";
+import { chooseExtras } from "./booking-helpers";
 
 /** A complete trip, so /book opens on the car step. */
 const READY_TRIP = `/en/book?from=Kurhaus&to=Hotel+Des+Indes&at=${new Date().getFullYear() + 1}-03-14T08:30&pax=2&bags=2`;
@@ -39,6 +40,7 @@ test("switching language does not jump back to the last anchor", async ({ page }
 test("the phone field offers many country codes, Netherlands first and selected", async ({ page }) => {
   await page.goto(READY_TRIP);
   await page.getByRole("button", { name: en.booking.skipCar }).click();
+  await chooseExtras(page, []);
   const country = page.getByLabel(en.booking.phoneCountry).first();
   await expect(country).toHaveValue("31");
   expect(await country.locator("option").count()).toBeGreaterThan(30);

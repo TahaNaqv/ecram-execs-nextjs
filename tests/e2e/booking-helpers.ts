@@ -95,7 +95,7 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
 /** The car step's choices (cars and "No preference"): buttons that are pressed when chosen. */
 export const carChoices = (page: Page) => page.getByRole("list", { name: en.booking.carTitle }).locator("button[aria-pressed]");
 /** One car's choice, by the name it starts with (its details button is named "Photos and details of …"). */
-export const carChoice = (page: Page, name: string) => page.getByRole("button", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
+export const carChoice = (page: Page, name: string) => page.getByRole("radio", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
 
 /** Step two: a car by name, "no preference", or skip. */
 export async function chooseCar(page: Page, car: string | "advise" | null, t: Copy = en.booking) {
@@ -103,6 +103,19 @@ export async function chooseCar(page: Page, car: string | "advise" | null, t: Co
   if (car === "advise") await carChoice(page, t.noPreference).click();
   else if (car) await carChoice(page, car).click();
   await page.getByRole("button", { name: /^(Continue|Skip|Verder|Overslaan)/ }).click();
+  await chooseExtras(page, [], t);
+}
+
+/** Step three: the add-ons by name (and the chocolate selection), or none; then on to the details. */
+export async function chooseExtras(page: Page, items: { name: string; count?: number; selection?: string }[], t: Copy = en.booking) {
+  await expect(page.getByRole("heading", { name: t.extrasTitle })).toBeVisible();
+  for (const item of items) {
+    const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: item.name, exact: true }) });
+    if (item.selection) await card.getByText(item.selection, { exact: true }).click();
+    await card.getByRole("button", { name: `${t.extrasAdd}: ${item.name}` }).click();
+    for (let n = 1; n < (item.count ?? 1); n++) await card.getByRole("button", { name: t.extrasMore.replace("{item}", item.name) }).click();
+  }
+  await page.getByRole("button", { name: items.length > 0 ? t.extrasContinue : t.extrasSkip, exact: true }).click();
 }
 
 export type Details = { name?: string; email?: string; phone: string; country?: string; passenger?: { name: string; phone?: string }; notes?: string; purpose?: "business" | "private" };

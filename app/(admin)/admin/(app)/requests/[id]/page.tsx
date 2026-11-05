@@ -34,7 +34,8 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { formatCents, type Price } from "@/lib/pricing/rates";
+import { formatCents, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
+import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 async function BackLabel() {
   const { admin } = await adminDictionary();
@@ -174,8 +175,8 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
       </div>
 
       <div className="mt-6">
-        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap}>
-          {!isBespoke(r) && <RateCardPrice price={r.priceEstimate} copy={rd} />}
+        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap} addOns={extrasLine(d.addOns, r.extras)}>
+          {!isBespoke(r) && <RateCardPrice price={r.priceEstimate} copy={rd} names={d.addOns} />}
         </AutoPricingGateway>
       </div>
 
@@ -268,7 +269,7 @@ function DetailSkeleton() {
 const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
 
 /** The rate card's price stored with the request (lib/pricing/rates.ts): each car's hours × rate, then VAT, the service fee and the total. */
-function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"] }) {
+function RateCardPrice({ price, copy: rd, names }: { price: Price | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"]; names: ExtraNames }) {
   const euro = (cents: number) => formatCents(cents, "en");
   const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
   const line = (label: React.ReactNode, value: string, strong = false) => (
@@ -290,9 +291,12 @@ function RateCardPrice({ price, copy: rd }: { price: Price | null; copy: Awaited
               ))}
             </div>
           ))}
-          {line(rd.rateCardVat, euro(price.vat))}
+          {(price.extras ?? []).map((e) => (
+            <div key={e.key}>{line(`${e.count} × ${extraName(names, e)} (${Math.round(e.vatRate * 100)}% BTW)`, euro(e.amount))}</div>
+          ))}
+          {line(rd.rateCardVat, euro(vatByRate(price).low))}
           {line(rd.rateCardFee, euro(price.fee))}
-          {price.feeVat ? line(rd.rateCardFeeVat, euro(price.feeVat)) : null}
+          {vatByRate(price).high ? line(hasHighRateExtras(price) ? rd.rateCardVatHigh : rd.rateCardFeeVat, euro(vatByRate(price).high)) : null}
           {line(rd.rateCardTotal, euro(price.total), true)}
          
         </div>

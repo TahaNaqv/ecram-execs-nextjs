@@ -1,6 +1,7 @@
 import "server-only";
 import { cachedDriveEstimate, estimateEnabled } from "@/lib/fleet/estimate";
 import { carsToPrice } from "./booking";
+import { cleanExtras } from "./extras";
 import { priceBooking, type Price, type Segment } from "./rates";
 
 const clean = (s: string) => s.trim().replace(/\s+/g, " ");
@@ -18,6 +19,7 @@ type Priced = {
   luggage?: number | null;
   vehicle?: string | null;
   vehicles?: unknown;
+  extras?: unknown;
 };
 
 /**
@@ -51,6 +53,7 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
       waitMinutes,
       cars,
       suggested,
+      extras: cleanExtras(b.extras),
     });
   } catch (err) {
     console.error("[pricing] could not price a booking", err);

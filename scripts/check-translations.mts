@@ -23,6 +23,9 @@ const ALLOW_IDENTICAL = new Set([
   // "BTW / VAT" names the tax in both languages on purpose, so the label reads the same in each
   "booking.priceVat",
   "booking.priceEstimateValue",
+  "booking.extrasPrice",
+  "booking.extrasCount",
+  "addOns.champagne",
   "email.priceValue",
   "admin.requestDetail.rateCardVat",
   // "Concierge" is the same word in Dutch

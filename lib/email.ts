@@ -12,6 +12,7 @@ import { isUrgent } from "@/lib/quotes/urgency";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 import { formatCents, priceNet, type Price } from "@/lib/pricing/rates";
+import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -20,7 +21,7 @@ const esc = (s: string) =>
 export async function notifyNewQuote(q: QuoteRequest) {
   const site = process.env.SITE_URL ?? "";
   // Internal alert — deliberately always English (D7); only the service key needs a label.
-  const { services, bespokeSection: bespokeLabels } = await getDictionary("en");
+  const { services, bespokeSection: bespokeLabels, addOns } = await getDictionary("en");
   const bespoke = q.service === "bespoke";
   const urgent = isUrgent(q);
   const rows: [string, string | number | null][] = [
@@ -46,6 +47,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Suitcases", q.luggage],
     ["Vehicle class", q.vehicleClass && (bespokeLabels.vehicleClasses as Record<string, string>)[q.vehicleClass]],
     ["Vehicle", q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? "Advise me" : q.vehicle))],
+    ["Add-ons (ready in the car)", extrasLine(addOns, q.extras)],
     ["Itinerary & instructions", q.itinerary],
     ["Preferred contact", q.contactPreference && ({ whatsapp: "WhatsApp", email: "Email" }[q.contactPreference] ?? "Phone")],
     ["Name", q.name],
@@ -79,7 +81,7 @@ export async function confirmToClient(q: QuoteRequest) {
   const first = q.name.split(" ")[0];
   const { phone, email } = siteConfig.contact;
   // The confirmation goes out in the language the visitor filled the form in (stored on the row).
-  const { email: t, services } = await getDictionary(q.locale);
+  const { email: t, services, addOns } = await getDictionary(q.locale);
   const row = (label: string, value: string) =>
     `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const bespoke = q.service === "bespoke";
@@ -92,7 +94,7 @@ export async function confirmToClient(q: QuoteRequest) {
         row(t.fieldCollection, q.collection ?? ""),
         ...destinationRows(q, t, row),
         row(t.fieldDateTime, (q.pickupAt ?? "").slice(0, 16).replace("T", " ")),
-        ...extraRows(q, t, row),
+        ...extraRows(q, t, row, addOns),
         q.priceEstimate
           ? row(t.fieldPrice, interpolate(q.priceEstimate.exact ? t.priceValue : t.priceValueFrom, { price: formatCents(q.priceEstimate.total, q.locale) }))
           : "",
@@ -390,7 +392,7 @@ export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteR
   const values = { reference: q.reference, amount: euro(q.quotedAmount, q.locale) };
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const status = d.portal.statuses[kind];
-  const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row)];
+  const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row, d.addOns)];
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
@@ -419,9 +421,9 @@ export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteR
 export async function emailBookingRecorded(q: QuoteRequest) {
   const { SITE_URL } = process.env;
   const { phone, email } = siteConfig.contact;
-  const { email: t, services, quoteForm } = await getDictionary(q.locale);
+  const { email: t, services, quoteForm, addOns } = await getDictionary(q.locale);
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
-  const details = summaryRows(q, t, services, quoteForm, row);
+  const details = summaryRows(q, t, services, quoteForm, row, addOns);
   const link = q.corporateContactId ? `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", q.locale)}?ref=${encodeURIComponent(q.reference)}` : null;
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
@@ -454,6 +456,7 @@ function summaryRows(
   services: Awaited<ReturnType<typeof getDictionary>>["services"],
   quoteForm: Awaited<ReturnType<typeof getDictionary>>["quoteForm"],
   row: Row,
+  addOns: ExtraNames,
 ) {
   const stops = stopsWithWaits(q.destinations, q.destinationWaits)
     .map((s) => (s.wait > 0 ? `${s.place} (${s.wait} min)` : s.place))
@@ -467,7 +470,7 @@ function summaryRows(
     ...destinationRows(q, t, row),
     stops ? row(t.fieldStops, stops) : "",
     q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
-    ...extraRows(q, t, row),
+    ...extraRows(q, t, row, addOns),
     q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
     vehicle ? row(t.fieldVehicle, vehicle) : "",
   ];
@@ -480,11 +483,13 @@ function destinationRows(q: QuoteRequest, t: EmailCopy, row: Row) {
 }
 
 /** The booking flow's optional details, each only when given. */
-function extraRows(q: QuoteRequest, t: EmailCopy, row: Row) {
+function extraRows(q: QuoteRequest, t: EmailCopy, row: Row, addOns: ExtraNames) {
+  const extras = extrasLine(addOns, q.extras);
   return [
     q.returnAt ? row(t.fieldReturn, q.returnAt.slice(0, 16).replace("T", " ")) : "",
     q.flightNumber ? row(t.fieldFlight, q.flightNumber) : "",
     q.passengerName ? row(t.fieldPassenger, q.passengerName) : "",
+    extras ? row(t.fieldExtras, extras) : "",
   ];
 }
 

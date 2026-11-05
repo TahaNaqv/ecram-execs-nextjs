@@ -3,10 +3,11 @@
 import type { ReactNode } from "react";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { carsToPrice } from "@/lib/pricing/booking";
-import { formatCents, priceBooking, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
+import { formatCents, hasHighRateExtras, priceBooking, vatByRate, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
+import { extraName } from "@/lib/pricing/extras";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
-import type { BookingCopy } from "./copy";
+import type { AddOnsCopy, BookingCopy } from "./copy";
 import { pretty } from "./parts";
 import type { Trip } from "./trip";
 
@@ -31,6 +32,7 @@ export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | n
     waitMinutes: hourly ? 0 : tripWaitMinutes(trip),
     cars,
     suggested,
+    extras: trip.extras,
   });
   return price ? { ...price, suggested } : null;
 }
@@ -38,6 +40,7 @@ export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | n
 /** The price on the review step: each car on each leg, the service fee, VAT and the total, with what the figure rests on. */
 export function PriceBreakdown({
   price,
+  names,
   pending,
   hourly,
   timed,
@@ -45,6 +48,8 @@ export function PriceBreakdown({
   locale,
 }: {
   price: (Price & { suggested: boolean }) | null;
+  /** The add-ons' names */
+  names: AddOnsCopy;
   pending: boolean;
   hourly: boolean;
   /** Whether Google timed the drive (a transfer's hours rest on it) */
@@ -63,6 +68,8 @@ export function PriceBreakdown({
     </div>
   );
   const legs = price.legs.length > 1;
+  // VAT as an invoice groups it: flowers with the rides at 9%, the other add-ons with the service fee at 21%
+  const vat = vatByRate(price);
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,9 +87,19 @@ export function PriceBreakdown({
             ),
           ),
         ])}
-        {row("vat", t.priceVat, euro(price.vat))}
+        {(price.extras ?? []).map((line) =>
+          row(
+            `extra-${line.key}`,
+            <span className="flex flex-col">
+              <span className="text-ink-950">{extraName(names, line)}</span>
+              <span className="text-[12px]">{`${line.count} × ${euro(line.unit)}`}</span>
+            </span>,
+            euro(line.amount),
+          ),
+        )}
+        {row("vat", t.priceVat, euro(vat.low))}
         {row("fee", t.priceServiceFee, euro(price.fee))}
-        {price.feeVat ? row("feeVat", t.priceFeeVat, euro(price.feeVat)) : null}
+        {vat.high ? row("feeVat", hasHighRateExtras(price) ? t.priceVatHigh : t.priceFeeVat, euro(vat.high)) : null}
         {row("total", t.priceTotal, price.exact ? euro(price.total) : interpolate(t.priceFrom, { price: euro(price.total) }), true)}
       </dl>
     </div>

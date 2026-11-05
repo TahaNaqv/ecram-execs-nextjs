@@ -2,6 +2,8 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 
 /** The booking flow's words, from the `booking` section of the dictionaries. */
 export type BookingCopy = Dictionary["booking"];
+/** The add-ons' names and notes, from the `addOns` section. */
+export type AddOnsCopy = Dictionary["addOns"];
 
 /** The validation messages the flow shows before anything is sent (the same ones the server uses, `forms.*`). */
 export type TripMessages = Pick<

@@ -162,6 +162,13 @@
       "when": 1793810000000,
       "tag": "0022_hand_luggage",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793865641784,
+      "tag": "0023_extras",
+      "breakpoints": true
     }
   ]
 }

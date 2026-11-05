@@ -5,7 +5,7 @@ import { FLEET } from "../../lib/fleet/vehicles";
 import { bestMatch } from "../../lib/concierge/match";
 import { faqsFrom } from "../../lib/concierge/faqs";
 import { cleanPhoneInput, phoneLengthOk } from "../../lib/phone";
-import { carChoices } from "./booking-helpers";
+import { carChoices, chooseExtras } from "./booking-helpers";
 import { PASSWORD, newEmail, ownAddress, seedContact, logIn, t } from "./corporate-helpers";
 
 // Regression tests for the second QA bug report (the "Escram exces Bugs" document: email bugs E1-E3, website bugs W1-W14).
@@ -25,6 +25,7 @@ const READY_TRIP = `/en/book?from=Kurhaus&to=Hotel+Des+Indes&at=${new Date().get
 async function goToDetails(page: Page) {
   await page.goto(READY_TRIP);
   await page.getByRole("button", { name: en.booking.skipCar }).click();
+  await chooseExtras(page, []);
   await expect(page.getByRole("heading", { name: en.booking.detailsTitle })).toBeVisible();
 }
 
@@ -52,6 +53,7 @@ test("W3: every booking step fits the screen, so nothing is cut off at the edge"
     await expect(carChoices(page).first()).toBeVisible();
     await fits("the car step");
     await page.getByRole("button", { name: en.booking.skipCar }).click();
+  await chooseExtras(page, []);
     await expect(page.getByRole("complementary", { name: en.booking.summaryLabel })).toBeVisible();
     await fits("the details step");
   }

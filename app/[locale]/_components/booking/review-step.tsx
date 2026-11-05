@@ -7,7 +7,8 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingResult, BookingStep, DetailsEntry } from "./booking-flow";
 import { Check, pretty, SeatIcon } from "./parts";
-import type { BookingCopy } from "./copy";
+import type { AddOnsCopy, BookingCopy } from "./copy";
+import { extrasLine } from "@/lib/pricing/extras";
 import { guestsText, partyLine } from "./guests-picker";
 import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
 import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
@@ -167,6 +168,7 @@ export function ReviewStep({
   trip,
   entered,
   copy: t,
+  addOns,
   locale,
   chosen,
   vehicleAdvise,
@@ -183,6 +185,7 @@ export function ReviewStep({
   trip: Trip;
   entered: DetailsEntry;
   copy: BookingCopy;
+  addOns: AddOnsCopy;
   locale: Locale;
   chosen: FleetVehicle | undefined;
   vehicleAdvise: string;
@@ -254,6 +257,8 @@ export function ReviewStep({
     : null;
   if (listed) ride.push([t.reviewVehicle, listed]);
   else if (convoy) ride.push([t.reviewVehicle, convoy]);
+  const extras = extrasLine(addOns, trip.extras);
+  if (extras) ride.push([t.reviewExtras, extras]);
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip);
   const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
@@ -325,7 +330,7 @@ export function ReviewStep({
           </section>
           <section aria-label={t.reviewPrice} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
             <h3 className="m-0 text-[16px] font-semibold">{t.reviewPrice}</h3>
-            <PriceBreakdown price={price} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
+            <PriceBreakdown price={price} names={addOns} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
             <div className="mt-auto border-0 border-t border-solid border-ink-150 pt-3">
               <label htmlFor={`${uid}-agree`} className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug">
                 <input

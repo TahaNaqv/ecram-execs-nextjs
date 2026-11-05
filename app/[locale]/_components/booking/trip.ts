@@ -3,6 +3,7 @@ import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
 import { bagCapacity, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
+import { cleanExtras, type ExtraPick } from "@/lib/pricing/extras";
 
 /**
  * The journey being booked, as the booking flow holds it between steps. The hero bar sends it to /book in the URL (so it
@@ -31,6 +32,8 @@ export type Trip = {
   vehicle: VehicleChoice | "";
   /** The one car the visitor chose. Empty when they have not chosen, or when they ask us to choose. */
   cars: { key: VehicleKey; count: number }[];
+  /** The add-ons chosen on the step after the car (lib/pricing/extras.ts) */
+  extras: ExtraPick[];
 };
 
 /** The Cadillac Escalade IQ seats 7, the most in the fleet. The form never takes more. */
@@ -74,10 +77,12 @@ export function normalizeTrip(trip: Trip): Trip {
   const pax = bounded(trip.pax, 1, MAX_PASSENGERS);
   const bags = bounded(trip.bags, 0, MAX_BAGS);
   const small = bounded(trip.small, 0, MAX_SMALL_BAGS);
+  // A trip saved before add-ons existed has none
+  const extras = cleanExtras(trip.extras ?? []);
   const chosen = trip.cars.find((c) => c.count >= 1);
   const named = (chosen ? vehicleByKey(chosen.key) : undefined) ?? (trip.vehicle && trip.vehicle !== "advise" ? vehicleByKey(trip.vehicle) : undefined);
-  if (named) return { ...trip, pax, bags, small, cars: [{ key: named.key, count: 1 }], vehicle: named.key };
-  return { ...trip, pax, bags, small, cars: [], vehicle: trip.vehicle === "advise" ? "advise" : "" };
+  if (named) return { ...trip, pax, bags, small, extras, cars: [{ key: named.key, count: 1 }], vehicle: named.key };
+  return { ...trip, pax, bags, small, extras, cars: [], vehicle: trip.vehicle === "advise" ? "advise" : "" };
 }
 export const emptyPlace = (): Place => ({ text: "", id: null, kind: null });
 export const emptyTrip = (): Trip => ({
@@ -94,6 +99,7 @@ export const emptyTrip = (): Trip => ({
   flight: "",
   vehicle: "",
   cars: [],
+  extras: [],
 });
 
 const WALL_CLOCK = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -148,6 +154,14 @@ export function tripFromParams(params: URLSearchParams): Trip {
   const vehicle = normalizeVehicleKey(params.get("vehicle")) ?? params.get("vehicle");
   trip.vehicle = (VEHICLE_CHOICES as readonly string[]).includes(vehicle ?? "") ? (vehicle as VehicleChoice) : "";
   trip.cars = carsFromParam(params.get("cars"));
+  // "champagne:1|chocolates.dairy_free:2": the add-ons, kept when the visitor goes back to the bar to change the journey
+  trip.extras = cleanExtras(
+    (params.get("extras") ?? "").split("|").filter(Boolean).map((part) => {
+      const [item, count] = part.split(":");
+      const [key, option] = item.split(".");
+      return { key, option, count: Number(count) };
+    }),
+  );
   if (trip.cars.length === 0 && trip.vehicle && trip.vehicle !== "advise") {
     const key = normalizeVehicleKey(trip.vehicle);
     if (key) trip.cars = [{ key, count: 1 }];
@@ -193,6 +207,7 @@ export function tripToParams(trip: Trip): URLSearchParams {
   if (trip.flight.trim() && pickupAtAirport(trip)) p.set("flight", trip.flight.trim());
   if (trip.vehicle) p.set("vehicle", trip.vehicle);
   if (trip.cars.length > 0) p.set("cars", trip.cars.map((c) => `${c.key}:${c.count}`).join("|"));
+  if (trip.extras.length > 0) p.set("extras", trip.extras.map((e) => `${e.key}${e.option ? `.${e.option}` : ""}:${e.count}`).join("|"));
   return p;
 }
 
@@ -209,6 +224,7 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
     ["flightNumber", pickupAtAirport(trip) ? trip.flight.trim() : ""],
     ["vehicle", trip.cars[0]?.key ?? trip.vehicle],
     ["vehicles", trip.cars.length > 0 ? JSON.stringify(trip.cars) : ""],
+    ["extras", trip.extras.length > 0 ? JSON.stringify(trip.extras) : ""],
   ];
   if (trip.mode === "hourly") fields.push(["durationHours", String(trip.hours)]);
   else {
