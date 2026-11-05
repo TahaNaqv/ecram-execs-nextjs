@@ -178,6 +178,15 @@ export function vatByRate(p: Price): { low: number; high: number } {
 /** Whether any add-on carries the high rate, so the 21% line is not the service fee's alone. */
 export const hasHighRateExtras = (p: Price) => (p.extras ?? []).some((line) => line.vatRate === SERVICE_FEE_VAT_RATE);
 
+/**
+ * The rate-card total saved with a booking, as a two-decimal euro string. This is the amount the visitor confirmed
+ * (rides, 9% VAT, service fee, and its VAT). Null when that snapshot was not stored. It is not worked out again.
+ */
+export function storedQuoteEuros(price: Pick<Price, "total"> | null | undefined): string | null {
+  if (!price || typeof price.total !== "number" || !Number.isFinite(price.total)) return null;
+  return (price.total / 100).toFixed(2);
+}
+
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */
 export function formatCents(cents: number, locale: string): string {
   return new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { style: "currency", currency: "EUR" }).format(cents / 100);

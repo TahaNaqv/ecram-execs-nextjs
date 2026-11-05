@@ -16,6 +16,7 @@
     "check:i18n": "node scripts/check-translations.mts && node scripts/check-literals.mts",
     "test:e2e": "playwright test",
     "db:seed-demo": "node --env-file-if-exists=.env.local scripts/seed-demo.mts",
+    "db:reset-dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/reset-dev-data.mts",
     "media:brand-film": "node scripts/build-brand-film.mts",
     "db:migrate:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/migrate.mts --local",
     "db:migrate:prod": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env scripts/migrate.mts"

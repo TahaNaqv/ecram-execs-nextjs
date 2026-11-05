@@ -23,8 +23,8 @@ export type RoutedBooking = {
   destinationPlaceId?: string | null;
 };
 
-/** A place Google can find: its id when the booking kept one, else the address as typed. */
-const waypoint = (address: string, placeId?: string | null) => (placeId ? { placeId } : { address });
+/** A place Google can find: its id when the booking kept a Google one, else the address as typed. Our own list uses curated-* ids. */
+const waypoint = (address: string, placeId?: string | null) => (placeId && !placeId.startsWith("curated-") ? { placeId } : { address });
 
 /** The longest one-way drive that is believed: clients are collected across the Benelux and its neighbours, so more means the wrong place was found. */
 const MAX_PLAUSIBLE_DRIVE_SECONDS = 6 * 3600;

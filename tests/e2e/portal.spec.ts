@@ -44,30 +44,38 @@ async function adminSignIn(page: Page) {
   await page.waitForURL((url) => !url.pathname.endsWith("/login"));
 }
 
-test("the bookings are grouped by what the partner has to do, including an introduction", async ({ page, context }) => {
+test("the bookings are grouped into open, past and cancelled", async ({ page, context }) => {
   const { email, contactId } = await signedInPartner(page, context, "groups");
   const waiting = await seedBooking({ contactId, email, status: "quoted", quotedAmount: "185.50", destination: "Quoted Destination" });
   const open = await seedBooking({ contactId, email, status: "new", destination: "Open Destination" });
   const done = await seedBooking({ contactId, email, status: "completed", destination: "Done Destination" });
+  const driven = await seedBooking({ contactId, email, status: "confirmed", pickupAt: "2020-01-15T09:00", destination: "Driven Destination" });
+  const cancelled = await seedBooking({ contactId, email, status: "cancelled", pickupAt: "2020-02-01T09:00", destination: "Cancelled Destination" });
   const intro = await seedBooking({ contactId, email, status: "new", source: "website-corporate", destination: "Introduction" });
 
-  // A quote is waiting, so that is where the list opens
   await page.goto("/en/corporate-partner/account");
   await expect(page.getByText(waiting.reference)).toBeVisible();
   await expect(page.getByText("€185.50")).toBeVisible();
   // A pick-up is the wall-clock time it was booked for, whatever zone the server or the reader is in
   await expect(page.getByText("14 Mar 2031, 08:30")).toBeVisible();
-  await expect(page.getByText(open.reference)).toHaveCount(0);
-
-  await page.getByRole("link", { name: new RegExp(`^${p.tabOpen}`) }).click();
   await expect(page.getByText(open.reference)).toBeVisible();
   await expect(page.getByText(intro.reference)).toBeVisible();
+  await expect(page.getByText(driven.reference)).toBeVisible();
+  await expect(page.getByText(done.reference)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: new RegExp(`^${p.tabAnswer}`) })).toHaveCount(0);
 
+  await expect(page.getByRole("link", { name: `${p.tabPast} (2)`, exact: true })).toBeVisible();
   await page.getByRole("link", { name: new RegExp(`^${p.tabPast}`) }).click();
   await expect(page.getByText(done.reference)).toBeVisible();
+  await expect(page.getByText(driven.reference)).toBeVisible();
+  await expect(page.getByText(open.reference)).toHaveCount(0);
+  await expect(page.getByText(cancelled.reference)).toHaveCount(0);
+
+  await page.getByRole("link", { name: new RegExp(`^${p.tabCancelled}`) }).click();
+  await expect(page.getByText(cancelled.reference)).toBeVisible();
+  await expect(page.getByText(done.reference)).toHaveCount(0);
 
   await expect(page.getByRole("heading", { name: p.introCtaTitle })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: new RegExp(`^${p.tabAnswer} \\(1\\)`) })).toBeVisible();
 });
 
 test("a partner is not asked to introduce the company from the bookings list", async ({ page, context }) => {

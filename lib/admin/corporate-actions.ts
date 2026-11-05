@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { corporateContacts, quoteRequests } from "@/lib/db/schema";
+import { corporateContacts, quoteRequests, requestEvents } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
@@ -107,8 +107,16 @@ export async function deleteCorporatePartner(id: string) {
       }
     }
 
-    // 2. Delete from database
-    await db.delete(corporateContacts).where(eq(corporateContacts.id, id));
+    // Unlink this account's bookings and mark them, so a later signup with the same email cannot claim them.
+    // The rows stay for the team; only the login and its claim on them go.
+    await db.transaction(async (tx) => {
+      const owned = await tx.select({ id: quoteRequests.id }).from(quoteRequests).where(eq(quoteRequests.corporateContactId, id));
+      if (owned.length > 0) {
+        await tx.insert(requestEvents).values(owned.map((row) => ({ requestId: row.id, event: "partner_erased" })));
+        await tx.update(quoteRequests).set({ corporateContactId: null }).where(eq(quoteRequests.corporateContactId, id));
+      }
+      await tx.delete(corporateContacts).where(eq(corporateContacts.id, id));
+    });
     console.log(`🗑️ Successfully removed corporate partner: ${id}`);
     
     revalidatePath("/admin/corporate");

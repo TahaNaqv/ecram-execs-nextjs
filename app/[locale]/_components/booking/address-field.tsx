@@ -120,7 +120,7 @@ export function AddressField({
     setOpen(false);
     setItems([]);
     // Closing the session is what makes Google bill it once; it can fail without the visitor noticing
-    if (hit.id && session.current) {
+    if (hit.source === "google" && hit.id && session.current) {
       void fetch("/api/places/details", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

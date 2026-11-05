@@ -9,6 +9,8 @@ import { routeBlockMinutes } from "@/lib/fleet/route";
 import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 import { after } from "next/server";
 import { emailPartnerBooking, emailEnquiryStatus } from "@/lib/email";
+import type { RequestEventChange } from "@/lib/admin/events";
+import { storedQuoteEuros } from "@/lib/pricing/rates";
 
 export async function POST(
   req: NextRequest,
@@ -18,8 +20,8 @@ export async function POST(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
-    const amount = Number(body.amount ?? 0);
-    const amountStr = amount > 0 ? amount.toFixed(2) : null;
+    // The amount in the body is ignored. Confirming, completing, cancelling, or resending mail must not reprice
+    // the booking. An amount already stored stays as it is. When none was stored, the rate-card total from submit is written once.
     const sendMail = Boolean(body.sendMail ?? false);
     const parsedStatus = z.enum(ACTIVE_STATUSES).safeParse(body.status ?? "confirmed");
     if (!parsedStatus.success) return NextResponse.json({ error: "Unknown status" }, { status: 400 });
@@ -44,17 +46,28 @@ export async function POST(
     // The look and the save happen together under the fleet lock, so two people confirming at once cannot both pass.
     const result = await db.transaction(async (tx) => {
       let length: number | null = null;
+      let basis = current;
       if (newStatus === "confirmed") {
         await lockFleet(tx);
         // Read again under the lock: the car may have been changed while this request was on its way
         const [fresh] = await tx.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
         if (!fresh) return { missing: true } as const;
+        basis = fresh;
         // A booking that is already confirmed holds its car: saving it again (a new amount, a resent email) is not a new hold
         // Someone else (a partner accepting the quote) may have confirmed it meanwhile: then its length is theirs, not this one
         if (fresh.status !== "confirmed") length = fresh.blockMinutes ?? routed;
         const clash = fresh.status === "confirmed" ? null : await clashingReference(tx, { ...fresh, blockMinutes: length });
         if (clash) return { clash } as const;
       }
+      const hasQuote = basis.quotedAmount != null && basis.quotedAmount !== "";
+      const amountStr = hasQuote ? basis.quotedAmount : storedQuoteEuros(basis.priceEstimate);
+      const sameMoney =
+        (basis.quotedAmount == null || basis.quotedAmount === "" ? null : Number(basis.quotedAmount)) ===
+        (amountStr == null ? null : Number(amountStr));
+      const changes: RequestEventChange[] = [];
+      if (basis.status !== newStatus) changes.push({ kind: "status", from: basis.status, to: newStatus });
+      if (!sameMoney) changes.push({ kind: "quote", from: basis.quotedAmount, to: amountStr });
+
       const [row] = await tx
         .update(schema.quoteRequests)
         .set({
@@ -67,17 +80,14 @@ export async function POST(
         .returning();
       if (!row) return { missing: true } as const;
 
-      await tx.insert(schema.requestEvents).values({
-        requestId: id,
-        adminId: admin.id,
-        event: "changes",
-        params: {
-          changes: [
-            { kind: "status", from: current.status, to: newStatus },
-            { kind: "quote", from: current.quotedAmount, to: amountStr },
-          ],
-        },
-      });
+      if (changes.length > 0) {
+        await tx.insert(schema.requestEvents).values({
+          requestId: id,
+          adminId: admin.id,
+          event: "changes",
+          params: { changes },
+        });
+      }
       return { updated: row } as const;
     });
     if ("missing" in result) return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -95,7 +105,7 @@ export async function POST(
       console.log(`Request ID: ${id}`);
       console.log(`Reference: ${updated.reference}`);
       console.log(`Target Status / Email Kind: ${newStatus}`);
-      console.log(`Amount: €${amountStr}`);
+      console.log(`Amount: €${updated.quotedAmount ?? "—"}`);
 
       const emailKind = newStatus === "completed" || newStatus === "cancelled" ? newStatus : "confirmed";
 

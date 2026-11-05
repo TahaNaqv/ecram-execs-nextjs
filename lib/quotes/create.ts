@@ -4,6 +4,7 @@ import type { QuoteRequest } from "@/lib/db/schema";
 import { isUniqueViolation, makeReference } from "@/lib/request-meta";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { routeBlockMinutes } from "@/lib/fleet/route";
+import { storedQuoteEuros } from "@/lib/pricing/rates";
 
 /** A booking was saved as confirmed for a car that another confirmed booking already holds at that time. */
 export class CarClashError extends Error {
@@ -27,7 +28,10 @@ type NewEvent = Omit<typeof schema.requestEvents.$inferInsert, "id" | "requestId
  * cannot be retried inside the transaction it broke). Any other error is thrown for the caller to log and report.
  */
 export async function createQuoteRequest(input: NewQuoteRequest, events: NewEvent[] = [{ event: "received" }]): Promise<QuoteRequest> {
-  const values = input.status === "confirmed" && input.blockMinutes == null ? { ...input, blockMinutes: await routeBlockMinutes(input) } : input;
+  // The amount is the rate-card total from this request, and later status updates leave it alone.
+  // A quote the team typed on their own form is kept as they typed it.
+  const seeded = input.quotedAmount == null ? { ...input, quotedAmount: storedQuoteEuros(input.priceEstimate) } : input;
+  const values = seeded.status === "confirmed" && seeded.blockMinutes == null ? { ...seeded, blockMinutes: await routeBlockMinutes(seeded) } : seeded;
   for (let attempt = 1; ; attempt++) {
     try {
       return await db.transaction(async (tx) => {

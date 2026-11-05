@@ -24,7 +24,7 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { formatCents, type Price } from "@/lib/pricing/rates";
+import type { Price } from "@/lib/pricing/rates";
 
 const PIPELINE: RequestStatus[] = ["new", "confirmed", "completed", "cancelled"];
 
@@ -215,7 +215,7 @@ function RateCardPrice({ price, requestId, copy: rd }: { price: Price | null; re
   const [currentPrice, setCurrentPrice] = useState<Price | null>(price);
   const [loading, setLoading] = useState(false);
 
-  const euro = (cents: number) => formatCents(cents, "en");
+  const euro = (cents: number) => formatEuro(cents / 100);
   const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
 
   const handleSave = async () => {

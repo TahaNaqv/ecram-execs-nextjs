@@ -144,7 +144,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
             id={dialogId}
             role="dialog"
             aria-label={t.guestsDialog}
-            className="absolute top-full right-0 left-0 z-[70] mt-1.5 max-h-[min(70dvh,26rem)] overflow-y-auto rounded-2xl border border-solid border-ink-300 bg-white p-3 text-ink-950 shadow-2xl md:left-auto md:w-[300px]"
+            className="absolute top-full right-0 left-0 z-[70] mt-1.5 max-h-[min(70dvh,26rem)] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-solid border-ink-300 bg-white p-3 text-ink-950 shadow-2xl sm:p-4 md:left-auto md:w-[min(300px,calc(100vw-2rem))]"
           >
             <div ref={first} className="flex items-center justify-between gap-2 py-1">
               <span className="flex min-w-0 flex-col">

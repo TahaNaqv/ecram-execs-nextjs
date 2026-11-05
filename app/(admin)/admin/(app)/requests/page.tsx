@@ -4,12 +4,11 @@ import { Suspense } from "react";
 import { formatEuro, formatEuroCompact, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
 import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
-import { ACTIVE_STATUSES, serviceLabel } from "@/lib/quotes/constants";
+import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { QuoteRequest } from "@/lib/db/schema";
-import { priceForRequest } from "@/lib/pricing/quote";
-import type { Segment } from "@/lib/pricing/rates";
+import { storedQuoteEuros } from "@/lib/pricing/rates";
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -86,20 +85,40 @@ export default function RequestsPage({ searchParams }: PageProps<"/admin/request
   );
 }
 
-/** The amount shown in the list: the amount saved on the booking, otherwise the rate-card price of the journey. */
-async function listedAmount(r: QuoteRequest): Promise<string | null> {
+function ServiceCell({ name, audience }: { name: string; audience: string }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span>{name}</span>
+      <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">{audience}</span>
+    </span>
+  );
+}
+
+/**
+ * What the visitor booked: Business or Private Occasion. A trip to an airport is still one of those two;
+ * the company on the booking is what makes it business.
+ */
+function bookingPurpose(r: QuoteRequest): "business" | "private" {
+  if (r.service === "private_occasion") return "private";
+  if (r.service === "business_travel") return "business";
+  if (r.corporateContactId || r.entity || r.entityKvk || r.source === "portal" || r.source === "website-corporate" || r.source === "website-bespoke") return "business";
+  return "private";
+}
+
+/** Corporate rate card, a partner account, or a booking made from the partner site. Otherwise the public rate card. */
+function bookingAudience(r: QuoteRequest): "public" | "business" {
+  if (r.priceEstimate?.segment === "corporate") return "business";
+  if (r.priceEstimate?.segment === "public") return "public";
+  if (r.corporateContactId || r.source === "portal" || r.source === "website-corporate" || r.source === "website-bespoke") return "business";
+  return "public";
+}
+
+/** The amount shown in the list: the rate-card total saved with the booking, otherwise the amount already stored on the row. */
+function listedAmount(r: QuoteRequest): string | null {
+  const stored = storedQuoteEuros(r.priceEstimate);
+  if (stored != null) return formatEuro(stored);
   if (r.quotedAmount != null && r.quotedAmount !== "") return formatEuro(r.quotedAmount);
-  const stored = r.priceEstimate?.total;
-  if (typeof stored === "number") return formatEuro(stored / 100);
-  if (!r.pickupAt) return null;
-  // A company introduction is stored as bespoke, but it is one journey and can be priced like any other transfer.
-  const service =
-    r.service !== "bespoke" ? r.service : r.collection && r.destination ? "business_travel" : r.durationHours ? "hourly" : null;
-  if (!service) return null;
-  const segment: Segment =
-    r.corporateContactId || r.source === "portal" || r.source === "website-corporate" ? "corporate" : "public";
-  const price = await priceForRequest({ ...r, service }, segment);
-  return price ? formatEuro(price.total / 100) : null;
+  return null;
 }
 
 function href(params: Search) {
@@ -164,7 +183,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const t = dict.admin;
   // Requests on this page where a partner has written and nobody on the team has opened it yet
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
-  const amounts = new Map(await Promise.all(rows.map(async (r: QuoteRequest) => [r.id, await listedAmount(r)] as const)));
+  const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
   const partnerBadge = (id: string) =>
     unseen.has(id) ? <span className="mt-1 inline-block rounded bg-zinc-950 px-1.5 py-0.5 text-[10px] font-medium text-white">{t.requests.partnerMessage}</span> : null;
   // Where a journey ends: its destination, or for an hourly booking without one, how long the chauffeur is booked
@@ -323,7 +342,10 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           <CalendarIcon size={12} />
                           {pickup ? `${pickup.date} · ${pickup.time}` : "—"}
                         </span>
-                        <span>{serviceLabel(r.service, serviceLabels)}</span>
+                        <ServiceCell
+                          name={bookingPurpose(r) === "business" ? dict.booking.purposeBusiness : serviceLabels.private_occasion}
+                          audience={bookingAudience(r) === "business" ? t.requests.segmentBusiness : t.requests.segmentPublic}
+                        />
                         <span className="ml-auto flex items-center gap-3">
                           {amounts.get(r.id) && <span className="font-medium tabular-nums text-zinc-900">{amounts.get(r.id)}</span>}
                           <span className="font-mono text-[11px] text-zinc-400">{r.reference}</span>
@@ -428,7 +450,12 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           <span className="text-zinc-300">—</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-zinc-600">{serviceLabel(r.service, serviceLabels)}</td>
+                      <td className="px-3 py-3.5 text-zinc-600">
+                        <ServiceCell
+                          name={bookingPurpose(r) === "business" ? dict.booking.purposeBusiness : serviceLabels.private_occasion}
+                          audience={bookingAudience(r) === "business" ? t.requests.segmentBusiness : t.requests.segmentPublic}
+                        />
+                      </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-zinc-900">
                         {amounts.get(r.id) ?? <span className="text-zinc-300">—</span>}
                       </td>

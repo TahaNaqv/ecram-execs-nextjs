@@ -18,7 +18,7 @@ export async function Concierge() {
   };
   return (
     <section className="scroll-mt-28 border-b border-b-ink-850" id="concierge">
-      <div className="py-12 px-5 my-0 mx-auto gap-12 items-center flex flex-wrap max-w-[1280px] md:py-16 md:px-6 xl:gap-20 2xl:max-w-[1440px]">
+      <div className="mx-auto my-0 flex max-w-[1280px] flex-wrap items-center gap-8 px-4 py-12 sm:px-6 md:gap-10 md:px-8 md:py-14 lg:py-16 xl:gap-16 2xl:max-w-[1440px]">
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0">
           <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
             {d.conciergeSection.eyebrow}

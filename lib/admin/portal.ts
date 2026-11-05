@@ -48,6 +48,10 @@ export async function getPartnerLink(requestId: string) {
     const [linked] = await db.select(contact).from(schema.corporateContacts).where(eq(schema.corporateContacts.id, request.contactId)).limit(1);
     return { linked: linked ?? null, suggestion: null, partners: [], restricted: false };
   }
+  const [erased] = await db
+    .select({ n: count() })
+    .from(schema.requestEvents)
+    .where(and(eq(schema.requestEvents.requestId, requestId), eq(schema.requestEvents.event, "partner_erased")));
   // Not linked: offer the partner whose account uses this request's email address, and the others to choose from
   const withAccount = isNotNull(schema.corporateContacts.passwordSetAt);
   const [suggestion] = await db
@@ -60,7 +64,7 @@ export async function getPartnerLink(requestId: string) {
   const partners = allowed ? everyone.filter((p) => allowed.includes(p.id)) : everyone;
   return {
     linked: null,
-    suggestion: suggestion && partners.some((p) => p.id === suggestion.id) ? suggestion : null,
+    suggestion: Number(erased?.n ?? 0) === 0 && suggestion && partners.some((p) => p.id === suggestion.id) ? suggestion : null,
     partners,
     restricted: allowed !== null,
   };

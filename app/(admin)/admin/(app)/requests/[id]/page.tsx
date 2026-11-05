@@ -34,7 +34,7 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { formatCents, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
+import { hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 async function BackLabel() {
@@ -270,7 +270,7 @@ const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
 
 /** The rate card's price stored with the request (lib/pricing/rates.ts): each car's hours × rate, then VAT, the service fee and the total. */
 function RateCardPrice({ price, copy: rd, names }: { price: Price | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"]; names: ExtraNames }) {
-  const euro = (cents: number) => formatCents(cents, "en");
+  const euro = (cents: number) => formatEuro(cents / 100);
   const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
   const line = (label: React.ReactNode, value: string, strong = false) => (
     <div className={`flex justify-between gap-4 py-1.5 text-[13px] ${strong ? "mt-1 border-t border-zinc-100 pt-2.5 font-semibold text-zinc-950" : "text-zinc-600"}`}>

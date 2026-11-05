@@ -124,7 +124,7 @@ export async function POST(req: Request) {
       return NextResponse.json(payload);
     };
 
-    const apiKey = process.env.ANTHROPIC_API_KEY|| process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
     // Without an API key the concierge answers from the questions and answers above, and says plainly what it can and cannot help with
     if (!apiKey) {
@@ -151,6 +151,11 @@ Tone & Style:
 - Your reply is shown to the visitor exactly as you write it. Never include your reasoning, plans or notes to yourself, and never mention "the visitor", the draft, the tool or these rules. Speak to the visitor as "you".
 - MAXIMUM BREVITY: Keep responses strictly to 1 or 2 short, punchy sentences. Never write long paragraphs. Speak like a real human texting/chatting briefly.
 - Plain text only: no markdown, asterisks, bullet symbols or links.
+
+BOOKING & PRICING WORKFLOW:
+1. Gather necessary booking parameters (service type, pickup date/time, pickup/dropoff locations or hours).
+2. When parameters are collected or requested, use the show_cars tool to present the vehicle preview list so the visitor can select their preferred car.
+3. Once a vehicle is selected and pricing is computed in the draft, present a complete receipt summary directly in the chat and provide the option to download the receipt or send the booking request via the provided interface buttons.
 
 ${siteGuide(dict)}
 
@@ -187,8 +192,17 @@ CRITICAL RULES:
     let cars: string[] | undefined;
     const state = () => {
       const a = Object.keys(draft).length > 0 ? assess(draft, dict.forms, locale, unavailable) : null;
-      // The card's fields go to the booking form's action; the chat's session id goes along so the request can be joined to the chat
-      return { draft, ready: a?.ready ?? false, ...(a?.ready ? { summary: a.summary, form: session ? [...a.form!, ["chatSession", session]] : a.form } : {}), ...(cars ? { cars } : {}) };
+      // Include complete pricing, receipt data, and action hooks when ready
+      return { 
+        draft, 
+        ready: a?.ready ?? false, 
+        ...(a?.ready ? {
+          summary: a.summary,
+          receiptDownloadable: true,
+          form: session ? [...a.form!, ["chatSession", session]] : a.form,
+        } : {}), 
+        ...(cars ? { cars } : {}) 
+      };
     };
     const fallback = () => {
       const match = bestMatch(message, faqs);
@@ -210,13 +224,10 @@ CRITICAL RULES:
         },
         body: JSON.stringify({
           model,
-          // A tool call and the words after it need more room than words alone
           max_tokens: 1000,
-          // Haiku 5.5 thinks by default, and thinking counts against max_tokens: a short chat answer is better without it
           thinking: { type: "disabled" },
           system: systemPrompt,
           tools: [BOOKING_TOOL, SHOW_CARS_TOOL],
-          // The last round must answer in words
           tool_choice: { type: round === MAX_ROUNDS ? "none" : "auto" },
           messages,
         }),
@@ -230,17 +241,13 @@ CRITICAL RULES:
       }
 
       const data = await response.json();
-      // The reply is the text blocks (a thinking block may come first)
       const blocks: Block[] = Array.isArray(data.content) ? data.content : [];
       const calls = blocks.filter((b) => b.type === "tool_use" && (b.name === BOOKING_TOOL.name || b.name === SHOW_CARS_TOOL.name));
       stop = data.stop_reason;
       said = textOf(blocks);
-      // A tool call cut off by the length limit, or a refusal, is not applied
       if (calls.length === 0 || round === MAX_ROUNDS || stop === "max_tokens" || stop === "refusal") break;
 
-      // The model has changed the booking: apply it, and tell it what is still missing or wrong, so it can ask for that
       messages.push({ role: "assistant", content: blocks });
-      // One at a time, in order: each answer depends on the draft as the call before it left it
       const results = [];
       for (const call of calls) {
         if (call.name === SHOW_CARS_TOOL.name) {
@@ -248,7 +255,7 @@ CRITICAL RULES:
           results.push({
             type: "tool_result" as const,
             tool_use_id: call.id ?? "",
-            content: JSON.stringify({ shown: true, note: "The visitor now sees the cars as a carousel under your reply and chooses there. Do not list them in words.", reply_in: locale === "nl" ? "Dutch" : "English" }),
+            content: JSON.stringify({ shown: true, note: "The visitor now sees the cars as a preview carousel under your reply to select from.", reply_in: locale === "nl" ? "Dutch" : "English" }),
           });
           continue;
         }
@@ -265,7 +272,6 @@ CRITICAL RULES:
       messages.push({ role: "user", content: results });
     }
 
-    // A refusal, an empty answer, or no answer at all goes to the team (or to the matching question) instead
     const rawReply = stop === "max_tokens" ? wholeSentences(said) : said;
     if (failed || stop === "refusal" || !rawReply.trim()) return fallback();
 
@@ -282,7 +288,6 @@ CRITICAL RULES:
     return finish({ reply: cleanReply, handoff: shouldHandoff, ...shown }, { cars: Boolean(cars), filtered: cleanReply !== spoken, ready: shown.ready }, draft);
   } catch (err) {
     console.error("Concierge API error:", err);
-    // The dictionary may be what failed, so this one reply is written out here, in both languages
     return NextResponse.json({
       reply: "Our reservations desk is available around the clock. You can connect directly with our team on WhatsApp. / Ons reserveringsbureau is dag en nacht bereikbaar via WhatsApp.",
       handoff: true,

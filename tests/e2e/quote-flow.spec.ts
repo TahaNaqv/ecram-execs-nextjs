@@ -127,7 +127,7 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
   const reference = await confirmedReference(page, "Dank u, Sanne");
   await expect(page.getByRole("status").filter({ hasText: reference })).toContainText(nl.booking.doneNote);
 
-  // The admin is English, so the same request must read back as the English label.
+  // The admin is English. An airport trip with no company is a private occasion, not an airport-transfer label.
   await page.goto("/admin/login");
   await fillAdminLogin(page);
   await expect(page.getByRole("heading", { name: en.admin.dashboard.title })).toBeVisible();
@@ -136,7 +136,7 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
   await page.getByRole("button", { name: en.admin.common.search }).click();
 
   const row = page.locator("table tr").filter({ hasText: "Sanne Bakker" });
-  await expect(row).toContainText(en.services.airport_transfer);
+  await expect(row).toContainText(en.services.private_occasion);
   await expect(row).not.toContainText(nl.services.airport_transfer);
 });
 

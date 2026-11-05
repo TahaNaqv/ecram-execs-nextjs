@@ -7,7 +7,7 @@ export async function SiteHeader() {
   const [d, locale] = await Promise.all([getDict(), currentLocale()]);
   return (
     <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
-      <div className="py-4 px-4 my-0 mx-auto gap-2 items-center flex flex-wrap justify-between max-w-[1280px] lg:px-6 lg:gap-3 xl:py-[22px] xl:px-6 xl:gap-5 2xl:max-w-[1440px]">
+      <div className="mx-auto my-0 flex max-w-[1280px] flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-6 md:px-8 lg:gap-3 xl:gap-5 xl:py-[22px] 2xl:max-w-[1440px]">
         <input className="nav-toggle" type="checkbox" id="nav-toggle" aria-label={d.nav.menu} aria-controls="primary-nav" />
         {" "}
         <a className="gap-3 no-underline flex items-center shrink-0" href={localizedPath("/", locale)}>

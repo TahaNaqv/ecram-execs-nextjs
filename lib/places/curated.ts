@@ -5,18 +5,26 @@ import type { PlaceHit } from "./types";
  * suggestions. Kept short on purpose: anything else is found by Google or typed in by hand. Names are proper nouns,
  * the same in both languages.
  */
+const listed = (id: string, name: string, detail: string, kind: PlaceHit["kind"]): PlaceHit => ({
+  id: `curated-${id}`,
+  name,
+  detail,
+  kind,
+  source: "list",
+});
+
 export const CURATED_PLACES: PlaceHit[] = [
-  { id: null, name: "Amsterdam Airport Schiphol", detail: "Schiphol", kind: "airport", source: "list" },
-  { id: null, name: "Schiphol General Aviation Terminal", detail: "Schiphol-Oost", kind: "aviation", source: "list" },
-  { id: null, name: "Rotterdam The Hague Airport", detail: "Rotterdam", kind: "airport", source: "list" },
-  { id: null, name: "Eindhoven Airport", detail: "Eindhoven", kind: "airport", source: "list" },
-  { id: null, name: "Groningen Airport Eelde", detail: "Eelde", kind: "airport", source: "list" },
-  { id: null, name: "Maastricht Aachen Airport", detail: "Beek", kind: "airport", source: "list" },
-  { id: null, name: "Schiphol Airport station", detail: "Schiphol", kind: "station", source: "list" },
-  { id: null, name: "Amsterdam Centraal", detail: "Amsterdam", kind: "station", source: "list" },
-  { id: null, name: "Den Haag Centraal", detail: "Den Haag", kind: "station", source: "list" },
-  { id: null, name: "Rotterdam Centraal", detail: "Rotterdam", kind: "station", source: "list" },
-  { id: null, name: "Utrecht Centraal", detail: "Utrecht", kind: "station", source: "list" },
+  listed("schiphol", "Amsterdam Airport Schiphol", "Schiphol", "airport"),
+  listed("schiphol-gat", "Schiphol General Aviation Terminal", "Schiphol-Oost", "aviation"),
+  listed("rotterdam", "Rotterdam The Hague Airport", "Rotterdam", "airport"),
+  listed("eindhoven", "Eindhoven Airport", "Eindhoven", "airport"),
+  listed("eelde", "Groningen Airport Eelde", "Eelde", "airport"),
+  listed("maastricht", "Maastricht Aachen Airport", "Beek", "airport"),
+  listed("schiphol-station", "Schiphol Airport station", "Schiphol", "station"),
+  listed("amsterdam-centraal", "Amsterdam Centraal", "Amsterdam", "station"),
+  listed("den-haag-centraal", "Den Haag Centraal", "Den Haag", "station"),
+  listed("rotterdam-centraal", "Rotterdam Centraal", "Rotterdam", "station"),
+  listed("utrecht-centraal", "Utrecht Centraal", "Utrecht", "station"),
 ];
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 
 export type DateTimeCopy = Record<
   "placeholder" | "open" | "dialog" | "prevMonth" | "nextMonth" | "hour" | "minute" | "period" | "done" | "today" | "clear" | "selected",
@@ -127,8 +126,8 @@ export function DateTimeField({
   const focusGrid = useRef(false);
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [narrow, setNarrow] = useState(false);
-  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  // Nudge left only when a left-aligned card would leave the screen, and cap its height to the room below the field.
+  const [fit, setFit] = useState<{ nudge: number; maxH: number | null }>({ nudge: 0, maxH: null });
   // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
   useLayoutEffect(() => () => setOpen(false), []);
 
@@ -158,7 +157,6 @@ export function DateTimeField({
   };
 
   const openPicker = () => {
-    setNarrow(window.matchMedia("(max-width: 767px)").matches);
     const { day: now, time: clock } = nowInNetherlands();
     setToday(now);
     // No time chosen yet and no day either: the lists show the time it is now. With a day chosen the time already shown in
@@ -177,15 +175,6 @@ export function DateTimeField({
   };
 
   useEffect(() => {
-    if (!open || !narrow) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [open, narrow]);
-
-  useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -196,35 +185,57 @@ export function DateTimeField({
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
-  // A phone has no room to hang the calendar off the field: it rises from the bottom of the screen instead.
+  // The card is left-aligned under the field. Slide it left, or shorten it, only when it would leave the screen,
+  // and lift the booking bar above the floating buttons while it is open.
   useLayoutEffect(() => {
     if (!open) return;
-    const sync = () => {
-      const phone = window.matchMedia("(max-width: 767px)").matches;
-      setNarrow(phone);
-      const box = input.current?.getBoundingClientRect();
-      if (!phone && box) setAnchor({ top: box.bottom + 8, left: Math.max(8, Math.min(box.left, window.innerWidth - Math.min(448, window.innerWidth - 16))) });
+    const host = root.current?.closest("#enquire");
+    const previous = host instanceof HTMLElement ? host.style.zIndex : "";
+    if (host instanceof HTMLElement) host.style.zIndex = "80";
+    let lifted = false;
+    const place = () => {
+      const popup = dialogRef.current;
+      const fieldEl = root.current;
+      const field = fieldEl?.getBoundingClientRect();
+      if (!popup || !field || !fieldEl) return;
+      const width = popup.offsetWidth;
+      let left = field.left;
+      if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+      if (left < 8) left = 8;
+      const nudge = Math.round(left - field.left);
+      const spaceBelow = Math.floor(window.innerHeight - field.bottom - 16);
+      if (!lifted && spaceBelow < popup.scrollHeight && field.top > 96) {
+        lifted = true;
+        const delta = field.top - 96;
+        window.scrollTo({ top: Math.max(0, window.scrollY + delta) });
+      }
+      const room = Math.floor(window.innerHeight - fieldEl.getBoundingClientRect().bottom - 16);
+      const maxH = room > 0 && popup.scrollHeight > room ? room : null;
+      setFit((prev) => (prev.nudge === nudge && prev.maxH === maxH ? prev : { nudge, maxH }));
     };
-    sync();
-    window.addEventListener("resize", sync);
-    window.addEventListener("scroll", sync, true);
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
     return () => {
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      if (host instanceof HTMLElement) host.style.zIndex = previous;
+      setFit({ nudge: 0, maxH: null });
     };
   }, [open]);
 
-  // Opening near the bottom of the screen would hide the time and Done: bring the whole calendar into view
+  // Keep the chosen hour and minute in the middle of their lists.
   useEffect(() => {
-    if (!open || narrow) return;
-    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    dialogRef.current?.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
-    dialogRef.current?.querySelectorAll<HTMLElement>('[data-time-part][aria-selected="true"]').forEach((el) => {
-      const scroller = el.parentElement;
-      if (!scroller) return;
-      scroller.scrollTop = el.offsetTop - scroller.clientHeight / 2 + el.offsetHeight / 2;
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      dialogRef.current?.querySelectorAll<HTMLElement>('[data-time-part][aria-selected="true"]').forEach((el) => {
+        const scroller = el.parentElement;
+        if (!scroller) return;
+        scroller.scrollTop = el.offsetTop - scroller.clientHeight / 2 + el.offsetHeight / 2;
+      });
     });
-  }, [open, narrow, time.h, time.min]);
+    return () => cancelAnimationFrame(frame);
+  }, [open, time.h, time.min]);
 
   // Keyboard users land on the highlighted day, and arrow keys move it
   useEffect(() => {
@@ -285,17 +296,17 @@ export function DateTimeField({
     setActive(now.day);
   };
 
-  const navBtn = `grid cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20 ${narrow ? "size-10" : "size-7"}`;
-  const column = `${narrow ? "h-full" : "h-[232px]"} min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`;
+  const navBtn = "grid size-7 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20";
+  const column = "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const optionCls = (selected: boolean) =>
-    `mx-auto block w-[calc(100%-8px)] cursor-pointer rounded-md border-0 px-0 text-center font-medium tabular-nums ${narrow ? "py-2.5 text-[16px]" : "py-1.5 text-[13px]"} ${
+    `block w-full max-w-full min-h-6 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none ${
       selected ? "bg-[#a8c7fa] text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
     }`;
 
   return (
     <div
       ref={root}
-      className={`${fillCell && !open ? "" : "relative"} ${open ? "z-[80]" : ""} flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5 ${boxClassName ?? ""}`}
+      className={`${fillCell && !open ? "" : "relative"} ${open ? "z-50" : ""} flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5 ${boxClassName ?? ""}`}
       onKeyDown={(e) => {
         if (e.key !== "Escape" || !open) return;
         e.stopPropagation();
@@ -360,25 +371,25 @@ export function DateTimeField({
         <CalendarIcon />
       </button>
 
-      {open &&
-        createPortal(
-          <>
-            {narrow && <div className="fixed inset-0 z-[80] bg-[#06122e]/55" onMouseDown={() => closePicker(false)} />}
-            <div
-              ref={dialogRef}
-              id={dialogId}
-              role="dialog"
-              aria-label={copy.dialog}
-              style={narrow ? undefined : { top: anchor?.top ?? 0, left: anchor?.left ?? 8 }}
-              className={`${narrow ? "fixed top-1/2 left-1/2 z-[90] max-h-[calc(100svh-2rem)] w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto" : "fixed z-[90] w-[min(28rem,calc(100vw-1.5rem))]"} rounded-lg border border-solid border-[#3c4043] bg-[#292a2d] p-3 text-left text-[#e8eaed] normal-case shadow-[0_16px_40px_rgba(0,0,0,0.45)] tracking-normal [color-scheme:light]`}
-            >
-              <div className={`flex gap-3 ${narrow ? "flex-col" : "items-stretch"}`}>
-                    <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2 pb-2">
-                <span aria-live="polite" className="text-[14px] font-medium text-[#e8eaed]">
+      {open && (
+        <div
+          ref={dialogRef}
+          id={dialogId}
+          role="dialog"
+          aria-label={copy.dialog}
+          style={{
+            transform: fit.nudge ? `translateX(${fit.nudge}px)` : undefined,
+            maxHeight: fit.maxH ? `${fit.maxH}px` : undefined,
+          }}
+          className="absolute top-full left-0 z-50 mt-2 box-border max-h-[min(24rem,calc(100svh-1rem))] w-[min(360px,calc(100vw-1rem))] max-w-[360px] overflow-x-hidden overflow-y-auto rounded-lg border border-solid border-[#3c4043] bg-[#292a2d] p-3 text-left text-[#e8eaed] normal-case shadow-[0_16px_40px_rgba(0,0,0,0.45)] tracking-normal [color-scheme:light] [scrollbar-color:#5f6368_transparent] [scrollbar-width:thin]"
+        >
+          <div className="flex min-w-0 items-start gap-1.5">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="flex items-center justify-between gap-1 pb-1">
+                <span aria-live="polite" className="min-w-0 truncate text-xs font-medium text-[#e8eaed]">
                   {months.format(new Date(Date.UTC(view.y, view.m - 1, 1)))}
                 </span>
-                <span className="flex items-center gap-0.5">
+                <span className="flex shrink-0 items-center">
                   <button type="button" aria-label={copy.prevMonth} disabled={!canGoBack} onClick={() => setView((v) => addMonths(v.y, v.m, -1))} className={navBtn}>
                     <Chevron dir="up" />
                   </button>
@@ -387,11 +398,11 @@ export function DateTimeField({
                   </button>
                 </span>
               </div>
-              <table role="grid" className="w-full border-collapse text-center" onKeyDown={onGridKey}>
+              <table role="grid" className="w-full table-fixed border-collapse text-center" onKeyDown={onGridKey}>
                 <thead>
                   <tr>
                     {weekdays.map((w, index) => (
-                      <th key={index} scope="col" className="pb-1 text-[11px] font-medium text-[#9aa0a6]">
+                      <th key={index} scope="col" className="pb-px text-[10px] font-medium text-[#9aa0a6]">
                         {w}
                       </th>
                     ))}
@@ -406,7 +417,7 @@ export function DateTimeField({
                         const past = !!today && before(cell, today);
                         const chosen = sameDay(cell, day);
                         return (
-                          <td key={j} className="p-0.5">
+                          <td key={j} className="p-px">
                             <button
                               type="button"
                               data-day={dayKey(cell)}
@@ -418,7 +429,7 @@ export function DateTimeField({
                                 setActive(cell);
                                 commit(cell, time);
                               }}
-                              className={`grid size-8 w-full cursor-pointer place-items-center rounded-md border-0 text-[13px] tabular-nums disabled:cursor-not-allowed disabled:text-[#5f6368] ${
+                              className={`mx-auto grid h-6 w-6 max-w-full cursor-pointer place-items-center rounded border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#5f6368] ${
                                 chosen ? "bg-[#a8c7fa] font-semibold text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
                               } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-[#8ab4f8]" : ""}`}
                             >
@@ -432,7 +443,7 @@ export function DateTimeField({
                 </tbody>
               </table>
             </div>
-            <div className={`flex shrink-0 gap-1 border-0 border-solid border-[#3c4043] ${narrow ? "h-[132px] w-full border-t pt-2" : "w-[148px] border-l pl-2"}`}>
+            <div className="grid h-[156px] w-[5rem] shrink-0 grid-cols-3 gap-px overflow-hidden border-0 border-l border-solid border-[#3c4043] pl-1.5">
               <div role="listbox" aria-label={copy.hour} className={column}>
                 {Array.from({ length: 12 }, (_, i) => {
                   const h12 = i + 1;
@@ -478,7 +489,7 @@ export function DateTimeField({
               </div>
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between border-0 border-t border-solid border-[#3c4043] pt-2">
+          <div className="mt-2 flex items-center justify-between border-0 border-t border-solid border-[#3c4043] pt-1.5">
             <button
               type="button"
               onClick={() => {
@@ -486,25 +497,23 @@ export function DateTimeField({
                 commit(null, nowInNetherlands().time);
                 setActive(today);
               }}
-              className="cursor-pointer border-0 bg-transparent px-1 text-[13px] font-medium text-[#8ab4f8] hover:underline"
+              className="cursor-pointer border-0 bg-transparent px-1 py-1 text-xs font-medium text-[#8ab4f8] hover:underline"
             >
               {copy.clear}
             </button>
-            <button type="button" onClick={applyToday} className="cursor-pointer border-0 bg-transparent px-1 text-[13px] font-medium text-[#8ab4f8] hover:underline">
+            <button type="button" onClick={applyToday} className="cursor-pointer border-0 bg-transparent px-1 py-1 text-xs font-medium text-[#8ab4f8] hover:underline">
               {copy.today}
             </button>
           </div>
           <button
             type="button"
             onClick={() => closePicker(true)}
-            className="mt-2 h-9 w-full cursor-pointer rounded-md border-0 bg-[#a8c7fa] text-[13px] font-semibold text-[#202124] hover:bg-[#8ab4f8]"
+            className="mt-1.5 h-8 w-full cursor-pointer rounded-md border-0 bg-[#a8c7fa] text-xs font-semibold text-[#202124] hover:bg-[#8ab4f8]"
           >
             {copy.done}
           </button>
-            </div>
-          </>,
-          document.body,
-        )}
+        </div>
+      )}
     </div>
   );
 }

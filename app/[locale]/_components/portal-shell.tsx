@@ -33,14 +33,14 @@ export async function PortalPage({
   ];
   return (
     <CorporateShell route={route} heading={heading} intro={intro}>
-      <nav aria-label={p.navLabel} className="mb-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-b border-ink-225 pb-4">
+      <nav aria-label={p.navLabel} className="mb-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-[#ffffff]/20 pb-4 sm:gap-x-8">
         <ul className="m-0 flex list-none flex-wrap gap-x-8 gap-y-2 p-0">
           {items.map(([key, label, href]) => (
             <li key={key}>
               <Link
                 href={href}
                 aria-current={key === current ? "page" : undefined}
-                className={`text-[12px] font-semibold tracking-[0.2em] uppercase no-underline ${key === current ? "text-ink-950 underline underline-offset-[10px] decoration-2" : "text-ink-600 hover:text-ink-950"}`}
+                className={`text-[12px] tracking-[0.18em] uppercase no-underline sm:tracking-[0.2em] ${key === current ? "font-bold text-[#ffffff] underline decoration-2 decoration-[#ffffff] underline-offset-[10px]" : "font-semibold text-zinc-400 hover:text-[#ffffff]"}`}
               >
                 {label}
               </Link>

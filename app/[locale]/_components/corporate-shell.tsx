@@ -36,7 +36,7 @@ export async function CorporateShell({
         {dict.common.skipToContent}
       </a>
       <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-5 py-[22px] md:px-6 2xl:max-w-[1440px]">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4 py-[18px] sm:px-6 md:px-8 md:py-[22px] 2xl:max-w-[1440px]">
           <Link href={localizedPath("/", locale)} className="inline-flex items-center gap-2 whitespace-nowrap chrome font-display text-[15px] tracking-[0.2em] md:gap-3 md:text-[22px] no-underline md:tracking-[0.32em]">
             <Image className="h-10 w-10 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} />
             <span className="text-white">ECRAM EXECS</span>
@@ -47,15 +47,15 @@ export async function CorporateShell({
 
       <main id="main">
         <section className="border-b border-ink-850">
-          <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-5 pt-10 pb-16 md:px-6 md:pt-12 md:pb-24 2xl:max-w-[1440px]">
-            <div className="mx-auto flex max-w-[720px] flex-col items-center gap-4 text-center">
-              <span className="font-display text-[12px] tracking-[0.3em] text-ink-450 md:tracking-[0.42em]">{t.eyebrow}</span>
-              <h1 className="m-0 font-serif text-[clamp(36px,8.6vw,40px)] leading-[1.05] font-light text-white md:text-[clamp(36px,4.2vw,56px)]">
+          <div className="mx-auto flex max-w-[1280px] flex-col gap-5 px-4 pt-6 pb-8 sm:px-6 md:gap-6 md:px-8 md:pt-8 md:pb-10 2xl:max-w-[1440px]">
+            <div className="mx-auto flex max-w-[720px] flex-col items-center gap-3 text-center md:gap-4">
+              <span className="font-display text-[11px] tracking-[0.28em] text-ink-450 md:text-[12px] md:tracking-[0.42em]">{t.eyebrow}</span>
+              <h1 className="m-0 font-serif text-[clamp(30px,8vw,40px)] leading-[1.08] font-light text-white md:text-[clamp(36px,4.2vw,56px)]">
                 {heading}
               </h1>
-              {intro && <p className="m-0 font-light text-ink-400">{intro}</p>}
+              {intro && <p className="m-0 text-[15px] font-light text-ink-400 md:text-base">{intro}</p>}
             </div>
-            <div className="light-surface box-border w-full min-w-0 max-w-full bg-ink-50 p-6 text-ink-950 md:p-8">{children}</div>
+            <div className="light-surface box-border w-full min-w-0 max-w-full bg-ink-50 p-3 text-ink-950 sm:p-5 md:p-6">{children}</div>
             <Link href={localizedPath("/", locale)} className="text-[12px] tracking-[0.24em] uppercase">
               {t.back}
             </Link>

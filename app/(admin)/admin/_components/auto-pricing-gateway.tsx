@@ -17,7 +17,29 @@ const asStatus = (value: string): StatusChoice => ((STATUSES as readonly string[
 function esc(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
-import { formatEuro, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
+
+/** The total the visitor confirmed: the stored rate-card total, or the amount already on the row. Never a new calculation. */
+function lockedTotal(request: QuoteRequest): number | null {
+  const snap = storedQuoteEuros(request.priceEstimate);
+  if (snap != null) return Number(snap);
+  if (request.quotedAmount == null || request.quotedAmount === "") return null;
+  const amount = Number(request.quotedAmount);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+/** The stored rate-card lines, in euros. Empty when the booking has no snapshot. */
+function fareRows(price: Price | null, copy: PricingCopy): { label: string; amount: number }[] {
+  if (!price || typeof price.total !== "number") return [];
+  const rows = [
+    { label: copy.baseFare, amount: price.rides / 100 },
+    { label: copy.btw9, amount: price.vat / 100 },
+    { label: copy.serviceFee, amount: price.fee / 100 },
+  ];
+  if (price.feeVat) rows.push({ label: copy.serviceFeeVat, amount: price.feeVat / 100 });
+  return rows;
+}
+import { formatEuro, formatTimestamp, pickupParts } from "@/lib/admin/format";
+import { storedQuoteEuros, type Price } from "@/lib/pricing/rates";
 import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { 
   ShieldIcon,
@@ -62,11 +84,8 @@ export function AutoPricingGateway({
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
-  const editedAmount = request.quotedAmount ? Number(request.quotedAmount) : 0;
-  const btw9Rate = 9;
-  const btw21Rate = 21;
-  const btw9Label = "Passenger Transport";
-  const btw21Label = "Ancillary / Fees";
+  const fare = fareRows(request.priceEstimate, copy);
+  const grandTotal = lockedTotal(request);
 
   // Real data extracted from request
   const collection = request.collection ?? "—";
@@ -75,27 +94,8 @@ export function AutoPricingGateway({
   const stopWaits = request.destinationWaits ?? [];
   const pickup = request.pickupAt ? pickupParts(request.pickupAt) : null;
 
-  // Fare calculations with safe number fallback
-  const numericSubtotal = typeof editedAmount === "number" ? editedAmount : (Number(editedAmount) || 0);
-  const subtotal = numericSubtotal;
-  const durationHours = request.durationHours ?? 0;
-  const vehicleCount = Math.max(1, request.vehicleCount ?? 1);
-  const hourlyRate = 50;
-  const timeCost = durationHours * hourlyRate * vehicleCount;
-  const airportSurcharge = (request.flightNumber ? 25 : 0) * vehicleCount;
-  const totalWaitMinutes = stopWaits.reduce((a, b) => a + (b ?? 0), 0);
-  const waitRate = 0.5;
-  const waitCost = totalWaitMinutes * waitRate * vehicleCount;
-  const deadheadFee = request.returnAt ? subtotal * 0.10 * vehicleCount : 0;
-  const baseFare = subtotal + timeCost + airportSurcharge + waitCost + deadheadFee;
-  
-  // Dynamic BTW Tax Splits
-  const btw9 = baseFare * (btw9Rate / 100);
-  const btw21 = baseFare * (btw21Rate / 100);
-  const totalTax = btw9 + btw21;
-  const grandTotal = baseFare + totalTax;
-
-  // Notify Client Button: Commits the selected status and dispatches email (including on cancel)
+  // Notify Client Button: Commits the selected status and dispatches email (including on cancel).
+  // The amount is not sent: the server keeps the total stored when the booking was submitted.
   async function handleSend() {
     setLoading(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -103,12 +103,10 @@ export function AutoPricingGateway({
       const res = await fetch(`/api/admin/requests/${request.id}/authorise`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ 
-          status: selectedStatus, 
-          amount: grandTotal, 
+        body: JSON.stringify({
+          status: selectedStatus,
           sendMail: true,
-          // Explicitly flag cancellation emails for backend handlers if status is cancelled
-          ...(selectedStatus === "cancelled" ? { sendCancellationEmail: true } : {})
+          ...(selectedStatus === "cancelled" ? { sendCancellationEmail: true } : {}),
         })
       });
       const data = await res.json().catch(() => ({}));
@@ -190,9 +188,7 @@ export function AutoPricingGateway({
     </div>
   </div>
   <table>
-    <tr><td>${esc(copy.totalBaseExcl)}</td><td class="amt">${esc(formatEuro(baseFare))}</td></tr>
-    <tr><td>${esc(String(btw9Rate))}% BTW (${esc(btw9Label)})</td><td class="amt">${esc(formatEuro(btw9))}</td></tr>
-    <tr><td>${esc(String(btw21Rate))}% BTW (${esc(btw21Label)})</td><td class="amt">${esc(formatEuro(btw21))}</td></tr>
+    ${fare.map((row) => `<tr><td>${esc(row.label)}</td><td class="amt">${esc(formatEuro(row.amount))}</td></tr>`).join("")}
     <tr class="total"><td>${esc(copy.finalAmount)}</td><td class="amt">${esc(formatEuro(grandTotal))}</td></tr>
   </table>
   <footer>Ecram Execs Chauffeur Services · Amsterdam, Netherlands</footer>
@@ -272,7 +268,7 @@ export function AutoPricingGateway({
                   <p className="font-semibold text-zinc-900">{copy.aiCalc}</p>
                   <p className="text-zinc-500">{copy.aiCalcNote}</p>
                 </div>
-                <span className="font-mono text-emerald-700 font-semibold">{formatEuro(baseFare)}</span>
+                <span className="font-mono text-emerald-700 font-semibold">{formatEuro(grandTotal)}</span>
               </div>
             </div>
 
@@ -338,22 +334,12 @@ export function AutoPricingGateway({
                 </div>
 
                 <div className="mt-6 text-sm">
-                  <div className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
-                    <span className="text-zinc-800">{copy.totalBaseExcl}</span>
-                    <span className="font-mono font-semibold text-zinc-950">{formatEuro(baseFare)}</span>
-                  </div>
-                  <div className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
-                    <span className="text-zinc-800">
-                      {btw9Rate}% BTW ({btw9Label})
-                    </span>
-                    <span className="font-mono font-semibold text-zinc-950">{formatEuro(btw9)}</span>
-                  </div>
-                  <div className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
-                    <span className="text-zinc-800">
-                      {btw21Rate}% BTW ({btw21Label})
-                    </span>
-                    <span className="font-mono font-semibold text-zinc-950">{formatEuro(btw21)}</span>
-                  </div>
+                  {fare.map((row) => (
+                    <div key={row.label} className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
+                      <span className="text-zinc-800">{row.label}</span>
+                      <span className="font-mono font-semibold text-zinc-950">{formatEuro(row.amount)}</span>
+                    </div>
+                  ))}
                   <div className="mt-4 flex justify-between gap-6 border-t-2 border-zinc-950 pt-4 text-base font-bold">
                     <span>{copy.finalAmount}</span>
                     <span className="font-mono text-emerald-800">{formatEuro(grandTotal)}</span>

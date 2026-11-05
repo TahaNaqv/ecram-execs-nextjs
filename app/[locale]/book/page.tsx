@@ -38,7 +38,7 @@ export default async function BookPage() {
         {d.common.skipToContent}
       </a>
       <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-5 py-[18px] md:px-6 2xl:max-w-[1440px]">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4 py-4 sm:px-6 md:px-8 md:py-[18px] 2xl:max-w-[1440px]">
           <a href={localizedPath("/", locale)} className="chrome inline-flex items-center gap-2 font-display text-[15px] tracking-[0.2em] whitespace-nowrap no-underline md:gap-3 md:text-[22px] md:tracking-[0.32em]">
             <Image className="h-10 w-10 md:h-12 md:w-12" src="/assets/logo-mark.png" alt="" width={48} height={48} />
             <span>ECRAM EXECS</span>
@@ -47,7 +47,7 @@ export default async function BookPage() {
         </div>
       </header>
       <main id="main" className="light-surface bg-ink-50 text-ink-950">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-5 pt-8 pb-16 md:px-6 md:pt-10 2xl:max-w-[1440px]">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 pt-8 pb-16 sm:px-6 md:px-8 md:pt-10 2xl:max-w-[1440px]">
           <Suspense fallback={<div className="min-h-[60svh]" aria-busy="true" />}>
             <PublicBooking
               locale={locale}

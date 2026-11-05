@@ -15,6 +15,7 @@ import { removeFiles } from "@/lib/storage";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { LOCALES } from "@/lib/i18n/config";
 import type { RequestEventChange } from "@/lib/admin/events";
+import { storedQuoteEuros } from "@/lib/pricing/rates";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -105,12 +106,16 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   const admin = await requireAdmin();
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
-  const { id, status, seenStatus, quotedAmount, internalNotes } = parsed.data;
+  const { id, status, seenStatus, quotedAmount: submittedAmount, internalNotes } = parsed.data;
 
   const [before] = await db.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
   if (!before) return { error: "Request not found." };
   const changedMeanwhile = { error: "This request changed while you had it open (a partner may have answered it). Reload the page to see the latest, then try again." };
   if (before.status !== seenStatus) return changedMeanwhile;
+
+  // A blank amount does not clear or reprice the booking. The stored amount stays, or the rate-card total
+  // saved at submit is written once. A different amount is kept only when the team typed one.
+  const quotedAmount = submittedAmount ?? before.quotedAmount ?? storedQuoteEuros(before.priceEstimate);
 
   // Keys and values, never prose — the history has to render in whichever language the admin
   // reading it has chosen, including for changes recorded years earlier.

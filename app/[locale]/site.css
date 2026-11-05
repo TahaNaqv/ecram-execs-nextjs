@@ -186,6 +186,17 @@
   border-color: #ffffff !important;
 }
 
+/* Corporate signup fields. `text-white` and `text-ink-950` both follow the swapped scale, so typed text was navy on navy. */
+:root[data-theme="navy"] .light-surface .corp-fields input:not([type="checkbox"]):not([type="hidden"]) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+}
+:root[data-theme="navy"] .light-surface .corp-fields input:not([type="checkbox"]):not([type="hidden"])::placeholder {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+
 /* An empty datetime-local paints dd/mm/yyyy with the input's color. `text-white` is navy inside this surface, so the date vanishes on the blue field. */
 :root[data-theme="navy"] .light-surface input[type="datetime-local"] {
   color: #ffffff !important;

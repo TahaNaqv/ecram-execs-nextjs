@@ -19,24 +19,16 @@ type Mode = "signup" | "reset";
 const STEP_RANK: Record<Step, number> = { request: 0, code: 1, password: 2 };
 
 const COUNTRY_CODES = [
-  { code: "+31", label: "+31 (NL)", maxLength: 9, placeholder: "612345678" },
-  { code: "+32", label: "+32 (BE)", maxLength: 9, placeholder: "412345678" },
-  { code: "+44", label: "+44 (UK)", maxLength: 10, placeholder: "7123456789" },
-  { code: "+49", label: "+49 (DE)", maxLength: 11, placeholder: "15123456789" },
-  { code: "+33", label: "+33 (FR)", maxLength: 9, placeholder: "612345678" },
-  { code: "+34", label: "+34 (ES)", maxLength: 9, placeholder: "612345678" },
-  { code: "+39", label: "+39 (IT)", maxLength: 10, placeholder: "3123456789" },
-  { code: "+41", label: "+41 (CH)", maxLength: 9, placeholder: "791234567" },
-  { code: "+43", label: "+43 (AT)", maxLength: 10, placeholder: "6501234567" },
-  { code: "+352", label: "+352 (LU)", maxLength: 9, placeholder: "621123456" },
-  { code: "+92", label: "+92 (PK)", maxLength: 10, placeholder: "3001234567" },
-  { code: "+1", label: "+1 (US/CA)", maxLength: 10, placeholder: "4155552671" },
-  { code: "+61", label: "+61 (AU)", maxLength: 9, placeholder: "412345678" },
-  { code: "+971", label: "+971 (AE)", maxLength: 9, placeholder: "501234567" },
-  { code: "+966", label: "+966 (SA)", maxLength: 9, placeholder: "501234567" },
-  { code: "+91", label: "+91 (IN)", maxLength: 10, placeholder: "9812345678" },
-  { code: "+81", label: "+81 (JP)", maxLength: 10, placeholder: "9012345678" },
-  { code: "+86", label: "+86 (CN)", maxLength: 11, placeholder: "13812345678" },
+  { code: "+31", iso: "NL", label: "NL +31", maxLength: 9, placeholder: "6 1234 5678" },
+  { code: "+32", iso: "BE", label: "BE +32", maxLength: 9, placeholder: "412 34 56 78" },
+  { code: "+44", iso: "UK", label: "UK +44", maxLength: 10, placeholder: "7123 456789" },
+  { code: "+49", iso: "DE", label: "DE +49", maxLength: 11, placeholder: "151 23456789" },
+  { code: "+33", iso: "FR", label: "FR +33", maxLength: 9, placeholder: "6 12 34 56 78" },
+  { code: "+34", iso: "ES", label: "ES +34", maxLength: 9, placeholder: "612 34 56 78" },
+  { code: "+39", iso: "IT", label: "IT +39", maxLength: 10, placeholder: "312 345 6789" },
+  { code: "+41", iso: "CH", label: "CH +41", maxLength: 9, placeholder: "79 123 45 67" },
+  { code: "+92", iso: "PK", label: "PK +92", maxLength: 10, placeholder: "300 1234567" },
+  { code: "+1", iso: "US", label: "US +1", maxLength: 10, placeholder: "415 555 2671" },
 ];
 
 type HeadingRef = {
@@ -155,14 +147,15 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8">
-      <ol className="mx-auto flex w-fit max-w-full list-none flex-wrap items-center justify-center gap-x-3 gap-y-2 p-0 text-center text-[11px] leading-tight tracking-[0.14em] uppercase sm:gap-x-4 sm:text-[10px] sm:tracking-[0.18em]" aria-label={t.progressLabel}>
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
+      {/* Strictly inline, single-line high contrast step headings */}
+      <ol className="mx-auto flex w-full max-w-full list-none flex-wrap items-center justify-center gap-x-3 gap-y-1.5 p-0 text-center text-[10px] leading-tight tracking-[0.1em] uppercase sm:flex-nowrap sm:gap-x-6 sm:text-[12px] sm:tracking-[0.18em]" aria-label={t.progressLabel}>
         {steps.map(([key, label], i) => {
           const current = key === step;
           return (
-            <li key={key} aria-current={current ? "step" : undefined} className={`flex min-w-0 items-center gap-1.5 ${current ? "font-semibold text-ink-950" : "shrink-0 text-ink-500"}`}>
+            <li key={key} aria-current={current ? "step" : undefined} className={`flex items-center gap-1.5 ${current ? "font-bold text-[#ffffff]" : "text-zinc-400"}`}>
               <span className="shrink-0 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-              <span className={current ? "min-w-0 whitespace-normal" : "max-sm:sr-only"}>{label}</span>
+              <span className="whitespace-nowrap">{label}</span>
             </li>
           );
         })}
@@ -254,6 +247,7 @@ function RequestForm({
       document.removeEventListener("keydown", onKey);
     };
   }, [countryOpen]);
+
   const send = mode === "signup" ? requestCode : requestReset;
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
     const next = await send(prev, formData);
@@ -263,31 +257,32 @@ function RequestForm({
   }, { status: "idle" });
   const v = state.status === "error" ? state.values : {};
   const err = state.status === "error" ? state.fieldErrors : {};
+  const fieldInput = `${control} text-[16px] text-[#ffffff] caret-[#ffffff] placeholder:text-[14px] placeholder:text-zinc-400`;
 
   return (
-    <form key={attempt} action={action} noValidate autoComplete={mode === "signup" ? "off" : undefined} className="flex flex-col gap-6">
+    <form key={attempt} action={action} noValidate autoComplete={mode === "signup" ? "off" : undefined} className="corp-fields flex flex-col gap-4 [&_label]:text-zinc-200 [&_label]:font-semibold">
       <h2 ref={headingRef} tabIndex={-1} className="sr-only">
         {mode === "signup" ? t.stepRequest : t.resetStepRequest}
       </h2>
       {banner && <Status error>{banner}</Status>}
-      <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225 md:grid-cols-2 [&_label]:!px-3 sm:[&_label]:!px-[18px]">
         <Field idPrefix="c" label={t.labelEmail} name="email" error={err.email} className="md:col-span-2">
           <input id="c-email" name="email" type="text" inputMode="email" spellCheck={false} required maxLength={200} autoComplete={mode === "signup" ? "off" : "email"} placeholder={t.phEmail}
-            defaultValue={v.email} aria-invalid={!!err.email} aria-describedby={err.email ? "c-email-error" : undefined} className={control} />
+            defaultValue={v.email} aria-invalid={!!err.email} aria-describedby={err.email ? "c-email-error" : undefined} className={fieldInput} />
         </Field>
         {mode === "signup" && (
           <>
             <Field idPrefix="c" label={t.labelName} name="name" error={err.name}>
               <input id="c-name" name="name" type="text" required maxLength={120} autoComplete="off" placeholder={t.phName}
-                defaultValue={v.name} aria-invalid={!!err.name} aria-describedby={err.name ? "c-name-error" : undefined} className={control} />
+                defaultValue={v.name} aria-invalid={!!err.name} aria-describedby={err.name ? "c-name-error" : undefined} className={fieldInput} />
             </Field>
             <Field idPrefix="c" label={t.labelPosition} name="position" error={err.position}>
               <input id="c-position" name="position" type="text" required maxLength={120} autoComplete="off" placeholder={t.phPosition}
-                defaultValue={v.position} aria-invalid={!!err.position} aria-describedby={err.position ? "c-position-error" : undefined} className={control} />
+                defaultValue={v.position} aria-invalid={!!err.position} aria-describedby={err.position ? "c-position-error" : undefined} className={fieldInput} />
             </Field>
             <Field idPrefix="c" label="Company Legal Name" name="companyName" error={err.companyName}>
               <input id="c-companyName" name="companyName" type="text" required maxLength={200} autoComplete="off" placeholder="e.g. Shell B.V."
-                defaultValue={v.companyName} aria-invalid={!!err.companyName} className={control} />
+                defaultValue={v.companyName} aria-invalid={!!err.companyName} className={fieldInput} />
             </Field>
             <Field idPrefix="c" label="KVK Number" name="kvkNumber" error={err.kvkNumber}>
               <input 
@@ -302,30 +297,34 @@ function RequestForm({
                 placeholder="12345678"
                 title="KVK number must be exactly 8 digits"
                 defaultValue={v.kvkNumber} 
+                onInput={(e) => {
+                  e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "").slice(0, 8);
+                }}
                 aria-invalid={!!err.kvkNumber} 
-                className={`${control} px-3 py-2.5 text-xs sm:text-sm`} 
+                className={`${fieldInput} tabular-nums`} 
               />
             </Field>
             <Field idPrefix="c" label={t.labelSignatory} name="signatory" error={err.signatory}>
               <input id="c-signatory" name="signatory" type="text" required maxLength={120} autoComplete="off" placeholder={t.phSignatory}
-                defaultValue={v.signatory} aria-invalid={!!err.signatory} aria-describedby={err.signatory ? "c-signatory-error" : undefined} className={control} />
+                defaultValue={v.signatory} aria-invalid={!!err.signatory} aria-describedby={err.signatory ? "c-signatory-error" : undefined} className={fieldInput} />
             </Field>
             <Field idPrefix="c" label={t.labelPointOfCall} name="pointOfCall" error={err.pointOfCall}>
               <input id="c-pointOfCall" name="pointOfCall" type="text" required maxLength={120} autoComplete="off" placeholder={t.phPointOfCall}
-                defaultValue={v.pointOfCall} aria-invalid={!!err.pointOfCall} aria-describedby={err.pointOfCall ? "c-pointOfCall-error" : undefined} className={control} />
+                defaultValue={v.pointOfCall} aria-invalid={!!err.pointOfCall} aria-describedby={err.pointOfCall ? "c-pointOfCall-error" : undefined} className={fieldInput} />
             </Field>
             <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className={`md:col-span-2 ${countryOpen ? "relative z-30" : ""}`}>
               <div ref={countryRef} className="relative flex w-full min-w-0 items-center bg-transparent">
                 <input type="hidden" name="phoneCountryCode" value={selectedCountry.code} />
+                {/* Fully visible, high-contrast white text country code selector button */}
                 <button
                   type="button"
                   aria-label="Country Code"
                   aria-expanded={countryOpen}
                   aria-haspopup="listbox"
                   onClick={() => setCountryOpen((open) => !open)}
-                  className="shrink-0 cursor-pointer border-0 border-r border-solid border-ink-225 bg-ink-950 px-2.5 py-2 font-mono text-xs text-white focus:outline-none"
+                  className="shrink-0 cursor-pointer border-0 border-r border-solid border-[#ffffff]/20 bg-[#ffffff]/10 px-2.5 py-2 font-sans text-[15px] font-semibold text-[#ffffff] hover:bg-[#ffffff]/20 focus:outline-none sm:px-4 sm:py-3 sm:text-[16px]"
                 >
-                  {selectedCountry.label}
+                  {selectedCountry.iso} {selectedCountry.code}
                 </button>
                 {countryOpen && (
                   <ul
@@ -345,7 +344,7 @@ function RequestForm({
                               if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, c.code);
                               setCountryOpen(false);
                             }}
-                            className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left font-mono text-[13px] text-[#10224f] ${selected ? "bg-[#e7edff] font-semibold" : "bg-transparent hover:bg-[#f2f5ff]"}`}
+                            className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left font-sans text-[14px] text-[#10224f] ${selected ? "bg-[#e7edff] font-semibold" : "bg-transparent hover:bg-[#f2f5ff]"}`}
                           >
                             {c.label}
                           </button>
@@ -369,7 +368,7 @@ function RequestForm({
                     e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, selectedCountry.code);
                   }}
                   aria-invalid={!!err.phone} 
-                  className={`${control} min-w-0 flex-1 rounded-none border-0 px-3 text-xs sm:text-sm`} 
+                  className={`${fieldInput} min-w-0 flex-1 rounded-none border-0 px-3 sm:px-4`} 
                 />
               </div>
             </Field>
