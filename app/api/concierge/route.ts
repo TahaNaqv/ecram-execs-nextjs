@@ -196,11 +196,10 @@ CRITICAL RULES:
       return { 
         draft, 
         ready: a?.ready ?? false, 
-        ...(a?.ready ? { 
-          summary: a.summary, 
-          pricing: a.pricing ?? null,
+        ...(a?.ready ? {
+          summary: a.summary,
           receiptDownloadable: true,
-          form: session ? [...a.form!, ["chatSession", session]] : a.form 
+          form: session ? [...a.form!, ["chatSession", session]] : a.form,
         } : {}), 
         ...(cars ? { cars } : {}) 
       };
@@ -267,7 +266,7 @@ CRITICAL RULES:
         results.push({
           type: "tool_result" as const,
           tool_use_id: call.id ?? "",
-          content: JSON.stringify({ booking: forModel(draft), missing: a.missing, problems: a.errors, rejected: applied.rejected, ready: a.ready, pricing: a.pricing, reply_in: locale === "nl" ? "Dutch" : "English" }),
+          content: JSON.stringify({ booking: forModel(draft), missing: a.missing, problems: a.errors, rejected: applied.rejected, ready: a.ready, reply_in: locale === "nl" ? "Dutch" : "English" }),
         });
       }
       messages.push({ role: "user", content: results });
