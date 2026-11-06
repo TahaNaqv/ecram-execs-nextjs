@@ -414,17 +414,14 @@ test("a request with a partner's messages or invoices can only be attached to th
   await expect(page.getByText(a.partnerCard.notLinked)).toBeVisible();
   await expect(page.getByText(a.partnerCard.historyNote)).toBeVisible();
   // Only the partner whose conversation this is can be chosen
-  const options = await page.locator("#attach-partner option").allTextContents();
-  expect(options.join("|")).toContain("First Partner");
-  expect(options.join("|")).not.toContain("Second Partner");
+  await page.locator("#attach-partner").click();
+  const options = page.getByRole("listbox").getByRole("option");
+  await expect(options.filter({ hasText: "First Partner" })).toBeVisible();
+  await expect(options.filter({ hasText: "Second Partner" })).toHaveCount(0);
 
   // And the server says no even to a form that was tampered with
-  await page.locator("#attach-partner").evaluate((el, id) => {
-    const option = document.createElement("option");
-    option.value = id;
-    option.text = "tampered";
-    el.appendChild(option);
-    (el as HTMLSelectElement).value = id;
+  await page.locator('input[name="contactId"]').evaluate((el, id) => {
+    (el as HTMLInputElement).value = id;
   }, second);
   await page.getByRole("button", { name: a.partnerCard.attach }).first().click();
   await page.waitForLoadState("networkidle");
@@ -432,7 +429,8 @@ test("a request with a partner's messages or invoices can only be attached to th
 
   // The same partner can be attached again
   await page.reload();
-  await page.locator("#attach-partner").selectOption(first);
+  await page.locator("#attach-partner").click();
+  await page.getByRole("option", { name: /First Partner/ }).click();
   await page.getByRole("button", { name: a.partnerCard.attach }).first().click();
   await expect(page.getByText(a.partnerCard.linkedTo, { exact: true })).toBeVisible();
 });

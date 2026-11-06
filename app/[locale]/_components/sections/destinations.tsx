@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { siteConfig } from "@/lib/site-config";
 import { getDict } from "@/lib/i18n/get-dictionary";
+import { RegionsMarquee } from "./regions-marquee";
 
 export async function Destinations() {
   const d = await getDict();
@@ -9,6 +10,7 @@ export async function Destinations() {
   const shown = siteConfig.destinations.filter((place) => place.image);
   return (
     <section className="border-b border-b-ink-850" id="netherlands">
+      <RegionsMarquee />
       <div className="mx-auto my-0 flex max-w-[1280px] flex-col gap-8 px-4 py-12 sm:px-6 md:gap-10 md:px-8 md:py-14 lg:py-16 2xl:max-w-[1440px]">
         <div className="gap-6 items-end flex flex-wrap justify-between">
           <div className="gap-4 flex flex-col max-w-[640px]">

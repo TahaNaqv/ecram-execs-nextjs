@@ -48,6 +48,7 @@ export function PasswordInput({
   invalid,
   describedBy,
   copy,
+  onValue,
 }: {
   id: string;
   name: string;
@@ -55,12 +56,14 @@ export function PasswordInput({
   invalid?: boolean;
   describedBy?: string;
   copy: { show: string; hide: string };
+  onValue?: (value: string) => void;
 }) {
   const [shown, setShown] = useState(false);
   return (
     <div className="flex items-center gap-3">
       <input id={id} name={name} type={shown ? "text" : "password"} required maxLength={PASSWORD_MAX} autoComplete={autoComplete}
-        autoCapitalize="none" spellCheck={false} aria-invalid={invalid} aria-describedby={describedBy} className={control} />
+        autoCapitalize="none" spellCheck={false} aria-invalid={invalid} aria-describedby={describedBy}
+        onChange={onValue ? (event) => onValue(event.target.value) : undefined} className={control} />
       <button type="button" onClick={() => setShown((v) => !v)} aria-controls={id} aria-label={shown ? copy.hide : copy.show} className={`${ghostClass} inline-flex shrink-0 items-center no-underline`}>
         <EyeIcon off={shown} />
       </button>

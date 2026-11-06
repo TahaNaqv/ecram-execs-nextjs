@@ -309,7 +309,7 @@
     "heading": "Plan Your Journey"
   },
   "servicesSection": {
-    "eyebrow": "II — SERVICES",
+    "eyebrow": "IV — SERVICES",
     "heading": "Executive Chauffeur Services from Start to Finish",
     "airportTitle": "Airport Transfers",
     "airportText": "Flight-tracked collections at Schiphol, Rotterdam The Hague, and Eindhoven. Greeted in arrivals, luggage handled, straight to the cabin.",
@@ -343,7 +343,7 @@
     "bespokeP3": "Meticulously planned in advance, tailored entirely around your requirements and not ours."
   },
   "experienceSection": {
-    "eyebrow": "III — THE EXPERIENCE",
+    "eyebrow": "II — THE EXPERIENCE",
     "heading": "Experience The Journey"
   },
   "fleetSection": {
@@ -381,7 +381,7 @@
     "theHague": "The Hague"
   },
   "destinationsSection": {
-    "eyebrow": "IV — ACROSS THE NETHERLANDS",
+    "eyebrow": "III — ACROSS THE NETHERLANDS",
     "heading": "Wherever Business or Leisure Takes You, Ecram Execs Gets You There in Style.",
     "intro": "From Amsterdam’s canals and Rotterdam’s financial skyline to The Hague’s diplomatic core, Utrecht’s historic center, and Eindhoven’s innovation hubs, Ecram Execs delivers seamless, zero-emission luxury across every corner of the Netherlands, day or night.",
     "kinderdijk": "Kinderdijk: Iconic Windmills & Dutch Heritage",
@@ -493,6 +493,8 @@
     "bookChange": "Change something",
     "bookChangePrompt": "What would you like to change? Tell me in the message box and I will update the request.",
     "bookChangeHint": "What should I change?",
+    "bookPress": "The booking card is below. Press “Send my request” to send it. Tell me here if you would like to change anything.",
+    "bookNeed": "I still need a few details before that card can be sent: {fields}.",
     "bookSent": "Thank you, {name}. Your request {reference} has been received. The price is on the booking, and our team confirms it, usually within the hour.",
     "bookFailed": "I could not send your request. {reason} You can also use the Plan Your Journey bar above, or write to our team on WhatsApp.",
     "carChoose": "Choose this car",
@@ -1119,6 +1121,7 @@
       "statusChanged": "Status: {from} → {to}",
       "quoteChanged": "Amount: {from} → {to}",
       "notesUpdated": "Internal notes updated",
+      "dispatched": "Client notified: {status}",
       "none": "—",
       "partnerAccepted": "Partner confirmed the booking ({amount})",
       "partnerDeclined": "Partner declined the booking",
@@ -1454,6 +1457,7 @@
       "aiCalc": "AI Pricing Engine Calculation",
       "aiCalcNote": "Base distance & time matrix computed",
       "closeAudit": "Close Audit Log",
+      "auditLater": "What happened next",
       "quoteHeading": "BOOKING CONFIRMATION",
       "totalBase": "Total Base",
       "btw9": "9% BTW",

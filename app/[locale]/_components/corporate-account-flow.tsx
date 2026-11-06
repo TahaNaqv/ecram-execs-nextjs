@@ -6,7 +6,7 @@ import { useActionState, useEffect, useRef, useState, type RefObject } from "rea
 import { abandonSignupChallenge, completeCode, verifyCode } from "@/lib/corporate/account-actions";
 import { requestCode, requestReset, resendCode } from "@/lib/corporate/actions";
 import type { CorporateState } from "@/lib/corporate/state";
-import { PASSWORD_MIN } from "@/lib/corporate/validation";
+import { normalizePassword, PASSWORD_MIN } from "@/lib/corporate/validation";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
@@ -43,7 +43,8 @@ export type AccountFlowCopy = Record<
   | "sendCode" | "sendResetCode" | "sending" | "verifyHeading" | "verifyIntro" | "resetVerifyHeading" | "resetVerifyIntro" | "verifyCta" | "verifying"
   | "passwordHeading" | "passwordIntro" | "resetPasswordHeading" | "resetPasswordIntro"
   | "labelCode" | "phCode" | "labelNewPassword" | "labelConfirmPassword" | "passwordHint" | "createAccountCta" | "creating"
-  | "resetCta" | "resetting" | "resend" | "changeEmail" | "showPassword" | "hidePassword" | "haveAccount" | "loginLink" | "backToLogin",
+  | "resetCta" | "resetting" | "resend" | "changeEmail" | "showPassword" | "hidePassword" | "haveAccount" | "loginLink" | "backToLogin"
+  | "passwordTooShort",
   string
 >;
 
@@ -486,14 +487,26 @@ function PasswordForm({
   onRestart,
 }: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; email: string; onRestart: (message?: string) => void }) {
   const [attempt, setAttempt] = useState(0);
+  const tooShort = interpolate(t.passwordTooShort, { min: PASSWORD_MIN });
+  // null until the field has been typed in. A long enough password clears the message at once.
+  const [typed, setTyped] = useState<number | null>(null);
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
+    const length = normalizePassword(String(formData.get("password") ?? "")).length;
+    if (length < PASSWORD_MIN) {
+      setTyped(length);
+      setAttempt((n) => n + 1);
+      return { status: "error", message: "", fieldErrors: { password: tooShort }, values: {} };
+    }
     const next = await completeCode(prev, formData);
     if (next.status === "locked") onRestart(next.message);
     if (next.status === "error") setAttempt((n) => n + 1);
     return next;
   }, { status: "idle" });
   const err = state.status === "error" ? state.fieldErrors : {};
-  const describedBy = (field: "password" | "confirmPassword") => (err[field] ? `c-${field}-error` : undefined);
+  const passwordError =
+    typed !== null && typed < PASSWORD_MIN ? tooShort : typed !== null && err.password === tooShort ? undefined : err.password;
+  const describedBy = (field: "password" | "confirmPassword") =>
+    (field === "password" ? passwordError : err.confirmPassword) ? `c-${field}-error` : undefined;
   const heading = mode === "signup" ? t.passwordHeading : t.resetPasswordHeading;
   const intro = mode === "signup" ? t.passwordIntro : t.resetPasswordIntro;
 
@@ -503,13 +516,14 @@ function PasswordForm({
         {heading}
       </h2>
       <p className="m-0 text-[15px] text-ink-700">{interpolate(intro, { email })}</p>
-      <form key={attempt} action={action} noValidate className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
-          <Field idPrefix="c" label={t.labelNewPassword} name="password" error={err.password}>
-            <PasswordInput id="c-password" name="password" autoComplete="new-password" invalid={!!err.password}
-              describedBy={describedBy("password")} copy={{ show: t.showPassword, hide: t.hidePassword }} />
+      <form key={attempt} action={action} noValidate className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
+          <Field idPrefix="c" label={t.labelNewPassword} name="password" error={passwordError} className="border border-ink-225">
+            <PasswordInput id="c-password" name="password" autoComplete="new-password" invalid={!!passwordError}
+              describedBy={describedBy("password")} copy={{ show: t.showPassword, hide: t.hidePassword }}
+              onValue={(value) => setTyped(normalizePassword(value).length)} />
           </Field>
-          <Field idPrefix="c" label={t.labelConfirmPassword} name="confirmPassword" error={err.confirmPassword}>
+          <Field idPrefix="c" label={t.labelConfirmPassword} name="confirmPassword" error={err.confirmPassword} className="border border-ink-225">
             <PasswordInput id="c-confirmPassword" name="confirmPassword" autoComplete="new-password" invalid={!!err.confirmPassword}
               describedBy={describedBy("confirmPassword")} copy={{ show: t.showPassword, hide: t.hidePassword }} />
           </Field>
@@ -519,8 +533,8 @@ function PasswordForm({
         <button type="submit" disabled={pending} className={`flex items-center justify-center ${submitFullClass}`}>
           {pending ? (mode === "signup" ? t.creating : t.resetting) : mode === "signup" ? t.createAccountCta : t.resetCta}
         </button>
-        <Status error={state.status === "error" && !err.password && !err.confirmPassword}>
-          {state.status === "error" && !err.password && !err.confirmPassword ? state.message : undefined}
+        <Status error={state.status === "error" && !passwordError && !err.confirmPassword}>
+          {state.status === "error" && !passwordError && !err.confirmPassword ? state.message : undefined}
         </Status>
       </form>
     </div>

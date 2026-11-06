@@ -1,10 +1,10 @@
 import "server-only";
 import { ne } from "drizzle-orm";
-import { tripFields, emptyTrip, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, normalizeTrip, type Trip } from "@/app/[locale]/_components/booking/trip";
+import { capacityProblem, tripFields, emptyTrip, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, normalizeTrip, type Trip } from "@/app/[locale]/_components/booking/trip";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { busyVehicleKeys } from "@/lib/fleet/availability";
-import { FLEET, VEHICLE_CHOICES, normalizeVehicleKey, suggestVehicle } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, VEHICLE_CHOICES, normalizeVehicleKey, suggestVehicle } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
 import { plain } from "./plain";
@@ -343,12 +343,21 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
   }
   if (phone && !phone.country && !errors.phone) errors.phone = messages.phoneCountryInvalid;
   if (draft.vehicle && unavailable.has(draft.vehicle)) errors.vehicle = "That car is not available at the moment: offer another, or no preference.";
+  // The boot check runs even while the name and phone are still missing, so a car that cannot take the suitcases is refused at once.
+  if (draft.vehicle && draft.vehicle !== "advise" && !errors.vehicle) {
+    const fit = capacityProblem(draft.vehicle, draft.passengers ?? 1, draft.bags ?? null);
+    if (fit.passengers || fit.luggage) {
+      errors.vehicle = fit.passengers && fit.luggage ? messages.vehicleBoth : fit.passengers ? messages.vehiclePassengers : messages.vehicleLuggage;
+    }
+  }
 
   const ready = missing.length === 0 && parsed.success && Object.keys(errors).length === 0;
   if (!ready) return { missing, errors, ready: false };
 
-  const suggested = draft.vehicle === "advise" ? suggestVehicle(FLEET, { pax: draft.passengers ?? 1, bags: draft.bags ?? 0 }) : undefined;
-  const car = draft.vehicle && draft.vehicle !== "advise" ? (FLEET.find((v) => v.key === draft.vehicle)?.name ?? null) : (suggested?.name ?? null);
+  const need = { pax: draft.passengers ?? 1, bags: draft.bags ?? 0 };
+  const suggested = draft.vehicle === "advise" ? suggestVehicle(FLEET.filter((v) => !unavailable.has(v.key)), need) : undefined;
+  const suggestionFits = Boolean(suggested && bagCapacity(suggested) >= need.bags && (suggested.specs?.passengers ?? 0) >= need.pax);
+  const car = draft.vehicle && draft.vehicle !== "advise" ? (FLEET.find((v) => v.key === draft.vehicle)?.name ?? null) : suggestionFits && suggested ? suggested.name : null;
   const national = (p: { country: string; number: string } | null, fallback: string) => (p ? `+${p.country || fallback} ${p.number}` : "");
   return {
     missing,

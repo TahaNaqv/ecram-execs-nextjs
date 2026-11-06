@@ -38,26 +38,26 @@ export function LoginForm({
   }, []);
 
   return (
-    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-8">
       <input type="text" name="prevent_autofill" id="prevent_autofill" defaultValue="" style={{ display: 'none' }} tabIndex={-1} />
       <input type="password" name="password_prevent_autofill" id="password_prevent_autofill" defaultValue="" style={{ display: 'none' }} tabIndex={-1} />
 
-      <form key={state.status === "error" ? state.message + email : "fresh"} action={action} noValidate autoComplete="off" className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-px border border-ink-225 bg-ink-225">
-          <Field idPrefix="c" label={t.labelEmail} name="email">
-            <input 
-              id="c-email" 
-              name="email" 
-              type={enabled ? "email" : "text"} 
-              required 
-              maxLength={200} 
-              autoComplete="new-email" 
-              placeholder={t.phEmail}
-              defaultValue={email} 
-              className={control} 
-            />
-          </Field>
-          <Field idPrefix="c" label={t.labelPassword} name="password">
+      <form key={state.status === "error" ? state.message + email : "fresh"} action={action} noValidate autoComplete="off" className="flex flex-col gap-6">
+        <Field idPrefix="c" label={t.labelEmail} name="email" className="border border-ink-225">
+          <input
+            id="c-email"
+            name="email"
+            type={enabled ? "email" : "text"}
+            required
+            maxLength={200}
+            autoComplete="new-email"
+            placeholder={t.phEmail}
+            defaultValue={email}
+            className={control}
+          />
+        </Field>
+        <div className="flex flex-col gap-3">
+          <Field idPrefix="c" label={t.labelPassword} name="password" className="border border-ink-225">
             <div className="relative w-full">
               <input
                 id="c-password"
@@ -68,19 +68,22 @@ export function LoginForm({
                 placeholder={t.phPassword ?? "••••••••"}
                 className={`${control} pr-11`}
               />
-             <button
-  type="button"
-  onClick={() => setReveal((v) => !v)}
-  aria-pressed={reveal}
-  aria-controls="c-password"
-  title={reveal ? t.hidePassword : t.showPassword}
-  className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none p-0 text-ink-500 hover:text-ink-900 cursor-pointer flex items-center justify-center"
->
-  {reveal ? <EyeOffIcon /> : <EyeIcon />}
-  <span className="sr-only">{reveal ? t.hidePassword : t.showPassword}</span>
-</button>
+              <button
+                type="button"
+                onClick={() => setReveal((v) => !v)}
+                aria-pressed={reveal}
+                aria-controls="c-password"
+                title={reveal ? t.hidePassword : t.showPassword}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex cursor-pointer items-center justify-center border-none bg-transparent p-0 text-ink-500 hover:text-ink-900"
+              >
+                {reveal ? <EyeOffIcon /> : <EyeIcon />}
+                <span className="sr-only">{reveal ? t.hidePassword : t.showPassword}</span>
+              </button>
             </div>
           </Field>
+          <Link href={forgotHref} className={`${ghostClass} self-end no-underline`}>
+            {t.forgotLink}
+          </Link>
         </div>
         <input type="hidden" name="locale" value={locale} />
         {next && <input type="hidden" name="next" value={next} />}
@@ -90,17 +93,12 @@ export function LoginForm({
         </button>
         <Status compact error={state.status === "error"}>{state.status === "error" ? state.message : undefined}</Status>
       </form>
-      <div className="flex flex-col gap-2 text-[14px] text-ink-700">
-        <Link href={forgotHref} className={`${ghostClass} self-start no-underline`}>
-          {t.forgotLink}
+      <p className="m-0 text-[14px] text-ink-700">
+        {t.noAccount}{" "}
+        <Link href={signupHref} className="text-ink-950 underline underline-offset-4">
+          {t.signupLink}
         </Link>
-        <p className="m-0">
-          {t.noAccount}{" "}
-          <Link href={signupHref} className="text-ink-950 underline underline-offset-4">
-            {t.signupLink}
-          </Link>
-        </p>
-      </div>
+      </p>
     </div>
   );
 }

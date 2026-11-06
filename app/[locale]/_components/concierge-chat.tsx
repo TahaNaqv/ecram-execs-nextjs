@@ -5,6 +5,7 @@ import type { Summary } from "@/lib/concierge/booking";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { submitQuote } from "@/lib/quotes/actions";
 import { markBookingSent } from "./booking/sent";
+import { capacityProblem } from "./booking/trip";
 import type { FleetDictionary } from "./booking/vehicle-details";
 import { CarCarousel } from "./concierge-cars";
 import type { Locale } from "@/lib/i18n/config";
@@ -52,6 +53,23 @@ type Copy = {
   send: string;
   noAnswer: string;
   isTyping: string;
+  /** Shown when the visitor picks a car the suitcases do not fit in. */
+  unfitCar?: string;
+};
+
+/** The rate-card fare, already formatted by the server. */
+type ChatQuote = {
+  heading: string;
+  exact: boolean;
+  lines: { label: string; amount: string }[];
+  totalLabel: string;
+  total: string;
+};
+
+const isQuote = (value: unknown): value is ChatQuote => {
+  if (!value || typeof value !== "object") return false;
+  const quote = value as ChatQuote;
+  return typeof quote.total === "string" && typeof quote.totalLabel === "string" && Array.isArray(quote.lines);
 };
 
 /** The booking form's own words, so the card reads like the form (the section hands them over from the `booking` dictionary). */
@@ -146,6 +164,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
   // The booking being taken in the chat: the model fills it in, the server checks it, and the visitor sends it from the card
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [ready, setReady] = useState<ReadyBooking | null>(null);
+  const [quote, setQuote] = useState<ChatQuote | null>(null);
   const [sending, setSending] = useState(false);
   // "Change something" leaves the card up and asks, in the thread, what to change
   const [revising, setRevising] = useState(false);
@@ -177,6 +196,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
           setMessages(restored);
           if (saved.draft && typeof saved.draft === "object") setDraft(saved.draft);
           if (saved.ready?.summary && Array.isArray(saved.ready.form)) setReady(saved.ready);
+          if (isQuote(saved.quote)) setQuote(saved.quote);
         }
       }
     } catch {
@@ -188,18 +208,18 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
   useEffect(() => {
     if (!loaded || paused.current) return;
     try {
-      sessionStorage.setItem(CHAT_KEY, JSON.stringify({ messages: messages.slice(-KEEP_MESSAGES), draft, ready, at: Date.now() }));
+      sessionStorage.setItem(CHAT_KEY, JSON.stringify({ messages: messages.slice(-KEEP_MESSAGES), draft, ready, quote, at: Date.now() }));
     } catch {
       // storage is blocked or full: the chat works, it just does not survive a refresh
     }
-  }, [loaded, messages, draft, ready]);
+  }, [loaded, messages, draft, ready, quote]);
 
   // Auto-scroll when messages or typing state changes
   useEffect(() => {
     const el = log.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, waiting, ready]);
+  }, [messages, waiting, ready, quote]);
 
   function getWhatsAppUrl(allMessages: Message[]) {
     const formatted = allMessages
@@ -243,7 +263,12 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
       const data = await res.json();
       // The server answers with the booking as it now stands, and whether it is complete
       if (data.draft && typeof data.draft === "object") setDraft(data.draft);
-      setReady(data.ready && data.summary && Array.isArray(data.form) ? { summary: data.summary, form: data.form } : null);
+      // A reply that never says whether the booking is ready (a network failure) leaves the card where it was.
+      if (typeof data.ready === "boolean") {
+        setReady(data.ready && data.summary && Array.isArray(data.form) ? { summary: data.summary, form: data.form } : null);
+        if (!isQuote(data.quote)) setQuote(null);
+      }
+      if (isQuote(data.quote)) setQuote(data.quote);
       setMessages((prev) => [
         ...prev,
         {
@@ -275,6 +300,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
     setMessages([{ from: "agent", text: copy.welcome || "Good day. I am the Ecram Execs Concierge. How may I assist with your journey or travel arrangements today?" }]);
     setDraft({});
     setReady(null);
+    setQuote(null);
     setRevising(false);
     field.current?.focus();
   }
@@ -299,6 +325,13 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
 
   /** The visitor picks a car in the carousel: it goes into the draft and is said in the chat as their own words. */
   function chooseCar(choice: string, name: string | null) {
+    const pax = typeof draft.passengers === "number" ? draft.passengers : 1;
+    const bags = typeof draft.bags === "number" ? draft.bags : null;
+    const fit = capacityProblem(choice, pax, bags);
+    if (choice !== "advise" && (fit.luggage || fit.passengers)) {
+      setMessages((prev) => [...prev, { from: "agent", text: copy.unfitCar || "This car cannot take that luggage. Please choose another." }]);
+      return;
+    }
     const next = { ...draft, vehicle: choice };
     setDraft(next);
     sendMessage(name ? interpolate(copy.carMessage, { car: name }) : copy.carAnyMessage, next);
@@ -318,6 +351,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
         forgetChat();
         setDraft({});
         setReady(null);
+        setQuote(null);
         setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookSent, { name: result.name, reference: result.reference }) }]);
       } else {
         const reason = result.status === "error" ? Object.values(result.fieldErrors).filter(Boolean).join(" ") || result.message : "";
@@ -437,23 +471,27 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
         )}
 
         {/* The booking the visitor can send: complete, checked by the server, shown for them to read once more */}
-        {ready && !waiting && (
+        {(ready || quote) && (
           <section role="group" aria-labelledby="concierge-card-title" className="self-start w-full max-w-[94%] rounded-2xl border border-ink-600 bg-ink-850 p-4 text-[13px] text-ink-150">
             <h3 id="concierge-card-title" className="m-0 font-display text-[12px] uppercase tracking-[0.24em] text-ink-300">
-              {copy.bookTitle}
+              {ready ? copy.bookTitle : quote?.heading}
             </h3>
-            <BookingRows summary={ready.summary} c={cardCopy} />
+            {ready && <BookingRows summary={ready.summary} c={cardCopy} />}
+            {quote && <FareBreakdown quote={quote} titled={Boolean(ready)} />}
+            {ready && (
             <p className="mt-3 mb-0 text-[12px] leading-relaxed text-ink-400">
               {cardCopy.privacyNote}{" "}
               <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-white">
                 {cardCopy.privacyLink}
               </a>
             </p>
+            )}
+            {ready && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={sendBooking}
-                disabled={sending}
+                disabled={sending || waiting}
                 className="cursor-pointer rounded-xl bg-white px-4 py-2 text-[13px] font-semibold text-ink-950 transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {sending ? copy.bookSending : copy.bookSend}
@@ -461,12 +499,13 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
               <button
                 type="button"
                 onClick={changeBooking}
-                disabled={sending}
+                disabled={sending || waiting}
                 className="cursor-pointer rounded-xl border border-ink-600 bg-transparent px-4 py-2 text-[13px] font-medium text-ink-200 transition-colors hover:border-ink-400 hover:text-white disabled:opacity-50"
               >
                 {copy.bookChange}
               </button>
             </div>
+            )}
           </section>
         )}
 
@@ -515,6 +554,26 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
           </svg>
         </button>
       </form>
+    </div>
+  );
+}
+
+function FareBreakdown({ quote, titled }: { quote: ChatQuote; titled: boolean }) {
+  return (
+    <div className={titled ? "mt-3 border-t border-ink-700 pt-3" : "mt-3"}>
+      {titled && <p className="m-0 text-[11px] font-semibold tracking-[0.18em] text-ink-300 uppercase">{quote.heading}</p>}
+      <dl className="m-0 mt-2">
+        {quote.lines.map((line) => (
+          <div key={line.label} className="flex items-baseline justify-between gap-3 py-1">
+            <dt className="min-w-0 text-ink-300">{line.label}</dt>
+            <dd className="m-0 shrink-0 font-mono text-white tabular-nums">{line.amount}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-ink-600 pt-2 font-semibold text-white">
+        <span>{quote.totalLabel}</span>
+        <span className="font-mono tabular-nums">{quote.total}</span>
+      </div>
     </div>
   );
 }

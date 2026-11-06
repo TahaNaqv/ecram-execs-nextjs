@@ -3,8 +3,9 @@ import { getPartnerLink } from "@/lib/admin/portal";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { BriefcaseIcon } from "../../../_components/icons";
-import { btn, Card, CardHeader, field, fieldLabel } from "../../../_components/ui";
+import { btn, Card, CardHeader } from "../../../_components/ui";
 import { attachPartner, detachPartner } from "./portal-actions";
+import { PartnerSelect } from "./partner-select";
 
 /**
  * Which partner account this request belongs to, if any. A linked request is in that partner's portal. When the
@@ -51,24 +52,14 @@ export async function PartnerCard({ requestId }: { requestId: string }) {
             {partners.length === 0 ? (
               !data.restricted && <p className="m-0 text-sm text-zinc-500">{t.noPartners}</p>
             ) : (
-              <form action={attachPartner} className="flex flex-col gap-2">
-                <label htmlFor="attach-partner" className={fieldLabel}>
-                  {t.attachLabel}
-                </label>
-                <select id="attach-partner" name="contactId" required defaultValue="" className={`${field} h-10 cursor-pointer`}>
-                  <option value="" disabled>
-                    {t.choose}
-                  </option>
-                  {partners.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.companyName ? ` — ${p.companyName}` : ""} ({p.email})
-                    </option>
-                  ))}
-                </select>
-                <input type="hidden" name="requestId" value={requestId} />
-                <button className={`${btn.base} ${btn.secondary} ${btn.md} self-start`}>{t.attach}</button>
-              </form>
+              <PartnerSelect
+                partners={partners}
+                requestId={requestId}
+                action={attachPartner}
+                label={t.attachLabel}
+                choose={t.choose}
+                attach={t.attach}
+              />
             )}
           </>
         )}

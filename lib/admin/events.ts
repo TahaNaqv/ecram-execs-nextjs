@@ -12,6 +12,8 @@ export type RequestEventChange =
   | { kind: "status"; from: RequestStatus; to: RequestStatus }
   | { kind: "quote"; from: string | null; to: string | null }
   | { kind: "notes" }
+  /** The team sent the client the email for this status (confirm, cancel, complete). */
+  | { kind: "dispatch"; to: RequestStatus }
   /** The car that does the job: a fleet key, "advise" for none in particular, or null when it was left open. */
   | { kind: "vehicle"; from: string | null; to: string | null };
 
@@ -58,6 +60,8 @@ export type EventLabels = {
   /** Interpolates {from} and {to} */
   quoteChanged: string;
   notesUpdated: string;
+  /** Interpolates {status}: the team sent the client the email for this status */
+  dispatched: string;
   /** Interpolates {amount} */
   partnerAccepted: string;
   partnerDeclined: string;
@@ -130,6 +134,9 @@ export function renderEvent(
       if (change.kind === "quote") {
         const amount = (value: string | null) => (value === null ? labels.none : formatAmount(value));
         return fill(labels.quoteChanged, { from: amount(change.from), to: amount(change.to) });
+      }
+      if (change.kind === "dispatch") {
+        return fill(labels.dispatched, { status: labels.statuses[change.to] ?? change.to });
       }
       if (change.kind === "vehicle") {
         const car = (value: string | null) => (value ? (vehicleByKey(value)?.name ?? value) : labels.none);

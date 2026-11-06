@@ -175,7 +175,20 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
       </div>
 
       <div className="mt-6">
-        <AutoPricingGateway request={r} copy={d.admin.pricing} statuses={d.admin.statuses} routeMap={routeMap} addOns={extrasLine(d.addOns, r.extras)} addOnNames={d.addOns}>
+        <AutoPricingGateway
+          request={r}
+          copy={d.admin.pricing}
+          statuses={d.admin.statuses}
+          routeMap={routeMap}
+          addOns={extrasLine(d.addOns, r.extras)}
+          addOnNames={d.addOns}
+          activity={events.map((e) => ({
+            id: e.id,
+            text: renderEvent(e.event, e.params, eventLabels(d.admin.events, d.admin.statuses), formatEuro),
+            at: formatTimestamp(e.createdAt),
+            by: e.by,
+          }))}
+        >
           {!isBespoke(r) && <RateCardPrice price={r.priceEstimate} copy={rd} names={d.addOns} />}
         </AutoPricingGateway>
       </div>

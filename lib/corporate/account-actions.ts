@@ -235,31 +235,7 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
         .where(eq(schema.corporateContacts.id, used.contactId))
         .returning(contactColumns);
 
-      // The first time this address gets an account, public requests it was used for earlier become theirs: the code
-      // just proved the address. Only now, never when a form is submitted (anyone could type a partner's address
-      // there), and never again after this first time. Bookings that already belonged to an account — including one
-      // deleted and replaced by this signup — stay unlinked.
-      if (row && !before.hadPassword) {
-        const linked = await tx
-          .update(schema.quoteRequests)
-          .set({ corporateContactId: row.id })
-          .where(
-            and(
-              isNull(schema.quoteRequests.corporateContactId),
-              sql`lower(${schema.quoteRequests.email}) = ${row.email}`,
-              sql`${schema.quoteRequests.source} not in ('portal', 'website-corporate')`,
-              sql`not exists (
-                select 1 from request_events e
-                where e.request_id = ${schema.quoteRequests.id}
-                  and e.event in ('partner_erased', 'attached')
-              )`,
-            ),
-          )
-          .returning({ id: schema.quoteRequests.id });
-        if (linked.length > 0) {
-          await tx.insert(schema.requestEvents).values(linked.map((l) => ({ requestId: l.id, event: "attached", params: { partner: row.name, by: "signup" as const } })));
-        }
-      }
+      // A guest booking on the public site stays unlinked. It appears in this account only after the team attaches it.
       return row;
     });
     if (!contact) return { status: "locked", message: c.codeExpired };

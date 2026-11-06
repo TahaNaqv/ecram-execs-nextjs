@@ -12,7 +12,6 @@ import {
   Experience,
   FinalCta,
   Hero,
-  RegionsMarquee,
   Services,
   SiteFooter,
   SiteHeader,
@@ -76,12 +75,11 @@ export default async function HomePage() {
       <main id="main">
         <Hero />
         <WhoWeServe />
-        <Concierge />
-        <Statement />
-        <Services />
         <Experience />
-        <RegionsMarquee />
         <Destinations />
+        <Services />
+        <Statement />
+        <Concierge />
         <FinalCta />
       </main>
       <SiteFooter />

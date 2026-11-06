@@ -3,7 +3,7 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 export async function RegionsMarquee() {
   const d = await getDict();
   return (
-    <section className="py-10 px-0 overflow-hidden border-b border-b-ink-850" aria-label={d.marquee.label}>
+    <div className="overflow-hidden border-b border-b-ink-850 px-0 py-10" role="region" aria-label={d.marquee.label}>
       <div className="marquee font-serif text-[34px] italic font-light leading-[1] text-nowrap md:text-[46px]">
         <span className="pr-11 text-ink-50 md:pr-18">
           Amsterdam
@@ -67,6 +67,6 @@ export async function RegionsMarquee() {
           Schiphol
         </span>
       </div>
-    </section>
+    </div>
   );
 }

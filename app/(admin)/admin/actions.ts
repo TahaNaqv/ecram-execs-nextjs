@@ -125,6 +125,10 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
     changes.push({ kind: "quote", from: before.quotedAmount, to: quotedAmount });
   }
   if ((before.internalNotes ?? null) !== internalNotes) changes.push({ kind: "notes" });
+  const told = partnerEmailKind(before.status, status, before.quotedAmount, quotedAmount);
+  const notifiesPartner = Boolean(told && before.corporateContactId && before.source !== "website-corporate");
+  const notifiesGuest = Boolean(told && !before.corporateContactId && ENQUIRY_SOURCES.has(before.source));
+  if (notifiesPartner || notifiesGuest) changes.push({ kind: "dispatch", to: status });
   if (changes.length === 0) return { ok: true };
 
   // Confirming also fixes how long the car is held: the route's length, asked for before the fleet lock is taken
@@ -152,7 +156,6 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   if (!saved) return changedMeanwhile;
 
   // A partner is told when their booking is picked up, quoted, confirmed, completed or cancelled: whatever the team changed
-  const told = partnerEmailKind(before.status, status, before.quotedAmount, saved.quotedAmount);
   // An introduction is a request too, but it is not a booking the partner can open: no booking emails for it
   if (told && saved.corporateContactId && saved.source !== "website-corporate") {
     const [partner] = await db

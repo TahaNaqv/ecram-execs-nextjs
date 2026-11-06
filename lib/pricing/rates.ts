@@ -178,13 +178,39 @@ export function vatByRate(p: Price): { low: number; high: number } {
 /** Whether any add-on carries the high rate, so the 21% line is not the service fee's alone. */
 export const hasHighRateExtras = (p: Price) => (p.extras ?? []).some((line) => line.vatRate === SERVICE_FEE_VAT_RATE);
 
+/** Whole euro cents from a stored amount. JSON sometimes returns the cents as a numeric string; both are the same number. */
+export function centsOf(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const amount = Number(value);
+    if (Number.isFinite(amount)) return amount;
+  }
+  return null;
+}
+
 /**
  * The rate-card total saved with a booking, as a two-decimal euro string. This is the amount the visitor confirmed
  * (rides, 9% VAT, service fee and its VAT, and any add-ons with their VAT). Null when that snapshot was not stored. It is not worked out again.
  */
-export function storedQuoteEuros(price: Pick<Price, "total"> | null | undefined): string | null {
-  if (!price || typeof price.total !== "number" || !Number.isFinite(price.total)) return null;
-  return (price.total / 100).toFixed(2);
+export function storedQuoteEuros(price: { total?: unknown } | null | undefined): string | null {
+  const cents = centsOf(price?.total);
+  if (cents == null) return null;
+  return (cents / 100).toFixed(2);
+}
+
+/**
+ * The one amount every confirmation shows. The stored rate-card total wins. The amount typed on the row is used only
+ * when that snapshot was never stored, so a PDF, a WhatsApp message, an email and the audit cannot each pick a different figure.
+ */
+export function bookingTotalEuros(request: {
+  priceEstimate?: { total?: unknown } | null;
+  quotedAmount?: string | number | null;
+}): string | null {
+  const snap = storedQuoteEuros(request.priceEstimate);
+  if (snap != null) return snap;
+  if (request.quotedAmount == null || request.quotedAmount === "") return null;
+  const amount = Number(request.quotedAmount);
+  return Number.isFinite(amount) ? amount.toFixed(2) : null;
 }
 
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */

@@ -16,8 +16,10 @@ import { CookieTable } from "../_components/cookie-table";
 const LAST_UPDATED = "2026-10-27";
 
 function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
+  // Anchors already stop below the sticky header (scroll-padding-top on html). Extra
+  // scroll-margin stacks on that, so only a little is added or the section above stays in view.
   return (
-    <section id={id} className="flex scroll-mt-28 flex-col gap-3">
+    <section id={id} className={`flex flex-col gap-3${id ? " scroll-mt-6" : ""}`}>
       <h2 className="m-0 font-serif text-[28px] font-normal text-white">{title}</h2>
       <div className="flex flex-col gap-3 font-light text-ink-300">{children}</div>
     </section>

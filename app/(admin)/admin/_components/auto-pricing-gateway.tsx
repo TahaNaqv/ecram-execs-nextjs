@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { QuoteRequest } from "@/lib/db/schema";
@@ -20,31 +20,36 @@ function esc(value: string) {
 
 /** The total the visitor confirmed: the stored rate-card total, or the amount already on the row. Never a new calculation. */
 function lockedTotal(request: QuoteRequest): number | null {
-  const snap = storedQuoteEuros(request.priceEstimate);
-  if (snap != null) return Number(snap);
-  if (request.quotedAmount == null || request.quotedAmount === "") return null;
-  const amount = Number(request.quotedAmount);
+  const euros = bookingTotalEuros(request);
+  if (euros == null) return null;
+  const amount = Number(euros);
   return Number.isFinite(amount) ? amount : null;
 }
+
+const euros = (cents: unknown) => {
+  const amount = centsOf(cents);
+  return amount == null ? 0 : amount / 100;
+};
 
 /**
  * The stored rate-card lines, in euros: the ride, each add-on, the service fee and the VAT by rate (9% on the ride and
  * the flowers, 21% on the service fee and the other add-ons), so they add up to the stored total. Empty without a snapshot.
  */
 function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): { label: string; amount: number }[] {
-  if (!price || typeof price.total !== "number") return [];
-  const vat = vatByRate(price);
+  if (!price || centsOf(price.total) == null) return [];
+  const rideCents = (price.legs ?? []).reduce((sum, leg) => sum + (leg.lines ?? []).reduce((n, line) => n + (centsOf(line.amount) ?? 0), 0), 0);
+  const vat = vatByRate({ ...price, vat: centsOf(price.vat) ?? 0, feeVat: centsOf(price.feeVat) ?? 0, extrasVat: centsOf(price.extrasVat) ?? 0 });
   const rows = [
-    { label: copy.baseFare, amount: price.rides / 100 },
-    ...(price.extras ?? []).map((line) => ({ label: `${line.count} × ${names ? extraName(names, line) : line.key}`, amount: line.amount / 100 })),
+    { label: copy.baseFare, amount: rideCents > 0 ? rideCents / 100 : euros(price.rides) },
+    ...(price.extras ?? []).map((line) => ({ label: `${line.count} × ${names ? extraName(names, line) : line.key}`, amount: euros(line.amount) })),
     { label: copy.btw9, amount: vat.low / 100 },
-    { label: copy.serviceFee, amount: price.fee / 100 },
+    { label: copy.serviceFee, amount: euros(price.fee) },
   ];
   if (vat.high) rows.push({ label: hasHighRateExtras(price) ? copy.serviceFeeAddOnsVat : copy.serviceFeeVat, amount: vat.high / 100 });
   return rows;
 }
 import { formatEuro, formatTimestamp, pickupParts } from "@/lib/admin/format";
-import { hasHighRateExtras, storedQuoteEuros, vatByRate, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, centsOf, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { 
@@ -69,6 +74,7 @@ export function AutoPricingGateway({
   routeMap,
   addOns,
   addOnNames,
+  activity = [],
   children,
 }: {
   request: QuoteRequest;
@@ -79,6 +85,8 @@ export function AutoPricingGateway({
   addOns?: string | null;
   /** The add-ons' names, for the fare lines */
   addOnNames?: ExtraNames;
+  /** Later changes on this booking: status, amount, dispatch, and the rest of the audit trail */
+  activity?: { id: string; text: string; at: string; by: string | null }[];
   /** Sits above Authorisation in the left column, usually the rate-card price */
   children?: React.ReactNode;
 }) {
@@ -264,7 +272,7 @@ export function AutoPricingGateway({
             </h3>
             <p className="text-xs text-zinc-500 mb-4">{copy.reference} <span className="font-mono font-medium text-zinc-800">{request.reference}</span></p>
 
-            <div className="space-y-3 text-xs divide-y divide-zinc-100 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-3 text-xs divide-y divide-zinc-100 max-h-[28rem] overflow-y-auto pr-1">
               <div className="pt-2 flex justify-between">
                 <div>
                   <p className="font-semibold text-zinc-900">{copy.requestCreated}</p>
@@ -272,13 +280,42 @@ export function AutoPricingGateway({
                 </div>
                 <span className="font-mono text-zinc-400">{formatTimestamp(request.createdAt)}</span>
               </div>
-              <div className="pt-3 flex justify-between">
-                <div>
-                  <p className="font-semibold text-zinc-900">{copy.aiCalc}</p>
-                  <p className="text-zinc-500">{copy.aiCalcNote}</p>
+              <div className="pt-3">
+                <div className="flex justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-zinc-900">{copy.aiCalc}</p>
+                    <p className="text-zinc-500">{copy.aiCalcNote}</p>
+                  </div>
                 </div>
-                <span className="font-mono text-emerald-700 font-semibold">{formatEuro(grandTotal)}</span>
+                <div className="mt-3 space-y-1.5">
+                  {fare.map((row, index) => (
+                    <div key={`${row.label}-${index}`} className="flex justify-between gap-4 text-zinc-600">
+                      <span className="min-w-0">{row.label}</span>
+                      <span className="shrink-0 font-mono">{formatEuro(row.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between gap-4 border-t border-zinc-200 pt-2 font-semibold text-emerald-800">
+                    <span>{copy.finalAmount}</span>
+                    <span className="shrink-0 font-mono">{formatEuro(grandTotal)}</span>
+                  </div>
+                </div>
               </div>
+              {activity.length > 0 && (
+                <div className="pt-3">
+                  <p className="font-semibold text-zinc-900">{copy.auditLater}</p>
+                  <div className="mt-2 space-y-2">
+                    {activity.map((row) => (
+                      <div key={row.id} className="flex justify-between gap-4">
+                        <p className="min-w-0 text-zinc-700">
+                          {row.text}
+                          {row.by ? ` · ${row.by}` : ""}
+                        </p>
+                        <span className="shrink-0 font-mono text-zinc-400">{row.at}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-6 pt-4 border-t border-zinc-100 flex justify-end">
@@ -389,17 +426,8 @@ export function AutoPricingGateway({
             <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-2.5">{copy.authTitle}</h3>
             
             {/* Status Dropdown Selector */}
-            <div className="bg-white border border-zinc-200 rounded-lg p-3 mb-3 space-y-1 shadow-2xs">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
-                disabled={loading}
-                className="w-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs uppercase tracking-wide rounded-lg px-3 py-1.5 focus:outline-none cursor-pointer disabled:opacity-50 mt-2"
-              >
-                {STATUSES.map((value) => (
-                  <option key={value} value={value}>{statuses[value]}</option>
-                ))}
-              </select>
+            <div className="mb-3">
+              <StatusMenu value={selectedStatus} labels={statuses} disabled={loading} onChange={setSelectedStatus} />
             </div>
 
             <div className="space-y-2">
@@ -495,32 +523,19 @@ export function AutoPricingGateway({
           <div>
             <label className="text-xs font-medium text-zinc-500 block mb-2">{copy.waypoints}</label>
             <div className="space-y-2">
-              <div className="flex items-center justify-between bg-white border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs">
-                <span className="text-zinc-900 truncate font-medium">📍 {collection}</span>
-                <span className="text-zinc-400 text-[11px]">{copy.collection}</span>
-              </div>
-              
+              <Waypoint place={collection} label={copy.collection} />
               {stopovers.map((stop: string, idx: number) => {
                 const waitMins = stopWaits[idx] ?? 0;
                 return (
-                  <div key={idx} className="flex items-center justify-between bg-white border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs">
-                    <span className="text-zinc-900 truncate font-medium">📍 {stop}</span>
-                    <div className="flex items-center gap-2">
-                      {waitMins > 0 && (
-                        <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-mono text-[10px]">
-                          ⏱ {waitMins} min wait
-                        </span>
-                      )}
-                      <span className="text-zinc-400 text-[11px]">{interpolate(copy.stop, { number: idx + 1 })}</span>
-                    </div>
-                  </div>
+                  <Waypoint
+                    key={`${stop}-${idx}`}
+                    place={stop}
+                    label={interpolate(copy.stop, { number: idx + 1 })}
+                    wait={waitMins > 0 ? interpolate(copy.waitTime, { minutes: waitMins }) : null}
+                  />
                 );
               })}
-
-              <div className="flex items-center justify-between bg-white border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs">
-                <span className="text-zinc-900 truncate font-medium">📍 {destination}</span>
-                <span className="text-zinc-400 text-[11px]">{copy.destination}</span>
-              </div>
+              <Waypoint place={destination} label={copy.destination} />
             </div>
           </div>
 
@@ -577,5 +592,99 @@ export function AutoPricingGateway({
 
       </div>
     </>
+  );
+}
+
+function Waypoint({ place, label, wait }: { place: string; label: string; wait?: string | null }) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-xs">
+      <span className="min-w-0 flex-1 font-medium break-words whitespace-normal text-zinc-900" title={place}>
+        📍 {place}
+      </span>
+      <span className="flex shrink-0 items-center gap-2 pt-0.5">
+        {wait ? (
+          <span className="rounded border border-[#24356f] bg-[#000f4d] px-2 py-0.5 font-mono text-[10px] tracking-wide text-[#d7def2]">
+            {wait}
+          </span>
+        ) : null}
+        <span className="text-[11px] text-zinc-400">{label}</span>
+      </span>
+    </div>
+  );
+}
+
+function StatusMenu({
+  value,
+  labels,
+  disabled,
+  onChange,
+}: {
+  value: StatusChoice;
+  labels: StatusCopy;
+  disabled: boolean;
+  onChange: (value: StatusChoice) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={root} className="relative">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-900 uppercase transition duration-200 hover:bg-gray-50 disabled:cursor-default disabled:opacity-50"
+      >
+        <span>{labels[value]}</span>
+        <span aria-hidden="true" className={`text-[10px] text-slate-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
+          ▾
+        </span>
+      </button>
+      <ul
+        role="listbox"
+        aria-label={labels[value]}
+        className={`absolute z-30 mt-1 w-full origin-top overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg transition duration-200 ${
+          open ? "visible scale-y-100 opacity-100" : "pointer-events-none invisible scale-y-95 opacity-0"
+        }`}
+      >
+        {STATUSES.map((status) => {
+          const selected = status === value;
+          return (
+            <li key={status} role="option" aria-selected={selected}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(status);
+                  setOpen(false);
+                }}
+                className={`w-full cursor-pointer px-3 py-2 text-left text-xs font-medium tracking-wide text-gray-900 uppercase transition-colors duration-150 hover:bg-gray-100 ${
+                  selected ? "bg-gray-100" : ""
+                }`}
+              >
+                {labels[status]}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

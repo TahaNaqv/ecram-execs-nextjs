@@ -107,7 +107,31 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
 
   // A request sent from the concierge chat carries that chat's session id, so the team can read what led to it
   const chat = String(formData.get("chatSession") ?? "");
-  after(() => Promise.all([notifyNewQuote(request), confirmToClient(request), SESSION_ID.test(chat) ? linkChatToRequest(chat, request.id) : undefined]));
+  console.info("[booking] request submitted", {
+    reference: request.reference,
+    id: request.id,
+    collection: request.collection,
+    stops: request.destinations ?? [],
+    waits: request.destinationWaits ?? [],
+    destination: request.destination,
+    pickupAt: request.pickupAt,
+    email: request.email,
+  });
+  console.info(`[booking] ${request.reference} dispatching team alert and client confirmation`);
+  after(async () => {
+    const tasks: Promise<unknown>[] = [
+      notifyNewQuote(request).then(
+        () => console.info(`[booking] ${request.reference} team alert dispatch finished`),
+        (err) => console.error(`[booking] ${request.reference} team alert dispatch failed`, err),
+      ),
+      confirmToClient(request).then(
+        () => console.info(`[booking] ${request.reference} client confirmation dispatch finished`),
+        (err) => console.error(`[booking] ${request.reference} client confirmation dispatch failed`, err),
+      ),
+    ];
+    if (SESSION_ID.test(chat)) tasks.push(linkChatToRequest(chat, request.id));
+    await Promise.all(tasks);
+  });
 
   // The route is only drawn now that the booking is in: the confirmation shows it, the steps before it never load a map
   return {

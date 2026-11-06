@@ -11,7 +11,7 @@ import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { isUrgent } from "@/lib/quotes/urgency";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
-import { formatCents, priceNet, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, formatCents, priceNet, type Price } from "@/lib/pricing/rates";
 import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 const esc = (s: string) =>
@@ -29,16 +29,9 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Pick-up within 24 hours", urgent ? "Yes — please act today" : null],
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
+    ["Additional stops", stopSummary(q, "waits")],
     ["Destination", q.destination],
     ["Duration", q.durationHours && `${q.durationHours} hours, as directed`],
-    [
-      "Additional stops",
-      q.destinations && q.destinations.length > 0
-        ? stopsWithWaits(q.destinations, q.destinationWaits)
-            .map((s) => (s.wait > 0 ? `${s.place} (waits ${s.wait} min)` : s.place))
-            .join(" → ")
-        : null,
-    ],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
     ["Return journey (NL)", q.returnAt && q.returnAt.slice(0, 16).replace("T", " ")],
     ["Flight", q.flightNumber],
@@ -92,6 +85,7 @@ export async function confirmToClient(q: QuoteRequest) {
         row(t.fieldReference, q.reference),
         row(t.fieldService, serviceLabel(q.service, services)),
         row(t.fieldCollection, q.collection ?? ""),
+        ...stopRows(q, t, row),
         ...destinationRows(q, t, row),
         row(t.fieldDateTime, (q.pickupAt ?? "").slice(0, 16).replace("T", " ")),
         ...extraRows(q, t, row, addOns),
@@ -309,7 +303,7 @@ export async function notifyTeamPartnerActivity({
     ["Email", partner.email],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
     ["Pick-up within 24 hours", soon ? "Yes — please act today" : null],
-    ["Quoted amount", q.quotedAmount && `€ ${q.quotedAmount}`],
+    ["Quoted amount", bookingTotalEuros(q) && `€ ${bookingTotalEuros(q)}`],
     [kind === "declined" ? "Reason" : "Message", body ?? null],
   ];
   await send("portal", q.reference, `team alert (${kind})`, {
@@ -353,7 +347,7 @@ export async function emailPartnerBooking({
     reply: [t.bookingSubjectReply, t.bookingIntroReply],
     invoice: [t.bookingSubjectInvoice, t.bookingIntroInvoice],
   };
-  const values = { reference: q.reference, amount: euro(q.quotedAmount, to.locale) };
+  const values = { reference: q.reference, amount: euro(bookingTotalEuros(q), to.locale) };
   const [subject, intro] = copy[kind];
   const link = `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", to.locale)}?ref=${encodeURIComponent(q.reference)}`;
   const html = `
@@ -389,7 +383,7 @@ export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteR
     cancelled: [t.bookingSubjectCancelled, t.enquiryIntroCancelled],
   };
   const [subject, intro] = copy[kind];
-  const values = { reference: q.reference, amount: euro(q.quotedAmount, q.locale) };
+  const values = { reference: q.reference, amount: euro(bookingTotalEuros(q), q.locale) };
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const status = d.portal.statuses[kind];
   const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row, d.addOns)];
@@ -458,22 +452,34 @@ function summaryRows(
   row: Row,
   addOns: ExtraNames,
 ) {
-  const stops = stopsWithWaits(q.destinations, q.destinationWaits)
-    .map((s) => (s.wait > 0 ? `${s.place} (${s.wait} min)` : s.place))
-    .join(" → ");
   const named = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
   const vehicle = convoyTitle(q) ?? named;
   return [
     row(t.fieldReference, q.reference),
     row(t.fieldService, serviceLabel(q.service, services)),
     q.collection ? row(t.fieldCollection, q.collection) : "",
+    ...stopRows(q, t, row),
     ...destinationRows(q, t, row),
-    stops ? row(t.fieldStops, stops) : "",
     q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
     ...extraRows(q, t, row, addOns),
     q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
     vehicle ? row(t.fieldVehicle, vehicle) : "",
   ];
+}
+
+/** Intermediate stops, in travelling order, for the line between collection and destination. */
+function stopSummary(q: QuoteRequest, waitWord: "waits" | "min") {
+  if (!q.destinations?.length) return null;
+  const text = stopsWithWaits(q.destinations, q.destinationWaits)
+    .map((s) => (s.wait > 0 ? `${s.place} (${waitWord === "waits" ? `waits ${s.wait} min` : `${s.wait} min`})` : s.place))
+    .join(" → ");
+  return text || null;
+}
+
+/** One row per booking email, placed between Collection and Destination. */
+function stopRows(q: QuoteRequest, t: EmailCopy, row: Row) {
+  const stops = stopSummary(q, "min");
+  return stops ? [row(t.fieldStops, stops)] : [];
 }
 
 /** Where the journey ends: the destination, or for an hourly booking without one, how long the chauffeur is booked. */
@@ -620,12 +626,12 @@ function htmlToText(html: string) {
     .trim();
 }
 
-/** Localhost has no SMTP. Print the whole message so it can be checked in the server terminal. */
-function logUnsent(tag: string, reference: string, kind: string, payload: Payload) {
+/** Prints the message and how it was dispatched, so a booking can be checked in the server terminal. */
+function logEmail(tag: string, reference: string, kind: string, payload: Payload, status: string) {
   console.info(
     [
       "",
-      "========== EMAIL (no SMTP / Resend — logged locally) ==========",
+      `========== EMAIL DISPATCH: ${status} ==========`,
       `tag: ${tag}`,
       `kind: ${kind}`,
       `reference: ${reference}`,
@@ -635,9 +641,7 @@ function logUnsent(tag: string, reference: string, kind: string, payload: Payloa
       `subject: ${payload.subject}`,
       "body:",
       htmlToText(payload.html),
-      "html:",
-      payload.html,
-      "===============================================================",
+      "==============================================",
       "",
     ]
       .filter((line) => line !== null)
@@ -651,29 +655,38 @@ async function send(tag: string, reference: string, kind: string, payload: Paylo
   const activeProvider = provider();
 
   if (!activeProvider || payload.from === LOCAL_FROM || payload.to.some((to) => to.startsWith("("))) {
-    logUnsent(tag, reference, kind, payload);
+    logEmail(tag, reference, kind, payload, "logged locally (no SMTP / Resend)");
     // A missing mailbox on a real server is a failure. On localhost the log is the delivery, so the flow can continue.
     return !activeProvider && process.env.NODE_ENV !== "production";
   }
 
   if (activeProvider === "smtp") {
-    return sendSmtp(tag, reference, kind, payload);
+    const sent = await sendSmtp(tag, reference, kind, payload);
+    logEmail(tag, reference, kind, payload, sent ? "sent via SMTP" : "SMTP dispatch failed");
+    return sent;
   }
 
   if (activeProvider === "resend") {
     const sent = await sendResend(tag, reference, kind, payload);
-    if (sent === "sent") return true;
+    if (sent === "sent") {
+      logEmail(tag, reference, kind, payload, "sent via Resend");
+      return true;
+    }
     // After a timeout the message may already be on its way: a second copy through SMTP would be worse than the doubt
     if (sent === "unknown") {
-      console.warn(`[${tag}] ${reference} ${kind}: no answer from Resend, so not repeating it through SMTP`);
+      logEmail(tag, reference, kind, payload, "no answer from Resend; not repeated through SMTP");
       return false;
     }
     if (hasSmtp) {
       console.info(`[${tag}] Falling back to SMTP dispatch...`);
-      return sendSmtp(tag, reference, kind, payload);
+      const viaSmtp = await sendSmtp(tag, reference, kind, payload);
+      logEmail(tag, reference, kind, payload, viaSmtp ? "sent via SMTP fallback" : "SMTP fallback failed");
+      return viaSmtp;
     }
+    logEmail(tag, reference, kind, payload, "Resend refused the message");
     return false;
   }
 
+  logEmail(tag, reference, kind, payload, "not sent");
   return false;
 }

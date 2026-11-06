@@ -59,14 +59,18 @@ export async function POST(
         const clash = fresh.status === "confirmed" ? null : await clashingReference(tx, { ...fresh, blockMinutes: length });
         if (clash) return { clash } as const;
       }
+      // The rate-card snapshot is the amount the visitor was shown. A different figure already on the row is replaced
+      // so later emails use the same total as the dashboard, the PDF and the WhatsApp message.
+      const rateCard = storedQuoteEuros(basis.priceEstimate);
       const hasQuote = basis.quotedAmount != null && basis.quotedAmount !== "";
-      const amountStr = hasQuote ? basis.quotedAmount : storedQuoteEuros(basis.priceEstimate);
+      const amountStr = rateCard ?? (hasQuote ? basis.quotedAmount : null);
       const sameMoney =
         (basis.quotedAmount == null || basis.quotedAmount === "" ? null : Number(basis.quotedAmount)) ===
         (amountStr == null ? null : Number(amountStr));
       const changes: RequestEventChange[] = [];
       if (basis.status !== newStatus) changes.push({ kind: "status", from: basis.status, to: newStatus });
       if (!sameMoney) changes.push({ kind: "quote", from: basis.quotedAmount, to: amountStr });
+      if (sendMail) changes.push({ kind: "dispatch", to: newStatus });
 
       const [row] = await tx
         .update(schema.quoteRequests)

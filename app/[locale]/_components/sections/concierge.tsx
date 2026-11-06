@@ -17,7 +17,7 @@ export async function Concierge() {
     seatsUpTo: b.seatsUpTo, carDetails: b.carDetails,
   };
   return (
-    <section className="scroll-mt-28 border-b border-b-ink-850" id="concierge">
+    <section className="border-b border-b-ink-850" id="concierge">
       <div className="mx-auto my-0 flex max-w-[1280px] flex-wrap items-center gap-8 px-4 py-12 sm:px-6 md:gap-10 md:px-8 md:py-14 lg:py-16 xl:gap-16 2xl:max-w-[1440px]">
         <div className="gap-6 flex-[1_1_380px] flex flex-col min-w-0">
           <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
@@ -40,7 +40,7 @@ export async function Concierge() {
         {/* The frame is a 2px silver line with a soft glow around it, so the chat cannot be missed; the panel inside is a shade lighter than the page */}
         <div
           id="concierge-chat"
-          className="scroll-mt-28 flex max-w-none min-w-0 flex-[1_1_100%] flex-col rounded-[26px] bg-[linear-gradient(145deg,rgba(255,255,255,0.95),rgba(143,166,232,0.55)_40%,rgba(255,255,255,0.9))] p-[2px] shadow-[0_0_0_6px_rgba(255,255,255,0.05),0_0_70px_-12px_rgba(120,150,255,0.55),0_30px_60px_-20px_rgba(0,0,0,0.6)] xl:max-w-[540px] xl:flex-[1_1_460px]"
+          className="flex max-w-none min-w-0 flex-[1_1_100%] flex-col rounded-[26px] bg-[linear-gradient(145deg,rgba(255,255,255,0.95),rgba(143,166,232,0.55)_40%,rgba(255,255,255,0.9))] p-[2px] shadow-[0_0_0_6px_rgba(255,255,255,0.05),0_0_70px_-12px_rgba(120,150,255,0.55),0_30px_60px_-20px_rgba(0,0,0,0.6)] xl:max-w-[540px] xl:flex-[1_1_460px]"
         >
           <div className="flex flex-1 flex-col overflow-hidden rounded-3xl bg-ink-900">
             <div className="flex items-center justify-between gap-4 border-b border-b-ink-600 bg-[linear-gradient(180deg,var(--color-ink-800),var(--color-ink-900))] px-[22px] py-4">
@@ -55,7 +55,7 @@ export async function Concierge() {
                 </div>
               </div>
             </div>
-            <ConciergeChat copy={t} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
+            <ConciergeChat copy={{ ...t, unfitCar: d.forms.vehicleLuggage }} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
           </div>
         </div>
       </div>

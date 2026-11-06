@@ -309,7 +309,7 @@
     "heading": "Plan uw rit"
   },
   "servicesSection": {
-    "eyebrow": "II — DIENSTEN",
+    "eyebrow": "IV — DIENSTEN",
     "heading": "Executive chauffeursdiensten, van begin tot eind",
     "airportTitle": "Luchthaventransfers",
     "airportText": "Ophalen met vluchtmonitoring op Schiphol, Rotterdam The Hague en Eindhoven. Opgewacht bij aankomst, bagage verzorgd, direct naar de auto.",
@@ -343,7 +343,7 @@
     "bespokeP3": "Vooraf met u uitgewerkt, afgestemd op uw wensen en niet op de onze."
   },
   "experienceSection": {
-    "eyebrow": "III — DE ERVARING",
+    "eyebrow": "II — DE ERVARING",
     "heading": "Beleef de reis"
   },
   "fleetSection": {
@@ -381,7 +381,7 @@
     "theHague": "Den Haag"
   },
   "destinationsSection": {
-    "eyebrow": "IV — IN HEEL NEDERLAND",
+    "eyebrow": "III — IN HEEL NEDERLAND",
     "heading": "Waar zaken of vrije tijd u ook heen brengt, Ecram Execs brengt u er in stijl naartoe.",
     "intro": "Van de grachten van Amsterdam tot de skyline van Rotterdam, van het koninklijke Den Haag, waar elegantie schittert, tot het historische Utrecht, de fijne keuken van Maastricht en de tulpen van de Bollenstreek. Van het innovatieve Eindhoven tot de molens van Kinderdijk: Ecram brengt luxe naar elke rit, dag en nacht.",
     "kinderdijk": "Kinderdijk: iconische molens & Nederlands erfgoed",
@@ -493,6 +493,8 @@
     "bookChange": "Iets aanpassen",
     "bookChangePrompt": "Wat wilt u aanpassen? Zeg het in het berichtveld, dan werk ik de aanvraag bij.",
     "bookChangeHint": "Wat zal ik aanpassen?",
+    "bookPress": "De boekingskaart staat hieronder. Druk op “Aanvraag versturen” om hem te versturen. Zeg het hier als er iets moet veranderen.",
+    "bookNeed": "Ik heb nog een paar gegevens nodig voordat die kaart verstuurd kan worden: {fields}.",
     "bookSent": "Dank u, {name}. Uw aanvraag {reference} is ontvangen. De prijs staat bij de boeking en ons team bevestigt die, meestal binnen het uur.",
     "bookFailed": "Ik kon uw aanvraag niet versturen. {reason} U kunt ook het formulier Plan uw rit hierboven gebruiken, of ons team schrijven via WhatsApp.",
     "carChoose": "Kies deze auto",
@@ -1119,6 +1121,7 @@
       "statusChanged": "Status: {from} → {to}",
       "quoteChanged": "Bedrag: {from} → {to}",
       "notesUpdated": "Interne notities bijgewerkt",
+      "dispatched": "Klant geïnformeerd: {status}",
       "none": "—",
       "partnerAccepted": "Partner heeft de boeking bevestigd ({amount})",
       "partnerDeclined": "Partner heeft de boeking afgewezen",
@@ -1454,6 +1457,7 @@
       "aiCalc": "Berekening AI-prijsengine",
       "aiCalcNote": "Basisafstand en tijdmatrix berekend",
       "closeAudit": "Auditlog sluiten",
+      "auditLater": "Wat er daarna gebeurde",
       "quoteHeading": "BOEKINGSBEVESTIGING",
       "totalBase": "Totaal basis",
       "notifyClient": "Klant verwittigen",

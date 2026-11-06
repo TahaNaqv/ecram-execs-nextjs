@@ -153,19 +153,21 @@ test("W13: a phone box takes digits only, stops at the country's limit, and cope
   expect(cleanPhoneInput("+44 7911 123456", "31")).toBe("+44 7911 123456");
 });
 
-test("W6, W7: the login button is as wide as the fields, and the links sit close under it", async ({ page }) => {
+test("W6, W7: the login button is as wide as the fields, and the forgot link sits under the password", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto("/en/corporate-partner/login");
-  const form = page.locator("form").filter({ has: page.locator("#c-password") });
-  const fields = form.locator("> div").first();
+  const password = page.locator("label[for='c-password']");
   const button = page.getByRole("button", { name: t.loginCta, exact: true });
   const forgot = page.getByRole("link", { name: t.forgotLink });
   await expect(button).toBeVisible(); // the form streams in behind a Suspense boundary
   await expect(forgot).toBeVisible();
-  const [f, b, l] = await Promise.all([fields.boundingBox(), button.boundingBox(), forgot.boundingBox()]);
+  const [f, b, l] = await Promise.all([password.boundingBox(), button.boundingBox(), forgot.boundingBox()]);
   expect(Math.abs(f!.width - b!.width)).toBeLessThan(2);
   expect(Math.abs(f!.x - b!.x)).toBeLessThan(2);
-  expect(l!.y - (b!.y + b!.height)).toBeLessThan(32);
+  // Directly under the password field, and above the login button
+  expect(l!.y).toBeGreaterThan(f!.y + f!.height - 1);
+  expect(b!.y).toBeGreaterThan(l!.y + l!.height - 1);
+  expect(l!.y - (f!.y + f!.height)).toBeLessThan(32);
   // W9: the whole form is on screen without scrolling, on a laptop-sized window
   const signup = page.getByRole("link", { name: t.signupLink });
   const s = await signup.boundingBox();

@@ -5,7 +5,7 @@ import type { PlaceHit, PlaceKind } from "@/lib/places/types";
 import { curatedKind } from "@/lib/places/curated";
 import type { Place } from "./trip";
 
-export type AddressCopy = { suggestions: string; poweredByGoogle: string };
+export type AddressCopy = { suggestions: string };
 
 // Google is asked once the visitor pauses, not on every letter; all the searches for one address share a billing session (below)
 const DEBOUNCE_MS = 400;
@@ -66,7 +66,6 @@ export function AddressField({
 }) {
   const listId = useId();
   const [items, setItems] = useState<PlaceHit[]>([]);
-  const [google, setGoogle] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const timer = useRef<number | undefined>(undefined);
@@ -97,9 +96,8 @@ export function AddressField({
         session.current ??= crypto.randomUUID();
         const qs = new URLSearchParams({ q: query.trim(), session: session.current, lang: locale });
         const res = await fetch(`/api/places?${qs}`, { signal: ctrl.signal });
-        const body = (await res.json()) as { items?: PlaceHit[]; google?: boolean };
+        const body = (await res.json()) as { items?: PlaceHit[] };
         setItems(body.items ?? []);
-        setGoogle(Boolean(body.google));
         setActive(-1);
         setOpen((body.items ?? []).length > 0);
       } catch (err) {
@@ -151,6 +149,9 @@ export function AddressField({
   };
 
   const dark = tone === "dark";
+  const scrollbar = dark
+    ? "[scrollbar-width:thin] [scrollbar-color:var(--color-ink-400)_var(--color-ink-950)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-ink-950 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-400 hover:[&::-webkit-scrollbar-thumb]:bg-ink-300"
+    : "[scrollbar-width:thin] [scrollbar-color:var(--color-ink-700)_var(--color-ink-100)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-ink-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-700 hover:[&::-webkit-scrollbar-thumb]:bg-ink-650";
   return (
     <div className="relative w-full min-w-0">
       <input
@@ -185,7 +186,7 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-[calc(100%+var(--field-pad,0px)+6px)] left-[calc(var(--field-pad,0px)*-1)] z-40 m-0 box-border max-h-[min(18rem,50vh)] w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-xl border border-solid p-1.5 shadow-2xl sm:max-h-[min(24rem,60vh)] sm:rounded-2xl sm:p-2 ${
+          className={`absolute top-[calc(100%+var(--field-pad,0px)+6px)] left-[calc(var(--field-pad,0px)*-1)] z-40 m-0 box-border max-h-[min(18rem,50vh)] w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-xl border border-solid p-1.5 shadow-2xl sm:max-h-[min(24rem,60vh)] sm:rounded-2xl sm:p-2 ${scrollbar} ${
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
           }`}
         >
@@ -215,16 +216,6 @@ export function AddressField({
               </span>
             </li>
           ))}
-          {active >= 0 && items[active] && (
-            <li role="presentation" className={`mx-1 mt-1 hidden border-0 border-t border-solid px-3 pt-2.5 pb-1.5 text-[14px] leading-snug sm:block ${dark ? "border-white/15 text-white" : "border-ink-150 text-ink-950"}`}>
-              {fullAddress(items[active])}
-            </li>
-          )}
-          {google && (
-            <li role="presentation" className={`px-3 pt-2 pb-1 text-right text-[11px] ${dark ? "text-ink-400" : "text-ink-600"}`}>
-              {copy.poweredByGoogle}
-            </li>
-          )}
         </ul>
       )}
     </div>
