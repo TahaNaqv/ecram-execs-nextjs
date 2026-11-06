@@ -67,17 +67,23 @@ test("the four figures follow the vehicles, the day's bookings, the partner acco
   expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 123, 2);
   expect(await card(page, d.jobsLabel).innerText()).toContain(d.jobsHint);
 
-  // A quoted booking for today is still one of today's jobs. Revenue stays on confirmed and completed only.
+  // Quoted and completed bookings are not today's pick-ups. Revenue still counts a completed trip.
   await seedBooking({ contactId, email, status: "quoted", pickupAt: `${today()}T23:58`, quotedAmount: "999.00" });
+  await seedBooking({ contactId, email, status: "completed", pickupAt: `${today()}T12:00`, quotedAmount: "50.00" });
   await page.reload();
-  await expect.poll(async () => Number(await figure(page, d.jobsLabel))).toBe(jobsBefore + 2);
-  expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 123, 2);
+  await expect.poll(async () => Number(await figure(page, d.jobsLabel))).toBe(jobsBefore + 1);
+  expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 173, 2);
 
-  // It shows in the next pick-ups and in the recent requests, and both lead to it
-  const next = page.getByRole("link").filter({ hasText: booking.reference });
-  await expect(next.first()).toBeVisible();
-  await next.first().click();
-  await expect(page).toHaveURL(new RegExp(`/admin/requests/${booking.id}$`));
+  // Confirmed trips stay on Today's routes. Only a new request is listed under New Incoming Requests.
+  const incoming = page.locator("section").filter({ has: page.getByRole("heading", { name: d.nextTitle }) });
+  await expect(incoming).not.toContainText(booking.reference);
+  const fresh = await seedBooking({ contactId, email, status: "new", pickupAt: `${today()}T23:50` });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: d.title })).toBeVisible();
+  await expect(incoming).toContainText(fresh.reference);
+  await expect(incoming).not.toContainText(booking.reference);
+  await incoming.getByRole("link").filter({ hasText: fresh.reference }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/requests/${fresh.id}$`));
 });
 
 test("a vehicle that is switched off counts out, and a booked car shows its next booking", async ({ page }) => {

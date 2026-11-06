@@ -1,6 +1,7 @@
 export const instant = false;
 import { notFound } from "next/navigation";
 import { formatPickup } from "@/lib/admin/format";
+import { bookingTotalEuros } from "@/lib/pricing/rates";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -27,7 +28,7 @@ export default async function PartnerBookingsPage({ params }: { params: Promise<
     ]
       .filter((part) => part != null)
       .join(" · "),
-    amount: Number(b.quotedAmount ?? 0),
+    amount: Number(bookingTotalEuros(b) ?? 0),
     status: b.status,
   }));
   return <PartnerBookingsClient partnerId={partner.id} companyName={partner.companyName} bookings={mappedBookings} copy={admin.corporate.hub} />;

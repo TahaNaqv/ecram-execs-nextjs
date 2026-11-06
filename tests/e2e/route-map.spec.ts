@@ -153,7 +153,7 @@ test.describe("on the booking page", () => {
     await expect(page).toHaveURL(/\/admin(?!\/login)/);
     await page.goto("/admin");
     await expect(page.getByText("Today's routes", { exact: true })).toBeVisible();
-    await expect(page.getByText("Next pick-ups")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "New Incoming Requests" })).toBeVisible();
     // The old panel claimed a real-time GPS feed that did not exist
     await expect(page.getByText(/Real-Time GPS Feed|Confirmed Dispatch|Soft-match/)).toHaveCount(0);
     // Its link went to a page that does not exist; it now opens the day schedule

@@ -59,11 +59,12 @@ export async function POST(
         const clash = fresh.status === "confirmed" ? null : await clashingReference(tx, { ...fresh, blockMinutes: length });
         if (clash) return { clash } as const;
       }
-      // The rate-card snapshot is the amount the visitor was shown. A different figure already on the row is replaced
-      // so later emails use the same total as the dashboard, the PDF and the WhatsApp message.
+      // Keep a final already stored on the row (the VAT-inclusive total, or one the team overrode).
+      // Fill it from the rate-card snapshot only when the row has no amount yet, so authorising
+      // does not replace that final with a fresh sum of the rate-card lines.
       const rateCard = storedQuoteEuros(basis.priceEstimate);
       const hasQuote = basis.quotedAmount != null && basis.quotedAmount !== "";
-      const amountStr = rateCard ?? (hasQuote ? basis.quotedAmount : null);
+      const amountStr = hasQuote ? basis.quotedAmount : rateCard;
       const sameMoney =
         (basis.quotedAmount == null || basis.quotedAmount === "" ? null : Number(basis.quotedAmount)) ===
         (amountStr == null ? null : Number(amountStr));

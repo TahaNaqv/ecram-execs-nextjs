@@ -3,6 +3,7 @@ import type { Draft } from "@/lib/concierge/booking";
 import { capacityProblem } from "@/app/[locale]/_components/booking/trip";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/types";
+import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { formatCents, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
 
@@ -19,7 +20,7 @@ export type ChatQuote = {
  * The same rate card the booking form stores. Null until the journey can be priced, and null when the chosen car
  * cannot take the party: a price must not be shown for a car the visitor is not allowed to book.
  */
-export async function quoteDraft(draft: Draft, booking: Dictionary["booking"], locale: Locale): Promise<ChatQuote | null> {
+export async function quoteDraft(draft: Draft, booking: Dictionary["booking"], names: ExtraNames, locale: Locale): Promise<ChatQuote | null> {
   if (!draft.at || !draft.from) return null;
   const hourly = draft.mode === "hourly";
   if (hourly && !draft.hours) return null;
@@ -41,21 +42,26 @@ export async function quoteDraft(draft: Draft, booking: Dictionary["booking"], l
         passengers: draft.passengers ?? 1,
         luggage: draft.bags ?? 0,
         vehicle: draft.vehicle && draft.vehicle !== "advise" ? draft.vehicle : "advise",
+        extras: draft.extras ?? [],
       },
       "public",
     );
     if (!price) return null;
-    return present(price, booking, locale);
+    return present(price, booking, names, locale);
   } catch (error) {
     console.error("[concierge] could not price the draft", error);
     return null;
   }
 }
 
-function present(price: Price, booking: Dictionary["booking"], locale: Locale): ChatQuote {
+function present(price: Price, booking: Dictionary["booking"], names: ExtraNames, locale: Locale): ChatQuote {
   const vat = vatByRate(price);
   const lines = [
     { label: booking.receiptRides, amount: formatCents(price.rides, locale) },
+    ...(price.extras ?? []).map((line) => ({
+      label: `${line.count} × ${extraName(names, line)} (${formatCents(line.unit, locale)})`,
+      amount: formatCents(line.amount, locale),
+    })),
     { label: booking.priceVat, amount: formatCents(vat.low, locale) },
     { label: booking.priceServiceFee, amount: formatCents(price.fee, locale) },
   ];

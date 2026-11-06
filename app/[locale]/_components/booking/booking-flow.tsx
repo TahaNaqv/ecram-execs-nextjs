@@ -220,7 +220,7 @@ export function BookingFlow({
     partyLine(t, trip.pax, trip.bags, trip.small),
   ].filter(Boolean).join("  ·  ");
 
-  if (!ready) return <div className="min-h-[480px]" aria-hidden="true" />;
+  if (!ready) return null;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -560,7 +560,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
             ))}
           </ul>
           <div className="ml-auto flex w-full gap-2.5 md:w-auto">
-            <button type="button" onClick={onBack} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
+            <button type="button" onClick={onBack} className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950">
               <ArrowLeft />
               {t.back}
             </button>
@@ -568,7 +568,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
               type="button"
               onClick={onNext}
               disabled={blockedSelection}
-              className={`h-[52px] flex-1 rounded-xl border-0 px-6 text-[14px] font-semibold md:flex-none ${
+              className={`inline-flex h-11 flex-1 items-center justify-center rounded-lg border-0 px-5 text-[13px] font-semibold tracking-wide md:flex-none ${
                 blockedSelection ? "cursor-not-allowed bg-ink-225 text-ink-600" : "cursor-pointer bg-ink-950 text-white hover:bg-ink-800"
               }`}
             >
@@ -682,6 +682,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     const fields = new Map(entered?.fields);
     for (const [k, v] of new FormData(form).entries()) fields.set(k, String(v));
     if (who === "me") for (const key of PASSENGER_FIELDS) fields.delete(key);
+    if (purpose === "private") for (const key of COMPANY_FIELDS) fields.delete(key);
     return { who, purpose, fields: [...fields] };
   };
 
@@ -761,11 +762,11 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   const formId = `${uid}-details`;
   const actionButtons = () => (
     <div className="flex w-full min-w-0 gap-2 sm:gap-2.5">
-      <button type="button" onClick={onBack} className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-3 text-[14px] font-semibold text-ink-950 hover:border-ink-950 sm:h-[52px] sm:flex-none sm:px-5">
+      <button type="button" onClick={onBack} className="inline-flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-3 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950 sm:flex-none sm:px-4">
         <ArrowLeft />
         {t.back}
       </button>
-      <button type="submit" form={formId} className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-4 text-[14px] font-semibold text-white hover:bg-ink-800 sm:h-[52px] sm:flex-none sm:px-7">
+      <button type="submit" form={formId} className="inline-flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-4 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 sm:flex-none sm:px-5">
         {t.reviewButton}
         <ArrowRight />
       </button>
@@ -1232,7 +1233,7 @@ export function DownloadableReceiptCard({
                 <CloseIcon />
               </button>
               <p className="m-0 font-serif text-[11px] tracking-[0.22em] text-zinc-300 uppercase">Ecram Execs</p>
-              <h3 id="receipt-title" className="m-0 mt-1 font-serif text-[20px] leading-none font-normal tracking-wide text-[#ffffff] uppercase">Booking confirmation</h3>
+              <h3 id="receipt-title" className="m-0 mt-1 font-serif text-[20px] leading-none font-normal tracking-wide text-[#ffffff] uppercase">{t.receiptHeading}</h3>
               <p className="m-0 mt-1.5 text-[12px] text-zinc-200">Reference: {reference}</p>
             </div>
 
@@ -1261,7 +1262,7 @@ export function DownloadableReceiptCard({
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#06144a] px-3.5 py-3">
-                <span className="font-serif text-[12px] tracking-wide text-zinc-200 uppercase">Final amount</span>
+                <span className="font-serif text-[12px] tracking-wide text-zinc-200 uppercase">{t.priceTotal}</span>
                 <span className="shrink-0 font-serif text-[18px] font-bold text-[#6ee7b7]">{total}</span>
               </div>
 
@@ -1282,7 +1283,7 @@ export function DownloadableReceiptCard({
                 onClick={() => setIsOpen(false)}
                 className="flex h-10 cursor-pointer items-center justify-center rounded-xl border border-solid border-[#ffffff]/40 bg-transparent px-4 text-[13px] font-semibold text-[#ffffff] hover:bg-[#ffffff]/10"
               >
-                Close
+                {t.receiptClose}
               </button>
             </div>
           </div>
@@ -1313,25 +1314,26 @@ export function BookingDone({ copy: t, locale, name, reference, map, price, onAg
     heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, []);
   return (
-    <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-6 py-10">
-      <div className="flex items-center justify-between">
-        <span className="grid size-[60px] place-items-center rounded-full bg-ink-950 text-white">
-          <Check size={28} />
-        </span>
+    <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-6 py-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+         
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <BookingStatusBadge label={t.doneEyebrow} />
+              <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span>
+            </div>
+            <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,5vw,44px)] leading-[1.08] font-normal outline-none">
+              {interpolate(t.doneHeading, { name })}
+            </h2>
+          </div>
+        </div>
         <DownloadableReceiptCard copy={t} locale={locale} reference={reference} status={t.doneEyebrow} name={name} receipt={receipt} price={price} />
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <BookingStatusBadge label={t.doneEyebrow} />
-        <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span>
-      </div>
-      <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(34px,5vw,48px)] leading-[1.05] font-normal outline-none">
-        {interpolate(t.doneHeading, { name })}
-      </h2>
       <p className="m-0 text-[15px] text-ink-600">{t.doneNote}</p>
       {map && <RouteMap map={map} copy={t} />}
       <div>
-        <button type="button" onClick={onAgain} className="h-[52px] cursor-pointer rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800">
-          {t.doneHeading ? null : null}
+        <button type="button" onClick={onAgain} className="inline-flex h-11 cursor-pointer items-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800">
           {t.doneAgain}
         </button>
       </div>

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FLEET, normalizeVehicleKey, type FleetVehicle } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { dayKind, formatCents, hourlyRate } from "@/lib/pricing/rates";
 import { VehicleDetails, type FleetDictionary } from "./booking/vehicle-details";
 
 /** The words the carousel needs: the chat's own, and the booking form's for the car step (the section hands them over). */
@@ -18,6 +19,8 @@ export type CarsCopy = {
   noPreference: string;
   /** "Up to {seats}" */
   seatsUpTo: string;
+  /** "{price} / hour" for the pick-up day. Omitted when the day is not known yet. */
+  rate?: string;
   /** "Photos and details of the {car}" */
   details: string;
   close: string;
@@ -34,7 +37,7 @@ const Chevron = ({ direction }: { direction: "left" | "right" }) => (
  * each car its seats, a button to choose it and one for its photos and answers (the dialog the booking flow uses). The last
  * slide is "no preference". Choosing is the visitor's own act; the chat turns it into their message and into the booking draft.
  */
-export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale }: {
+export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale, at }: {
   /** The cars on offer (the server leaves out the ones the team has switched off) */
   keys: string[];
   /** The car chosen so far: a fleet key, or "advise" for no preference */
@@ -43,6 +46,8 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale 
   copy: CarsCopy;
   fleetDict: FleetDictionary;
   locale: Locale;
+  /** Pick-up, Dutch wall clock, so each car can show that day's hourly rate */
+  at?: string;
 }) {
   const cars = keys.map((k) => FLEET.find((f) => f.key === normalizeVehicleKey(k))).filter((v): v is FleetVehicle => Boolean(v));
   const slides = cars.length + 1;
@@ -70,6 +75,12 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale 
   };
 
   const arrow = "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full border border-ink-600 bg-ink-850 text-ink-200 transition-colors hover:border-ink-400 hover:text-white disabled:cursor-default disabled:opacity-30";
+  const day = at ? dayKind(at) : null;
+  const rateText = (key: string) => {
+    if (!day || !copy.rate) return null;
+    const rate = hourlyRate(key, "public", day);
+    return rate === null ? null : interpolate(copy.rate, { price: formatCents(rate, locale) });
+  };
 
   return (
     <section aria-roledescription="carousel" aria-label={copy.label} className="mt-3 w-full min-w-0">
@@ -87,6 +98,7 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale 
         {cars.map((car, i) => {
           const isChosen = selected === car.key;
           const seats = car.specs?.passengers ?? null;
+          const rate = rateText(car.key);
           return (
             <li
               key={car.key}
@@ -115,6 +127,7 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale 
                   <span className="text-[14px] font-semibold text-white">{car.name}</span>
                   {seats !== null && <span className="text-[12px] whitespace-nowrap text-ink-400">{interpolate(copy.seatsUpTo, { seats })}</span>}
                 </div>
+                {rate && <span className="text-[13px] font-medium text-white tabular-nums">{rate}</span>}
                 <button
                   type="button"
                   aria-pressed={isChosen}

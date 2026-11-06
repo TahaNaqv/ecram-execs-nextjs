@@ -1,4 +1,5 @@
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
+import { CHOCOLATE_OPTIONS, EXTRA_KEYS, MAX_PER_EXTRA } from "@/lib/pricing/extras";
 import { PLACE_KINDS } from "@/lib/places/types";
 import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
@@ -51,6 +52,24 @@ export const BOOKING_TOOL = {
       passengerName: text("Name of the person travelling, only when the visitor books for someone else"),
       passengerPhone: text("Mobile number of the person travelling, only when the visitor books for someone else"),
       notes: text("A note for the chauffeur, for example a child seat or bulky luggage"),
+      extras: {
+        type: ["array", "null"],
+        description:
+          "Add-ons waiting in the car. Send the whole list each time; it replaces the previous one. " +
+          "An empty list means the visitor wants none. null clears the answer so it can be asked again. " +
+          `Each item is one catalogue add-on, at most ${MAX_PER_EXTRA} of it. ` +
+          'chocolates needs option "classic" or "dairy_free".',
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["key", "count"],
+          properties: {
+            key: { type: "string", enum: [...EXTRA_KEYS] },
+            count: { type: "integer", minimum: 1, maximum: MAX_PER_EXTRA },
+            option: { type: "string", enum: [...CHOCOLATE_OPTIONS], description: 'For chocolates only: "classic" or "dairy_free"' },
+          },
+        },
+      },
     },
   },
 } as const;

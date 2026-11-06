@@ -2,6 +2,7 @@ export const instant = false;
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { formatPickup } from "@/lib/admin/format";
+import { bookingTotalEuros } from "@/lib/pricing/rates";
 import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -70,7 +71,7 @@ export default async function CorporatePartnerProfilePage({
       ]
         .filter((part) => part != null)
         .join(" · "),
-      amount: Number(b.quotedAmount ?? 0),
+      amount: Number(bookingTotalEuros(b) ?? 0),
       status: b.status,
     })),
     initialNotes: [],

@@ -1,6 +1,8 @@
 import "server-only";
 import { and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { cache } from "react";
+import { bookingEuros } from "@/lib/admin/queries";
+import { bookingTotalEuros } from "@/lib/pricing/rates";
 import { requireAdmin } from "@/lib/auth/session";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { db, schema } from "@/lib/db";
@@ -95,9 +97,9 @@ export const getFinancialSummary = cache(async (): Promise<FinancialSummary> => 
   await requireAdmin();
   const [row] = await db
     .select({
-      r9: sql<number>`coalesce(sum(${q.quotedAmount}) filter (where ${q.service}::text in ('point_to_point','airport')), 0)`,
-      r21: sql<number>`coalesce(sum(${q.quotedAmount}) filter (where ${q.service}::text in ('hourly','bespoke')), 0)`,
-      r0: sql<number>`coalesce(sum(${q.quotedAmount}) filter (where ${q.service}::text = 'international'), 0)`,
+      r9: sql<number>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} in ('confirmed', 'completed') and ${q.pickupAt} is not null and date_trunc('month', ${q.pickupAt}) = date_trunc('month', (now() at time zone 'Europe/Amsterdam')) and ${q.service}::text <> 'bespoke'), 2), 0)`,
+      r21: sql<number>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} in ('confirmed', 'completed') and ${q.pickupAt} is not null and date_trunc('month', ${q.pickupAt}) = date_trunc('month', (now() at time zone 'Europe/Amsterdam')) and ${q.service}::text = 'bespoke'), 2), 0)`,
+      r0: sql<number>`0`,
       confirmed: sql<number>`count(*) filter (where ${q.status} = 'confirmed')`.mapWith(Number),
       completed: sql<number>`count(*) filter (where ${q.status} = 'completed')`.mapWith(Number),
     })
@@ -291,6 +293,10 @@ export type CorporatePartnerRow = {
 
 const OPEN_BOOKING = ["new", "contacted", "quoted", "confirmed"];
 
+function bookingEurosOf(row: { quotedAmount: string | null; priceEstimate?: { total?: unknown } | null }): number {
+  return Number(bookingTotalEuros(row) ?? 0);
+}
+
 function asBookingSummary(row: {
   id: string;
   reference: string;
@@ -299,6 +305,7 @@ function asBookingSummary(row: {
   destination: string | null;
   pickupAt: string | null;
   quotedAmount: string | null;
+  priceEstimate?: { total?: unknown } | null;
   passengerName: string | null;
   name: string;
 }): PartnerBookingSummary {
@@ -309,7 +316,7 @@ function asBookingSummary(row: {
     collection: row.collection,
     destination: row.destination,
     pickupAt: row.pickupAt,
-    amount: Number(row.quotedAmount ?? 0),
+    amount: bookingEurosOf(row),
     passengerName: row.passengerName || row.name,
   };
 }
@@ -328,6 +335,7 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
       contactId: q.corporateContactId,
       reference: q.reference,
       amount: q.quotedAmount,
+      priceEstimate: q.priceEstimate,
       status: q.status,
       phone: q.phone,
       vehicle: q.vehicle,
@@ -343,7 +351,10 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
 
   return contacts.map((contact) => {
     const contactQuotes = quotes.filter((quote) => quote.contactId === contact.id);
-    const totalSpend = contactQuotes.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+    const totalSpend = contactQuotes.reduce(
+      (sum, item) => sum + (item.status === "cancelled" ? 0 : bookingEurosOf({ quotedAmount: item.amount, priceEstimate: item.priceEstimate })),
+      0,
+    );
     const activeBookings = contactQuotes.filter((item) => OPEN_BOOKING.includes(item.status)).length;
     const latestPhone = contactQuotes.find((item) => Boolean(item.phone))?.phone ?? "—";
     const preferredKey = contactQuotes.find((item) => Boolean(item.vehicle))?.vehicle;
@@ -360,6 +371,7 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
           destination: item.destination,
           pickupAt: item.pickupAt,
           quotedAmount: item.amount,
+          priceEstimate: item.priceEstimate,
           passengerName: item.passengerName,
           name: item.name,
         }),
@@ -402,7 +414,7 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
   if (!contact) return null;
 
   const bookings = await db.select().from(q).where(eq(q.corporateContactId, id)).orderBy(desc(q.createdAt));
-  const totalSpend = bookings.reduce((sum, b) => sum + Number(b.quotedAmount ?? 0), 0);
+  const totalSpend = bookings.reduce((sum, b) => sum + (b.status === "cancelled" ? 0 : bookingEurosOf(b)), 0);
   const activeCount = bookings.filter((b) => OPEN_BOOKING.includes(b.status)).length;
   const completedCount = bookings.filter((b) => b.status === "completed").length;
 

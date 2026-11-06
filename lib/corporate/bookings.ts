@@ -68,10 +68,12 @@ async function owner() {
 const amsterdamNow = sql`(now() at time zone 'Europe/Amsterdam')`;
 
 /**
- * A partner sees bookings made in their account, introductions, bookings the team created for them, and public
- * bookings the team has attached. A guest booking that only shares the email address stays out.
+ * A booking belongs to this signed-in partner only when it was tied to the account at the time it was made
+ * (the portal, the company introduction, or a booking the team entered for them), or when the team later
+ * attached it. A public guest booking is not included because its email matches, even if a contact id was
+ * written onto it afterwards.
  */
-function visibleTo(contactId: string) {
+export function partnerOwns(contactId: string): SQL {
   return and(
     eq(q.corporateContactId, contactId),
     or(
@@ -83,7 +85,7 @@ function visibleTo(contactId: string) {
           and ${schema.requestEvents.params}->>'by' = 'team'
       )`,
     ),
-  );
+  )!;
 }
 
 const tabFilter: Record<PortalTab, SQL> = {
@@ -103,13 +105,13 @@ export async function bookingTabCounts() {
       cancelled: sql<number>`count(*) filter (where ${tabFilter.cancelled})`.mapWith(Number),
     })
     .from(q)
-    .where(visibleTo(contact.id));
+    .where(partnerOwns(contact.id));
   return row as Record<PortalTab, number>;
 }
 
 export async function listBookings(tab: PortalTab, page: number) {
   const contact = await owner();
-  const where = and(visibleTo(contact.id), tabFilter[tab]);
+  const where = and(partnerOwns(contact.id), tabFilter[tab]);
   // Open work is ordered by when the trip is (undated bespoke programmes last); the past by when it was asked for
   const order = tab === "open" ? [sql`${q.pickupAt} asc nulls last`, desc(q.createdAt)] : [desc(q.createdAt)];
   const [rows, [counted]] = await Promise.all([
@@ -131,7 +133,7 @@ export async function getBooking(reference: string) {
   const [row] = await db
     .select(bookingColumns)
     .from(q)
-    .where(and(eq(q.reference, reference), visibleTo(contact.id)))
+    .where(and(eq(q.reference, reference), partnerOwns(contact.id)))
     .limit(1);
   return row ?? null;
 }
@@ -184,7 +186,7 @@ export const hasIntroduction = cache(async () => {
 /** The phone number on their latest booking, split into calling code and number, to prefill the next one. */
 export async function latestPhone() {
   const contact = await owner();
-  const [row] = await db.select({ phone: q.phone }).from(q).where(visibleTo(contact.id)).orderBy(desc(q.createdAt)).limit(1);
+  const [row] = await db.select({ phone: q.phone }).from(q).where(partnerOwns(contact.id)).orderBy(desc(q.createdAt)).limit(1);
   const match = row?.phone.match(/^\+(\d{1,4}) (.+)$/);
   return match ? { country: match[1], number: match[2] } : null;
 }

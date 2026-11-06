@@ -235,7 +235,8 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
         .where(eq(schema.corporateContacts.id, used.contactId))
         .returning(contactColumns);
 
-      // A guest booking on the public site stays unlinked. It appears in this account only after the team attaches it.
+      // Verifying the address does not look up or attach any booking. A guest request that used this
+      // email stays on its own until the team links it from the admin booking.
       return row;
     });
     if (!contact) return { status: "locked", message: c.codeExpired };

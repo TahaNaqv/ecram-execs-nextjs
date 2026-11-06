@@ -52,13 +52,16 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return { status: "success", reference: "EE-RECEIVED", name: values.name };
   }
 
+  const tripPurpose = String(formData.get("tripPurpose") ?? "");
   const parsed = quoteSchema(t).safeParse({
     ...values,
     passengers: values.passengers || undefined,
     vehicle: values.vehicle || undefined,
     notes: values.notes || undefined,
-    entity: values.entity || undefined,
-    entityKvk: values.entityKvk || undefined,
+    // A private occasion is not a company booking, even if a company name was left in the draft
+    entity: tripPurpose === "private" ? undefined : values.entity || undefined,
+    entityKvk: tripPurpose === "private" ? undefined : values.entityKvk || undefined,
+    service: tripPurpose === "private" && values.service === "business_travel" ? "private_occasion" : values.service,
   });
   if (!parsed.success) {
     const fieldErrors: Partial<Record<QuoteField, string>> = {};
@@ -89,6 +92,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     const stops = { destinations: destinations.length > 0 ? destinations : null, destinationWaits: destinations.length > 0 ? destinationWaits : null };
     // The website's rates: a corporate partner books (at the corporate rates) from the portal
     const priceEstimate = await priceForRequest({ ...parsed.data, ...stops }, "public");
+    if (priceEstimate) priceEstimate.purpose = tripPurpose === "private" ? "private" : "business";
     request = await createQuoteRequest({
       ...parsed.data,
       ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),

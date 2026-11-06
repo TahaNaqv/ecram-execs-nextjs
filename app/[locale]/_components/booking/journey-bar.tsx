@@ -590,13 +590,13 @@ export function JourneyBar({
         {errorLine}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {cancelHref ? (
-            <Link href={cancelHref} className="flex h-[52px] items-center rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 no-underline hover:border-ink-950">
+            <Link href={cancelHref} className="inline-flex h-11 items-center rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 no-underline hover:border-ink-950">
               {t.cancel}
             </Link>
           ) : (
             <span />
           )}
-          <button type="submit" className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 bg-ink-950 px-5 text-[14px] font-semibold text-white hover:bg-ink-800 sm:h-[52px] sm:w-auto sm:px-7">
+          <button type="submit" className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 sm:w-auto">
             {t.chooseCar}
             <ArrowIcon />
           </button>
@@ -613,9 +613,9 @@ export function JourneyBar({
   const continueButton = (
     <button
       type="submit"
-      className={`flex h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-xl border-0 px-7 text-[14px] font-semibold ${
-        buttonFitsInline ? "w-full" : "w-full sm:w-[360px] mx-auto"
-      } ${dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"}`}
+      className={`inline-flex max-w-[200px] cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-8 py-2.5 text-[13px] font-semibold tracking-wide ${
+        dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
+      }`}
     >
       {t.continue}
       <ArrowIcon />
@@ -646,7 +646,7 @@ export function JourneyBar({
           <div className={`mx-1.5 mt-1 grid min-w-0 grid-cols-1 gap-2 border-0 border-t border-solid pt-3 md:grid-cols-2 xl:grid-cols-3 ${divider}`}>
             {stopCells}
             {flightCell}
-            {buttonFitsInline && <div className="col-span-1 flex items-center">{continueButton}</div>}
+            {buttonFitsInline && <div className="col-span-1 flex items-center justify-center">{continueButton}</div>}
           </div>
         )}
 

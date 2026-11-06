@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getCorporateContact } from "@/lib/corporate/access";
+import { partnerOwns } from "@/lib/corporate/bookings";
 import { db, schema } from "@/lib/db";
 import { readStoredFile } from "@/lib/storage";
 
@@ -22,7 +23,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/portal/invo
     .select({ path: schema.bookingInvoices.path, fileName: schema.bookingInvoices.fileName })
     .from(schema.bookingInvoices)
     .innerJoin(schema.quoteRequests, eq(schema.quoteRequests.id, schema.bookingInvoices.requestId))
-    .where(and(eq(schema.bookingInvoices.id, id), eq(schema.quoteRequests.corporateContactId, contact.id)))
+    .where(and(eq(schema.bookingInvoices.id, id), partnerOwns(contact.id)))
     .limit(1);
   if (!invoice) return new Response("Not found", { status: 404, headers: NO_STORE });
 

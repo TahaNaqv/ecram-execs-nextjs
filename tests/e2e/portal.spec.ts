@@ -115,6 +115,27 @@ test("a partner sees only their own bookings", async ({ page, context, browser }
   await ownerContext.close();
 });
 
+test("a guest booking that shares the account email never appears, even if a contact id was written onto it", async ({ page, context }) => {
+  const { email, contactId } = await signedInPartner(page, context, "guest-history");
+  const guest = await seedBooking({ contactId: null, email: email.toUpperCase(), status: "confirmed", source: "website", destination: "Guest Only Lane" });
+  const claimed = await seedBooking({ contactId, email, status: "completed", source: "website", destination: "Claimed By Email Lane" });
+
+  await page.goto("/en/corporate-partner/account?tab=open");
+  await expect(page.getByText(p.emptyOpen)).toBeVisible();
+  await expect(page.getByText(guest.reference)).toHaveCount(0);
+  await expect(page.getByText("Guest Only Lane")).toHaveCount(0);
+
+  await page.goto("/en/corporate-partner/account?tab=past");
+  await expect(page.getByText(claimed.reference)).toHaveCount(0);
+  await expect(page.getByText("Claimed By Email Lane")).toHaveCount(0);
+
+  await page.goto(detail(guest.reference));
+  await expect(page.getByText(p.bookingNotFound)).toBeVisible();
+  await page.goto(detail(claimed.reference));
+  await expect(page.getByText(p.bookingNotFound)).toBeVisible();
+  await expect(page.getByText("Claimed By Email Lane")).toHaveCount(0);
+});
+
 test("a booking page asks for sign-in and brings the partner straight back to it", async ({ page, context }) => {
   await ownAddress(context);
   const email = newEmail("deeplink");

@@ -6,6 +6,8 @@ import { forgetRecentRequests } from "./booking-helpers";
 import { newEmail, sql } from "./corporate-helpers";
 import { CONSENTED_STATE } from "./helpers";
 import { FLEET } from "../../lib/fleet/vehicles";
+import { EXTRAS, extraName, type ExtraPick } from "../../lib/pricing/extras";
+import { formatCents } from "../../lib/pricing/rates";
 import { fakeAnthropic } from "./fake-anthropic";
 
 /**
@@ -68,7 +70,7 @@ test("the model changes the draft step by step; the server says what is missing,
   // The visitor's browser sends the draft back with the next message; the model sees it as data in the visitor's turn
   model.reset();
   model.script.push(
-    { content: [model.toolUse({ name: "Jan de Vries", email: "Jan@Example.com", phone: "06 1234 5678" })] },
+    { content: [model.toolUse({ name: "Jan de Vries", email: "Jan@Example.com", phone: "06 1234 5678", extras: [] })] },
     { content: [model.say("Please check the card below.")] },
   );
   const second = await ask(playwright, baseURL, { message: "Jan de Vries, jan@example.com, 06 1234 5678", locale: "en", draft: first.draft });
@@ -124,7 +126,7 @@ test("a draft from the browser is cleaned: only known fields that fit are kept, 
 
 test("an hourly booking needs hours, not a destination; phone numbers are split by their country code", async ({ playwright, baseURL }) => {
   const at = tomorrow();
-  const complete = { mode: "hourly", from: "Hotel Okura, Amsterdam", hours: 4, at, passengers: 3, bags: 1, name: "Sam Carter", email: "sam@example.com", vehicle: "audi" };
+  const complete = { mode: "hourly", from: "Hotel Okura, Amsterdam", hours: 4, at, passengers: 3, bags: 1, name: "Sam Carter", email: "sam@example.com", vehicle: "audi", extras: [] as [] };
   for (const [typed, country, digits] of [
     ["+44 7911 123456", "44", "7911123456"],
     ["0031 6 1234 5678", "31", "612345678"],
@@ -160,7 +162,7 @@ test("stops, a flight, someone else travelling and a note all reach the form's f
         model.toolUse({
           from: "Schiphol Airport", to: "Kasteel de Haar, Haarzuilens", stops: [{ place: "Utrecht Centraal", wait: 30 }, { place: "Hotel Des Indes, The Hague", wait: 15 }],
           at, ret, passengers: 4, bags: 6, flight: "kl 1002", name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678",
-          passengerName: "Mr Okafor", passengerPhone: "+44 7911 123456", notes: "Child seat please", purpose: "private",
+          passengerName: "Mr Okafor", passengerPhone: "+44 7911 123456", notes: "Child seat please", purpose: "private", extras: [],
         }),
       ],
     },
@@ -183,7 +185,7 @@ test("stops, a flight, someone else travelling and a note all reach the form's f
 });
 
 test("what a place is decides the kind of trip and the flight field; a place the model does not call an airport is not one", async ({ playwright, baseURL }) => {
-  const base = { to: "Hotel Des Indes, The Hague", at: tomorrow(), passengers: 2, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678", flight: "KL 1234" };
+  const base = { to: "Hotel Des Indes, The Hague", at: tomorrow(), passengers: 2, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678", flight: "KL 1234", extras: [] as [] };
   // "AMS" is not a name the site knows, so the model says what it is
   model.script.push({ content: [model.toolUse({ ...base, from: "AMS", fromKind: "airport" })] }, { content: [model.say("Noted.")] });
   const airport = await ask(playwright, baseURL, { message: "from AMS", locale: "en" });
@@ -205,7 +207,7 @@ test("what a place is decides the kind of trip and the flight field; a place the
 });
 
 test("a number for the person travelling needs their name; a car the team has switched off is not accepted", async ({ playwright, baseURL }) => {
-  const complete = { from: "Hotel Okura, Amsterdam", to: "Schiphol Airport", at: tomorrow(), passengers: 1, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678" };
+  const complete = { from: "Hotel Okura, Amsterdam", to: "Schiphol Airport", at: tomorrow(), passengers: 1, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678", extras: [] as [] };
   model.script.push({ content: [model.toolUse({ ...complete, passengerPhone: "+44 7911 123456" })] }, { content: [model.say("Who is travelling?")] });
   const noName = await ask(playwright, baseURL, { message: "book for my boss", locale: "en" });
   expect(noName.ready).toBe(false);
@@ -263,7 +265,7 @@ test("luggage is asked, not assumed; the model is told which language to answer 
   expect(toolResult(model.calls[1])).toMatchObject({ missing: ["bags"], ready: false, reply_in: "English" });
   // "None" is an answer
   model.reset();
-  model.script.push({ content: [model.toolUse({ bags: 0 })] }, { content: [model.say("Perfect.")] });
+  model.script.push({ content: [model.toolUse({ bags: 0, extras: [] })] }, { content: [model.say("Perfect.")] });
   const none = await ask(playwright, baseURL, { message: "no luggage", locale: "en", draft: unasked.draft });
   expect(none.ready).toBe(true);
   expect(none.summary).toMatchObject({ bags: 0 });
@@ -274,6 +276,56 @@ test("luggage is asked, not assumed; the model is told which language to answer 
   expect(toolResult(model.calls[1]).reply_in).toBe("Dutch");
   expect(model.calls[0].body.system).toContain("reading the Dutch version of the website: answer in Dutch");
   expect(model.calls[0].body.system).toContain("including right after you have recorded details with the tool");
+});
+
+test("add-ons are asked once the ride and contact details are in, then itemised on the card and the form", async ({ playwright, baseURL }) => {
+  const at = tomorrow();
+  const ride = { from: "Schiphol Airport", fromKind: "airport" as const, to: "Hotel Des Indes, The Hague", at, passengers: 2, bags: 1, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678" };
+  model.script.push({ content: [model.toolUse(ride)] }, { content: [model.say("Would you like champagne, chocolates, flowers or newspapers?")] });
+  const asked = await ask(playwright, baseURL, { message: "Sam Carter, sam@example.com, +31 6 1234 5678", locale: "en" });
+  expect(asked.ready).toBe(false);
+  expect(toolResult(model.calls[1]).missing).toEqual(["extras"]);
+  expect(model.calls[0].body.system).toContain(en.addOns.champagne);
+  expect(model.calls[0].body.system).toContain(en.addOns.chocolates);
+  expect(model.calls[0].body.system).toContain(en.addOns.flowers);
+  expect(model.calls[0].body.system).toContain(en.addOns.newspapers);
+  expect(asked.form).toBeUndefined();
+
+  const picks = [
+    { key: "chocolates" as const, option: "dairy_free" as const, count: 2 },
+    { key: "champagne" as const, count: 1 },
+    { key: "flowers" as const, count: 1 },
+    { key: "newspapers" as const, count: 1 },
+  ];
+  model.reset();
+  model.script.push({ content: [model.toolUse({ extras: picks })] }, { content: [model.say("Please check the card below.")] });
+  const booked = (await ask(playwright, baseURL, { message: "One champagne, two dairy-free chocolate boxes, flowers and the newspapers", locale: "en", draft: asked.draft })) as Reply & {
+    quote?: { lines: { label: string; amount: string }[]; totalLabel: string; total: string };
+  };
+  expect(booked.ready).toBe(true);
+  const stored: ExtraPick[] = [
+    { key: "champagne", count: 1 },
+    { key: "chocolates", count: 2, option: "dairy_free" },
+    { key: "flowers", count: 1 },
+    { key: "newspapers", count: 1 },
+  ];
+  expect(field(booked.form, "extras")).toEqual([JSON.stringify(stored)]);
+  expect(booked.summary?.extras).toBe(stored.map((pick) => `${pick.count} × ${extraName(en.addOns, pick)}`).join(", "));
+  const euro = (cents: number) => formatCents(cents, "en");
+  const quote = booked.quote;
+  expect(quote?.totalLabel).toBe(en.booking.priceTotal);
+  expect(quote?.lines.map((line) => line.label)).toEqual([
+    en.booking.receiptRides,
+    `1 × ${extraName(en.addOns, { key: "champagne" })} (${euro(EXTRAS.champagne.unit)})`,
+    `2 × ${extraName(en.addOns, { key: "chocolates", option: "dairy_free" })} (${euro(EXTRAS.chocolates.unit)})`,
+    `1 × ${extraName(en.addOns, { key: "flowers" })} (${euro(EXTRAS.flowers.unit)})`,
+    `1 × ${extraName(en.addOns, { key: "newspapers" })} (${euro(EXTRAS.newspapers.unit)})`,
+    en.booking.priceVat,
+    en.booking.priceServiceFee,
+    en.booking.priceVatHigh,
+  ]);
+  expect(quote?.lines.find((line) => line.label === en.booking.priceServiceFee)?.amount).toBe(euro(1250));
+  expect(quote?.lines.find((line) => line.label.startsWith("2 ×"))?.amount).toBe(euro(EXTRAS.chocolates.unit * 2));
 });
 
 test("the model can have the cars shown; the server offers only the cars the team has not switched off", async ({ playwright, baseURL }) => {
@@ -321,7 +373,7 @@ test("the chat takes a booking from start to finish: the card shows it, Send mak
   const email = newEmail("chat-booking");
   const at = tomorrow();
   model.script.push(
-    { content: [model.toolUse({ from: "Rotterdam The Hague Airport", to: "Amstel Hotel, Amsterdam", at, passengers: 2, bags: 1, name: "Jan de Vries", email, phone: "+31 6 1234 5678", notes: "Meet at arrivals" })] },
+    { content: [model.toolUse({ from: "Rotterdam The Hague Airport", to: "Amstel Hotel, Amsterdam", at, passengers: 2, bags: 1, name: "Jan de Vries", email, phone: "+31 6 1234 5678", notes: "Meet at arrivals", extras: [{ key: "champagne", count: 1 }] })] },
     { content: [model.say("I have noted your ride. Please check the card below and press Send my request.")] },
   );
   await page.goto("/en");
@@ -340,6 +392,14 @@ test("the chat takes a booking from start to finish: the card shows it, Send mak
   await expect(card).toContainText(email);
   await expect(card).toContainText("+31 0612345678".replace("0612", "612").replace("+31 ", "+31 ")); // the number as the form stores it
   await expect(card).toContainText(en.booking.privacyNote);
+  await expect(card).toContainText(en.booking.receiptRides);
+  await expect(card).toContainText(`1 × ${en.addOns.champagne}`);
+  await expect(card).toContainText(en.booking.priceVat);
+  await expect(card).toContainText(en.booking.priceServiceFee);
+  await expect(card).toContainText(formatCents(1250, "en"));
+  await expect(card).toContainText(en.booking.priceVatHigh);
+  await expect(card).toContainText(en.booking.priceTotal);
+  await expect(card.getByRole("button", { name: en.conciergeSection.bookSend })).toBeVisible();
   // Nothing exists yet: the model cannot send it
   const db = sql();
   expect(await db`select 1 from quote_requests where email = ${email}`).toHaveLength(0);
@@ -352,9 +412,9 @@ test("the chat takes a booking from start to finish: the card shows it, Send mak
   await card.getByRole("button", { name: en.conciergeSection.bookSend }).click();
   await expect(log).toContainText("has been received", { timeout: 20_000 });
   await expect(card).toHaveCount(0);
-  const [row] = await db`select id, reference, status, service, collection, destination, passengers, luggage, phone, notes, source, locale, name from quote_requests where email = ${email}`;
+  const [row] = await db`select id, reference, status, service, collection, destination, passengers, luggage, phone, notes, source, locale, name, extras from quote_requests where email = ${email}`;
   await db.end();
-  expect(row).toMatchObject({ status: "new", service: "airport_transfer", collection: "Rotterdam The Hague Airport", destination: "Amstel Hotel, Amsterdam", passengers: 2, luggage: 1, phone: "+31 612345678", notes: "Meet at arrivals", source: "website", locale: "en", name: "Jan de Vries" });
+  expect(row).toMatchObject({ status: "new", service: "airport_transfer", collection: "Rotterdam The Hague Airport", destination: "Amstel Hotel, Amsterdam", passengers: 2, luggage: 1, phone: "+31 612345678", notes: "Meet at arrivals", source: "website", locale: "en", name: "Jan de Vries", extras: [{ key: "champagne", count: 1 }] });
   await expect(log).toContainText(row.reference);
   // The model was called once for the booking, and not again to be told it was sent
   expect(model.calls).toHaveLength(2);
@@ -377,7 +437,7 @@ test("the chat takes a booking from start to finish: the card shows it, Send mak
 
 test("a Dutch visitor gets the card in Dutch", async ({ page }) => {
   model.script.push(
-    { content: [model.toolUse({ mode: "hourly", from: "Hotel Okura, Amsterdam", hours: 3, at: tomorrow(), passengers: 1, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678" })] },
+    { content: [model.toolUse({ mode: "hourly", from: "Hotel Okura, Amsterdam", hours: 3, at: tomorrow(), passengers: 1, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678", extras: [] })] },
     { content: [model.say("Controleer de kaart hieronder.")] },
   );
   await page.goto("/nl");

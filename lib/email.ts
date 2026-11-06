@@ -29,7 +29,7 @@ export async function notifyNewQuote(q: QuoteRequest) {
     ["Pick-up within 24 hours", urgent ? "Yes — please act today" : null],
     ["Service", serviceLabel(q.service, services)],
     ["Collection", q.collection],
-    ["Additional stops", stopSummary(q, "waits")],
+    ...teamStopRows(q),
     ["Destination", q.destination],
     ["Duration", q.durationHours && `${q.durationHours} hours, as directed`],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
@@ -467,19 +467,27 @@ function summaryRows(
   ];
 }
 
-/** Intermediate stops, in travelling order, for the line between collection and destination. */
-function stopSummary(q: QuoteRequest, waitWord: "waits" | "min") {
-  if (!q.destinations?.length) return null;
-  const text = stopsWithWaits(q.destinations, q.destinationWaits)
-    .map((s) => (s.wait > 0 ? `${s.place} (${waitWord === "waits" ? `waits ${s.wait} min` : `${s.wait} min`})` : s.place))
-    .join(" → ");
-  return text || null;
+/** Intermediate stops in travelling order, each with the minutes the chauffeur waits there. */
+function listedStops(q: QuoteRequest) {
+  return stopsWithWaits(q.destinations, q.destinationWaits).filter((stop) => stop.place.trim());
 }
 
-/** One row per booking email, placed between Collection and Destination. */
+/** One English row per stop for the team alert, between Collection and Destination. */
+function teamStopRows(q: QuoteRequest): [string, string][] {
+  return listedStops(q).map((stop, index) => [
+    `Stop ${index + 1}`,
+    stop.wait > 0 ? `${stop.place} (${stop.wait} min)` : stop.place,
+  ]);
+}
+
+/** One row per stop, labelled Stop 1, Stop 2, …, between Collection and Destination. A wait sits beside that stop's address. */
 function stopRows(q: QuoteRequest, t: EmailCopy, row: Row) {
-  const stops = stopSummary(q, "min");
-  return stops ? [row(t.fieldStops, stops)] : [];
+  return listedStops(q).map((stop, index) =>
+    row(
+      interpolate(t.stopLabel, { number: index + 1 }),
+      stop.wait > 0 ? `${stop.place} (${interpolate(t.stopWait, { minutes: stop.wait })})` : stop.place,
+    ),
+  );
 }
 
 /** Where the journey ends: the destination, or for an hourly booking without one, how long the chauffeur is booked. */

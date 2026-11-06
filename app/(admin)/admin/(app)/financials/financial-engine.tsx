@@ -24,17 +24,17 @@ export function FinancialAutomationEngine({ summary, copy }: FinancialAutomation
   const [syncing, setSyncing] = useState(false);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
-  const rev9 = summary?.totalRevenue9pct ?? 45780.0;
-  const rev21 = summary?.totalRevenue21pct ?? 135476.0;
-  const rev0 = summary?.totalRevenue0pct ?? 14200.0;
+  const rev9 = summary?.totalRevenue9pct ?? 0;
+  const rev21 = summary?.totalRevenue21pct ?? 0;
+  const rev0 = summary?.totalRevenue0pct ?? 0;
 
   const totalRevenue = rev9 + rev21 + rev0;
   const btw21Amount = -(rev21 * 0.21);
   const btw9Amount = -(rev9 * 0.09);
   const netBtwPayable = Math.abs(btw21Amount + btw9Amount);
 
-  const totalAgencyPayout = 75800.00;
-  const totalZzpPayout = 6850.00;
+  const totalAgencyPayout = 0;
+  const totalZzpPayout = 0;
   const totalCombinedPayout = totalAgencyPayout + totalZzpPayout;
 
   const handleSyncNow = () => {
@@ -51,7 +51,7 @@ export function FinancialAutomationEngine({ summary, copy }: FinancialAutomation
     <GrpHdr>
       <MsgId>ECRAM-SEPA-${Date.now()}</MsgId>
       <CreDtTm>${new Date().toISOString()}</CreDtTm>
-      <NbOfTxs>38</NbOfTxs>
+      <NbOfTxs>0</NbOfTxs>
       <CtrlSum>${totalCombinedPayout.toFixed(2)}</CtrlSum>
       <InitgPty><Nm>ECRAM EXECS B.V.</Nm></InitgPty>
     </GrpHdr>

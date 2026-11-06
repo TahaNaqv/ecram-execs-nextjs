@@ -65,13 +65,13 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
           <img src={spec.image} alt="" className="aspect-[4/3] w-full rounded-[11px] bg-[#ffffff] object-contain" />
           <div className="flex flex-1 flex-col gap-1.5 px-1.5 pt-3 pb-1.5">
             <h3 className="m-0 text-[15px] leading-snug font-semibold">{name}</h3>
-            <p className="m-0 text-[13px] leading-snug text-ink-600">{names[NOTES[key]]}</p>
-            <p className="m-0 mt-auto pt-1 text-[14px] font-medium text-ink-700 tabular-nums">
+            <p className="m-0 flex-1 text-[13px] leading-snug text-ink-600">{names[NOTES[key]]}</p>
+            <p className="m-0 pt-1 text-[14px] font-medium text-ink-700 tabular-nums">
               {interpolate(t.extrasPrice, { price: euro(spec.unit), rate: Math.round(spec.vatRate * 100) })}
             </p>
           </div>
-          {spec.options && (
-            <fieldset className="m-0 mx-1.5 mt-1 grid min-w-0 grid-cols-2 gap-1.5 border-0 p-0">
+          {spec.options ? (
+            <fieldset className="m-0 mx-1.5 mt-1 grid min-h-10 min-w-0 grid-cols-2 gap-1.5 border-0 p-0">
               <legend className="sr-only">{t.extrasSelection}</legend>
               {spec.options.map((o) => (
                 <label
@@ -95,6 +95,8 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
                 </label>
               ))}
             </fieldset>
+          ) : (
+            <div className="mx-1.5 mt-1 min-h-10" aria-hidden="true" />
           )}
           {count === 0 ? (
             <button
@@ -158,11 +160,11 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
             {subtotal > 0 ? interpolate(t.extrasSubtotal, { price: euro(subtotal) }) : ""}
           </p>
           <div className="ml-auto flex w-full gap-2.5 md:w-auto">
-            <button type="button" onClick={onBack} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
+            <button type="button" onClick={onBack} className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950">
               <ArrowLeft />
               {t.back}
             </button>
-            <button type="button" onClick={onNext} className="h-[52px] flex-1 cursor-pointer rounded-xl border-0 bg-ink-950 px-6 text-[14px] font-semibold text-white hover:bg-ink-800 md:flex-none">
+            <button type="button" onClick={onNext} className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 md:flex-none">
               {extras.length > 0 ? t.extrasContinue : t.extrasSkip}
             </button>
           </div>

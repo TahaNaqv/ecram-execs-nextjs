@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { dashboardFigures, fleetStatus, recentRequests, upcomingPickups } from "@/lib/admin/dashboard";
-import { formatEuroCompact, formatRelative, pickupParts } from "@/lib/admin/format";
+import { formatEuro, formatRelative, pickupParts } from "@/lib/admin/format";
 import { systemHealth, type HealthKey, type HealthState } from "@/lib/admin/health";
 import { requireAdmin } from "@/lib/auth/session";
 import { normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
@@ -125,7 +125,7 @@ async function Figures() {
       <StatCard label={d.partnersLabel} value={partners.total} hint={d.partnersHint} icon={<BriefcaseIcon />} />
       <StatCard
         label={d.revenueLabel}
-        value={formatEuroCompact(revenue.amount)}
+        value={formatEuro(revenue.amount)}
         hint={interpolate(d.revenueHint, { count: revenue.count })}
         icon={<EuroIcon />}
       />
@@ -160,61 +160,72 @@ async function ScheduleMap() {
   };
 
   return (
-    <Card>
-      <CardHeader
-        title={d.mapLiveTitle}
-        description={d.mapLiveDescription}
-        icon={<MapIcon size={16} />}
-        actions={
-          <Link href="/admin/requests/schedule" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
-            {d.dispatchGrid}
-          </Link>
-        }
-      />
-      <div className="p-5">
-        <div className="-mx-5 -mt-5 mb-5 overflow-hidden rounded-t-xl border-b border-zinc-100">
-          {today.trips.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-zinc-500">{d.mapEmpty}</p>
-          ) : (
-            <Suspense fallback={<Skeleton className="h-80 w-full" />}>
-              <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} />
-            </Suspense>
-          )}
+    <div className="flex min-w-0 flex-col gap-4">
+      <Card>
+        <CardHeader
+          title={d.mapLiveTitle}
+          description={d.mapLiveDescription}
+          icon={<MapIcon size={16} />}
+          actions={
+            <Link href="/admin/requests/schedule" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
+              {d.dispatchGrid}
+            </Link>
+          }
+        />
+        <div className="p-5">
+          <div className="-mx-5 -mt-5 overflow-hidden rounded-t-xl border-b border-zinc-100">
+            {today.trips.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-zinc-500">{d.mapEmpty}</p>
+            ) : (
+              <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+                <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} />
+              </Suspense>
+            )}
+          </div>
         </div>
+      </Card>
 
-        <h3 className="mt-6 text-[13px] font-semibold text-zinc-950">{d.nextTitle}</h3>
-        <p className="mt-0.5 text-xs text-zinc-500">{d.nextDescription}</p>
+      <section aria-labelledby="incoming-requests" className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <header className="flex items-start gap-3 border-b border-gray-100 px-5 py-4">
+          <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            {d.nextBadge}
+          </span>
+          <div className="min-w-0">
+            <h3 id="incoming-requests" className="text-sm font-semibold text-gray-900">{d.nextTitle}</h3>
+            <p className="mt-0.5 text-xs text-gray-500">{d.nextDescription}</p>
+          </div>
+        </header>
         {rows.length === 0 ? (
-          <p className="mt-4 text-sm text-zinc-500">{d.nextEmpty}</p>
+          <p className="px-5 py-6 text-sm text-gray-500">{d.nextEmpty}</p>
         ) : (
-          <ul className="m-0 mt-3 flex list-none flex-col divide-y divide-zinc-100 p-0 max-h-[280px] overflow-y-auto pr-1">
+          <ul className="m-0 flex list-none flex-col divide-y divide-gray-100 p-0 px-5 max-h-[280px] overflow-y-auto">
             {rows.map((r) => {
               const when = pickupParts(r.at, locale);
               const journey = r.to ? [r.from, r.to].filter(Boolean).join(" → ") : [r.from, r.durationHours ? interpolate(t.requestDetail.durationValue, { hours: r.durationHours }) : null].filter(Boolean).join(" · ");
               const car = carName(r.vehicle);
               return (
                 <li key={r.id}>
-                  <Link href={`/admin/requests/${r.id}`} className="flex items-center gap-4 py-3 no-underline hover:bg-zinc-50 sm:-mx-2 sm:px-2 sm:rounded-lg">
-                    <span className="w-24 shrink-0 text-xs text-zinc-500">
-                      <span className="block font-semibold tabular-nums text-zinc-950">{when.time}</span>
+                  <Link href={`/admin/requests/${r.id}`} className="flex items-center gap-4 py-3 no-underline hover:bg-gray-50 sm:-mx-2 sm:px-2 sm:rounded-lg">
+                    <span className="w-24 shrink-0 text-xs text-gray-500">
+                      <span className="block font-semibold tabular-nums text-gray-900">{when.time}</span>
                       {when.date}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-zinc-950">
-                        {r.isReturn && <span className="mr-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">{d.nextReturn}</span>}
+                      <span className="block truncate text-sm font-medium text-gray-900">
+                        {r.isReturn && <span className="mr-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">{d.nextReturn}</span>}
                         {journey}
                       </span>
-                      <span className="block truncate text-xs text-zinc-500">{[r.entity ?? r.name, car].filter(Boolean).join(" · ")}</span>
+                      <span className="block truncate text-xs text-gray-500">{[r.entity ?? r.name, car].filter(Boolean).join(" · ")}</span>
                     </span>
-                    <span className="hidden shrink-0 font-mono text-xs text-zinc-400 sm:block">{r.reference}</span>
+                    <span className="hidden shrink-0 font-mono text-xs text-gray-400 sm:block">{r.reference}</span>
                   </Link>
                 </li>
               );
             })}
           </ul>
         )}
-      </div>
-    </Card>
+      </section>
+    </div>
   );
 }
 

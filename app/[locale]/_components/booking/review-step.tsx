@@ -113,7 +113,7 @@ export function CarMixPreview({ cars, copy }: { cars: { key: string; name: strin
               {car.count} × {car.name}
             </span>
           </div>
-          <div className="relative aspect-video w-full overflow-hidden bg-[#081b62]">
+          <div className="relative aspect-video w-full overflow-hidden bg-ink-100">
             <VehicleGallery key={car.images.join("|")} name={car.name} images={car.images} alt={car.name} copy={copy} />
           </div>
         </li>
@@ -271,13 +271,13 @@ export function ReviewStep({
   const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null);
 
   const card = (title: string, children: ReactNode) => (
-    <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
-      <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
-      {children}
+    <section aria-label={title} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+      <h3 className="m-0 shrink-0 text-[16px] font-semibold">{title}</h3>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </section>
   );
   const rows = (items: [string, ReactNode][]) => (
-    <dl className="m-0 flex flex-col">
+    <dl className="m-0 flex h-full flex-1 flex-col justify-between">
       {items.map(([k, v], i) => (
         <div key={`${k}-${i}`} className="flex justify-between gap-4 border-0 border-b border-solid border-ink-150 py-2.5 text-[14px] last:border-b-0">
           <dt className="shrink-0 text-ink-500">{k}</dt>
@@ -292,22 +292,28 @@ export function ReviewStep({
       <h2 id="booking-review" ref={headingRef} tabIndex={-1} className="m-0 mb-6 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
         {t.reviewTitle}
       </h2>
-      <div className="flex min-w-0 flex-col gap-5">
-        <div className="grid items-stretch gap-5 md:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="grid items-stretch gap-4 md:grid-cols-2">
           {card(t.reviewContact, rows(contact))}
           {card(t.reviewRide, rows(ride))}
         </div>
-        <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
-          <section aria-label={t.reviewVehicle} className="box-border flex h-full w-full max-w-md min-w-0 flex-col gap-4 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950">
-            <h3 className="m-0 text-[16px] font-semibold">{t.reviewVehicle}</h3>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <section aria-label={t.reviewVehicle} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+            <h3 className="m-0 shrink-0 text-[16px] font-semibold">{t.reviewVehicle}</h3>
             {mix.length > 0 ? (
-              <CarMixPreview cars={mix} copy={gallery} />
-            ) : photos.length > 0 ? (
-              <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-[12px]">
-                <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} />
+              <div className="min-h-0 flex-1">
+                <CarMixPreview cars={mix} copy={gallery} />
               </div>
-            ) : null}
-            <div className="flex items-start justify-between gap-3">
+            ) : photos.length > 0 ? (
+              <div className="relative min-h-48 w-full flex-1 overflow-hidden rounded-[12px] bg-ink-100">
+                <div className="absolute inset-0">
+                  <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} />
+                </div>
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1" />
+            )}
+            <div className="flex shrink-0 items-start justify-between gap-3">
               {listed ? (
                 <span className="flex flex-col gap-1 font-serif text-[22px] leading-tight">
                   {picks.map((p) => (
@@ -326,12 +332,14 @@ export function ReviewStep({
                 </span>
               )}
             </div>
-            {convoy && <p className="m-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
+            {convoy && <p className="m-0 shrink-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
           </section>
-          <section aria-label={t.reviewPrice} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
-            <h3 className="m-0 text-[16px] font-semibold">{t.reviewPrice}</h3>
-            <PriceBreakdown price={price} names={addOns} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
-            <div className="mt-auto border-0 border-t border-solid border-ink-150 pt-3">
+          <section aria-label={t.reviewPrice} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+            <h3 className="m-0 shrink-0 text-[16px] font-semibold">{t.reviewPrice}</h3>
+            <div className="flex min-h-0 flex-1 flex-col justify-between">
+              <PriceBreakdown price={price} names={addOns} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
+            </div>
+            <div className="shrink-0 border-0 border-t border-solid border-ink-150 pt-3">
               <label htmlFor={`${uid}-agree`} className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug">
                 <input
                   id={`${uid}-agree`}
@@ -371,7 +379,7 @@ export function ReviewStep({
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-end gap-4">
           <div className="flex w-full gap-2.5 lg:w-auto">
-            <button type="button" onClick={() => onEdit("details")} className="flex h-[52px] cursor-pointer items-center gap-1.5 rounded-xl border border-solid border-ink-225 bg-white px-5 text-[14px] font-semibold text-ink-950 hover:border-ink-950">
+            <button type="button" onClick={() => onEdit("details")} className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950">
               <ArrowLeft />
               {t.back}
             </button>
@@ -387,7 +395,7 @@ export function ReviewStep({
                   }
                   onSend(price);
                 }}
-                className="flex h-[52px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink-950 px-7 text-[14px] font-semibold text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
+                className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
               >
                 {result.pending ? t.sending : t.submit}
                 {!result.pending && <ArrowRight />}

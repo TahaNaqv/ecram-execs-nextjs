@@ -65,7 +65,7 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
     // Before anything is written: contact rows can't be created without limit by repeating this form
     if (!isDev && (await ipLimited(ipHash))) return fail(c.rateLimited);
 
-    // A request is only a request. An existing contact is left exactly as it is — nobody can rewrite
+    // A request is only a request. It does not read or attach any existing booking. An existing contact is left exactly as it is — nobody can rewrite
     // someone else's details, or record consent on their behalf, by typing their address — and what was
     // typed waits on the challenge until the code is entered. An address that already has an account gets the same
     // code and the same screens: entering the code sets a new password for it, which only the address's owner can do.

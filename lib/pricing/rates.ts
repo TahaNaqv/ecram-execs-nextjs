@@ -94,6 +94,11 @@ export type Price = {
   /** What the booking costs: rides + their VAT + service fee + its VAT + add-ons + their VAT. Paid when booked (website) or invoiced (corporate partners). */
   total: number;
   /**
+   * What the visitor chose on the form: Business travel or a Private occasion.
+   * An airport trip and an hourly booking are still one of these two. Missing on prices stored before this was kept.
+   */
+  purpose?: "business" | "private";
+  /**
    * False when the price is a lower bound: the drive could not be timed (so only the minimum hours are counted), or the
    * team is choosing the car (so the car we would suggest is counted). The flow then says "from".
    */
@@ -199,18 +204,20 @@ export function storedQuoteEuros(price: { total?: unknown } | null | undefined):
 }
 
 /**
- * The one amount every confirmation shows. The stored rate-card total wins. The amount typed on the row is used only
- * when that snapshot was never stored, so a PDF, a WhatsApp message, an email and the audit cannot each pick a different figure.
+ * The one amount every confirmation, booking row and dashboard total uses.
+ * The amount stored on the booking wins: it is seeded from the rate-card total (rides, VAT, service fee and add-ons)
+ * and later holds a final the team has overridden. The snapshot total is used only when that amount was never stored,
+ * so a row, a PDF and a dashboard card cannot each pick a different figure, and nobody adds the rate-card lines up again.
  */
 export function bookingTotalEuros(request: {
   priceEstimate?: { total?: unknown } | null;
   quotedAmount?: string | number | null;
 }): string | null {
-  const snap = storedQuoteEuros(request.priceEstimate);
-  if (snap != null) return snap;
-  if (request.quotedAmount == null || request.quotedAmount === "") return null;
-  const amount = Number(request.quotedAmount);
-  return Number.isFinite(amount) ? amount.toFixed(2) : null;
+  if (request.quotedAmount != null && request.quotedAmount !== "") {
+    const amount = Number(request.quotedAmount);
+    if (Number.isFinite(amount)) return amount.toFixed(2);
+  }
+  return storedQuoteEuros(request.priceEstimate);
 }
 
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */

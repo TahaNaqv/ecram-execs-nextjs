@@ -9,6 +9,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
 import { plain } from "./plain";
 import { PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
+import { cleanExtras, extrasLine, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
 import { COUNTRY_CODES, HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
 import { amsterdamNow, quoteSchema, type QuoteMessages } from "@/lib/quotes/validation";
@@ -46,6 +47,11 @@ export type Draft = {
   passengerName?: string;
   passengerPhone?: string;
   notes?: string;
+  /**
+   * Add-ons for the car. Missing means the visitor has not been asked yet. An empty list means they want none.
+   * Chosen picks are the same objects the booking form posts.
+   */
+  extras?: ExtraPick[];
 };
 export type DraftKey = keyof Draft;
 
@@ -98,6 +104,13 @@ const CLEAN: { [K in DraftKey]-?: (v: unknown) => Draft[K] | undefined } = {
   passengerName: text(120),
   passengerPhone: text(30),
   notes: text(2000),
+  // [] is an answer (none). A non-empty list that contains no catalogue add-on is rejected, not stored as "none".
+  extras: (v) => {
+    if (!Array.isArray(v)) return undefined;
+    if (v.length === 0) return [];
+    const picks = cleanExtras(v);
+    return picks.length > 0 ? picks : undefined;
+  },
 };
 const KEYS = Object.keys(CLEAN) as DraftKey[];
 
@@ -198,6 +211,7 @@ export function tripOf(draft: Draft): Trip {
   trip.guestsSet = draft.passengers !== undefined;
   trip.flight = draft.flight ?? "";
   trip.vehicle = (draft.vehicle as Trip["vehicle"] | undefined) ?? "advise";
+  trip.extras = draft.extras ?? [];
   const chosen = trip.vehicle !== "advise" ? normalizeVehicleKey(trip.vehicle) : undefined;
   if (chosen) trip.cars = [{ key: chosen, count: 1 }];
   return normalizeTrip(trip);
@@ -223,6 +237,8 @@ export type Summary = {
   passengerName: string | null;
   passengerPhone: string | null;
   notes: string | null;
+  /** Chosen add-ons as one line ("2 × Moët…"), or null when there are none. */
+  extras?: string | null;
 };
 
 export type Assessment = {
@@ -295,7 +311,7 @@ export async function bookedVehicleKeys(draft: Draft): Promise<ReadonlySet<strin
 export const forModel = (draft: Draft): Record<string, unknown> =>
   Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, typeof v === "string" && v.length > 300 ? `${v.slice(0, 300)}…` : v]));
 
-export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, unavailable: ReadonlySet<string> = new Set()): Assessment {
+export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, unavailable: ReadonlySet<string> = new Set(), names?: ExtraNames): Assessment {
   const mode = draft.mode ?? "oneway";
   const missing: DraftKey[] = [];
   if (!draft.from) missing.push("from");
@@ -310,6 +326,8 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
   if (!draft.phone) missing.push("phone");
   // A number for the person travelling means nothing without their name (the form asks for the name first)
   if (draft.passengerPhone && !draft.passengerName) missing.push("passengerName");
+  // Asked after the journey and the contact details, and not assumed: the card stays back until the visitor says yes or no
+  if (missing.length === 0 && draft.extras === undefined) missing.push("extras");
 
   const trip = tripOf(draft);
   const phone = draft.phone ? splitPhone(draft.phone) : null;
@@ -383,6 +401,7 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
       passengerName: draft.passengerName ?? null,
       passengerPhone: draft.passengerName && passengerPhone ? national(passengerPhone, phone?.country ?? "31") : null,
       notes: draft.notes ?? null,
+      extras: names ? extrasLine(names, draft.extras ?? []) : null,
     },
   };
 }

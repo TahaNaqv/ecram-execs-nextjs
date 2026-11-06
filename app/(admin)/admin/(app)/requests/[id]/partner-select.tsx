@@ -57,7 +57,7 @@ export function PartnerSelect({
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-900 transition duration-200 hover:bg-gray-50"
+          className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-2.5 text-left text-[13px] font-medium text-gray-900 transition duration-200 hover:bg-gray-50"
         >
           <span className="min-w-0 truncate">{chosen ? caption(chosen) : choose}</span>
           <span aria-hidden="true" className={`shrink-0 text-[10px] text-slate-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
@@ -67,7 +67,7 @@ export function PartnerSelect({
         <ul
           role="listbox"
           aria-label={label}
-          className={`absolute z-30 mt-1 max-h-60 w-full origin-top overflow-y-auto rounded-xl border border-gray-100 bg-white py-1 shadow-lg transition duration-200 ${
+          className={`absolute z-30 mt-1 max-h-52 w-full origin-top overflow-y-auto rounded-lg border border-gray-100 bg-white py-0.5 shadow-lg transition duration-200 ${
             open ? "visible scale-y-100 opacity-100" : "pointer-events-none invisible scale-y-95 opacity-0"
           }`}
         >
@@ -81,7 +81,7 @@ export function PartnerSelect({
                     setId(partner.id);
                     setOpen(false);
                   }}
-                  className={`w-full cursor-pointer px-3 py-2 text-left text-xs font-medium tracking-wide text-gray-900 transition-colors duration-150 hover:bg-gray-100 ${
+                  className={`w-full cursor-pointer px-2.5 py-1.5 text-left text-[13px] font-medium text-gray-900 transition-colors duration-150 hover:bg-gray-100 ${
                     selected ? "bg-gray-100" : ""
                   }`}
                 >

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, ilike, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { cache } from "react";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
@@ -16,10 +16,17 @@ export async function listRequests({ status, search, page = 1, queue }: ListFilt
   if (status && (ACTIVE_STATUSES as readonly string[]).includes(status)) {
     where.push(eq(q.status, status as RequestStatus));
   }
+  // Same rule as isCorporateBooking (lib/quotes/audience.ts): a partner account, the partner portal or site, or the corporate rate card.
+  // A company name on a public booking, and a private occasion, stay in the standard stream.
+  const corporate = or(
+    isNotNull(q.corporateContactId),
+    inArray(q.source, ["portal", "website-corporate"]),
+    sql`${q.priceEstimate}->>'segment' = 'corporate'`,
+  )!;
   if (queue === "corporate") {
-    where.push(or(isNotNull(q.corporateContactId), isNotNull(q.entity), inArray(q.source, ["portal", "website-corporate", "website-bespoke"]))!);
+    where.push(corporate);
   } else if (queue === "standard") {
-    where.push(and(isNull(q.corporateContactId), isNull(q.entity), notInArray(q.source, ["portal", "website-corporate", "website-bespoke"]))!);
+    where.push(sql`not (${corporate})`);
   }
   if (search) {
     const term = `%${search.replace(/[%_\\]/g, "\\$&")}%`;
@@ -56,13 +63,17 @@ export const statusCounts = cache(async () => {
   return counts;
 });
 
-/** The booking's calculated price in euros: the stored rate-card total, or the amount already saved on the row. */
-const bookingEuros = () => sql`coalesce(
+/**
+ * The same euros as bookingTotalEuros (lib/pricing/rates.ts). The amount stored on the row wins
+ * (the VAT-inclusive total, or a final the team later overrode). The rate-card snapshot is used only
+ * when that amount is missing. Aggregates add this figure; they do not add the rate-card lines again.
+ */
+export const bookingEuros = () => sql`coalesce(
+  case when ${q.quotedAmount} is not null then round(${q.quotedAmount}, 2) end,
   case
     when ${q.priceEstimate} is not null and (${q.priceEstimate}->>'total') ~ '^[0-9]+(\\.[0-9]+)?$'
-    then (${q.priceEstimate}->>'total')::numeric / 100
+    then round((${q.priceEstimate}->>'total')::numeric / 100, 2)
   end,
-  ${q.quotedAmount},
   0
 )`;
 
@@ -71,14 +82,15 @@ export async function requestStats() {
   await requireAdmin();
   const [row] = await db
     .select({
-      openValue: sql<string>`coalesce(sum(${bookingEuros()}) filter (where ${q.status} <> 'cancelled'), 0)`,
-      confirmedValue: sql<string>`coalesce(sum(${bookingEuros()}) filter (where ${q.status} = 'confirmed'), 0)`,
+      openValue: sql<string>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} <> 'cancelled'), 2), 0)`,
+      // The same bookings the upcoming count includes, at the same final amount each row shows. Past and cancelled trips are not in this sum.
+      confirmedValue: sql<string>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} = 'confirmed' and greatest(${q.pickupAt}, ${q.returnAt}) >= (now() at time zone 'Europe/Amsterdam')), 2), 0)`,
       // A booking with a return journey is still upcoming until its return (greatest() skips a null return_at)
       upcoming: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and greatest(${q.pickupAt}, ${q.returnAt}) >= (now() at time zone 'Europe/Amsterdam'))`.mapWith(Number),
       next7: sql<number>`count(*) filter (where ${q.status} = 'confirmed' and (
         (${q.pickupAt} >= (now() at time zone 'Europe/Amsterdam') and ${q.pickupAt} < (now() at time zone 'Europe/Amsterdam') + interval '7 days')
         or (${q.returnAt} >= (now() at time zone 'Europe/Amsterdam') and ${q.returnAt} < (now() at time zone 'Europe/Amsterdam') + interval '7 days')))`.mapWith(Number),
-      last24h: sql<number>`count(*) filter (where ${q.createdAt} > now() - interval '24 hours')`.mapWith(Number),
+      last24h: sql<number>`count(*) filter (where ${q.status} <> 'cancelled' and ${q.createdAt} > now() - interval '24 hours')`.mapWith(Number),
     })
     .from(q);
   return row;

@@ -186,7 +186,7 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-[calc(100%+var(--field-pad,0px)+6px)] left-[calc(var(--field-pad,0px)*-1)] z-40 m-0 box-border max-h-[min(18rem,50vh)] w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-xl border border-solid p-1.5 shadow-2xl sm:max-h-[min(24rem,60vh)] sm:rounded-2xl sm:p-2 ${scrollbar} ${
+          className={`absolute top-[calc(100%+var(--field-pad,0px)+4px)] left-[calc(var(--field-pad,0px)*-1)] z-40 m-0 box-border max-h-52 w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-lg border border-solid p-1 shadow-lg ${scrollbar} ${
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
           }`}
         >
@@ -203,16 +203,16 @@ export function AddressField({
                 pick(hit);
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 sm:min-h-[64px] sm:gap-3.5 sm:rounded-[12px] sm:px-3.5 sm:py-3 ${
+              className={`flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 ${
                 i === active ? (dark ? "bg-white/10" : "bg-ink-100") : ""
               }`}
             >
-              <span className={`grid size-8 shrink-0 place-items-center rounded-lg sm:size-11 sm:rounded-[12px] ${dark ? "bg-white/10" : "bg-ink-100"}`}>
-                <PlaceIcon kind={hit.kind} size={16} />
+              <span className={`grid size-6 shrink-0 place-items-center rounded-md ${dark ? "bg-white/10" : "bg-ink-100"}`}>
+                <PlaceIcon kind={hit.kind} size={13} />
               </span>
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-[14px] leading-snug font-semibold sm:text-[16px]">{hit.name}</span>
-                {hit.detail && <span className={`truncate text-[12px] leading-snug sm:text-[13px] ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-[13px] leading-snug font-semibold">{hit.name}</span>
+                {hit.detail && <span className={`truncate text-[11px] leading-snug ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
               </span>
             </li>
           ))}

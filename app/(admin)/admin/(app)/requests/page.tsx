@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { formatEuro, formatEuroCompact, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
+import { formatEuro, formatRelative, formatTimestamp, isPast, pickupInstant, pickupParts, STATUS_DOT } from "@/lib/admin/format";
 import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { listRequests, PAGE_SIZE, requestStats, statusCounts } from "@/lib/admin/queries";
 import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
+import { bookingServiceName, isCorporateBooking } from "@/lib/quotes/audience";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { QuoteRequest } from "@/lib/db/schema";
-import { storedQuoteEuros } from "@/lib/pricing/rates";
+import { bookingTotalEuros } from "@/lib/pricing/rates";
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -94,31 +95,10 @@ function ServiceCell({ name, audience }: { name: string; audience: string }) {
   );
 }
 
-/**
- * What the visitor booked: Business or Private Occasion. A trip to an airport is still one of those two;
- * the company on the booking is what makes it business.
- */
-function bookingPurpose(r: QuoteRequest): "business" | "private" {
-  if (r.service === "private_occasion") return "private";
-  if (r.service === "business_travel") return "business";
-  if (r.corporateContactId || r.entity || r.entityKvk || r.source === "portal" || r.source === "website-corporate" || r.source === "website-bespoke") return "business";
-  return "private";
-}
-
-/** Corporate rate card, a partner account, or a booking made from the partner site. Otherwise the public rate card. */
-function bookingAudience(r: QuoteRequest): "public" | "business" {
-  if (r.priceEstimate?.segment === "corporate") return "business";
-  if (r.priceEstimate?.segment === "public") return "public";
-  if (r.corporateContactId || r.source === "portal" || r.source === "website-corporate" || r.source === "website-bespoke") return "business";
-  return "public";
-}
-
-/** The amount shown in the list: the rate-card total saved with the booking, otherwise the amount already stored on the row. */
+/** The amount shown in the list: the same final bookingTotalEuros the dashboard totals add up. */
 function listedAmount(r: QuoteRequest): string | null {
-  const stored = storedQuoteEuros(r.priceEstimate);
-  if (stored != null) return formatEuro(stored);
-  if (r.quotedAmount != null && r.quotedAmount !== "") return formatEuro(r.quotedAmount);
-  return null;
+  const euros = bookingTotalEuros(r);
+  return euros == null ? null : formatEuro(euros);
 }
 
 function href(params: Search) {
@@ -147,7 +127,7 @@ async function Stats() {
       />
       <StatCard
         label={t.requests.statOpenQuotes}
-        value={formatEuroCompact(stats.openValue)}
+        value={formatEuro(stats.openValue)}
         hint={t.requests.statOpenQuotesNote}
         icon={<EuroIcon />}
       />
@@ -233,9 +213,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
             </Link>
           </div>
         </div>
-        <span className="text-xs text-zinc-400">
-          {t.requests.streamNote}
-        </span>
+       
       </div>
 
       {/* Toolbar */}
@@ -343,8 +321,8 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           {pickup ? `${pickup.date} · ${pickup.time}` : "—"}
                         </span>
                         <ServiceCell
-                          name={bookingPurpose(r) === "business" ? dict.booking.purposeBusiness : serviceLabels.private_occasion}
-                          audience={bookingAudience(r) === "business" ? t.requests.segmentBusiness : t.requests.segmentPublic}
+                          name={bookingServiceName(r, serviceLabels)}
+                          audience={isCorporateBooking(r) ? t.requests.segmentBusiness : t.requests.segmentPublic}
                         />
                         <span className="ml-auto flex items-center gap-3">
                           {amounts.get(r.id) && <span className="font-medium tabular-nums text-zinc-900">{amounts.get(r.id)}</span>}
@@ -452,8 +430,8 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                       </td>
                       <td className="px-3 py-3.5 text-zinc-600">
                         <ServiceCell
-                          name={bookingPurpose(r) === "business" ? dict.booking.purposeBusiness : serviceLabels.private_occasion}
-                          audience={bookingAudience(r) === "business" ? t.requests.segmentBusiness : t.requests.segmentPublic}
+                          name={bookingServiceName(r, serviceLabels)}
+                          audience={isCorporateBooking(r) ? t.requests.segmentBusiness : t.requests.segmentPublic}
                         />
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-zinc-900">

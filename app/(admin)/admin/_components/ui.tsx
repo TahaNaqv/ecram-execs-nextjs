@@ -1,14 +1,14 @@
 // Shared admin primitives. Class strings are exported so client components and forms can reuse them.
 
 export const btn = {
-  base: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-60",
+  base: "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-[13px] font-medium tracking-wide transition-colors disabled:pointer-events-none disabled:opacity-60",
   primary: "bg-zinc-950 text-white shadow-sm hover:bg-zinc-800 active:bg-zinc-900",
   secondary: "border border-zinc-200 bg-white text-zinc-800 shadow-card hover:border-zinc-300 hover:bg-zinc-50",
   ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950",
   danger: "bg-red-600 text-white shadow-sm hover:bg-red-700",
-  sm: "h-8 px-3 text-[13px]",
-  md: "h-9 px-3.5",
-  lg: "h-10 px-4",
+  sm: "h-8 px-2.5",
+  md: "h-9 px-3",
+  lg: "h-10 px-3.5",
 };
 
 export const field =

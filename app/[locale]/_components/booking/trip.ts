@@ -218,6 +218,7 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
     ["pickupPlaceId", trip.from.id ?? ""],
     ["pickupAt", trip.at],
     ["service", serviceFor(trip, purpose)],
+    ["tripPurpose", purpose],
     ["passengers", String(trip.pax)],
     ["luggage", String(trip.bags)],
     ["handLuggage", String(trip.small)],

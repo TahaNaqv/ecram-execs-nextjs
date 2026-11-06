@@ -8,6 +8,8 @@ import { markBookingSent } from "./booking/sent";
 import { capacityProblem } from "./booking/trip";
 import type { FleetDictionary } from "./booking/vehicle-details";
 import { CarCarousel } from "./concierge-cars";
+import { ExtrasCarousel } from "./concierge-extras";
+import { extrasLine, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
 import type { Locale } from "@/lib/i18n/config";
 
 type Message = {
@@ -16,6 +18,8 @@ type Message = {
   handoff?: boolean;
   /** The cars to show under this message, as a carousel to choose from (fleet keys) */
   cars?: string[];
+  /** The add-ons to show under this message, as the same kind of carousel */
+  extras?: boolean;
 };
 
 
@@ -84,6 +88,7 @@ export type CardCopy = {
   noPreference: string;
   passengerName: string;
   notes: string;
+  reviewExtras: string;
   stopLabel: string;
   waitMinutes: string;
   asDirected: string;
@@ -97,6 +102,16 @@ export type CardCopy = {
   privacyLink: string;
   seatsUpTo: string;
   carDetails: string;
+  /** "{price} / hour" */
+  carRate: string;
+  extrasPrice: string;
+  extrasAdd: string;
+  extrasAdded: string;
+  extrasFewer: string;
+  extrasMore: string;
+  extrasSelection: string;
+  extrasContinue: string;
+  extrasSkip: string;
 };
 
 /** What the server says is ready to send: the card's contents and the fields the booking form's action takes. */
@@ -153,7 +168,7 @@ function WhatsAppIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacyHref, keepDays }: { copy: Copy; locale: string; card: CardCopy; fleetDict: FleetDictionary; privacyHref: string; keepDays: number }) {
+export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns, privacyHref, keepDays }: { copy: Copy; locale: string; card: CardCopy; fleetDict: FleetDictionary; addOns: ExtraNames; privacyHref: string; keepDays: number }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       from: "agent",
@@ -276,6 +291,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
           text: data.reply || copy.noAnswer,
           handoff: data.handoff ?? false,
           cars: Array.isArray(data.cars) && data.cars.length > 0 ? data.cars : undefined,
+          extras: data.extras === true,
         },
       ]);
     } catch {
@@ -321,6 +337,14 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
     if (!input) return;
     input.focus();
     input.scrollIntoView({ block: "nearest" });
+  }
+
+  /** The visitor confirms the add-on carousel: the picks go on the draft, and are said in the chat as their own words. */
+  function confirmExtras(picks: ExtraPick[]) {
+    const next = { ...draft, extras: picks };
+    setDraft(next);
+    const line = extrasLine(addOns, picks);
+    sendMessage(line ?? cardCopy.extrasSkip, next);
   }
 
   /** The visitor picks a car in the carousel: it goes into the draft and is said in the chat as their own words. */
@@ -373,6 +397,8 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
   }
 
   const lastCars = messages.map((m) => Boolean(m.cars)).lastIndexOf(true);
+  const lastExtras = messages.map((m) => Boolean(m.extras)).lastIndexOf(true);
+  const extrasOpen = draft.extras === undefined;
 
   return (
     <div className="flex flex-col flex-1 min-h-[460px] max-h-[560px]">
@@ -435,6 +461,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
                     onChoose={chooseCar}
                     fleetDict={fleetDict}
                     locale={locale as Locale}
+                    at={typeof draft.at === "string" ? draft.at : undefined}
                     copy={{
                       label: cardCopy.stepCar,
                       choose: copy.carChoose,
@@ -444,8 +471,33 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
                       slide: copy.carSlide,
                       noPreference: cardCopy.noPreference,
                       seatsUpTo: cardCopy.seatsUpTo,
+                      rate: cardCopy.carRate,
                       details: cardCopy.carDetails,
                       close: fleetDict.galleryClose,
+                    }}
+                  />
+                </div>
+              )}
+              {m.extras && i === lastExtras && extrasOpen && (
+                <div className="self-stretch">
+                  <ExtrasCarousel
+                    names={addOns}
+                    locale={locale as Locale}
+                    disabled={waiting || sending}
+                    onConfirm={confirmExtras}
+                    copy={{
+                      label: cardCopy.reviewExtras,
+                      price: cardCopy.extrasPrice,
+                      add: cardCopy.extrasAdd,
+                      added: cardCopy.extrasAdded,
+                      fewer: cardCopy.extrasFewer,
+                      more: cardCopy.extrasMore,
+                      selection: cardCopy.extrasSelection,
+                      continue: cardCopy.extrasContinue,
+                      skip: cardCopy.extrasSkip,
+                      prev: copy.carPrev,
+                      next: copy.carNext,
+                      slide: copy.carSlide,
                     }}
                   />
                 </div>
@@ -470,23 +522,20 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
           </div>
         )}
 
-        {/* The booking the visitor can send: complete, checked by the server, shown for them to read once more */}
-        {(ready || quote) && (
+        {/* The booking the visitor can send. The receipt stays off until every detail, including add-ons, is in. */}
+        {ready && (
           <section role="group" aria-labelledby="concierge-card-title" className="self-start w-full max-w-[94%] rounded-2xl border border-ink-600 bg-ink-850 p-4 text-[13px] text-ink-150">
             <h3 id="concierge-card-title" className="m-0 font-display text-[12px] uppercase tracking-[0.24em] text-ink-300">
-              {ready ? copy.bookTitle : quote?.heading}
+              {copy.bookTitle}
             </h3>
-            {ready && <BookingRows summary={ready.summary} c={cardCopy} />}
-            {quote && <FareBreakdown quote={quote} titled={Boolean(ready)} />}
-            {ready && (
+            <BookingRows summary={ready.summary} c={cardCopy} />
+            {quote && <FareBreakdown quote={quote} titled />}
             <p className="mt-3 mb-0 text-[12px] leading-relaxed text-ink-400">
               {cardCopy.privacyNote}{" "}
               <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-white">
                 {cardCopy.privacyLink}
               </a>
             </p>
-            )}
-            {ready && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -505,7 +554,6 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, privacy
                 {copy.bookChange}
               </button>
             </div>
-            )}
           </section>
         )}
 
@@ -563,9 +611,9 @@ function FareBreakdown({ quote, titled }: { quote: ChatQuote; titled: boolean })
     <div className={titled ? "mt-3 border-t border-ink-700 pt-3" : "mt-3"}>
       {titled && <p className="m-0 text-[11px] font-semibold tracking-[0.18em] text-ink-300 uppercase">{quote.heading}</p>}
       <dl className="m-0 mt-2">
-        {quote.lines.map((line) => (
-          <div key={line.label} className="flex items-baseline justify-between gap-3 py-1">
-            <dt className="min-w-0 text-ink-300">{line.label}</dt>
+        {quote.lines.map((line, index) => (
+          <div key={`${index}-${line.label}`} className="flex items-baseline justify-between gap-3 py-1">
+            <dt className="min-w-0 break-words text-ink-300">{line.label}</dt>
             <dd className="m-0 shrink-0 font-mono text-white tabular-nums">{line.amount}</dd>
           </div>
         ))}
@@ -594,6 +642,7 @@ function BookingRows({ summary: b, c }: { summary: Summary; c: CardCopy }) {
   if (b.flight) rows.push([c.summaryFlight, b.flight]);
   rows.push([c.stepDetails, `${b.name}\n${b.email}\n${b.phone}`]);
   if (b.passengerName) rows.push([c.passengerName, [b.passengerName, b.passengerPhone].filter(Boolean).join("\n")]);
+  if (b.extras) rows.push([c.reviewExtras, b.extras]);
   if (b.notes) rows.push([c.notes, b.notes]);
   return (
     <dl className="m-0 mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">

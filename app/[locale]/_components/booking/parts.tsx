@@ -1,7 +1,7 @@
 /** Small pieces both the booking flow and its review step draw. */
 
 export const Check = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" className="block">
     <path d="M5 12l5 5L19 7" />
   </svg>
 );

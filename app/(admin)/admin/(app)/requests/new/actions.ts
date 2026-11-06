@@ -125,6 +125,9 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   };
   // A booking for a partner is at the corporate rates
   const priceEstimate = await priceForRequest(trip, partner ? "corporate" : "public");
+  if (priceEstimate) {
+    priceEstimate.purpose = input.service === "private_occasion" || (input.service !== "business_travel" && !input.entity && !partner) ? "private" : "business";
+  }
 
   let request: QuoteRequest;
   try {

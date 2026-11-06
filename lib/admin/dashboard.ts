@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { cache } from "react";
+import { bookingEuros } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
@@ -17,10 +18,12 @@ function amsterdamNow() {
 const minutes = (value: string) => value.replace("T", " ").slice(0, 16);
 
 /**
- * What "today" means for the dashboard: a request whose pick-up or return falls on today's Amsterdam date.
- * Cancelled requests are left out. The headline count and the Next pick-ups list both use this, so they stay equal.
+ * What "today" means for the headline "Today's jobs" figure: a request whose pick-up or return falls
+ * on today's Amsterdam date. Only bookings still to run: new and confirmed. Completed and cancelled
+ * trips are left out, and so are ones that are only contacted or quoted.
+ * The New Incoming Requests list does not use this. It is every status "new" booking, soonest first.
  */
-const TODAY_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed"] as const;
+const TODAY_STATUSES = ["new", "confirmed"] as const;
 
 /** A fresh fragment each time: the same sql object must not be embedded twice in one query. */
 const amsterdamClock = () => sql`(now() at time zone 'Europe/Amsterdam')`;
@@ -62,14 +65,7 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
     db.select({ total: sql<number>`count(*)`.mapWith(Number) }).from(contacts),
     db
       .select({
-        amount: sql<string>`coalesce(sum(coalesce(
-          case
-            when ${q.priceEstimate} is not null and (${q.priceEstimate}->>'total') ~ '^[0-9]+(\\.[0-9]+)?$'
-            then (${q.priceEstimate}->>'total')::numeric / 100
-          end,
-          ${q.quotedAmount},
-          0
-        )), 0)`,
+        amount: sql<string>`coalesce(round(sum(${bookingEuros()}), 2), 0)`,
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(q)
@@ -105,9 +101,9 @@ export type UpcomingPickup = {
 };
 
 /**
- * The same requests Today's jobs counts: pick-up or return on today's Amsterdam date, soonest first.
- * Nothing from another day is included, and no row the count includes is dropped here.
- * Times are formatted in SQL so the wall clock stored on the row is what the page shows.
+ * Bookings still waiting for review: status "new" only. Confirmed trips stay on Today's routes.
+ * Soonest pick-up first, including another day. Times are formatted in SQL so the wall clock
+ * stored on the row is what the page shows.
  */
 export const upcomingPickups = cache(async (): Promise<UpcomingPickup[]> => {
   await requireAdmin();
@@ -125,8 +121,8 @@ export const upcomingPickups = cache(async (): Promise<UpcomingPickup[]> => {
       vehicle: q.vehicle,
     })
     .from(q)
-    .where(todayJobsWhere())
-    .orderBy(sql`coalesce(${q.pickupAt}, ${q.returnAt})`, asc(q.createdAt));
+    .where(eq(q.status, "new"))
+    .orderBy(sql`coalesce(${q.pickupAt}, ${q.returnAt}, ${q.createdAt})`, asc(q.createdAt));
   const now = amsterdamNow();
   return rows.flatMap((r) => {
     const pickup = r.pickupAt ? minutes(r.pickupAt) : null;
@@ -173,7 +169,7 @@ export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
   return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(normalizeVehicleKey(v.id) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
 });
 
-/** Finished bookings, newest first. Anything still open stays in Next pick-ups until it is completed or cancelled. */
+/** Finished bookings, newest first. A booking that is still new stays in New Incoming Requests. */
 export const recentRequests = cache(async (limit = 5) => {
   await requireAdmin();
   return db

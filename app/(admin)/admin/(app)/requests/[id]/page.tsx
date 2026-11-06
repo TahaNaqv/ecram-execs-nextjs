@@ -6,7 +6,8 @@ import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { chatForRequest } from "@/lib/admin/chats";
 import { getRequest } from "@/lib/admin/queries";
-import { serviceLabel, type RequestStatus } from "@/lib/quotes/constants";
+import { type RequestStatus } from "@/lib/quotes/constants";
+import { bookingServiceName, isCorporateBooking } from "@/lib/quotes/audience";
 import { eventLabels, renderEvent } from "@/lib/admin/events";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -34,7 +35,7 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 async function BackLabel() {
@@ -135,6 +136,12 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{r.name}</h1>
               <StatusBadge status={r.status} size="md" />
               <UrgentBadge request={r} size="md" />
+              <span className="inline-flex items-center gap-1.5 text-sm text-zinc-700">
+                {bookingServiceName(r, d.services)}
+                <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
+                  {isCorporateBooking(r) ? d.admin.requests.segmentBusiness : d.admin.requests.segmentPublic}
+                </span>
+              </span>
             </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
               <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">{r.reference}</span>
@@ -189,7 +196,7 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
             by: e.by,
           }))}
         >
-          {!isBespoke(r) && <RateCardPrice price={r.priceEstimate} copy={rd} names={d.addOns} />}
+          {!isBespoke(r) && <RateCardPrice price={r.priceEstimate} finalEuros={bookingTotalEuros(r)} copy={rd} names={d.addOns} />}
         </AutoPricingGateway>
       </div>
 
@@ -282,7 +289,7 @@ function DetailSkeleton() {
 const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
 
 /** The rate card's price stored with the request (lib/pricing/rates.ts): each car's hours × rate, then VAT, the service fee and the total. */
-function RateCardPrice({ price, copy: rd, names }: { price: Price | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"]; names: ExtraNames }) {
+function RateCardPrice({ price, finalEuros, copy: rd, names }: { price: Price | null; finalEuros: string | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"]; names: ExtraNames }) {
   const euro = (cents: number) => formatEuro(cents / 100);
   const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
   const line = (label: React.ReactNode, value: string, strong = false) => (
@@ -310,7 +317,7 @@ function RateCardPrice({ price, copy: rd, names }: { price: Price | null; copy: 
           {line(rd.rateCardVat, euro(vatByRate(price).low))}
           {line(rd.rateCardFee, euro(price.fee))}
           {vatByRate(price).high ? line(hasHighRateExtras(price) ? rd.rateCardVatHigh : rd.rateCardFeeVat, euro(vatByRate(price).high)) : null}
-          {line(rd.rateCardTotal, euro(price.total), true)}
+          {line(rd.rateCardTotal, finalEuros != null ? formatEuro(finalEuros) : euro(price.total), true)}
          
         </div>
       )}

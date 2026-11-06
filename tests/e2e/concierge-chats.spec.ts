@@ -158,7 +158,7 @@ test("how an answer came about is noted with it: a stored answer, reasoning take
   const ready = await note(
     () =>
       model.script.push(
-        { content: [model.toolUse({ from: "Schiphol Airport", to: "Hotel Des Indes, The Hague", at: `${new Date(Date.now() + 36 * 3600_000).toISOString().slice(0, 10)}T09:00`, passengers: 1, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678" })] },
+        { content: [model.toolUse({ from: "Schiphol Airport", to: "Hotel Des Indes, The Hague", at: `${new Date(Date.now() + 36 * 3600_000).toISOString().slice(0, 10)}T09:00`, passengers: 1, bags: 0, name: "Sam Carter", email: "sam@example.com", phone: "+31 6 1234 5678", extras: [] })] },
         { content: [model.say("Please check the card.")] },
       ),
     "everything",

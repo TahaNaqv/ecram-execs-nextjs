@@ -11,10 +11,12 @@ export async function Concierge() {
   // The booking form's own words for the card the chat shows when a booking is ready to send
   const card = {
     summaryRoute: b.summaryRoute, summaryWhen: b.summaryWhen, summaryReturn: b.summaryReturn, summaryParty: b.summaryParty, summaryFlight: b.summaryFlight,
-    stepCar: b.stepCar, stepDetails: b.stepDetails, noPreference: b.noPreference, passengerName: b.passengerName, notes: b.notes,
+    stepCar: b.stepCar, stepDetails: b.stepDetails, noPreference: b.noPreference, passengerName: b.passengerName, notes: b.notes, reviewExtras: b.reviewExtras,
     stopLabel: b.stopLabel, waitMinutes: b.waitMinutes, asDirected: b.asDirected, guestOne: b.guestOne, guestMany: b.guestMany,
     bagNone: b.bagNone, bagOne: b.bagOne, bagMany: b.bagMany, bagSplit: b.bagSplit, privacyNote: b.privacyNote, privacyLink: b.privacyLink,
-    seatsUpTo: b.seatsUpTo, carDetails: b.carDetails,
+    seatsUpTo: b.seatsUpTo, carDetails: b.carDetails, carRate: b.carRate,
+    extrasPrice: b.extrasPrice, extrasAdd: b.extrasAdd, extrasAdded: b.extrasAdded, extrasFewer: b.extrasFewer, extrasMore: b.extrasMore,
+    extrasSelection: b.extrasSelection, extrasContinue: b.extrasContinue, extrasSkip: b.extrasSkip,
   };
   return (
     <section className="border-b border-b-ink-850" id="concierge">
@@ -55,7 +57,7 @@ export async function Concierge() {
                 </div>
               </div>
             </div>
-            <ConciergeChat copy={{ ...t, unfitCar: d.forms.vehicleLuggage }} locale={locale} card={card} fleetDict={d.fleetSection} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
+            <ConciergeChat copy={{ ...t, unfitCar: d.forms.vehicleLuggage }} locale={locale} card={card} fleetDict={d.fleetSection} addOns={d.addOns} privacyHref={localizedPath("/privacy", locale)} keepDays={RETENTION.chatDays} />
           </div>
         </div>
       </div>

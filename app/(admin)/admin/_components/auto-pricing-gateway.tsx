@@ -18,7 +18,7 @@ function esc(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
-/** The total the visitor confirmed: the stored rate-card total, or the amount already on the row. Never a new calculation. */
+/** The booking's final amount: the figure stored on the row, or the rate-card total when that was never stored. Never a new sum of the lines. */
 function lockedTotal(request: QuoteRequest): number | null {
   const euros = bookingTotalEuros(request);
   if (euros == null) return null;
@@ -263,9 +263,7 @@ export function AutoPricingGateway({
       {showAuditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
           <div className="bg-white border border-zinc-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
-            <button onClick={() => setShowAuditModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer">
-              <XIcon size={18} />
-            </button>
+            
             <h3 className="text-base font-semibold text-zinc-950 mb-1 flex items-center gap-2">
               <ShieldIcon size={18} className="text-emerald-600" />
               {copy.auditTitle}
@@ -651,7 +649,7 @@ function StatusMenu({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-900 uppercase transition duration-200 hover:bg-gray-50 disabled:cursor-default disabled:opacity-50"
+        className="flex h-9 w-full cursor-pointer items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 text-left text-[13px] font-medium text-gray-900 transition duration-200 hover:bg-gray-50 disabled:cursor-default disabled:opacity-50"
       >
         <span>{labels[value]}</span>
         <span aria-hidden="true" className={`text-[10px] text-slate-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
@@ -661,7 +659,7 @@ function StatusMenu({
       <ul
         role="listbox"
         aria-label={labels[value]}
-        className={`absolute z-30 mt-1 w-full origin-top overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg transition duration-200 ${
+        className={`absolute z-30 mt-1 w-full origin-top overflow-hidden rounded-lg border border-gray-100 bg-white py-0.5 shadow-lg transition duration-200 ${
           open ? "visible scale-y-100 opacity-100" : "pointer-events-none invisible scale-y-95 opacity-0"
         }`}
       >
@@ -675,7 +673,7 @@ function StatusMenu({
                   onChange(status);
                   setOpen(false);
                 }}
-                className={`w-full cursor-pointer px-3 py-2 text-left text-xs font-medium tracking-wide text-gray-900 uppercase transition-colors duration-150 hover:bg-gray-100 ${
+                className={`w-full cursor-pointer px-2.5 py-1.5 text-left text-[13px] font-medium text-gray-900 transition-colors duration-150 hover:bg-gray-100 ${
                   selected ? "bg-gray-100" : ""
                 }`}
               >

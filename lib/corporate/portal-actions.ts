@@ -21,7 +21,7 @@ import { createQuoteRequest } from "@/lib/quotes/create";
 import { readStops } from "@/lib/quotes/stops";
 import { quoteSchema, type QuoteField } from "@/lib/quotes/validation";
 import { getCorporateContact } from "./access";
-import { MESSAGEABLE, REF_RE } from "./bookings";
+import { MESSAGEABLE, REF_RE, partnerOwns } from "./bookings";
 import type { PortalState } from "./portal-state";
 
 const q = schema.quoteRequests;
@@ -86,11 +86,13 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
 
     const fleet = allocationFor(parsed.data);
     const route = { destinations: stops.length > 0 ? stops : null, destinationWaits: stops.length > 0 ? destinationWaits : null };
+    const priceEstimate = await priceForRequest({ ...parsed.data, ...route }, "corporate");
+    if (priceEstimate) priceEstimate.purpose = String(formData.get("tripPurpose") ?? "") === "private" ? "private" : "business";
     const request = await createQuoteRequest({
       ...parsed.data,
       ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
       ...route,
-      priceEstimate: await priceForRequest({ ...parsed.data, ...route }, "corporate"),
+      priceEstimate,
       vehicleCount: fleet.vehicleCount,
       vehicles: fleet.vehicles,
       internalNotes: fleet.internalNotes,
@@ -141,7 +143,7 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
     const [open] = await db
       .select()
       .from(q)
-      .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount), sql`${q.quotedAmount} = ${amount}::numeric`))
+      .where(and(eq(q.reference, reference), partnerOwns(contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount), sql`${q.quotedAmount} = ${amount}::numeric`))
       .limit(1);
     if (open && open.blockMinutes == null) routed = await routeBlockMinutes(open);
   }
@@ -157,7 +159,7 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
         const [pending] = await tx
           .select()
           .from(q)
-          .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount)))
+          .where(and(eq(q.reference, reference), partnerOwns(contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount)))
           .limit(1);
         if (pending) clashWith = await clashingReference(tx, { ...pending, blockMinutes: pending.blockMinutes ?? routed });
       }
@@ -167,7 +169,7 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
         .where(
           and(
             eq(q.reference, reference),
-            eq(q.corporateContactId, contact.id),
+            partnerOwns(contact.id),
             eq(q.status, "quoted"),
             isNotNull(q.quotedAmount),
             sql`${q.quotedAmount} = ${amount}::numeric`,
@@ -189,7 +191,7 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
       const [now] = await db
         .select({ status: q.status, quotedAmount: q.quotedAmount })
         .from(q)
-        .where(and(eq(q.reference, reference), eq(q.corporateContactId, contact.id)))
+        .where(and(eq(q.reference, reference), partnerOwns(contact.id)))
         .limit(1);
       return error(now && now.status === "quoted" && now.quotedAmount !== null ? p.quoteChangedError : p.quoteNotOpenError);
     }
@@ -249,7 +251,7 @@ export async function sendBookingMessage(_prev: PortalState, formData: FormData)
       insert into booking_messages (request_id, author_kind, contact_id, kind, body)
       select ${q.id}, 'partner', ${contact.id}::uuid, ${kind}::text, ${body}::text
       from ${q}
-      where ${q.reference} = ${reference} and ${q.corporateContactId} = ${contact.id} and ${q.status}::text in (${open})
+      where ${q.reference} = ${reference} and ${partnerOwns(contact.id)} and ${q.status}::text in (${open})
       returning request_id`);
     const row = Array.from(inserted)[0];
     if (!row) return error(p.messagesClosed);
