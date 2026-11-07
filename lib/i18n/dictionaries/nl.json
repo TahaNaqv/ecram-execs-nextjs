@@ -2001,6 +2001,8 @@
     "noPreference": "Laat ons kiezen",
     "noPreferenceNote": "Wij kiezen de beste auto voor {party} en {bags}, en de prijs gebruikt die auto.",
     "carsSeveral": "Kies één auto, of meerdere voor een groter gezelschap: met + en − stelt u in hoeveel u van elk wilt.",
+    "carBookedAtTime": "Op dit tijdstip geboekt",
+    "carsBookedHint": "Grijs weergegeven auto's zijn op dit tijdstip al geboekt. Kies een andere auto, of laat ons voor u kiezen.",
     "recommendedTitle": "Aanbevolen auto",
     "recommendedBasis": "Op basis van uw {party} en {bags}",
     "carsFitPassengers": "De gekozen auto's hebben niet genoeg zitplaatsen voor {party}. Voeg een auto toe of kies een grotere.",

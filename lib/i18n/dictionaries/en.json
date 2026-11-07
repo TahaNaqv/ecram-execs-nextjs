@@ -2000,6 +2000,8 @@
     "noPreference": "Let us choose",
     "noPreferenceNote": "We'll choose the best car for {party} and {bags}, and the price uses that car.",
     "carsSeveral": "Choose one car, or several for a larger party: use + and − to set how many of each.",
+    "carBookedAtTime": "Booked at this time",
+    "carsBookedHint": "Greyed-out cars are already booked at this time. Choose another car, or let us choose for you.",
     "recommendedTitle": "Recommended vehicle",
     "recommendedBasis": "Based on your {party} and {bags}",
     "carsFitPassengers": "The cars you chose do not have enough seats for {party}. Add a car, or choose a larger one.",

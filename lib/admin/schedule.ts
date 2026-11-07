@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, inArray, or, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { carKey } from "@/lib/fleet/availability";
+import { carKey, heldKeys } from "@/lib/fleet/availability";
 import type { RoutedBooking } from "@/lib/fleet/route";
 import { blocksOf, overlaps, wallMinutes } from "@/lib/fleet/schedule";
 import { ROUTED_SERVICES } from "@/lib/fleet/trip";
@@ -88,6 +88,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         reference: q.reference,
         status: q.status,
         vehicle: q.vehicle,
+        vehicles: q.vehicles,
         service: q.service,
         // Wall clock as stored. Reading the timestamp through the driver can shift it off this day.
         pickupAt: sql<string | null>`to_char(${q.pickupAt}, 'YYYY-MM-DD HH24:MI:SS')`,
@@ -127,12 +128,13 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   let jobs = 0;
   const trips: DayTrip[] = [];
   for (const row of rows) {
-    const key = carKey(row.vehicle);
-    let column = unassigned;
-    if (key) {
-      column = columns.get(key) ?? { key, name: vehicleByKey(key)?.name ?? key, state: null, blocks: [] };
+    // A booking for several cars is drawn in each of their columns; its first car leads (the day map follows that one)
+    const held = [...heldKeys(row)].map((key) => {
+      const column = columns.get(key) ?? { key, name: vehicleByKey(key)?.name ?? key, state: null, blocks: [] };
       columns.set(key, column);
-    }
+      return column;
+    });
+    const column = held[0] ?? unassigned;
     const status = row.status as (typeof SHOWN)[number];
     let onThisDay = false;
     let firstStart: number | null = null;
@@ -145,7 +147,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
       if (outward) outwardToday = true;
       // Only a confirmed booking holds the car through the turnaround. The others are shown, and nothing more.
       const heldUntil = status === "confirmed" ? block.end : block.tripEnd;
-      column.blocks.push({
+      const drawn: DayBlock = {
         id: row.id,
         reference: row.reference,
         leg: block.leg,
@@ -162,7 +164,9 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         entity: row.entity,
         passengers: row.passengers,
         clash: false,
-      });
+      };
+      // Each column gets its own copy: a clash is marked per car
+      for (const target of held.length > 0 ? held : [unassigned]) target.blocks.push({ ...drawn });
     }
     if (onThisDay) jobs++;
     // Only a confirmed trip with somewhere to go is drawn on the day map

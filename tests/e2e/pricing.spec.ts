@@ -4,6 +4,7 @@ import { billedHours, dayKind, hourlyRate, hoursByDay, priceBooking, priceNet, v
 import { carsCapacityProblem, cleanCars, MAX_GROUP, MAX_PER_CAR } from "../../app/[locale]/_components/booking/trip";
 import { FLEET, fitConvoy, LARGEST_CAR_SEATS, vehicleByKey } from "../../lib/fleet/vehicles";
 import { cleanExtras, priceExtras } from "../../lib/pricing/extras";
+import { heldKeys } from "../../lib/fleet/held";
 
 // The client's rate card (November 2026): per car per hour, in whole hours and at least 2; then 9% VAT on the rides,
 // then a €12.50 service fee with 21% VAT on it (€2.63). 2027-06-14 is a Monday, 2027-06-19 a Saturday, 2027-06-20 a Sunday.
@@ -182,4 +183,14 @@ test("only the add-ons on the list are taken, each once, with the chocolate box 
   expect(cleanExtras([{ key: "chocolates", option: "dairy_free", count: 1 }])).toEqual([{ key: "chocolates", option: "dairy_free", count: 1 }]);
   expect(cleanExtras("champagne")).toEqual([]);
   expect(priceExtras([{ key: "newspapers", count: 3 }])).toEqual([{ key: "newspapers", count: 3, unit: 1500, amount: 4500, vatRate: 0.21, vat: 945 }]);
+});
+
+test("a confirmed booking holds every one of its cars, led by the car the team gave it", () => {
+  expect([...heldKeys({ vehicle: "audi", vehicles: null })]).toEqual(["audi"]);
+  expect([...heldKeys({ vehicle: "mercedes_vle_300", vehicles: [{ key: "mercedes_vle_300", count: 1 }, { key: "audi", count: 2 }] })]).toEqual(["mercedes_vle_300", "audi"]);
+  // The team gave it the Cadillac in place of the Mercedes: the Mercedes is free again, the Audis are still held
+  expect([...heldKeys({ vehicle: "cadillac_escalade", vehicles: [{ key: "mercedes_vle_300", count: 1 }, { key: "audi", count: 2 }] })]).toEqual(["cadillac_escalade", "audi"]);
+  // "Let us choose" holds nothing until the team gives it a car
+  expect(heldKeys({ vehicle: "advise", vehicles: [{ key: "audi", count: 2 }] }).size).toBe(0);
+  expect(heldKeys({ vehicle: null }).size).toBe(0);
 });

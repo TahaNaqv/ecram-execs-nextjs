@@ -21,16 +21,17 @@ const sql = () => postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 }
 const REF = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const makeRef = () => `EE-${Array.from({ length: 6 }, () => REF[randomInt(REF.length)]).join("")}`;
 
-type Seed = { status?: string; vehicle?: string | null; at: string; ret?: string | null; service?: string; hours?: number | null; name?: string };
+type Seed = { status?: string; vehicle?: string | null; vehicles?: { key: string; count: number }[]; at: string; ret?: string | null; service?: string; hours?: number | null; name?: string };
 
 async function seed(s: Seed) {
   const db = sql();
   try {
     const reference = makeRef();
     const [row] = await db`
-      insert into quote_requests (reference, status, service, collection, destination, pickup_at, return_at, duration_hours, vehicle, name, email, phone, source)
+      insert into quote_requests (reference, status, service, collection, destination, pickup_at, return_at, duration_hours, vehicle, vehicles, name, email, phone, source)
       values (${reference}, ${s.status ?? "confirmed"}, ${s.service ?? "airport_transfer"}, 'Schiphol Airport', 'Hotel Des Indes, The Hague',
-              ${s.at}::text::timestamp, ${s.ret ?? null}::text::timestamp, ${s.hours ?? null}, ${s.vehicle ?? null}, ${s.name ?? "Schedule Test"}, 'schedule@ecramexecs.test', '+31 6 1234 5678', 'admin')
+              ${s.at}::text::timestamp, ${s.ret ?? null}::text::timestamp, ${s.hours ?? null}, ${s.vehicle ?? null}, ${s.vehicles ? db.json(s.vehicles) : null},
+              ${s.name ?? "Schedule Test"}, 'schedule@ecramexecs.test', '+31 6 1234 5678', 'admin')
       returning id`;
     await db`insert into request_events (request_id, event) values (${row.id}, 'received')`;
     return { id: row.id as string, reference };
@@ -194,13 +195,36 @@ test("the booking page gives the booking its car, and refuses one that is held a
   await expect(page.getByText(/Car: .* → Range Rover/)).toBeVisible();
 });
 
-test("a car held at the time of the trip is not offered in the booking flow", async ({ page }) => {
+test("every car of a confirmed booking for several cars is held, and confirming into any of them is refused", async ({ page, request }) => {
+  test.slow();
+  // The team gave this booking the Cadillac in place of the visitor's Mercedes; the two Audis stay with it
+  await seed({ vehicle: "cadillac_escalade", vehicles: [{ key: "mercedes_vle_300", count: 1 }, { key: "audi", count: 2 }], at: `${DAY}T09:00` });
+  const busy = ((await (await request.get(`/api/vehicles/unavailable?at=${DAY}T10:00`)).json()) as { busy: string[] }).busy;
+  expect(busy.sort()).toEqual(["audi", "cadillac_escalade"]);
+
+  // A second booking whose other car is one of those Audis cannot be confirmed at that time
+  const second = await seed({ vehicle: "range_rover", vehicles: [{ key: "range_rover", count: 1 }, { key: "audi", count: 1 }], status: "quoted", at: `${DAY}T10:00`, name: "Second Booking" });
+  await signIn(page);
+  const refused = await page.request.post(`/api/admin/requests/${second.id}/authorise`, { data: { status: "confirmed", amount: 120, sendMail: false } });
+  expect(refused.status()).toBe(409);
+  expect((await row(second.id)).status).toBe("quoted");
+
+  // The day schedule draws the first booking in each of its cars' columns: the Cadillac's and the Audi's
+  await page.goto(`/admin/requests/schedule?date=${DAY}`);
+  await expect(page.getByText("Schedule Test", { exact: true })).toHaveCount(2);
+});
+
+test("a car held at the time of the trip is shown greyed out in the booking flow, and cannot be chosen", async ({ page }) => {
   await seed({ vehicle: "audi", at: `${DAY}T09:00` });
   await page.goto("/en/book");
   const [day, month, year] = [DAY.slice(8, 10), DAY.slice(5, 7), DAY.slice(0, 4)];
   await fillJourney(page, { from: "Schiphol Airport", to: "Hotel Des Indes, The Hague", at: `${day}-${month}-${year} 10:00`, flight: "KL1234" });
   await expect(page.getByRole("heading", { name: en.booking.carTitle })).toBeVisible();
-  await expect(carChoice(page, "Mercedes-Benz VLE 300")).toBeVisible();
-  await expect(carChoice(page, "Audi")).toHaveCount(0);
-  await expect(page.getByText(/already booked at this time/)).toBeVisible();
+  await expect(carChoice(page, "Mercedes-Benz VLE 300")).toBeEnabled();
+  await expect(carChoice(page, "Audi")).toBeDisabled();
+  await expect(carChoice(page, "Audi")).toContainText(en.booking.carBookedAtTime);
+  // It stays in the tab order (so it is read out), but a click does not choose it
+  await carChoice(page, "Audi").click({ force: true });
+  await expect(carChoice(page, "Audi")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByText(en.booking.carsBookedHint)).toBeVisible();
 });
