@@ -44,7 +44,7 @@ export const MAX_BAGS = 6;
 export const MAX_SMALL_BAGS = 8;
 /** How many of one model the booking flow takes. Other models can be added alongside (the client, 7 Nov 2026). */
 export const MAX_PER_CAR = MAX_CARS;
-/** The booking flow books several cars, so its party can fill three of the largest car. */
+/** The booking flow books several cars, so its party can fill `MAX_CARS` of the largest car. */
 export const MAX_GROUP = LARGEST_CAR_SEATS * MAX_CARS;
 /** Large suitcases the booking flow takes for its party, before the chosen cars' boots are checked. */
 export const MAX_GROUP_BAGS = MAX_BAGS * MAX_CARS;

@@ -294,14 +294,14 @@ export type ConvoyPlan = {
   vehicle: FleetVehicle;
 };
 
-/** How many of one model a visitor can pick, and how many cars a suggested convoy uses. */
-export const MAX_CARS = 3;
+/** How many of one model a visitor can pick (5, the client, 8 Nov 2026), and how many cars a suggested convoy uses. */
+export const MAX_CARS = 5;
 
 /**
  * The tightest set of cars for a party that does not fit in one.
  * Smaller cars win when they cover the party with fewer empty seats: eight guests use two 4-seaters, not two 7-seaters.
  * At most `MAX_CARS` are used. A party that fits in one car returns nothing.
- * A party that cannot be covered in three cars gets the three that seat the most, and the team arranges the rest.
+ * A party that cannot be covered in `MAX_CARS` cars gets the set that seats the most, and the team arranges the rest.
  */
 export function fitConvoy(offered: readonly { key: string }[], pax: number): FleetPick[] | undefined {
   const models: FleetVehicle[] = [];
@@ -429,7 +429,7 @@ export function convoyAllocation(input: { passengers?: number | null; vehicle?: 
 
 /**
  * What to store for the cars on a quote. A list the visitor chose is kept, even when it does not seat everyone.
- * With no list, the tightest fit of up to three cars is planned. Any seats still missing are left for the team.
+ * With no list, the tightest fit of up to `MAX_CARS` cars is planned. Any seats still missing are left for the team.
  */
 export function allocationFor(input: { passengers?: number | null; vehicle?: string | null; vehicles?: unknown }): {
   vehicle?: string;

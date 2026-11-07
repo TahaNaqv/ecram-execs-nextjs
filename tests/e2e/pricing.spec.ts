@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { carsToPrice } from "../../lib/pricing/booking";
 import { billedHours, dayKind, hourlyRate, hoursByDay, priceBooking, priceNet, vatByRate } from "../../lib/pricing/rates";
-import { carsCapacityProblem, cleanCars } from "../../app/[locale]/_components/booking/trip";
+import { carsCapacityProblem, cleanCars, MAX_GROUP, MAX_PER_CAR } from "../../app/[locale]/_components/booking/trip";
+import { FLEET, fitConvoy, LARGEST_CAR_SEATS, vehicleByKey } from "../../lib/fleet/vehicles";
 import { cleanExtras, priceExtras } from "../../lib/pricing/extras";
 
 // The client's rate card (November 2026): per car per hour, in whole hours and at least 2; then 9% VAT on the rides,
@@ -98,11 +99,17 @@ test("several cars are checked together: their seats and boots add up", () => {
   expect(carsCapacityProblem([{ key: "audi", count: 1 }], 10, 2)).toEqual({ passengers: true, luggage: false });
   expect(carsCapacityProblem([{ key: "audi", count: 2 }, { key: "mercedes_vle_300", count: 1 }], 14, 4)).toEqual({ passengers: false, luggage: false });
   expect(carsCapacityProblem([], 20, 10)).toEqual({ passengers: false, luggage: false });
-  // One entry per model, at most three of it, in fleet order
-  expect(cleanCars([{ key: "audi", count: 2 }, { key: "mercedes_vle_300", count: 1 }, { key: "audi", count: 5 }])).toEqual([
+  // One entry per model, at most five of it, in fleet order
+  expect(cleanCars([{ key: "audi", count: 4 }, { key: "mercedes_vle_300", count: 1 }, { key: "audi", count: 3 }])).toEqual([
     { key: "mercedes_vle_300", count: 1 },
-    { key: "audi", count: 3 },
+    { key: "audi", count: 5 },
   ]);
+  expect(MAX_PER_CAR).toBe(5);
+  expect(MAX_GROUP).toBe(5 * LARGEST_CAR_SEATS);
+  // The largest group the flow takes still gets a full suggestion: five of the largest car
+  const convoy = fitConvoy(FLEET, MAX_GROUP)!;
+  expect(convoy.reduce((n, c) => n + c.count, 0)).toBe(5);
+  expect(convoy.reduce((n, c) => n + c.count * (vehicleByKey(c.key)?.specs?.passengers ?? 0), 0)).toBeGreaterThanOrEqual(MAX_GROUP);
 });
 
 test("an hourly booking is billed for its hours; an untimed transfer or a suggested car is a 'from' price", () => {
