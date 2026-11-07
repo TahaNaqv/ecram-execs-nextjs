@@ -532,7 +532,8 @@
     "linkDriveWithUs": "Drive with Us",
     "privacy": "Privacy",
     "socialLabel": "Social",
-    "linkBespoke": "Bespoke Journeys"
+    "linkBespoke": "Bespoke Journeys",
+    "terms": "Terms and conditions"
   },
   "film": {
     "videoLabel": "Ecram Execs — the arrival",
@@ -692,6 +693,16 @@
     "s8p2": "In this area you can request bookings, review bookings, send us messages and request a change or cancellation. We store the trip details you enter (collection point, destination or duration, stopovers, date and time, any return journey, number of passengers and suitcases, flight number, the person travelling if you book for someone else, vehicle and notes), your name, email address and phone number as booker, your company name and KvK number if you provided them, the price and status of the booking, and the messages and replies with it. If you submit the business introduction, we also store your company registration number, who signs on behalf of the company, a point of call, how you prefer to be contacted and which trips you expect to book. We use this to arrange your trips and reply to you (taking steps at your request and performance of our contract, Article 6(1)(b) GDPR). Our team can add invoices to a booking so you can download them; only you and our staff can open them.",
     "s8p3": "If you tick the box when creating your account, we also use your details to keep you informed about our services and news by email, based on your consent (Article 6(1)(a) GDPR). You can withdraw that consent at any time by contacting us.",
     "s8p4": "We keep your account as long as you use it. If you have not logged in for 24 months and no work has been done on any of your bookings in that time, we delete it automatically, along with the bookings that are not part of our financial records. If you start creating an account without finishing it, we delete the details after 30 days. You can also ask us at any time to close your account and delete your data; we will do so, except for what we are legally required to keep: bookings that form part of our financial records, such as invoiced bookings, remain for seven years without your personal data (only the company, route, amount and invoices remain)."
+  },
+  "terms": {
+    "metaTitle": "Terms and conditions — Ecram Execs",
+    "metaDescription": "The general terms and conditions for chauffeur and transport services by Ecram Execs.",
+    "eyebrow": "TERMS",
+    "heading": "Terms and conditions",
+    "version": "Version {version}",
+    "englishNote": "These terms and conditions are drawn up in English.",
+    "article": "Article {number}",
+    "back": "← Back to the homepage"
   },
   "admin": {
     "common": {
@@ -969,7 +980,6 @@
       "addOns": "Add-ons",
       "rateCardVat": "BTW / VAT 9%",
       "rateCardTotal": "Total incl. BTW / VAT and service fee",
-
       "rateCardNone": "No rate-card price: the request came in before prices, or the card cannot price it.",
       "journey": "Journey",
       "collection": "Collection",
@@ -1468,7 +1478,6 @@
       "printPdf": "Print PDF",
       "close": "Close",
       "heading": "Fare Management & Dispatch",
-
       "itinerary": "Itinerary & Distance",
       "googleMap": "Google Map",
       "waypoints": "Multi-Stop Waypoint Controls",
@@ -1709,7 +1718,6 @@
     "hidePassword": "Hide",
     "signupMetaTitle": "Sign Up — Corporate Partner — Ecram Execs",
     "signupHeading": "Create Your Account",
-    
     "labelNewPassword": "Choose A Password",
     "labelConfirmPassword": "Repeat Password",
     "passwordHint": "At least {min} characters. A few words in a row make a strong, easy-to-remember password.",
@@ -2109,7 +2117,6 @@
     "extrasSkip": "Skip, no add-ons",
     "reviewExtras": "Add-ons",
     "priceVatHigh": "BTW / VAT 21% (service fee and add-ons)",
-   
     "priceEstimateLabel": "Rate-card price",
     "priceEstimateValue": "{net} excl. BTW / VAT · {total} incl. BTW / VAT",
     "priceFromWord": "from",
@@ -2125,12 +2132,14 @@
     "receiptPricing": "Pricing",
     "receiptRides": "Chauffeur service",
     "receiptNet": "Total excl. BTW / VAT",
-    "reviewAgree": "I agree that Ecram Execs uses my details to handle this booking, as described in the",
+    "reviewAgree": "I have read and agree to the",
     "reviewAgreeRequired": "Please tick the box to send your booking.",
     "doneMapTitle": "Your route",
     "doneMapShow": "Show the route on the map",
     "doneMapNote": "The map is loaded from Google when you open it.",
     "doneMapOpen": "Open in Google Maps",
-    "doneMapFrame": "Map of your route"
+    "doneMapFrame": "Map of your route",
+    "termsLink": "Ecram Execs terms and conditions",
+    "termsAfter": "."
   }
 }

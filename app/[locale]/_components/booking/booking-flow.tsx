@@ -368,7 +368,6 @@ export function BookingFlow({
           vehicleAdvise={vehicleAdvise}
           result={result}
           booker={booker}
-          privacyHref={privacyHref}
           lockedNotice={lockedNotice}
           gallery={galleryCopy(fleetDict)}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}

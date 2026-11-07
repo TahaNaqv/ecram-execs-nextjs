@@ -532,7 +532,8 @@
     "linkDriveWithUs": "Rijd met ons",
     "privacy": "Privacy",
     "socialLabel": "Sociale media",
-    "linkBespoke": "Reizen op maat"
+    "linkBespoke": "Reizen op maat",
+    "terms": "Algemene voorwaarden"
   },
   "film": {
     "videoLabel": "Ecram Execs — de aankomst",
@@ -692,6 +693,16 @@
     "s8p2": "In dit gedeelte kunt u boekingen aanvragen, boekingen nalopen, ons berichten sturen en een wijziging of annulering vragen. Wij bewaren de ritgegevens die u invoert (ophaallocatie, bestemming of duur, tussenstops, datum en tijd, een eventuele terugreis, aantal passagiers en koffers, vluchtnummer, de reiziger als u voor een ander boekt, voertuig en opmerkingen), uw naam, e-mailadres en telefoonnummer als boeker, uw bedrijfsnaam en KvK-nummer als u die heeft opgegeven, de prijs en de status van de boeking, en de berichten en antwoorden daarbij. Stuurt u de bedrijfsintroductie in, dan bewaren wij ook het registratienummer van uw bedrijf, wie namens het bedrijf tekent, een aanspreekpunt, hoe u het liefst wordt benaderd en welke ritten u verwacht te boeken. Wij gebruiken dit om uw ritten te regelen en u te antwoorden (het nemen van stappen op uw verzoek en de uitvoering van onze overeenkomst, artikel 6, lid 1, onder b, AVG). Ons team kan facturen aan een boeking toevoegen zodat u ze kunt downloaden; alleen u en ons personeel kunnen ze openen.",
     "s8p3": "Vinkt u het vakje aan wanneer u uw account aanmaakt, dan gebruiken wij uw gegevens ook om u per e-mail op de hoogte te houden van onze diensten en nieuws, op basis van uw toestemming (artikel 6, lid 1, onder a, AVG). U kunt die toestemming altijd intrekken door contact met ons op te nemen, waarna wij ermee stoppen.",
     "s8p4": "Wij bewaren uw account zolang u het gebruikt. Heeft u 24 maanden niet ingelogd en is er in die tijd aan geen van uw boekingen gewerkt, dan verwijderen wij het automatisch, samen met de boekingen die geen deel uitmaken van onze financiële administratie. Begint u met het aanmaken van een account zonder het af te ronden, dan verwijderen wij de gegevens na 30 dagen. U kunt ons ook op elk moment vragen uw account te sluiten en uw gegevens te verwijderen; dat doen wij dan, behalve voor wat wij wettelijk moeten bewaren: boekingen die deel uitmaken van onze financiële administratie, zoals gefactureerde boekingen, blijven zeven jaar bestaan zonder uw persoonsgegevens (alleen het bedrijf, de rit, het bedrag en de facturen blijven)."
+  },
+  "terms": {
+    "metaTitle": "Algemene voorwaarden — Ecram Execs",
+    "metaDescription": "De algemene voorwaarden voor chauffeurs- en vervoersdiensten van Ecram Execs.",
+    "eyebrow": "VOORWAARDEN",
+    "heading": "Algemene voorwaarden",
+    "version": "Versie {version}",
+    "englishNote": "Deze algemene voorwaarden zijn opgesteld in het Engels. De Engelse tekst hieronder is de geldende versie.",
+    "article": "Article {number}",
+    "back": "← Terug naar de homepage"
   },
   "admin": {
     "common": {
@@ -969,7 +980,6 @@
       "addOns": "Extra's",
       "rateCardVat": "BTW / VAT 9%",
       "rateCardTotal": "Totaal incl. BTW / VAT en servicekosten",
-
       "rateCardNone": "Geen prijs volgens tarief: de aanvraag kwam binnen vóór de prijzen, of de kaart kan hem niet berekenen.",
       "journey": "Rit",
       "collection": "Ophaallocatie",
@@ -1469,7 +1479,6 @@
       "printPdf": "PDF afdrukken",
       "close": "Sluiten",
       "heading": "Tariefbeheer en dispatch van de rit",
-
       "itinerary": "Route en afstand",
       "googleMap": "Google Map",
       "waypoints": "Tussenstops",
@@ -1710,7 +1719,6 @@
     "hidePassword": "Verbergen",
     "signupMetaTitle": "Aanmelden — Zakelijke partner — Ecram Execs",
     "signupHeading": "Maak uw account aan",
-   
     "labelNewPassword": "Kies een wachtwoord",
     "labelConfirmPassword": "Herhaal wachtwoord",
     "passwordHint": "Minimaal {min} tekens. Een paar woorden achter elkaar vormen een sterk wachtwoord dat u makkelijk onthoudt.",
@@ -2110,7 +2118,6 @@
     "extrasSkip": "Overslaan, geen extra's",
     "reviewExtras": "Extra's",
     "priceVatHigh": "BTW / VAT 21% (servicekosten en extra's)",
-    
     "priceEstimateLabel": "Prijs volgens tarief",
     "priceEstimateValue": "{net} excl. BTW / VAT · {total} incl. BTW / VAT",
     "priceFromWord": "vanaf",
@@ -2126,12 +2133,14 @@
     "receiptPricing": "Prijs",
     "receiptRides": "Chauffeurdienst",
     "receiptNet": "Totaal excl. BTW / VAT",
-    "reviewAgree": "Ik ga ermee akkoord dat Ecram Execs mijn gegevens gebruikt om deze boeking af te handelen, zoals beschreven in het",
+    "reviewAgree": "Ik heb de",
     "reviewAgreeRequired": "Vink het vakje aan om uw boeking te versturen.",
     "doneMapTitle": "Uw route",
     "doneMapShow": "Toon de route op de kaart",
     "doneMapNote": "De kaart wordt via Google geladen wanneer u hem opent.",
     "doneMapOpen": "Openen in Google Maps",
-    "doneMapFrame": "Kaart van uw route"
+    "doneMapFrame": "Kaart van uw route",
+    "termsLink": "algemene voorwaarden van Ecram Execs",
+    "termsAfter": " gelezen en ga ermee akkoord."
   }
 }

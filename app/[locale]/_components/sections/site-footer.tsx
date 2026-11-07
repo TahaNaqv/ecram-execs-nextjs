@@ -97,6 +97,10 @@ export async function SiteFooter() {
               {d.footer.privacy}
             </Link>{" "}
             ·{" "}
+            <Link className="text-inherit" href={localizedPath("/terms", locale)}>
+              {d.footer.terms}
+            </Link>{" "}
+            ·{" "}
             <CookieSettingsButton label={d.cookieConsent.settingsLink} className="cursor-pointer border-none bg-transparent p-0 font-[inherit] text-[length:inherit] text-inherit underline underline-offset-2" />
           </span>
           <nav className="flex flex-wrap items-center justify-center gap-3 justify-self-center md:justify-self-end md:gap-4 lg:justify-self-center" aria-label={d.footer.socialLabel}>

@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, suggestVehicle, vehicleByKey, type ConvoyPlan, type FleetVehicle } from "@/lib/fleet/vehicles";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { localizedPath } from "@/lib/i18n/pathnames";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingResult, BookingStep, DetailsEntry } from "./booking-flow";
 import { Check, pretty, SeatIcon } from "./parts";
@@ -174,7 +175,6 @@ export function ReviewStep({
   vehicleAdvise,
   result,
   booker,
-  privacyHref,
   lockedNotice,
   gallery,
   onEdit,
@@ -191,7 +191,6 @@ export function ReviewStep({
   vehicleAdvise: string;
   result: BookingResult;
   booker?: { name: string; email: string; companyName?: string | null };
-  privacyHref?: string;
   lockedNotice?: ReactNode;
   gallery: GalleryCopy;
   onEdit: (step: BookingStep) => void;
@@ -355,14 +354,10 @@ export function ReviewStep({
                 />
                 <span>
                   {t.reviewAgree}{" "}
-                  {privacyHref ? (
-                    <a href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
-                      {t.privacyLink.toLowerCase()}
-                    </a>
-                  ) : (
-                    t.privacyLink.toLowerCase()
-                  )}
-                  .
+                  <a href={localizedPath("/terms", locale)} target="_blank" rel="noopener noreferrer" className="text-ink-950 underline underline-offset-2">
+                    {t.termsLink}
+                  </a>
+                  {t.termsAfter}
                 </span>
               </label>
               {mustAgree && (

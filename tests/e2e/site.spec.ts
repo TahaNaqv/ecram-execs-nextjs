@@ -14,6 +14,7 @@ const LOCALES = Object.keys(DICTS) as Loc[];
 const PATHS = {
   home: { en: "/en", nl: "/nl" },
   privacy: { en: "/en/privacy", nl: "/nl/privacybeleid" },
+  terms: { en: "/en/terms", nl: "/nl/voorwaarden" },
   drive: { en: "/en/drive-with-us", nl: "/nl/rijd-met-ons" },
   corporate: { en: "/en/corporate-partner", nl: "/nl/zakelijke-partner" },
 } as const;
@@ -130,7 +131,7 @@ test("a locale's slug does not resolve under the other locale", async ({ request
 });
 
 test("unprefixed paths redirect into a language", async ({ request }) => {
-  for (const path of ["/privacy", "/drive-with-us"]) {
+  for (const path of ["/privacy", "/terms", "/drive-with-us"]) {
     const res = await request.get(path, { maxRedirects: 0 });
     expect(res.status()).toBe(307);
     // These requests carry no Accept-Language, so the default language applies

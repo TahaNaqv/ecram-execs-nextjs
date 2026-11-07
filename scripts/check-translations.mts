@@ -17,6 +17,8 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
 const ALLOW_IDENTICAL = new Set([
   // Google's own attribution wording, required as they word it
   "booking.poweredByGoogle",
+  // The terms are in English only (lib/legal/terms.ts), so their article headings stay English on the Dutch page too
+  "terms.article",
   // Units and placeholders only: "121,5 km · 1 u 25 min" in Dutch comes from the values put into them
   "booking.reviewDistanceValue",
   "booking.reviewMinutes",
