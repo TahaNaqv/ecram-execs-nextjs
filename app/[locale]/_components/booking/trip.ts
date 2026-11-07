@@ -1,6 +1,6 @@
 import { HOURLY_DURATIONS, type Service } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
-import { bagCapacity, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
 import { cleanExtras, type ExtraPick } from "@/lib/pricing/extras";
@@ -30,20 +30,24 @@ export type Trip = {
   flight: string;
   /** A fleet key, "advise" for no preference, or "" when not chosen yet. */
   vehicle: VehicleChoice | "";
-  /** The one car the visitor chose. Empty when they have not chosen, or when they ask us to choose. */
+  /** The cars the visitor chose, with how many of each. Empty when they have not chosen, or when they ask us to choose. */
   cars: { key: VehicleKey; count: number }[];
   /** The add-ons chosen on the step after the car (lib/pricing/extras.ts) */
   extras: ExtraPick[];
 };
 
-/** The Cadillac Escalade IQ seats 7, the most in the fleet. The form never takes more. */
+/** The Cadillac Escalade IQ seats 7, the most in the fleet. The forms that book one car (the partner introduction, the team's own form, the concierge) never take more. */
 export const MAX_PASSENGERS = 7;
-/** Large suitcases any form will take, before the chosen car's boot is checked. */
+/** Large suitcases those one-car forms take, before the chosen car's boot is checked. */
 export const MAX_BAGS = 6;
 /** Hand luggage and backpacks. They ride in the cabin, so the boot does not cap them. */
 export const MAX_SMALL_BAGS = 8;
-/** One of the chosen model. Selecting another model replaces it. */
-export const MAX_PER_CAR = 1;
+/** How many of one model the booking flow takes. Other models can be added alongside (the client, 7 Nov 2026). */
+export const MAX_PER_CAR = MAX_CARS;
+/** The booking flow books several cars, so its party can fill three of the largest car. */
+export const MAX_GROUP = LARGEST_CAR_SEATS * MAX_CARS;
+/** Large suitcases the booking flow takes for its party, before the chosen cars' boots are checked. */
+export const MAX_GROUP_BAGS = MAX_BAGS * MAX_CARS;
 
 /** Pickup and drop-off, ignoring case and extra spaces. Empty text never matches. */
 export function samePlace(a: string, b: string): boolean {
@@ -64,23 +68,52 @@ export function capacityProblem(vehicleKey: string | null | undefined, pax: numb
   };
 }
 
+/** Whether the chosen cars together seat the party and take its large suitcases. No cars (we choose) is no problem. */
+export function carsCapacityProblem(cars: readonly { key: string; count: number }[], pax: number, bags: number | null): { passengers: boolean; luggage: boolean } {
+  let seats = 0;
+  let boots = 0;
+  let any = false;
+  for (const pick of cars) {
+    const car = vehicleByKey(pick.key);
+    if (!car || !Number.isInteger(pick.count) || pick.count < 1) continue;
+    any = true;
+    seats += (car.specs?.passengers ?? 0) * pick.count;
+    boots += bagCapacity(car) * pick.count;
+  }
+  if (!any) return { passengers: false, luggage: false };
+  return { passengers: pax > seats, luggage: bags != null && bags > boots };
+}
+
+/** The cars chosen, each model once with its count (1 to MAX_PER_CAR), in fleet order. */
+export function cleanCars(cars: readonly { key: string; count: number }[]): Trip["cars"] {
+  const counts = new Map<VehicleKey, number>();
+  for (const pick of cars) {
+    const key = normalizeVehicleKey(pick.key);
+    const n = Number(pick.count);
+    if (!key || !Number.isInteger(n) || n < 1) continue;
+    counts.set(key, Math.min(MAX_PER_CAR, (counts.get(key) ?? 0) + n));
+  }
+  return FLEET.filter((v) => counts.has(v.key)).map((v) => ({ key: v.key, count: counts.get(v.key)! }));
+}
+
 const bounded = (n: number, min: number, max: number) => {
   const value = Number.isFinite(n) ? Math.trunc(n) : min;
   return Math.min(max, Math.max(min, value));
 };
 
 /**
- * One car, and a party inside the form's own limits. A car that cannot take the party stays selected:
- * the form then explains that, instead of quietly switching the car or the counts.
+ * The chosen cars, and a party inside the flow's own limits. Cars that cannot take the party stay selected:
+ * the form then explains that, instead of quietly switching the cars or the counts.
  */
 export function normalizeTrip(trip: Trip): Trip {
-  const pax = bounded(trip.pax, 1, MAX_PASSENGERS);
-  const bags = bounded(trip.bags, 0, MAX_BAGS);
+  const pax = bounded(trip.pax, 1, MAX_GROUP);
+  const bags = bounded(trip.bags, 0, MAX_GROUP_BAGS);
   const small = bounded(trip.small, 0, MAX_SMALL_BAGS);
   // A trip saved before add-ons existed has none
   const extras = cleanExtras(trip.extras ?? []);
-  const chosen = trip.cars.find((c) => c.count >= 1);
-  const named = (chosen ? vehicleByKey(chosen.key) : undefined) ?? (trip.vehicle && trip.vehicle !== "advise" ? vehicleByKey(trip.vehicle) : undefined);
+  const chosen = cleanCars(trip.cars);
+  if (chosen.length > 0) return { ...trip, pax, bags, small, extras, cars: chosen, vehicle: chosen[0].key };
+  const named = trip.vehicle && trip.vehicle !== "advise" ? vehicleByKey(trip.vehicle) : undefined;
   if (named) return { ...trip, pax, bags, small, extras, cars: [{ key: named.key, count: 1 }], vehicle: named.key };
   return { ...trip, pax, bags, small, extras, cars: [], vehicle: trip.vehicle === "advise" ? "advise" : "" };
 }
@@ -169,16 +202,14 @@ export function tripFromParams(params: URLSearchParams): Trip {
   return normalizeTrip(trip);
 }
 
-const carsFromParam = (raw: string | null): Trip["cars"] => {
-  if (!raw) return [];
-  for (const part of raw.split("|")) {
-    const [key, count] = part.split(":");
-    const vehicle = normalizeVehicleKey(key);
-    const n = Number(count);
-    if (vehicle && Number.isInteger(n) && n >= 1) return [{ key: vehicle, count: 1 }];
-  }
-  return [];
-};
+// "audi:2|cadillac_escalade:1"
+const carsFromParam = (raw: string | null): Trip["cars"] =>
+  cleanCars(
+    (raw ?? "").split("|").filter(Boolean).map((part) => {
+      const [key, count] = part.split(":");
+      return { key, count: Number(count) };
+    }),
+  );
 
 /** The trip as query parameters for /book: only what is set, so links stay short. */
 export function tripToParams(trip: Trip): URLSearchParams {

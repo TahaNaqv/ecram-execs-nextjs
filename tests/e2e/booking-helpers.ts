@@ -98,7 +98,8 @@ export async function fillJourney(page: Page, j: Journey, t: Copy = en.booking, 
 /** The car step's choices (cars and "No preference"): buttons that are pressed when chosen. */
 export const carChoices = (page: Page) => page.getByRole("list", { name: en.booking.carTitle }).locator("button[aria-pressed]");
 /** One car's choice, by the name it starts with (its details button is named "Photos and details of …"). */
-export const carChoice = (page: Page, name: string) => page.getByRole("radio", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
+export const carChoice = (page: Page, name: string) =>
+  page.locator("button[aria-pressed]").and(page.getByRole("button", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }));
 
 /** Step two: a car by name, "no preference", or skip. */
 export async function chooseCar(page: Page, car: string | "advise" | null, t: Copy = en.booking) {

@@ -11,7 +11,7 @@ import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { isUrgent } from "@/lib/quotes/urgency";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
-import { bookingTotalEuros, formatCents, priceNet, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, formatCents, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
 import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 const esc = (s: string) =>
@@ -65,7 +65,11 @@ export async function notifyNewQuote(q: QuoteRequest) {
 
 /** "€ 228.90 incl. BTW / VAT (€ 210.00 excl.), public rates, 2 h, from": the rate card's price for the team, always in English. */
 function teamPrice(p: Price) {
-  const hours = p.legs.map((leg) => `${leg.hours} h ${leg.day}`).join(" + ");
+  // Per car the same, so the first car's lines give the leg's hours by day ("2 h weekday + 4 h saturday")
+  const hours = p.legs
+    .flatMap((leg) => leg.lines.filter((l) => l.key === leg.lines[0]?.key).map((l) => lineDay(leg, l)))
+    .map((part) => `${part.hours} h ${part.day}`)
+    .join(" + ");
   return `${formatCents(p.total, "en")} incl. BTW / VAT (${formatCents(priceNet(p), "en")} excl.), ${p.segment} rates, ${hours}${p.exact ? "" : ", a lower bound (drive not timed, or car not chosen)"}`;
 }
 

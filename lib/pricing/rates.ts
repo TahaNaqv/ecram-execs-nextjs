@@ -10,7 +10,7 @@ import { priceExtras, type ExtraLine, type ExtraPick } from "./extras.ts";
  * Read by the booking flow in the browser and by the server, which works the price out again when a booking is sent and
  * stores it: nothing here may import server-only code. Amounts are whole euro cents throughout.
  */
-export const RATE_CARD_VERSION = "2026-11e";
+export const RATE_CARD_VERSION = "2026-11f";
 
 export type Segment = "corporate" | "public";
 export type DayKind = "weekday" | "saturday" | "sunday";
@@ -55,6 +55,30 @@ export function dayKind(wall: string): DayKind | null {
   return day === 0 ? "sunday" : day === 6 ? "saturday" : "weekday";
 }
 
+const WALL_TIME = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/;
+const KINDS: DayKind[] = ["sunday", "weekday", "weekday", "weekday", "weekday", "weekday", "saturday"];
+
+/**
+ * A leg's billed hours by rate-card day. Each hour is billed at the rate of the day it starts on (the client, 7 Nov 2026):
+ * six hours from Friday 22:11 are two weekday hours and four Saturday hours, and a Saturday that runs past midnight
+ * goes on at Sunday's rate. Worked on the Dutch wall clock the booking was made in. A pick-up without a time is one day.
+ */
+export function hoursByDay(at: string, hours: number): { day: DayKind; hours: number }[] {
+  const m = WALL_TIME.exec(at);
+  const first = dayKind(at);
+  if (!first) return [];
+  if (!m) return [{ day: first, hours }];
+  const start = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const parts: { day: DayKind; hours: number }[] = [];
+  for (let i = 0; i < hours; i++) {
+    const day = KINDS[new Date(start + i * 3_600_000).getUTCDay()];
+    const last = parts[parts.length - 1];
+    if (last && last.day === day) last.hours += 1;
+    else parts.push({ day, hours: 1 });
+  }
+  return parts;
+}
+
 /** The hourly rate of one car, or null for a car the rate card does not list. */
 export function hourlyRate(key: string, segment: Segment, day: DayKind): number | null {
   const vehicle = normalizeVehicleKey(key);
@@ -72,8 +96,13 @@ export function billedHours(leg: { hours?: number | null; driveSeconds?: number 
   return Math.max(MIN_HOURS, Math.ceil((leg.driveSeconds / 60 + (leg.waitMinutes ?? 0)) / 60));
 }
 
-/** `rate` and `amount` before VAT */
-export type PriceLine = { key: VehicleKey; count: number; rate: number; amount: number };
+/**
+ * `rate` and `amount` before VAT. `day` and `hours` say which part of the leg the line bills: a leg that runs into the
+ * weekend has a line per car per rate. Missing on prices stored before 7 Nov 2026, when the whole leg had one rate:
+ * read them as the leg's own day and hours.
+ */
+export type PriceLine = { key: VehicleKey; count: number; rate: number; amount: number; day?: DayKind; hours?: number };
+/** `day` is the pick-up's day; the lines carry the rate of each day the leg runs into. */
 export type PriceLeg = { leg: "outward" | "return"; at: string; day: DayKind; hours: number; lines: PriceLine[] };
 export type Price = {
   version: string;
@@ -135,12 +164,16 @@ export function priceBooking(input: PriceInput): Price | null {
     if (!at) continue;
     const day = dayKind(at);
     if (!day) return null;
+    const parts = hoursByDay(at, hours);
     const lines: PriceLine[] = [];
     for (const car of input.cars) {
       const key = normalizeVehicleKey(car.key);
-      const rate = key ? hourlyRate(key, input.segment, day) : null;
-      if (!key || rate === null || !Number.isInteger(car.count) || car.count < 1) continue;
-      lines.push({ key, count: car.count, rate, amount: rate * hours * car.count });
+      if (!key || !Number.isInteger(car.count) || car.count < 1) continue;
+      for (const part of parts) {
+        const rate = hourlyRate(key, input.segment, part.day);
+        if (rate === null) continue;
+        lines.push({ key, count: car.count, rate, amount: rate * part.hours * car.count, day: part.day, hours: part.hours });
+      }
     }
     if (lines.length === 0) return null;
     legs.push({ leg, at, day, hours, lines });
@@ -219,6 +252,12 @@ export function bookingTotalEuros(request: {
   }
   return storedQuoteEuros(request.priceEstimate);
 }
+
+/** A line's own day and hours, or its leg's on a price stored before lines carried them. */
+export const lineDay = (leg: PriceLeg, line: PriceLine): { day: DayKind; hours: number } => ({ day: line.day ?? leg.day, hours: line.hours ?? leg.hours });
+
+/** Whether a leg is billed at more than one day's rate. */
+export const legSpansDays = (leg: PriceLeg) => new Set(leg.lines.map((l) => lineDay(leg, l).day)).size > 1;
 
 /** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */
 export function formatCents(cents: number, locale: string): string {

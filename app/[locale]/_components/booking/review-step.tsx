@@ -136,7 +136,8 @@ export function selectionLabel(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle
 export function convoySentence(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): string | null {
   const label = selectionLabel(t, trip, offered);
   if (!label) return null;
-  return interpolate(t.convoyLine, { cars: label, party: guestsText(t, trip.pax) });
+  // The visitor's own mix is their choice, not something the party requires
+  return interpolate(chosenPicks(trip).length > 0 ? t.convoyChosen : t.convoyLine, { cars: label, party: guestsText(t, trip.pax) });
 }
 
 export function convoyPlan(trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): ConvoyPlan | undefined {

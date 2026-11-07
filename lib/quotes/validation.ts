@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HOURLY_DURATIONS, SERVICES } from "@/lib/quotes/constants";
-import { capacityProblem, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
-import { VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { capacityProblem, carsCapacityProblem, cleanCars, MAX_GROUP, MAX_GROUP_BAGS, MAX_PER_CAR, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
+import { FLEET, VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import { cleanExtras } from "@/lib/pricing/extras";
@@ -93,8 +93,8 @@ export const quoteSchema = (t: QuoteMessages) =>
         .refine((h) => (HOURLY_DURATIONS as readonly number[]).includes(h), t.durationRequired)
         .optional(),
     ),
-    passengers: z.coerce.number().int().min(1).max(MAX_PASSENGERS).optional(),
-    luggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_BAGS).optional()),
+    passengers: z.coerce.number().int().min(1).max(MAX_GROUP).optional(),
+    luggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_GROUP_BAGS).optional()),
     handLuggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_SMALL_BAGS).optional()),
     // An airline flight ("KL 1002") or, for a private flight, the aircraft's registration ("PH-ABC")
     flightNumber: z.preprocess(
@@ -120,7 +120,8 @@ export const quoteSchema = (t: QuoteMessages) =>
       .optional()
       .transform((v) => (v ? (normalizeVehicleKey(v) ?? v) : undefined))
       .pipe(z.enum(VEHICLE_CHOICES).optional()),
-    // JSON from the car step: [{ "key": "audi", "count": 1 }]. Empty when the visitor asks us to choose. One car only.
+    // JSON from the car step: [{ "key": "audi", "count": 2 }, { "key": "cadillac_escalade", "count": 1 }]. Empty when the
+    // visitor asks us to choose. Several models, each up to MAX_PER_CAR.
     vehicles: z.preprocess((v) => {
       if (v == null || v === "") return undefined;
       if (typeof v === "string") {
@@ -133,8 +134,8 @@ export const quoteSchema = (t: QuoteMessages) =>
       return v;
     }, z.array(z.object({
       key: z.string().transform((k) => normalizeVehicleKey(k) ?? k).pipe(z.enum(VEHICLE_KEYS)),
-      count: z.coerce.number().int().min(1).max(1),
-    })).max(1).optional()),
+      count: z.coerce.number().int().min(1).max(MAX_PER_CAR),
+    })).max(FLEET.length).optional()),
     // JSON from the add-ons step: [{ "key": "chocolates", "option": "classic", "count": 1 }]. Anything not on the list is left out.
     extras: z.preprocess((v) => {
       if (typeof v !== "string" || v === "") return undefined;
@@ -166,7 +167,8 @@ export const quoteSchema = (t: QuoteMessages) =>
     if (!v.destination && v.service === "hourly" && !v.durationHours) issue("durationHours", t.durationRequired);
     if (v.returnAt && v.returnAt <= v.pickupAt) issue("returnAt", t.returnBeforePickup);
     if (v.destination && samePlace(v.collection, v.destination)) issue("destination", t.samePlace);
-    const fit = capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
+    // Several cars are checked together: their seats and boots added up
+    const fit = v.vehicles?.length ? carsCapacityProblem(cleanCars(v.vehicles), v.passengers ?? 1, v.luggage ?? null) : capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
     const fitText = fit.passengers && fit.luggage ? t.vehicleBoth : fit.passengers ? t.vehiclePassengers : fit.luggage ? t.vehicleLuggage : "";
     if (fitText) issue("vehicle", fitText);
   }).transform(({ phoneCountry, phone, passengerPhoneCountry, passengerPhone, durationHours, ...rest }) => ({

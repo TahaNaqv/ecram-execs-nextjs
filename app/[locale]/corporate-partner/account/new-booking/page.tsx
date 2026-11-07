@@ -10,15 +10,16 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { PortalBooking } from "../../../_components/booking/portal-booking";
-import { emptyTrip, normalizeTrip, type Trip } from "../../../_components/booking/trip";
+import { cleanCars, emptyTrip, normalizeTrip, type Trip } from "../../../_components/booking/trip";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { PortalPage } from "../../../_components/portal-shell";
 
 function carsFromBooking(source: { vehicle: string | null; vehicleCount: number; vehicles: { key: string; count: number }[] | null }): Trip["cars"] {
+  // Every car of the earlier booking, with how many of each (several cars per booking again, 7 Nov 2026)
   const stored = fleetPicks(source.vehicles);
-  const key = stored[0]?.key ?? normalizeVehicleKey(source.vehicle);
-  if (!key) return [];
-  return [{ key, count: 1 }];
+  if (stored.length > 0) return cleanCars(stored);
+  const key = normalizeVehicleKey(source.vehicle);
+  return key ? [{ key, count: 1 }] : [];
 }
 
 /** A booking request, with the partner's details filled in. `?repeat=EE-…` starts from one of their own earlier bookings. */

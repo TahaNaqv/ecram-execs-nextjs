@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { carsToPrice } from "@/lib/pricing/booking";
-import { formatCents, hasHighRateExtras, priceBooking, vatByRate, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
+import { formatCents, hasHighRateExtras, legSpansDays, lineDay, priceBooking, vatByRate, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
@@ -76,16 +76,21 @@ export function PriceBreakdown({
       <dl className="m-0 flex flex-col">
         {price.legs.flatMap((leg) => [
           ...(legs ? [<div key={`${leg.leg}-head`} className="pt-2 text-[12px] font-semibold tracking-[0.08em] text-ink-500 uppercase">{interpolate(leg.leg === "return" ? t.priceReturn : t.priceOutward, { date: pretty(leg.at, locale) })}</div>] : []),
-          ...leg.lines.map((line) =>
-            row(
-              `${leg.leg}-${line.key}`,
+          ...leg.lines.map((line) => {
+            // A leg that runs into the weekend has a line per rate, each saying which rate it is
+            const part = lineDay(leg, line);
+            const hours = { hours: part.hours, rate: euro(line.rate) };
+            return row(
+              `${leg.leg}-${line.key}-${part.day}`,
               <span className="flex flex-col">
                 <span className="text-ink-950">{`${line.count} × ${vehicleByKey(line.key)?.name ?? line.key}`}</span>
-                <span className="text-[12px]">{interpolate(t.priceLineHours, { hours: leg.hours, rate: euro(line.rate) })}</span>
+                <span className="text-[12px]">
+                  {legSpansDays(leg) ? interpolate(t.priceLineHoursDay, { ...hours, day: dayLabel(t, part.day) }) : interpolate(t.priceLineHours, hours)}
+                </span>
               </span>,
               euro(line.amount),
-            ),
-          ),
+            );
+          }),
         ])}
         {(price.extras ?? []).map((line) =>
           row(

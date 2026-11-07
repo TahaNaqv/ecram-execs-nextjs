@@ -533,7 +533,7 @@
     "privacy": "Privacy",
     "socialLabel": "Social",
     "linkBespoke": "Bespoke Journeys",
-    "terms": "Terms and conditions"
+    "terms": "Terms and Conditions"
   },
   "film": {
     "videoLabel": "Ecram Execs — the arrival",
@@ -695,12 +695,12 @@
     "s8p4": "We keep your account as long as you use it. If you have not logged in for 24 months and no work has been done on any of your bookings in that time, we delete it automatically, along with the bookings that are not part of our financial records. If you start creating an account without finishing it, we delete the details after 30 days. You can also ask us at any time to close your account and delete your data; we will do so, except for what we are legally required to keep: bookings that form part of our financial records, such as invoiced bookings, remain for seven years without your personal data (only the company, route, amount and invoices remain)."
   },
   "terms": {
-    "metaTitle": "Terms and conditions — Ecram Execs",
-    "metaDescription": "The general terms and conditions for chauffeur and transport services by Ecram Execs.",
+    "metaTitle": "Terms and Conditions — Ecram Execs",
+    "metaDescription": "The general Terms and Conditions for chauffeur and transport services by Ecram Execs.",
     "eyebrow": "TERMS",
-    "heading": "Terms and conditions",
+    "heading": "Terms and Conditions",
     "version": "Version {version}",
-    "englishNote": "These terms and conditions are drawn up in English.",
+    "englishNote": "These Terms and Conditions are drawn up in English.",
     "article": "Article {number}",
     "back": "← Back to the homepage"
   },
@@ -1960,8 +1960,9 @@
     "fewerSmallBags": "One fewer small bag",
     "moreSmallBags": "One more small bag",
     "partyHint": "Large suitcases follow the car. Small bags ride in the cabin.",
-    "partyLarge": "One car for the party, up to 7 passengers.",
+    "partyLarge": "More than 7 passengers travel in several cars: you choose them on the next step.",
     "convoyLine": "Multi-vehicle convoy: {cars} required for {party}.",
+    "convoyChosen": "Your cars: {cars} for {party}.",
     "convoyCars": "{count} × {car}",
     "done": "Done",
     "continue": "Continue",
@@ -1998,6 +1999,12 @@
     "carDetails": "Photos and details of the {car}",
     "noPreference": "Let us choose",
     "noPreferenceNote": "We'll choose the best car for {party} and {bags}, and the price uses that car.",
+    "carsSeveral": "Choose one car, or several for a larger party: use + and − to set how many of each.",
+    "recommendedTitle": "Recommended vehicle",
+    "recommendedBasis": "Based on your {party} and {bags}",
+    "carsFitPassengers": "The cars you chose do not have enough seats for {party}. Add a car, or choose a larger one.",
+    "carsFitLuggage": "The cars you chose cannot take {bags}. Add a car, or choose one with a larger boot.",
+    "carsFitBoth": "The cars you chose do not have enough seats for {party} or room for {bags}. Add a car, or choose a larger one.",
     "continueWith": "Continue with the {car}",
     "continueWithCount": "Continue with {count} cars",
     "fewerOf": "One fewer {car}",
@@ -2089,6 +2096,9 @@
     "reviewPrice": "Price",
     "reviewPriceNote": "Your personal price follows by email, usually within the hour. Nothing is charged now.",
     "carRate": "{price} / hour",
+    "carRateDay": "{price} / hour · {day}",
+    "carRatesSplit": "{days}, per hour: your booking runs past midnight, and the hours from midnight are at the next day's rate. Minimum 2 hours. 9% BTW / VAT and a {fee} service fee (plus 21% BTW / VAT) are added to the total.",
+    "carRatesAnd": " and ",
     "carRates": "{day}, per hour. Minimum 2 hours. 9% BTW / VAT and a {fee} service fee (plus 21% BTW / VAT) are added to the total.",
     "rateWeekday": "Weekday rate (Mon–Fri)",
     "rateSaturday": "Saturday rate",
@@ -2097,6 +2107,7 @@
     "priceOutward": "Outward, {date}",
     "priceReturn": "Return, {date}",
     "priceLineHours": "{hours} h × {rate}",
+    "priceLineHoursDay": "{hours} h × {rate} · {day}",
     "priceServiceFee": "Service fee",
     "priceFeeVat": "BTW / VAT 21% (service fee)",
     "priceVat": "BTW / VAT 9%",
@@ -2139,7 +2150,7 @@
     "doneMapNote": "The map is loaded from Google when you open it.",
     "doneMapOpen": "Open in Google Maps",
     "doneMapFrame": "Map of your route",
-    "termsLink": "Ecram Execs terms and conditions",
+    "termsLink": "Ecram Execs Terms and Conditions",
     "termsAfter": "."
   }
 }

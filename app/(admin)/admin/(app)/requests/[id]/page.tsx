@@ -35,7 +35,7 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { bookingTotalEuros, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, vatByRate } from "@/lib/pricing/rates";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 async function BackLabel() {
@@ -306,9 +306,12 @@ function RateCardPrice({ price, finalEuros, copy: rd, names }: { price: Price | 
           {price.legs.map((leg) => (
             <div key={leg.leg} className="pb-2">
               <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">{interpolate(leg.leg === "return" ? rd.rateCardReturn : rd.rateCardOutward, { day: days[leg.day] })}</p>
-              {leg.lines.map((l) => (
-                <div key={l.key}>{line(interpolate(rd.rateCardLine, { count: l.count, car: vehicleByKey(l.key)?.name ?? l.key, hours: leg.hours, rate: euro(l.rate) }), euro(l.amount))}</div>
-              ))}
+              {leg.lines.map((l) => {
+                // A leg that runs into the weekend is billed at each day's rate
+                const part = lineDay(leg, l);
+                const text = interpolate(rd.rateCardLine, { count: l.count, car: vehicleByKey(l.key)?.name ?? l.key, hours: part.hours, rate: euro(l.rate) });
+                return <div key={`${l.key}-${part.day}`}>{line(legSpansDays(leg) ? `${text} · ${days[part.day]}` : text, euro(l.amount))}</div>;
+              })}
             </div>
           ))}
           {(price.extras ?? []).map((e) => (

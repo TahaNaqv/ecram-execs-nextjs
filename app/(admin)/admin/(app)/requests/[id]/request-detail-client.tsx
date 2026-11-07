@@ -24,7 +24,7 @@ import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import type { Price } from "@/lib/pricing/rates";
+import { lineDay, type Price } from "@/lib/pricing/rates";
 
 const PIPELINE: RequestStatus[] = ["new", "confirmed", "completed", "cancelled"];
 
@@ -284,8 +284,8 @@ function RateCardPrice({ price, requestId, copy: rd }: { price: Price | null; re
                 {interpolate(leg.leg === "return" ? rd.rateCardReturn : rd.rateCardOutward, { day: days[leg.day] })}
               </p>
               {leg.lines.map((l, lineIdx) => (
-                <div key={l.key} className="flex items-center justify-between py-1.5 text-[13px] text-zinc-600">
-                  <span>{interpolate(rd.rateCardLine, { count: l.count, car: vehicleByKey(l.key)?.name ?? l.key, hours: leg.hours, rate: euro(l.rate) })}</span>
+                <div key={`${l.key}-${lineDay(leg, l).day}`} className="flex items-center justify-between py-1.5 text-[13px] text-zinc-600">
+                  <span>{interpolate(rd.rateCardLine, { count: l.count, car: vehicleByKey(l.key)?.name ?? l.key, hours: lineDay(leg, l).hours, rate: euro(l.rate) })}</span>
                   
                   {isEditing ? (
                     <div className="flex items-center gap-2">

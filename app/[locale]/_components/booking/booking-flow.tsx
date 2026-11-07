@@ -8,14 +8,14 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
-import { dayKind, formatCents, hasHighRateExtras, hourlyRate, priceNet, SERVICE_FEE_CENTS, vatByRate, type Price, type Segment } from "@/lib/pricing/rates";
+import { formatCents, hasHighRateExtras, hourlyRate, hoursByDay, MIN_HOURS, priceNet, SERVICE_FEE_CENTS, vatByRate, type Price, type Segment } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
 import { guestsText, luggageLine, partyLine } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { capacityProblem, involvesAirport, isTripReady, normalizeTrip, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
+import { carsCapacityProblem, involvesAirport, isTripReady, MAX_PER_CAR, normalizeTrip, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
 import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
@@ -399,9 +399,11 @@ function galleryCopy(t: FleetDictionary): GalleryCopy {
   };
 }
 
+/** The trip with this many of one car, the other cars kept. Choosing a car is choosing yourself, so "let us choose" goes. */
 function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
-  if (count <= 0) return normalizeTrip({ ...trip, cars: [], vehicle: trip.vehicle === key ? "" : trip.vehicle });
-  return normalizeTrip({ ...trip, cars: [{ key, count: 1 }], vehicle: key });
+  const others = trip.cars.filter((c) => c.key !== key);
+  const cars = count > 0 ? [...others, { key, count: Math.min(MAX_PER_CAR, count) }] : others;
+  return normalizeTrip({ ...trip, cars, vehicle: cars.length > 0 ? cars[0].key : "" });
 }
 
 function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
@@ -426,36 +428,44 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
   const recommendation = suggestVehicle(cars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
-  const day = trip.at ? dayKind(trip.at) : null;
-  const rateOf = (key: string) => {
-    const rate = day ? hourlyRate(key, segment, day) : null;
-    return rate === null ? null : interpolate(t.carRate, { price: formatCents(rate, locale) });
-  };
-  const unfit = (key: string) => {
-    const problem = capacityProblem(key, trip.pax, trip.bags);
-    return problem.passengers || problem.luggage;
-  };
-  const blockedSelection = trip.cars.length === 1 && unfit(trip.cars[0].key);
+  // The days the booking is billed at: an hourly booking's own hours, a transfer's two-hour minimum (its drive is timed
+  // on the review). Past midnight into the weekend the next day's rate applies, so both rates are shown.
+  const days = trip.at ? hoursByDay(trip.at, trip.mode === "hourly" && trip.hours !== "" ? trip.hours : MIN_HOURS).map((part) => part.day) : [];
+  const split = days.length > 1;
+  const rateOf = (key: string) =>
+    days.flatMap((day) => {
+      const rate = hourlyRate(key, segment, day);
+      if (rate === null) return [];
+      const price = formatCents(rate, locale);
+      return [split ? interpolate(t.carRateDay, { price, day: dayLabel(t, day) }) : interpolate(t.carRate, { price })];
+    });
+  // Several cars may be chosen (the client, 7 Nov 2026): together they have to seat the party and take its suitcases
+  const fit = carsCapacityProblem(trip.cars, trip.pax, trip.bags);
+  const blockedSelection = fit.passengers || fit.luggage;
+  const luggage = luggageLine(t, trip.bags, trip.small);
+  const fitMessage = fit.passengers && fit.luggage
+    ? interpolate(t.carsFitBoth, { party, bags: luggage })
+    : fit.passengers
+      ? interpolate(t.carsFitPassengers, { party })
+      : fit.luggage
+        ? interpolate(t.carsFitLuggage, { bags: luggage })
+        : null;
+  const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-ink-225 bg-white text-[18px] leading-none text-ink-950 hover:border-ink-950 disabled:cursor-default disabled:opacity-40";
   const card = (c: (typeof cars)[number]) => {
-    const selected = trip.cars.length === 1 && trip.cars[0].key === c.vehicle.key;
-    const unavailable = unfit(c.vehicle.key);
+    const count = trip.cars.find((pick) => pick.key === c.vehicle.key)?.count ?? 0;
+    const selected = count > 0;
     return (
       <li key={c.vehicle.key} className="relative">
         <div
-          className={`flex flex-col rounded-2xl bg-white text-ink-950 ${unavailable ? "opacity-50" : ""} ${
+          className={`flex flex-col rounded-2xl bg-white text-ink-950 ${
             selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-2"
           }`}
         >
           <button
             type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-disabled={unavailable}
-            disabled={unavailable}
-            onClick={() => {
-              if (!unavailable && !selected) onCars(c.vehicle.key, 1);
-            }}
-            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit disabled:cursor-not-allowed"
+            aria-pressed={selected}
+            onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
+            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
@@ -468,7 +478,11 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
                 </span>
               )}
             </span>
-            {rateOf(c.vehicle.key) && <span className="px-1.5 pb-1 text-[14px] font-medium text-ink-700 tabular-nums">{rateOf(c.vehicle.key)}</span>}
+            {rateOf(c.vehicle.key).map((rate) => (
+              <span key={rate} className="px-1.5 pb-1 text-[14px] font-medium text-ink-700 tabular-nums">
+                {rate}
+              </span>
+            ))}
             <span
               className={`m-1.5 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
                 selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
@@ -484,6 +498,25 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
               )}
             </span>
           </button>
+          {selected && (
+            <span className="flex items-center justify-center gap-2 px-2 pt-1 pb-2">
+              <button type="button" aria-label={interpolate(t.fewerOf, { car: c.vehicle.name })} onClick={() => onCars(c.vehicle.key, count - 1)} className={qtyButton}>
+                −
+              </button>
+              <output aria-label={interpolate(t.countOf, { car: c.vehicle.name })} className="w-10 text-center text-[16px] font-semibold tabular-nums">
+                {count}
+              </output>
+              <button
+                type="button"
+                aria-label={interpolate(t.moreOf, { car: c.vehicle.name })}
+                disabled={count >= MAX_PER_CAR}
+                onClick={() => onCars(c.vehicle.key, count + 1)}
+                className={qtyButton}
+              >
+                +
+              </button>
+            </span>
+          )}
           {selected && (
             <span aria-hidden="true" className="absolute top-[18px] left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white">
               <Check size={15} />
@@ -510,25 +543,37 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
       <h2 id="booking-car" ref={headingRef} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
         {t.carTitle}
       </h2>
-      {day && (
+      {days.length > 0 && (
         <p className="m-0 mt-2 text-[13px] text-ink-600">
-          {interpolate(t.carRates, { day: dayLabel(t, day), fee: formatCents(SERVICE_FEE_CENTS, locale) })}
+          {split
+            ? interpolate(t.carRatesSplit, { days: days.map((day) => dayLabel(t, day)).join(t.carRatesAnd), fee: formatCents(SERVICE_FEE_CENTS, locale) })
+            : interpolate(t.carRates, { day: dayLabel(t, days[0]), fee: formatCents(SERVICE_FEE_CENTS, locale) })}
         </p>
       )}
-      {cars.some((c) => unfit(c.vehicle.key)) && <p className="m-0 mt-2 text-xs leading-snug text-red-500">{t.carsDisabledNote}</p>}
-      <ul role="radiogroup" aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsSeveral}</p>
+      <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {cars.map(card)}
         <li>
+          {/* We choose the car, and say which one we would book: it has to stand out (the client, 7 Nov 2026) */}
           <button
             type="button"
-            role="radio"
-            aria-checked={advise}
-            aria-label={recommendation ? `${t.noPreference}. ${recommendation.name}` : undefined}
+            aria-pressed={advise}
+            aria-label={recommendation ? `${t.noPreference}. ${t.recommendedTitle}: ${recommendation.name}. ${interpolate(t.recommendedBasis, { party, bags: luggage })}` : undefined}
             onClick={onAdvise}
-            className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl p-[22px] text-left text-ink-950 ${
-              advise ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent hover:border-ink-950"
+            className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl text-left text-ink-950 ${
+              recommendation
+                ? `border-2 border-solid border-emerald-500 p-[21px] ${advise ? "bg-white shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" : "bg-white/60 hover:bg-white"}`
+                : advise
+                  ? "border-2 border-solid border-ink-950 bg-white p-[21px]"
+                  : "border border-dashed border-ink-400 bg-transparent p-[22px] hover:border-ink-950"
             }`}
           >
+            {recommendation && (
+              <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] text-[#ffffff] uppercase">
+                <Check size={12} />
+                {t.recommendedTitle}
+              </span>
+            )}
             {recommendation ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={recommendation.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
@@ -541,13 +586,18 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
             )}
             <span className="flex flex-col gap-1.5">
               <span className="font-serif text-[26px] leading-none">{recommendation?.name || t.noPreference}</span>
-              <span className="text-[13px] text-ink-600">{interpolate(t.noPreferenceNote, { party, bags: luggageLine(t, trip.bags, trip.small) })}</span>
+              {recommendation && <span className="text-[13px] font-semibold text-emerald-600">{interpolate(t.recommendedBasis, { party, bags: luggage })}</span>}
+              <span className="text-[13px] text-ink-600">{interpolate(t.noPreferenceNote, { party, bags: luggage })}</span>
             </span>
           </button>
         </li>
       </ul>
 
-      {error && <p role="alert" className="m-0 mt-6 text-[13px] leading-snug text-error">{error}</p>}
+      {(fitMessage || error) && (
+        <p role="alert" className="m-0 mt-6 text-[13px] leading-snug text-error">
+          {fitMessage ?? error}
+        </p>
+      )}
       <div className="sticky bottom-0 z-10 mt-8 -mx-5 border-t border-solid border-ink-150 bg-white/95 px-5 pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur md:-mx-6 md:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <ul className="m-0 hidden list-none flex-wrap gap-x-5 gap-y-1.5 p-0 text-[13px] text-ink-700 md:flex">

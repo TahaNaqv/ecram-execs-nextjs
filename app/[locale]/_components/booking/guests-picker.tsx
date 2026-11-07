@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { LARGEST_CAR_SEATS } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { BookingCopy } from "./copy";
-import { MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS } from "./trip";
+import { MAX_GROUP, MAX_GROUP_BAGS, MAX_SMALL_BAGS } from "./trip";
 
 export const guestsText = (t: BookingCopy, pax: number) =>
   pax === 1 ? t.guestOne : interpolate(t.guestMany, { count: pax });
@@ -155,7 +155,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
                 value={pax}
                 label={t.passengers}
                 min={1}
-                max={MAX_PASSENGERS}
+                max={MAX_GROUP}
                 less={t.fewerPassengers}
                 more={t.morePassengers}
                 onChange={(n) => onChange({ pax: n, bags, small })}
@@ -166,7 +166,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
                 <strong className="text-[13px]">{t.suitcases}</strong>
                 <small className="text-[11px] text-ink-600">{t.suitcasesHint}</small>
               </span>
-              <Stepper value={Math.min(bags, MAX_BAGS)} label={t.suitcases} min={0} max={MAX_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_BAGS, n), small })} />
+              <Stepper value={Math.min(bags, MAX_GROUP_BAGS)} label={t.suitcases} min={0} max={MAX_GROUP_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_GROUP_BAGS, n), small })} />
             </div>
             <div className="flex items-center justify-between gap-2 py-1">
               <span className="flex min-w-0 flex-col">
