@@ -28,7 +28,7 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   await chocolates.getByRole("button", { name: `${en.booking.extrasAdd}: ${en.addOns.chocolates}` }).click();
   // The focus moves from Add to the stepper, so a keyboard user stays on the card
   await expect(chocolates.getByRole("button", { name: en.booking.extrasMore.replace("{item}", en.addOns.chocolates) })).toBeFocused();
-  await chocolates.getByText(en.addOns.chocolatesDairyFree).click();
+  await chocolates.getByText(en.addOns.chocolatesDairyFree, { exact: true }).click();
   await expect(chocolates.getByRole("radio", { name: en.addOns.chocolatesDairyFree })).toBeChecked();
   const champagne = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: en.addOns.champagne, exact: true }) });
   await champagne.getByRole("button", { name: `${en.booking.extrasAdd}: ${en.addOns.champagne}` }).click();
