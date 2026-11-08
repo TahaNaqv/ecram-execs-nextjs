@@ -3,7 +3,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { isUniqueViolation, makeReference } from "@/lib/request-meta";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
-import { routeBlockMinutes } from "@/lib/fleet/route";
+import { routeHold } from "@/lib/fleet/route";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
 
 /** A booking was saved as confirmed for a car that another confirmed booking already holds at that time. */
@@ -31,7 +31,10 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
   // The amount is the rate-card total from this request, and later status updates leave it alone.
   // A quote the team typed on their own form is kept as they typed it.
   const seeded = input.quotedAmount == null ? { ...input, quotedAmount: storedQuoteEuros(input.priceEstimate) } : input;
-  const values = seeded.status === "confirmed" && seeded.blockMinutes == null ? { ...seeded, blockMinutes: await routeBlockMinutes(seeded) } : seeded;
+  const hold = seeded.status === "confirmed" ? await routeHold(seeded) : null;
+  const values = hold
+    ? { ...seeded, blockMinutes: seeded.blockMinutes ?? hold.blockMinutes, driveBackMinutes: seeded.driveBackMinutes ?? hold.driveBackMinutes }
+    : seeded;
   for (let attempt = 1; ; attempt++) {
     try {
       return await db.transaction(async (tx) => {
@@ -45,6 +48,7 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
             service: values.service,
             durationHours: values.durationHours ?? null,
             blockMinutes: values.blockMinutes ?? null,
+            driveBackMinutes: values.driveBackMinutes ?? null,
           });
           if (clash) throw new CarClashError(clash);
         }

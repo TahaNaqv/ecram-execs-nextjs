@@ -15,7 +15,7 @@ export const DEFAULT_TRIP_MINUTES = {
   bespoke: 120,
 } as const;
 
-/** The time after a job before the car can start another: the chauffeur's drive back, cleaning, charging. */
+/** The least time after a job before the car can start another: cleaning, charging, a short drive. A longer drive home replaces it. */
 export const BUFFER_MINUTES = 30;
 
 /** The most a trip can be set to last, in minutes (a long day of hourly work plus travel). */
@@ -29,6 +29,8 @@ export type ScheduledBooking = {
   returnAt: string | null;
   durationHours: number | null;
   blockMinutes: number | null;
+  /** The drive home after the outward trip (see lib/fleet/base.ts); the car is held for this or the buffer, whichever is longer. */
+  driveBackMinutes?: number | null;
 };
 
 /** One stretch of time a booking holds a car, in minutes since 1970 on the Dutch wall clock. `end` includes the buffer. */
@@ -55,6 +57,13 @@ export function tripMinutes(b: Pick<ScheduledBooking, "service" | "durationHours
   return DEFAULT_TRIP_MINUTES[b.service as keyof typeof DEFAULT_TRIP_MINUTES] ?? 120;
 }
 
+/** The time after a trip before the car can start another: its drive home, or the buffer, whichever is longer. */
+export function turnaroundMinutes(b: Pick<ScheduledBooking, "driveBackMinutes">, leg: "outward" | "return"): number {
+  // A return journey ends where the trip started, so only the outward leg has the drive home
+  const back = leg === "outward" && b.driveBackMinutes && b.driveBackMinutes > 0 ? Math.min(b.driveBackMinutes, MAX_TRIP_MINUTES) : 0;
+  return Math.max(BUFFER_MINUTES, back);
+}
+
 /** The stretches a booking holds its car: the outward journey, and the return journey when it has one. */
 export function blocksOf(b: ScheduledBooking): Block[] {
   const length = tripMinutes(b);
@@ -62,7 +71,7 @@ export function blocksOf(b: ScheduledBooking): Block[] {
   for (const [leg, at] of [["outward", b.pickupAt], ["return", b.returnAt]] as const) {
     const start = wallMinutes(at);
     if (start === null) continue;
-    blocks.push({ id: b.id, leg, start, tripEnd: start + length, end: start + length + BUFFER_MINUTES });
+    blocks.push({ id: b.id, leg, start, tripEnd: start + length, end: start + length + turnaroundMinutes(b, leg) });
   }
   return blocks;
 }

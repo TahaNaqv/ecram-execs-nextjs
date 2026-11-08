@@ -22,16 +22,16 @@ export async function lockFleet(tx: Db) {
   await tx.execute(sql`select pg_advisory_xact_lock(${FLEET_LOCK})`);
 }
 
-type ConfirmedRow = { id: string; reference: string; vehicle: string | null; vehicles: unknown; service: string; pickupAt: string | null; returnAt: string | null; durationHours: number | null; blockMinutes: number | null };
+type ConfirmedRow = { id: string; reference: string; vehicle: string | null; vehicles: unknown; service: string; pickupAt: string | null; returnAt: string | null; durationHours: number | null; blockMinutes: number | null; driveBackMinutes: number | null };
 
 /** The confirmed bookings with a particular car whose stretches could touch the given stretches. */
 async function confirmedNear(db: Db, blocks: Block[], excludeId?: string): Promise<ConfirmedRow[]> {
   if (blocks.length === 0) return [];
-  // A trip plus its buffer is at most a day, so anything starting more than a day before, or after, cannot touch
-  const lo = wallText(Math.min(...blocks.map((b) => b.start)) - 24 * 60);
+  // A trip (at most 16 hours) plus its drive home (at most 11, see route-core.ts) is under two days
+  const lo = wallText(Math.min(...blocks.map((b) => b.start)) - 2 * 24 * 60);
   const hi = wallText(Math.max(...blocks.map((b) => b.end)));
   return db
-    .select({ id: q.id, reference: q.reference, vehicle: q.vehicle, vehicles: q.vehicles, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes })
+    .select({ id: q.id, reference: q.reference, vehicle: q.vehicle, vehicles: q.vehicles, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes, driveBackMinutes: q.driveBackMinutes })
     .from(q)
     .where(
       and(
@@ -60,11 +60,11 @@ export async function busyVehicleKeys(window: Window, opts: { excludeId?: string
 /** The reference of a confirmed booking that already holds one of this booking's cars at some point of this trip, or null when they are all free. */
 export async function clashingReference(
   tx: Db,
-  booking: { id?: string; vehicle: string | null; vehicles?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null },
+  booking: { id?: string; vehicle: string | null; vehicles?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null; driveBackMinutes?: number | null },
 ): Promise<string | null> {
   const keys = heldKeys(booking);
   if (keys.size === 0 || !booking.pickupAt) return null;
-  const mine = blocksOf({ id: booking.id ?? "new", status: "confirmed", service: booking.service, pickupAt: booking.pickupAt, returnAt: booking.returnAt, durationHours: booking.durationHours, blockMinutes: booking.blockMinutes ?? null });
+  const mine = blocksOf({ id: booking.id ?? "new", status: "confirmed", service: booking.service, pickupAt: booking.pickupAt, returnAt: booking.returnAt, durationHours: booking.durationHours, blockMinutes: booking.blockMinutes ?? null, driveBackMinutes: booking.driveBackMinutes ?? null });
   const rows = await confirmedNear(tx, mine, booking.id);
   for (const row of rows) {
     if (![...heldKeys(row)].some((k) => keys.has(k))) continue;

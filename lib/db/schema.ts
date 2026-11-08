@@ -50,6 +50,9 @@ export const quoteRequests = pgTable(
     // Minutes the car is held for the trip itself (the buffer after it is added on top): the route's drive time plus an
     // allowance, worked out when the booking is confirmed. Null = not worked out, so the service's estimate is used.
     blockMinutes: integer("block_minutes"),
+    // Minutes the car needs after the trip to drive home (lib/fleet/base.ts), from the route, worked out when the booking is
+    // confirmed. The car is held for this or the buffer, whichever is longer (the client, 8 Nov 2026). Null = not worked out.
+    driveBackMinutes: integer("drive_back_minutes"),
     returnAt: timestamp("return_at", { mode: "string" }),
     passengerName: text("passenger_name"),
     passengerPhone: text("passenger_phone"),

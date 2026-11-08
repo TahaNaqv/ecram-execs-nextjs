@@ -9,7 +9,7 @@ import { DUMMY_HASH, verifyPassword } from "@/lib/auth/password";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
-import { routeBlockMinutes } from "@/lib/fleet/route";
+import { routeHold } from "@/lib/fleet/route";
 import { emailEnquiryStatus, emailPartnerBooking, type EnquiryEmailKind } from "@/lib/email";
 import { removeFiles } from "@/lib/storage";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
@@ -133,19 +133,21 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
 
   // Confirming also fixes how long the car is held: the route's length, asked for before the fleet lock is taken
   const confirming = status === "confirmed" && before.status !== "confirmed";
-  const routed = confirming && before.blockMinutes == null ? await routeBlockMinutes(before) : null;
+  const hold = confirming ? await routeHold(before) : null;
+  const routed = hold?.blockMinutes ?? null;
+  const back = hold?.driveBackMinutes ?? null;
 
   const saved = await db.transaction(async (tx) => {
     // Confirming holds the booking's car: refused while another confirmed booking holds it at that time
     if (confirming) {
       await lockFleet(tx);
-      const clash = await clashingReference(tx, { ...before, blockMinutes: before.blockMinutes ?? routed });
+      const clash = await clashingReference(tx, { ...before, blockMinutes: before.blockMinutes ?? routed, driveBackMinutes: before.driveBackMinutes ?? back });
       if (clash) return { clash } as const;
     }
     // Applies only while the status is still the one the form showed (checked again here, atomically)
     const [row] = await tx
       .update(schema.quoteRequests)
-      .set({ status, quotedAmount, internalNotes, updatedAt: sql`now()`, ...(confirming && routed ? { blockMinutes: routed } : {}) })
+      .set({ status, quotedAmount, internalNotes, updatedAt: sql`now()`, ...(confirming && routed ? { blockMinutes: routed } : {}), ...(confirming && back ? { driveBackMinutes: back } : {}) })
       .where(and(eq(schema.quoteRequests.id, id), eq(schema.quoteRequests.status, seenStatus)))
       .returning();
     if (!row) return null;

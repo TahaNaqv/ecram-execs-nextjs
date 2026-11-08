@@ -10,7 +10,7 @@ import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartnerActivity } from "@/lib/email";
 import { chosenCarIsBooked, clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { allocationFor } from "@/lib/fleet/vehicles";
-import { routeBlockMinutes } from "@/lib/fleet/route";
+import { routeHold } from "@/lib/fleet/route";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
@@ -139,13 +139,14 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
   // Accepting confirms the booking, which fixes how long its car is held: the route's length, asked for before the fleet lock
   // is taken. It is looked up on the booking as it stands now; the one UPDATE below still decides whether the answer applies.
   let routed: number | null = null;
+  let back: number | null = null;
   if (accept) {
     const [open] = await db
       .select()
       .from(q)
       .where(and(eq(q.reference, reference), partnerOwns(contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount), sql`${q.quotedAmount} = ${amount}::numeric`))
       .limit(1);
-    if (open && open.blockMinutes == null) routed = await routeBlockMinutes(open);
+    if (open) ({ blockMinutes: routed, driveBackMinutes: back } = await routeHold(open));
   }
 
   let request: QuoteRequest | null = null;
@@ -161,11 +162,11 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
           .from(q)
           .where(and(eq(q.reference, reference), partnerOwns(contact.id), eq(q.status, "quoted"), isNotNull(q.quotedAmount)))
           .limit(1);
-        if (pending) clashWith = await clashingReference(tx, { ...pending, blockMinutes: pending.blockMinutes ?? routed });
+        if (pending) clashWith = await clashingReference(tx, { ...pending, blockMinutes: pending.blockMinutes ?? routed, driveBackMinutes: pending.driveBackMinutes ?? back });
       }
       const [row] = await tx
         .update(q)
-        .set({ status: accept ? "confirmed" : "cancelled", updatedAt: sql`now()`, ...(accept && routed ? { blockMinutes: routed } : {}) })
+        .set({ status: accept ? "confirmed" : "cancelled", updatedAt: sql`now()`, ...(accept && routed ? { blockMinutes: routed } : {}), ...(accept && back ? { driveBackMinutes: back } : {}) })
         .where(
           and(
             eq(q.reference, reference),

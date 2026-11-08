@@ -99,6 +99,19 @@ test("a trip holds its car for its length and the turnaround after it, and a ret
   expect(laid.map((b) => [b.lane, b.lanes])).toEqual([[0, 2], [1, 2], [0, 1]]);
 });
 
+test("after the outward trip the car is held for its drive home, or the turnaround when that is longer", () => {
+  const at = `${DAY}T09:00`;
+  const base = { id: "x", status: "confirmed" as const, service: "airport_transfer", pickupAt: at, returnAt: null, durationHours: null, blockMinutes: 60 };
+  const start = wallMinutes(at)!;
+  expect(blocksOf({ ...base, driveBackMinutes: 240 })[0]).toMatchObject({ tripEnd: start + 60, end: start + 60 + 240 });
+  // A short drive home is covered by the turnaround; none known is the turnaround
+  expect(blocksOf({ ...base, driveBackMinutes: 10 })[0].end).toBe(start + 60 + BUFFER_MINUTES);
+  expect(blocksOf({ ...base, driveBackMinutes: null })[0].end).toBe(start + 60 + BUFFER_MINUTES);
+  // A return journey ends where the trip started: it has only the turnaround
+  const [, back] = blocksOf({ ...base, driveBackMinutes: 240, returnAt: `${DAY}T18:00` });
+  expect(back.end - back.tripEnd).toBe(BUFFER_MINUTES);
+});
+
 test("the availability endpoint names the cars a confirmed booking holds at that time, and only those", async ({ request }) => {
   // Audi is held 09:00 to 11:00 (90 minutes of trip and 30 of turnaround); a quote does not hold Cadillac
   await seed({ vehicle: "audi", at: `${DAY}T09:00` });

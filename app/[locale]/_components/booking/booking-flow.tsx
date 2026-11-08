@@ -488,16 +488,30 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
     const count = trip.cars.find((pick) => pick.key === c.vehicle.key)?.count ?? 0;
     const taken = booked.has(c.vehicle.key);
     const selected = count > 0 && !taken;
+    // The car we would book is marked on its own card, so it can be chosen and counted like any other (the client, 8 Nov 2026)
+    const recommended = !taken && recommendation?.key === c.vehicle.key;
     return (
       <li key={c.vehicle.key} className="relative">
         <div
-          className={`flex flex-col rounded-2xl bg-white text-ink-950 ${taken ? "opacity-75" : ""} ${
-            selected ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-2"
+          className={`flex h-full flex-col rounded-2xl bg-white text-ink-950 ${taken ? "opacity-75" : ""} ${
+            recommended
+              ? `border-2 border-solid border-emerald-500 p-[7px] ${selected ? "shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" : ""}`
+              : selected
+                ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]"
+                : "border border-solid border-ink-225 p-2"
           }`}
         >
+          {recommended && (
+            <span id={`recommended-${c.vehicle.key}`} className="mx-1.5 mt-1 mb-2.5 inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] text-[#ffffff] uppercase">
+              <Check size={12} />
+              {t.recommendedTitle}
+            </span>
+          )}
           <button
             type="button"
             aria-pressed={selected}
+            // The badge sits above the button, so it is read out as the button's description
+            aria-describedby={recommended ? `recommended-${c.vehicle.key}` : undefined}
             // Still reachable by keyboard, so a screen reader hears that this car is booked at this time
             aria-disabled={taken || undefined}
             onClick={() => !taken && onCars(c.vehicle.key, selected ? 0 : 1)}
@@ -519,6 +533,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
                 {rate}
               </span>
             ))}
+            {recommended && <span className="px-1.5 pt-0.5 pb-1 text-[13px] font-semibold text-emerald-600">{interpolate(t.recommendedBasis, { party, bags: luggage })}</span>}
             <span
               className={`m-1.5 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
                 taken ? "bg-ink-100 text-ink-700" : selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
@@ -556,7 +571,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
             </span>
           )}
           {selected && (
-            <span aria-hidden="true" className="absolute top-[18px] left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white">
+            <span aria-hidden="true" className={`absolute ${recommended ? "top-[56px]" : "top-[18px]"} left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white`}>
               <Check size={15} />
             </span>
           )}
@@ -565,7 +580,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
           type="button"
           onClick={() => onDetails(c.vehicle)}
           aria-label={interpolate(t.carDetails, { car: c.vehicle.name })}
-          className="absolute top-[18px] right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-[#ffffff] text-[#10224f] shadow-sm hover:bg-[#e8eeff]"
+          className={`absolute ${recommended ? "top-[56px]" : "top-[18px]"} right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-[#ffffff] text-[#10224f] shadow-sm hover:bg-[#e8eeff]`}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
@@ -591,41 +606,24 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
       <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsSeveral}</p>
       {cars.some((c) => booked.has(c.vehicle.key)) && <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsBookedHint}</p>}
       <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
-        {cars.map(card)}
+        {[...cars].sort((a, b) => Number(b.vehicle.key === recommendation?.key) - Number(a.vehicle.key === recommendation?.key)).map(card)}
         <li>
-          {/* We choose the car, and say which one we would book: it has to stand out (the client, 7 Nov 2026) */}
+          {/* We choose the car. The car we would book is marked on its own card above */}
           <button
             type="button"
             aria-pressed={advise}
-            aria-label={recommendation ? `${t.noPreference}. ${t.recommendedTitle}: ${recommendation.name}. ${interpolate(t.recommendedBasis, { party, bags: luggage })}` : undefined}
             onClick={onAdvise}
             className={`flex h-full min-h-[200px] w-full cursor-pointer flex-col justify-between gap-4 rounded-2xl text-left text-ink-950 ${
-              recommendation
-                ? `border-2 border-solid border-emerald-500 p-[21px] ${advise ? "bg-white shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" : "bg-white/60 hover:bg-white"}`
-                : advise
-                  ? "border-2 border-solid border-ink-950 bg-white p-[21px]"
-                  : "border border-dashed border-ink-400 bg-transparent p-[22px] hover:border-ink-950"
+              advise ? "border-2 border-solid border-ink-950 bg-white p-[21px]" : "border border-dashed border-ink-400 bg-transparent p-[22px] hover:border-ink-950"
             }`}
           >
-            {recommendation && (
-              <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] text-[#ffffff] uppercase">
-                <Check size={12} />
-                {t.recommendedTitle}
-              </span>
-            )}
-            {recommendation ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={recommendation.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
-            ) : (
-              <span className="grid size-11 place-items-center rounded-xl border border-solid border-ink-225 bg-white">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                  <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z" />
-                </svg>
-              </span>
-            )}
+            <span className="grid size-11 place-items-center rounded-xl border border-solid border-ink-225 bg-white">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z" />
+              </svg>
+            </span>
             <span className="flex flex-col gap-1.5">
-              <span className="font-serif text-[26px] leading-none">{recommendation?.name || t.noPreference}</span>
-              {recommendation && <span className="text-[13px] font-semibold text-emerald-600">{interpolate(t.recommendedBasis, { party, bags: luggage })}</span>}
+              <span className="font-serif text-[26px] leading-none">{t.noPreference}</span>
               <span className="text-[13px] text-ink-600">{interpolate(t.noPreferenceNote, { party, bags: luggage })}</span>
             </span>
           </button>
@@ -665,9 +663,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
                 : totalCars === 1
                   ? interpolate(t.continueWith, { car: vehicleByKey(trip.cars[0].key)?.name ?? "" })
                   : advise
-                    ? recommendation
-                      ? interpolate(t.continueWith, { car: recommendation.name })
-                      : t.continueWithout
+                    ? t.continueWithout
                     : t.skipCar}
             </button>
           </div>

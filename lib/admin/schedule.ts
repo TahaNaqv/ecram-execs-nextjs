@@ -77,8 +77,8 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   await requireAdmin();
   const dayStart = wallMinutes(`${date}T00:00`)!;
   const dayEnd = dayStart + 24 * 60;
-  // A trip can start the day before and still be on the road after midnight, so yesterday is read too and then clipped to this day
-  const from = shiftDay(date, -1);
+  // A trip and its drive home can run past midnight into the next day or two, so the two days before are read too, then clipped to this day
+  const from = shiftDay(date, -2);
 
   const [cars, rows] = await Promise.all([
     db.select({ id: v.id, name: v.name, status: v.status }).from(v).orderBy(asc(v.name)),
@@ -95,6 +95,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         returnAt: sql<string | null>`to_char(${q.returnAt}, 'YYYY-MM-DD HH24:MI:SS')`,
         durationHours: q.durationHours,
         blockMinutes: q.blockMinutes,
+        driveBackMinutes: q.driveBackMinutes,
         collection: q.collection,
         destination: q.destination,
         destinations: q.destinations,

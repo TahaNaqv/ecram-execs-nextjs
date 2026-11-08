@@ -134,8 +134,8 @@ test.describe("with a stand-in Routes server", () => {
   async function block(id: string) {
     const db = sql();
     try {
-      const [r] = await db`select status, block_minutes from quote_requests where id = ${id}`;
-      return r as { status: string; block_minutes: number | null };
+      const [r] = await db`select status, block_minutes, drive_back_minutes from quote_requests where id = ${id}`;
+      return r as { status: string; block_minutes: number | null; drive_back_minutes: number | null };
     } finally {
       await db.end();
     }
@@ -156,17 +156,22 @@ test.describe("with a stand-in Routes server", () => {
 
     expect((await confirm(page, id)).status()).toBe(200);
     // 50 minutes of driving and 30 for the airport
-    expect(await block(id)).toEqual({ status: "confirmed", block_minutes: 80 });
+    expect(await block(id)).toEqual({ status: "confirmed", block_minutes: 80, drive_back_minutes: 50 });
 
-    expect(calls).toHaveLength(1);
-    const [call] = calls;
+    // Two questions: the trip, and the drive home after it (from the drop-off back to the pick-up while no home base is set)
+    expect(calls).toHaveLength(2);
+    const call = calls.find((c) => c.body.routingPreference === "TRAFFIC_AWARE")!;
     expect(call.key).toBe("test");
-    expect(call.mask).toBe("routes.duration");
+    expect(call.mask).toBe("routes.duration,routes.distanceMeters");
     expect(call.body.origin).toEqual({ placeId: "ChIJschiphol00000" });
     expect(call.body.destination).toEqual({ address: "Hotel Des Indes, The Hague" });
     expect(call.body).toMatchObject({ travelMode: "DRIVE", routingPreference: "TRAFFIC_AWARE", regionCode: "NL" });
     // 09:00 in the Dutch summer is 07:00 UTC
     expect(call.body.departureTime).toBe(`${DAY}T07:00:00.000Z`);
+    const home = calls.find((c) => c.body.routingPreference === "TRAFFIC_UNAWARE")!;
+    expect(home.body.origin).toEqual({ address: "Hotel Des Indes, The Hague" });
+    expect(home.body.destination).toEqual({ placeId: "ChIJschiphol00000" });
+    expect(home.body.departureTime).toBeUndefined();
 
     // The booking page says where the length comes from, and the schedule holds the car for it (09:00 to 10:20)
     await page.goto(`/admin/requests/${id}`);
@@ -183,7 +188,9 @@ test.describe("with a stand-in Routes server", () => {
     expect((await confirm(page, id)).status()).toBe(200);
     // 50 + 10 for the service + 30 waiting
     expect((await block(id)).block_minutes).toBe(90);
-    expect(calls[0].body.intermediates).toEqual([{ address: "Utrecht Centraal" }]);
+    expect(calls.find((c) => c.body.routingPreference === "TRAFFIC_AWARE")!.body.intermediates).toEqual([{ address: "Utrecht Centraal" }]);
+    // The drive home goes straight back
+    expect(calls.find((c) => c.body.routingPreference === "TRAFFIC_UNAWARE")!.body.intermediates).toEqual([]);
   });
 
   test("when Google cannot answer, the booking is still confirmed and keeps the estimate", async ({ page }) => {
@@ -193,8 +200,8 @@ test.describe("with a stand-in Routes server", () => {
     await signIn(page);
 
     expect((await confirm(page, id)).status()).toBe(200);
-    expect(await block(id)).toEqual({ status: "confirmed", block_minutes: null });
-    expect(calls).toHaveLength(1);
+    expect(await block(id)).toEqual({ status: "confirmed", block_minutes: null, drive_back_minutes: null });
+    expect(calls).toHaveLength(2);
     await page.goto(`/admin/requests/schedule?date=${DAY}`);
     await expect(page.getByRole("link", { name: /Trip Length/ }).first()).toContainText("09:00 – 10:30");
   });
@@ -248,6 +255,28 @@ test.describe("with a stand-in Routes server", () => {
     expect(again).toContain("Saved: 0.");
   });
 
+  test("the drive-home backfill gives the confirmed trips their drive home, and leaves one that would overlap alone", async () => {
+    test.slow();
+    driveSeconds = 3 * 3600;
+    const script = (...args: string[]) =>
+      run(process.execPath, ["scripts/backfill-drive-back.mts", ...args], { env: { ...process.env, DATABASE_URL_DIRECT: process.env.DATABASE_URL } }).then((r) => r.stdout);
+    // A: 09:00 to 10:00, then three hours home until 13:00, which runs into B at 11:00 in the same car. C has its own car.
+    const a = await seed({ at: `${DAY}T09:00`, status: "confirmed", block: 60, vehicle: "audi" });
+    const b = await seed({ at: `${DAY}T11:00`, status: "confirmed", block: 60, vehicle: "audi" });
+    const c = await seed({ at: `${DAY}T09:00`, status: "confirmed", block: 60, vehicle: "mercedes_vle" });
+
+    const dry = await script();
+    expect(dry).toContain("Dry run");
+    expect(dry).toContain("CLASH");
+    for (const id of [a, b, c]) expect((await block(id)).drive_back_minutes).toBeNull();
+
+    const done = await script("--apply");
+    expect(done).toContain("Saved: 2.");
+    expect((await block(a)).drive_back_minutes).toBeNull(); // left at the turnaround, for the team to sort out
+    expect((await block(b)).drive_back_minutes).toBe(180);
+    expect((await block(c)).drive_back_minutes).toBe(180);
+  });
+
   test("the day map asks Google for each confirmed trip once, and a trip Google could not find is asked about again", async ({ page }) => {
     test.skip(!process.env.GOOGLE_MAPS_EMBED_KEY, "Set GOOGLE_MAPS_EMBED_KEY (as the site is started) to run the day map tests");
     test.slow();
@@ -290,6 +319,30 @@ test.describe("with a stand-in Routes server", () => {
     await page.goto("/admin");
     await expect(page.getByText("Trips on the map")).toBeVisible();
     await expect(page.getByText("No confirmed trips with a route today.")).toHaveCount(0);
+  });
+
+  test("a long drive holds the car for its drive home too, not just the turnaround (the client, 8 Nov 2026)", async ({ page, request }) => {
+    test.slow();
+    driveSeconds = 5 * 3600; // Five hours each way: the trip is 09:00 to 14:30 (with the airport's 30), then the drive home to 19:30
+    const paris = await seed({ at: `${DAY}T09:00`, to: "Paris, France", placeIds: true });
+    const tooSoon = await seed({ at: `${DAY}T15:00` }); // the 30-minute turnaround alone would have let this through
+    const home = await seed({ at: `${DAY}T19:30` });
+    await signIn(page);
+
+    expect((await confirm(page, paris)).status()).toBe(200);
+    expect(await block(paris)).toEqual({ status: "confirmed", block_minutes: 330, drive_back_minutes: 300 });
+    // The car step does not offer the car while it drives home
+    const busy = async (at: string) => ((await (await request.get(`/api/vehicles/unavailable?at=${at}`)).json()) as { busy: string[] }).busy;
+    expect(await busy(`${DAY}T17:00`)).toContain("audi");
+    expect(await busy(`${DAY}T19:30`)).not.toContain("audi");
+
+    expect((await confirm(page, tooSoon)).status()).toBe(409);
+    expect((await block(tooSoon)).status).toBe("quoted");
+    expect((await confirm(page, home)).status()).toBe(200);
+
+    // The booking page says so
+    await page.goto(`/admin/requests/${paris}`);
+    await expect(page.getByText("Drive home after the trip: 300 min, also held.")).toBeVisible();
   });
 
   test("a real length that is longer than the estimate holds the car longer", async ({ page }) => {

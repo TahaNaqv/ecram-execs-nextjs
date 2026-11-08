@@ -40,6 +40,7 @@ type Row = {
   pickup_place_id: string | null;
   destination_place_id: string | null;
   duration_hours: number | null;
+  drive_back_minutes: number | null;
 };
 
 const carKey = (vehicle: string | null) => (!vehicle || vehicle === "advise" ? null : (normalizeVehicleKey(vehicle) ?? vehicle));
@@ -48,19 +49,19 @@ const carKey = (vehicle: string | null) => (!vehicle || vehicle === "advise" ? n
 async function clash(tx: Tx, row: Row, minutes: number): Promise<string | null> {
   const key = carKey(row.vehicle);
   if (!key) return null;
-  const mine = blocksOf({ id: row.id, status: "confirmed", service: row.service, pickupAt: row.pickup_at, returnAt: row.return_at, durationHours: row.duration_hours, blockMinutes: minutes });
+  const mine = blocksOf({ id: row.id, status: "confirmed", service: row.service, pickupAt: row.pickup_at, returnAt: row.return_at, durationHours: row.duration_hours, blockMinutes: minutes, driveBackMinutes: row.drive_back_minutes });
   if (mine.length === 0) return null;
-  // A trip plus its buffer is at most a day, so anything starting more than a day before, or after, cannot touch
-  const lo = wallText(Math.min(...mine.map((b) => b.start)) - 24 * 60);
+  // A trip plus its drive home is under a day; two days leaves room (as lib/fleet/availability.ts)
+  const lo = wallText(Math.min(...mine.map((b) => b.start)) - 2 * 24 * 60);
   const hi = wallText(Math.max(...mine.map((b) => b.end)));
-  const others = await tx<{ id: string; reference: string; vehicle: string | null; service: string; pickup_at: string | null; return_at: string | null; duration_hours: number | null; block_minutes: number | null }[]>`
-    select id, reference, vehicle, service, to_char(pickup_at, 'YYYY-MM-DD HH24:MI:SS') as pickup_at, to_char(return_at, 'YYYY-MM-DD HH24:MI:SS') as return_at, duration_hours, block_minutes
+  const others = await tx<{ id: string; reference: string; vehicle: string | null; service: string; pickup_at: string | null; return_at: string | null; duration_hours: number | null; block_minutes: number | null; drive_back_minutes: number | null }[]>`
+    select id, reference, vehicle, service, to_char(pickup_at, 'YYYY-MM-DD HH24:MI:SS') as pickup_at, to_char(return_at, 'YYYY-MM-DD HH24:MI:SS') as return_at, duration_hours, block_minutes, drive_back_minutes
     from quote_requests
     where status = 'confirmed' and vehicle is not null and vehicle <> 'advise' and id <> ${row.id}
       and (pickup_at between ${lo}::text::timestamp and ${hi}::text::timestamp or return_at between ${lo}::text::timestamp and ${hi}::text::timestamp)`;
   for (const other of others) {
     if (carKey(other.vehicle) !== key) continue;
-    const theirs = blocksOf({ id: other.id, status: "confirmed", service: other.service, pickupAt: other.pickup_at, returnAt: other.return_at, durationHours: other.duration_hours, blockMinutes: other.block_minutes });
+    const theirs = blocksOf({ id: other.id, status: "confirmed", service: other.service, pickupAt: other.pickup_at, returnAt: other.return_at, durationHours: other.duration_hours, blockMinutes: other.block_minutes, driveBackMinutes: other.drive_back_minutes });
     if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return other.reference;
   }
   return null;
@@ -69,7 +70,7 @@ async function clash(tx: Tx, row: Row, minutes: number): Promise<string | null> 
 const rows = await sql<Row[]>`
   select id, reference, service, vehicle, collection, destination, destinations, destination_waits,
          to_char(pickup_at, 'YYYY-MM-DD HH24:MI:SS') as pickup_at, to_char(return_at, 'YYYY-MM-DD HH24:MI:SS') as return_at,
-         pickup_place_id, destination_place_id, duration_hours
+         pickup_place_id, destination_place_id, duration_hours, drive_back_minutes
   from quote_requests
   where status = 'confirmed' and block_minutes is null
     and service in ('airport_transfer', 'business_travel', 'private_occasion')
@@ -106,7 +107,7 @@ for (const row of rows) {
     const [fresh] = await tx<Row[]>`
       select id, reference, service, vehicle, collection, destination, destinations, destination_waits,
              to_char(pickup_at, 'YYYY-MM-DD HH24:MI:SS') as pickup_at, to_char(return_at, 'YYYY-MM-DD HH24:MI:SS') as return_at,
-             pickup_place_id, destination_place_id, duration_hours
+             pickup_place_id, destination_place_id, duration_hours, drive_back_minutes
       from quote_requests where id = ${row.id} and status = 'confirmed' and block_minutes is null`;
     if (!fresh) return { changed: true as const };
     // A length equal to the estimate takes no new time, so it cannot clash; it is still saved, so that the booking says "from the route"

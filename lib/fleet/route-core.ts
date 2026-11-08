@@ -1,3 +1,4 @@
+import { FLEET_BASE } from "./base.ts";
 import { amsterdamInstant, blockMinutesFor, parseDuration, ROUTED_SERVICES } from "./trip.ts";
 
 /**
@@ -26,8 +27,11 @@ export type RoutedBooking = {
 /** A place Google can find: its id when the booking kept a Google one, else the address as typed. Our own list uses curated-* ids. */
 const waypoint = (address: string, placeId?: string | null) => (placeId && !placeId.startsWith("curated-") ? { placeId } : { address });
 
-/** The longest one-way drive that is believed: clients are collected across the Benelux and its neighbours, so more means the wrong place was found. */
-const MAX_PLAUSIBLE_DRIVE_SECONDS = 6 * 3600;
+/**
+ * The longest one-way drive that is believed: the booking takes addresses in the Netherlands and the EU countries within about
+ * ten hours' drive (the client, 7 Nov 2026), so more means the wrong place was found.
+ */
+const MAX_PLAUSIBLE_DRIVE_SECONDS = 11 * 3600;
 
 type Drive = { seconds: number; meters: number | null; line: string | null } | { status: number };
 
@@ -108,4 +112,28 @@ export async function routeEstimate(b: RoutedBooking): Promise<{ meters: number;
 /** The line a booking's route follows, as Google's encoded polyline; null when it cannot be told. */
 export async function routeLine(b: RoutedBooking): Promise<string | null> {
   return (await lookup(b, true))?.line ?? null;
+}
+
+/**
+ * The minutes the car needs after the trip to drive home: from the drop-off to `FLEET_BASE` (until that is set, back to the
+ * pick-up), without traffic and rounded up to five minutes. Null when it cannot be told; the buffer then applies on its own.
+ */
+export async function routeDriveBackMinutes(b: RoutedBooking): Promise<number | null> {
+  const home = FLEET_BASE.address ? FLEET_BASE : { address: b.collection ?? "", placeId: b.pickupPlaceId ?? null };
+  if (!b.destination || !home.address) return null;
+  const found = await lookup(
+    { service: b.service, collection: b.destination, pickupPlaceId: b.destinationPlaceId, destination: home.address, destinationPlaceId: home.placeId, destinations: [] },
+    false,
+    false,
+  );
+  return found ? Math.ceil(found.seconds / 60 / 5) * 5 : null;
+}
+
+/** What confirming a booking needs from the route, asking Google only for what the booking does not have yet. */
+export async function routeHold(b: RoutedBooking & { blockMinutes?: number | null; driveBackMinutes?: number | null }): Promise<{ blockMinutes: number | null; driveBackMinutes: number | null }> {
+  const [blockMinutes, driveBackMinutes] = await Promise.all([
+    b.blockMinutes == null ? routeBlockMinutes(b) : null,
+    b.driveBackMinutes == null ? routeDriveBackMinutes(b) : null,
+  ]);
+  return { blockMinutes, driveBackMinutes };
 }
