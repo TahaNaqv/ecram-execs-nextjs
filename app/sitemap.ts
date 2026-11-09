@@ -17,6 +17,7 @@ const SETTINGS: Record<AppRoute, Pick<MetadataRoute.Sitemap[number], "changeFreq
   "/privacy": { changeFrequency: "yearly", priority: 0.2 },
   "/terms": { changeFrequency: "yearly", priority: 0.2 },
   "/book": { changeFrequency: "monthly", priority: 0.6 },
+  "/booking": null,
 };
 
 /**

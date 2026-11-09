@@ -35,11 +35,11 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
     const hourly = b.service === "hourly" && Boolean(b.durationHours);
     const stops = (b.destinations ?? []).map(clean).filter(Boolean);
     let driveSeconds: number | null = null;
+    let distanceMeters: number | null = null;
     if (!hourly && b.collection && b.destination && estimateEnabled()) {
-      driveSeconds = await cachedDriveEstimate(clean(b.collection), clean(b.destination), stops).then(
-        (found) => found.seconds,
-        () => null,
-      );
+      const found = await cachedDriveEstimate(clean(b.collection), clean(b.destination), stops).catch(() => null);
+      driveSeconds = found?.seconds ?? null;
+      distanceMeters = found?.meters ?? null;
     }
     // Each stop's wait, as the form sent them with the stops (blank stops are dropped with their waits)
     const waitMinutes = hourly ? 0 : (b.destinationWaits ?? []).slice(0, stops.length).reduce((sum, w) => sum + (Number.isFinite(w) && w > 0 ? w : 0), 0);
@@ -50,6 +50,7 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
       returnAt: b.returnAt,
       hours: hourly ? b.durationHours : null,
       driveSeconds,
+      distanceMeters,
       waitMinutes,
       cars,
       suggested,

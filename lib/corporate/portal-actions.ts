@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartnerActivity } from "@/lib/email";
-import { chosenCarIsBooked, clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { allocationFor } from "@/lib/fleet/vehicles";
 import { routeHold } from "@/lib/fleet/route";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
@@ -71,9 +71,6 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
   if (!(SERVICES as readonly string[]).includes(parsed.data.service) || parsed.data.service === "bespoke") {
     return fail(f.checkHighlighted, { service: f.serviceRequired });
   }
-
-  // The car may have been taken since it was shown: say so, and let the partner choose again
-  if (await chosenCarIsBooked(parsed.data)) return fail(f.carBooked, { vehicle: f.carBooked });
 
   let created: QuoteRequest | undefined;
   try {

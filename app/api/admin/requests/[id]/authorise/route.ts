@@ -118,7 +118,7 @@ export async function POST(
       console.log(`Target Status / Email Kind: ${newStatus}`);
       console.log(`Amount: €${updated.quotedAmount ?? "—"}`);
 
-      const emailKind = newStatus === "completed" || newStatus === "cancelled" ? newStatus : "confirmed";
+      const emailKind = newStatus === "completed" || newStatus === "cancelled" || newStatus === "contacted" ? newStatus : "confirmed";
 
       if (updated.corporateContactId && updated.source !== "website-corporate") {
         const [partner] = await db

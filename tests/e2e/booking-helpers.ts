@@ -159,6 +159,8 @@ export async function fillDetails(page: Page, d: Details, t: Copy = en.booking) 
 
 /** The reference on the thank-you screen, after checking it greets the booker (`greeting`: "Thank you, Jan"). */
 export async function confirmedReference(page: Page, greeting: string) {
+  // The visitor lands on their booking's private page, where it is reviewed by hand (the client, 8 Nov 2026)
+  await page.waitForURL(/\/(booking|boeking)\?ref=EE-[A-Z0-9]{6}&k=/);
   const status = page.getByRole("status").filter({ hasText: /EE-[A-Z0-9]{6}/ });
   await expect(status).toContainText(greeting);
   return (await status.innerText()).match(/EE-[A-Z0-9]{6}/)![0];

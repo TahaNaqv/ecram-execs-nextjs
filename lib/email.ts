@@ -9,6 +9,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { isUrgent } from "@/lib/quotes/urgency";
+import { guestUrl } from "@/lib/quotes/guest-link";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 import { bookingTotalEuros, formatCents, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
@@ -70,7 +71,18 @@ function teamPrice(p: Price) {
     .flatMap((leg) => leg.lines.filter((l) => l.key === leg.lines[0]?.key).map((l) => lineDay(leg, l)))
     .map((part) => `${part.hours} h ${part.day}`)
     .join(" + ");
-  return `${formatCents(p.total, "en")} incl. BTW / VAT (${formatCents(priceNet(p), "en")} excl.), ${p.segment} rates, ${hours}${p.exact ? "" : ", a lower bound (drive not timed, or car not chosen)"}`;
+  // Kilometres beyond the allowance, all cars and legs together ("+ 320 km beyond the allowance")
+  const extraKm = p.legs.reduce((n, leg) => n + (leg.km?.lines ?? []).reduce((m, line) => m + line.extra * line.count, 0), 0);
+  return `${formatCents(p.total, "en")} incl. BTW / VAT (${formatCents(priceNet(p), "en")} excl.), ${p.segment} rates, ${hours}${extraKm ? ` + ${extraKm} km beyond the allowance` : ""}${p.exact ? "" : ", a lower bound (drive not timed, or car not chosen)"}`;
+}
+
+/**
+ * Where a customer follows their booking: a partner's portal page, or for a visitor with no account the private link
+ * (lib/quotes/guest-link.ts), in the booking's language.
+ */
+function customerLink(q: QuoteRequest): string {
+  if (q.corporateContactId) return `${process.env.SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", q.locale)}?ref=${encodeURIComponent(q.reference)}`;
+  return guestUrl(q, q.locale);
 }
 
 /** Confirms receipt to the client. Logged in full when no mail provider is configured. */
@@ -105,6 +117,7 @@ export async function confirmToClient(q: QuoteRequest) {
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
         ${details.join("")}
       </table>
+      ${bespoke ? "" : `<p><a href="${esc(customerLink(q))}">${esc(t.bookingOpenLink)}</a></p>`}
       <p>${esc(phone ? interpolate(t.quoteReplyPhone, { phone }) : t.quoteReply)}</p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
@@ -319,6 +332,27 @@ export async function notifyTeamPartnerActivity({
   });
 }
 
+/** Tells the team that a website visitor wrote about their booking, on its private page. Internal, so English. */
+export async function notifyTeamGuestMessage({ request: q, body }: { request: QuoteRequest; body: string }) {
+  const site = process.env.SITE_URL ?? "";
+  const soon = isUrgent(q);
+  const rows: [string, string | number | null][] = [
+    ["Reference", q.reference],
+    ["Customer", q.name],
+    ["Email", q.email],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+    ["Pick-up within 24 hours", soon ? "Yes — please act today" : null],
+    ["Message", body],
+  ];
+  await send("quote", q.reference, "team alert (guest message)", {
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
+    reply_to: q.email,
+    subject: `${soon ? "[URGENT] " : ""}[Customer] New message ${q.reference} — ${q.name}`,
+    html: teamAlert(`New message on <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`),
+  });
+}
+
 export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
 
 const euro = (amount: string | null, locale: QuoteRequest["locale"]) =>
@@ -343,7 +377,7 @@ export async function emailPartnerBooking({
   const { SITE_URL } = process.env;
   const { email: t } = await getDictionary(to.locale);
   const copy: Record<PartnerEmailKind, [string, string]> = {
-    contacted: [t.bookingSubjectContacted, t.bookingIntroContacted],
+    contacted: [t.bookingSubjectContacted, message ? t.bookingIntroContacted : t.bookingIntroContactedPlain],
     quoted: [t.bookingSubjectQuoted, t.bookingIntroQuoted],
     confirmed: [t.bookingSubjectConfirmed, t.bookingIntroConfirmed],
     completed: [t.bookingSubjectCompleted, t.bookingIntroCompleted],
@@ -359,14 +393,14 @@ export async function emailPartnerBooking({
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: to.name.split(" ")[0] }))}</p>
       <p>${esc(interpolate(intro, values))}</p>
-      ${kind === "reply" && message ? `<blockquote style="margin:16px 0;padding:0 0 0 14px;border-left:3px solid #d4d4d8;color:#27272a">${esc(message).replace(/\n/g, "<br>")}</blockquote>` : ""}
+      ${(kind === "reply" || kind === "contacted") && message ? `<blockquote style="margin:16px 0;padding:0 0 0 14px;border-left:3px solid #d4d4d8;color:#27272a">${esc(message).replace(/\n/g, "<br>")}</blockquote>` : ""}
       <p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
   return send("portal", q.reference, `partner email (${kind})`, { from: mailFrom(), to: [to.email], subject: interpolate(subject, values), html });
 }
 
-export type EnquiryEmailKind = Exclude<PartnerEmailKind, "reply" | "invoice">;
+export type EnquiryEmailKind = Exclude<PartnerEmailKind, "invoice">;
 
 /**
  * Emails the person who asked for a ride on the website, and has no account, when the team changes the status of their
@@ -374,28 +408,36 @@ export type EnquiryEmailKind = Exclude<PartnerEmailKind, "reply" | "invoice">;
  * and the details, and no link to a booking page (they have none): the answer is to reply to the mail or ring. Best-effort:
  * the change has already happened, so a failed send is logged, not shown. (Partners with an account get `emailPartnerBooking`.)
  */
-export async function emailEnquiryStatus({ request: q, kind }: { request: QuoteRequest; kind: EnquiryEmailKind }) {
+export async function emailEnquiryStatus({ request: q, kind, message }: { request: QuoteRequest; kind: EnquiryEmailKind; message?: string | null }) {
   if (!q.email) return false;
   const { phone, email } = siteConfig.contact;
   const d = await getDictionary(q.locale);
   const { email: t, services, quoteForm } = d;
   const copy: Record<EnquiryEmailKind, [string, string]> = {
-    contacted: [t.bookingSubjectContacted, t.enquiryIntroContacted],
+    // Set from the status menu there is no message to quote: then the plain intro
+    contacted: [t.bookingSubjectContacted, message ? t.enquiryIntroContacted : t.enquiryIntroContactedPlain],
     quoted: [t.bookingSubjectQuoted, t.enquiryIntroQuoted],
     confirmed: [t.bookingSubjectConfirmed, t.enquiryIntroConfirmed],
     completed: [t.bookingSubjectCompleted, t.enquiryIntroCompleted],
     cancelled: [t.bookingSubjectCancelled, t.enquiryIntroCancelled],
+    reply: [t.bookingSubjectReply, t.enquiryIntroReply],
   };
   const [subject, intro] = copy[kind];
   const values = { reference: q.reference, amount: euro(bookingTotalEuros(q), q.locale) };
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
-  const status = d.portal.statuses[kind];
+  const status = d.portal.statuses[kind === "reply" ? (q.status as keyof typeof d.portal.statuses) : kind] ?? q.status;
   const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row, d.addOns)];
+  // Every booking is reviewed by hand (the client, 8 Nov 2026): the visitor answers, and later pays, on their booking's page.
+  // A row tied to a partner account (a corporate introduction) has no such page.
+  const link = q.corporateContactId ? null : guestUrl(q, q.locale);
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
       <p>${esc(interpolate(intro, values))}</p>
+      ${message ? `<blockquote style="margin:16px 0;padding:0 0 0 14px;border-left:3px solid #d4d4d8;color:#27272a">${esc(message).replace(/\n/g, "<br>")}</blockquote>` : ""}
+      ${message ? `<p>${esc(t.enquiryReplyHere)}</p>` : ""}
+      ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
         ${details.join("")}
       </table>

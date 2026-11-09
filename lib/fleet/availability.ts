@@ -1,7 +1,6 @@
 import "server-only";
 import { and, eq, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { fleetPicks } from "@/lib/fleet/vehicles";
 import { carKey, heldKeys } from "@/lib/fleet/held";
 import { blocksOf, overlaps, wallText, windowBlocks, type Block, type Window } from "@/lib/fleet/schedule";
 
@@ -72,24 +71,4 @@ export async function clashingReference(
     if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return row.reference;
   }
   return null;
-}
-
-/**
- * Whether the car a visitor chose for this trip is held by a confirmed booking by now (it can have been taken since the
- * car step showed it). Only a particular car can be taken. If the bookings cannot be read the visitor is not stopped:
- * what is asked is only a request, and a confirmation is checked on its own.
- */
-export async function chosenCarIsBooked(trip: { vehicle?: string | null; vehicles?: unknown; pickupAt?: string | null; returnAt?: string | null; service: string; durationHours?: number | null }): Promise<boolean> {
-  const keys = new Set<string>(fleetPicks(trip.vehicles).map((p) => p.key));
-  const single = carKey(trip.vehicle);
-  if (keys.size === 0 && single) keys.add(single);
-  if (keys.size === 0 || !trip.pickupAt) return false;
-  try {
-    const busy = await busyVehicleKeys({ pickupAt: trip.pickupAt, returnAt: trip.returnAt ?? null, service: trip.service, durationHours: trip.durationHours ?? null });
-    for (const key of keys) if (busy.has(key)) return true;
-    return false;
-  } catch (error) {
-    console.error("Failed to read which vehicles are booked:", error);
-    return false;
-  }
 }

@@ -3,11 +3,11 @@
 import { useActionState, useEffect, useRef } from "react";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
-import { markMessagesSeen, replyToPartner, type ReplyState } from "./portal-actions";
+import { markMessagesSeen, replyToCustomer, type ReplyState } from "./portal-actions";
 
-/** The team's reply to the partner. */
+/** The team's reply to the customer: a partner, or a website visitor through their booking's page. */
 export function ReplyForm({ requestId, copy }: { requestId: string; copy: { label: string; placeholder: string; send: string; sending: string; sent: string } }) {
-  const [state, action, pending] = useActionState<ReplyState, FormData>(replyToPartner, {});
+  const [state, action, pending] = useActionState<ReplyState, FormData>(replyToCustomer, {});
   const form = useRef<HTMLFormElement>(null);
   // A sent reply empties the box
   useEffect(() => {

@@ -1,6 +1,6 @@
 export const instant = false;
 import Link from "next/link";
-import { FLEET, normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
+import { FLEET, fleetPicks, normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
@@ -31,6 +31,12 @@ import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_com
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { PartnerCard } from "./partner-card";
+import { MessagesCard } from "./messages-card";
+import { ReviewCard } from "./review-card";
+import { CarsEditor } from "./cars-editor";
+import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
+import { guestUrl } from "@/lib/quotes/guest-link";
+import { localizedPath } from "@/lib/i18n/pathnames";
 import { BUFFER_MINUTES, tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
@@ -59,7 +65,7 @@ export default function RequestPage({ params }: PageProps<"/admin/requests/[id]"
   );
 }
 
-const PIPELINE: RequestStatus[] = ["new", "confirmed", "completed", "cancelled"];
+const PIPELINE: RequestStatus[] = ["new", "contacted", "confirmed", "completed"];
 
 async function Pipeline({ status }: { status: RequestStatus }) {
   const { admin: t } = await adminDictionary();
@@ -70,7 +76,7 @@ async function Pipeline({ status }: { status: RequestStatus }) {
       </div>
     );
   }
-  const at = status === "contacted" || status === "quoted" ? PIPELINE.indexOf("new") : PIPELINE.indexOf(status);
+  const at = status === "quoted" ? PIPELINE.indexOf("new") : PIPELINE.indexOf(status);
   return (
     <ol className="grid grid-cols-4 gap-1" aria-label={t.common.progress}>
       {PIPELINE.map((s, i) => {
@@ -181,6 +187,13 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         <Pipeline status={r.status} />
       </div>
 
+      {/* Every booking is approved by hand, or discussed with the customer first (the client, 8 Nov 2026) */}
+      {(r.status === "new" || r.status === "contacted") && r.source !== "website-corporate" && (
+        <div className="mt-6">
+          <ReviewCard requestId={r.id} status={r.status} copy={d.admin.review} />
+        </div>
+      )}
+
       <div className="mt-6">
         <AutoPricingGateway
           request={r}
@@ -189,6 +202,11 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
           routeMap={routeMap}
           addOns={extrasLine(d.addOns, r.extras)}
           addOnNames={d.addOns}
+          bookingLink={
+            r.corporateContactId
+              ? `${process.env.SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", r.locale)}?ref=${encodeURIComponent(r.reference)}`
+              : guestUrl(r, r.locale)
+          }
           activity={events.map((e) => ({
             id: e.id,
             text: renderEvent(e.event, e.params, eventLabels(d.admin.events, d.admin.statuses), formatEuro),
@@ -202,6 +220,10 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
+          <Suspense fallback={<Skeleton className="h-40" />}>
+            <MessagesCard requestId={r.id} guest={!r.corporateContactId} />
+          </Suspense>
+
           {/* Activity */}
           <Card>
             <CardHeader title={d.admin.requestDetail.activity} description={d.admin.requestDetail.activityNote} icon={<ActivityIcon />} />
@@ -230,6 +252,20 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         {/* Sidebar */}
         <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
           <PartnerCard requestId={r.id} />
+
+          {(r.status === "new" || r.status === "contacted") && !isBespoke(r) && (
+            <CarsEditor
+              key={r.status}
+              requestId={r.id}
+              status={r.status}
+              cars={FLEET.map((v) => ({ key: v.key, name: v.name, seats: v.specs?.passengers ?? null }))}
+              initial={Object.fromEntries(
+                (fleetPicks(r.vehicles).length > 0 ? fleetPicks(r.vehicles) : r.vehicle && normalizeVehicleKey(r.vehicle) ? [{ key: normalizeVehicleKey(r.vehicle)!, count: r.vehicleCount }] : []).map((p) => [p.key, p.count]),
+              )}
+              max={MAX_PER_CAR}
+              copy={d.admin.review}
+            />
+          )}
 
           <Card>
             <CardHeader title={d.admin.schedule.carTitle} icon={<CalendarIcon />} />
@@ -318,6 +354,11 @@ function RateCardPrice({ price, finalEuros, copy: rd, names }: { price: Price | 
                 const text = interpolate(rd.rateCardLine, { count: l.count, car: vehicleByKey(l.key)?.name ?? l.key, hours: part.hours, rate: euro(l.rate) });
                 return <div key={`${l.key}-${part.day}`}>{line(legSpansDays(leg) ? `${text} · ${days[part.day]}` : text, euro(l.amount))}</div>;
               })}
+              {(leg.km?.lines ?? []).map((k) => (
+                <div key={`${k.key}-km`}>
+                  {line(interpolate(rd.rateCardKm, { count: k.count, car: vehicleByKey(k.key)?.name ?? k.key, extra: k.extra, rate: euro(k.rate), distance: leg.km!.distance, included: k.included }), euro(k.amount))}
+                </div>
+              ))}
             </div>
           ))}
           {(price.extras ?? []).map((e) => (

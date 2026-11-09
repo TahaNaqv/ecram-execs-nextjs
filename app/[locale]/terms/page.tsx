@@ -5,7 +5,7 @@ import { LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { TERMS, TERMS_VERSION } from "@/lib/legal/terms";
+import { TERMS, TERMS_APPLICABILITY, TERMS_EFFECTIVE, TERMS_GOVERNING_ENTITY, TERMS_VERSION } from "@/lib/legal/terms";
 
 // The terms are the client's own document, in English only (lib/legal/terms.ts). The Dutch page says so above them.
 export default async function TermsPage() {
@@ -26,8 +26,23 @@ export default async function TermsPage() {
         <div className="flex flex-col gap-3">
           <span className="font-display text-[12px] tracking-[0.42em] text-ink-450">{t.eyebrow}</span>
           <h1 className="m-0 font-serif text-[clamp(36px,6vw,56px)] leading-[1.08] font-light text-white">{t.heading}</h1>
-          <p className="m-0 text-[14px] text-ink-450">{interpolate(t.version, { version: TERMS_VERSION })}</p>
+          <p className="m-0 text-[14px] text-ink-450">
+            {interpolate(t.version, {
+              version: TERMS_VERSION,
+              date: new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${TERMS_EFFECTIVE}T00:00:00Z`)),
+            })}
+          </p>
           {locale !== "en" && <p className="m-0 text-[15px] text-ink-300">{t.englishNote}</p>}
+          <dl lang="en" className="m-0 grid gap-1 text-[14px] font-light text-ink-300">
+            <div>
+              <dt className="inline font-semibold text-ink-150">Applicability: </dt>
+              <dd className="m-0 inline">{TERMS_APPLICABILITY}</dd>
+            </div>
+            <div>
+              <dt className="inline font-semibold text-ink-150">Governing Entity: </dt>
+              <dd className="m-0 inline">{TERMS_GOVERNING_ENTITY}</dd>
+            </div>
+          </dl>
         </div>
 
         <div lang="en" className="flex flex-col gap-8 md:gap-10">

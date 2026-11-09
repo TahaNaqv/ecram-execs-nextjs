@@ -142,7 +142,8 @@ export const bookingMessages = pgTable(
     requestId: uuid("request_id")
       .notNull()
       .references(() => quoteRequests.id, { onDelete: "cascade" }),
-    authorKind: text("author_kind").$type<"partner" | "team">().notNull(),
+    // A website visitor with no account writes as a guest, through the private link to their booking (the client, 8 Nov 2026)
+    authorKind: text("author_kind").$type<"partner" | "team" | "guest">().notNull(),
     contactId: uuid("contact_id").references(() => corporateContacts.id, { onDelete: "set null" }),
     adminId: uuid("admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
     kind: text("kind").$type<"message" | "change" | "cancel">().notNull().default("message"),
@@ -154,8 +155,8 @@ export const bookingMessages = pgTable(
     index("booking_messages_request_idx").on(t.requestId, t.createdAt),
     index("booking_messages_unseen_idx")
       .on(t.requestId)
-      .where(sql`${t.authorKind} = 'partner' AND ${t.seenByTeamAt} IS NULL`),
-    check("booking_messages_author_kind", sql`${t.authorKind} IN ('partner', 'team')`),
+      .where(sql`${t.authorKind} IN ('partner', 'guest') AND ${t.seenByTeamAt} IS NULL`),
+    check("booking_messages_author_kind", sql`${t.authorKind} IN ('partner', 'team', 'guest')`),
     check("booking_messages_kind", sql`${t.kind} IN ('message', 'change', 'cancel')`),
   ],
 );

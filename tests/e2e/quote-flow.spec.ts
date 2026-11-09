@@ -125,7 +125,7 @@ test("a Dutch visitor's request stores a language-independent service key", asyn
   await chooseCar(page, null, nl.booking);
   await fillDetails(page, { name: "Sanne Bakker", email, country: "31", phone: "6 9876 5432" }, nl.booking);
   const reference = await confirmedReference(page, "Dank u, Sanne");
-  await expect(page.getByRole("status").filter({ hasText: reference })).toContainText(nl.booking.doneNote);
+  await expect(page.getByRole("status").filter({ hasText: reference })).toContainText(nl.guestBooking.reviewNote);
 
   // The admin is English. An airport trip with no company is a private occasion, not an airport-transfer label.
   await page.goto("/admin/login");

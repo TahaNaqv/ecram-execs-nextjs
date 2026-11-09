@@ -2,39 +2,56 @@ import { normalizeVehicleKey, type VehicleKey } from "../fleet/vehicles.ts";
 import { priceExtras, type ExtraLine, type ExtraPick } from "./extras.ts";
 
 /**
- * The client's rate card (November 2026), as data. Every booking is billed by the hour per car, at a rate that depends on
- * the car, on whether the booker is a corporate partner, and on the day of the week, in whole hours and at least two. At
- * the end 9% VAT is added to the rides, then the €12.50 service fee, once per booking, with 21% VAT of its own. Add-ons
- * (lib/pricing/extras.ts) are added at their own prices, each with its own VAT.
+ * The client's 2027 rate card (sent 8 Nov 2026, in use from then), as data. Every booking is billed by the hour per car, at a
+ * rate that depends on the car, on whether the booker is a corporate partner, and on the day of the week, in whole hours
+ * and at least two. Each billed hour includes a number of kilometres per car; a transfer that drives further pays the
+ * kilometres beyond that, per car. At the end 9% VAT is added to the rides (hours and kilometres), then the €12.50 service
+ * fee, once per booking, with 21% VAT of its own. Add-ons (lib/pricing/extras.ts) are added at their own prices, each with
+ * its own VAT.
  *
  * Read by the booking flow in the browser and by the server, which works the price out again when a booking is sent and
  * stores it: nothing here may import server-only code. Amounts are whole euro cents throughout.
  */
-export const RATE_CARD_VERSION = "2026-11f";
+export const RATE_CARD_VERSION = "2027-01";
 
 export type Segment = "corporate" | "public";
 export type DayKind = "weekday" | "saturday" | "sunday";
 
-/** The two groups the rate card prices: the first three models, and the two larger SUVs. */
-const GROUP: Record<VehicleKey, "first" | "second"> = {
-  mercedes_vle_300: "first",
-  audi: "first",
-  hongqi_e_hs9: "first",
-  range_rover: "second",
-  cadillac_escalade: "second",
+/** Euro cents per hour, per car (the 2027 card prices each model on its own). */
+const RATES: Record<VehicleKey, Record<Segment, Record<DayKind, number>>> = {
+  hongqi_e_hs9: {
+    corporate: { weekday: 7500, saturday: 9375, sunday: 11719 },
+    public: { weekday: 9000, saturday: 11250, sunday: 14063 },
+  },
+  audi: {
+    corporate: { weekday: 8000, saturday: 10000, sunday: 12500 },
+    public: { weekday: 9500, saturday: 11875, sunday: 14844 },
+  },
+  mercedes_vle_300: {
+    corporate: { weekday: 8500, saturday: 9500, sunday: 10000 },
+    public: { weekday: 10000, saturday: 11000, sunday: 11500 },
+  },
+  range_rover: {
+    corporate: { weekday: 10000, saturday: 12500, sunday: 15625 },
+    public: { weekday: 12000, saturday: 15000, sunday: 18750 },
+  },
+  cadillac_escalade: {
+    corporate: { weekday: 10500, saturday: 13125, sunday: 16406 },
+    public: { weekday: 12500, saturday: 15625, sunday: 19531 },
+  },
 };
 
-/** Euro cents per hour. */
-const RATES: Record<"first" | "second", Record<Segment, Record<DayKind, number>>> = {
-  first: {
-    corporate: { weekday: 7700, saturday: 9700, sunday: 11600 },
-    public: { weekday: 8400, saturday: 10500, sunday: 12600 },
-  },
-  second: {
-    corporate: { weekday: 10100, saturday: 12700, sunday: 15200 },
-    public: { weekday: 11700, saturday: 14700, sunday: 17600 },
-  },
+/** Kilometres each billed hour includes, per car (the 2027 card's kilometre allowance). */
+const KM_PER_HOUR: Record<VehicleKey, number> = {
+  hongqi_e_hs9: 45,
+  audi: 45,
+  mercedes_vle_300: 40,
+  range_rover: 35,
+  cadillac_escalade: 35,
 };
+
+/** Euro cents per kilometre beyond the allowance, the same for every car. */
+const EXTRA_KM_RATE: Record<Segment, number> = { corporate: 150, public: 175 };
 
 /** The fewest hours a booking is billed for: a 45-minute ride is billed as two hours. */
 export const MIN_HOURS = 2;
@@ -82,8 +99,17 @@ export function hoursByDay(at: string, hours: number): { day: DayKind; hours: nu
 /** The hourly rate of one car, or null for a car the rate card does not list. */
 export function hourlyRate(key: string, segment: Segment, day: DayKind): number | null {
   const vehicle = normalizeVehicleKey(key);
-  return vehicle ? RATES[GROUP[vehicle]][segment][day] : null;
+  return vehicle ? RATES[vehicle][segment][day] : null;
 }
+
+/** The kilometres one car's billed hour includes, or null for a car the rate card does not list. */
+export function kmPerHour(key: string): number | null {
+  const vehicle = normalizeVehicleKey(key);
+  return vehicle ? KM_PER_HOUR[vehicle] : null;
+}
+
+/** Euro cents per kilometre beyond the allowance. */
+export const extraKmRate = (segment: Segment) => EXTRA_KM_RATE[segment];
 
 /**
  * Whole hours billed for one leg, at least `MIN_HOURS`. An hourly booking is billed for the hours booked. A transfer is
@@ -102,8 +128,17 @@ export function billedHours(leg: { hours?: number | null; driveSeconds?: number 
  * read them as the leg's own day and hours.
  */
 export type PriceLine = { key: VehicleKey; count: number; rate: number; amount: number; day?: DayKind; hours?: number };
-/** `day` is the pick-up's day; the lines carry the rate of each day the leg runs into. */
-export type PriceLeg = { leg: "outward" | "return"; at: string; day: DayKind; hours: number; lines: PriceLine[] };
+/**
+ * The kilometres beyond one car's allowance on a leg (the 2027 card): `included` is hours × the car's kilometres per hour,
+ * `extra` what the leg drives beyond it, per car; `amount` is extra × rate × count, before VAT.
+ */
+export type KmLine = { key: VehicleKey; count: number; included: number; extra: number; rate: number; amount: number };
+/**
+ * `day` is the pick-up's day; the lines carry the rate of each day the leg runs into. `km` is the leg's distance and, per car
+ * that drives beyond its allowance, a line; missing on prices stored before 8 Nov 2026, on hourly bookings (their distance
+ * is not known until the trip is done), and when the distance could not be told.
+ */
+export type PriceLeg = { leg: "outward" | "return"; at: string; day: DayKind; hours: number; lines: PriceLine[]; km?: { distance: number; lines: KmLine[] } };
 export type Price = {
   version: string;
   segment: Segment;
@@ -146,6 +181,8 @@ export type PriceInput = {
   driveSeconds?: number | null;
   /** Minutes the chauffeur waits at the stops on the way, billed as part of the hours */
   waitMinutes?: number;
+  /** A transfer's distance, stops included, from Google; null when it could not be told. Not used for hourly bookings. */
+  distanceMeters?: number | null;
   /** The cars, with how many of each */
   cars: { key: string; count: number }[];
   /** The cars are our suggestion, not the visitor's choice */
@@ -159,6 +196,11 @@ export function priceBooking(input: PriceInput): Price | null {
   const timed = billedHours({ hours: input.hours, driveSeconds: input.driveSeconds, waitMinutes: input.waitMinutes });
   // Not timed: the least it can be, the waits alone (and never under the minimum)
   const hours = timed ?? Math.max(MIN_HOURS, Math.ceil((input.waitMinutes ?? 0) / 60));
+  // A transfer drives a known distance; each car's hours include some of it, and the rest is paid by the kilometre. The
+  // return journey drives it again. An hourly booking's distance is only known once it is done.
+  const hourly = Boolean(input.hours && input.hours > 0);
+  const distance = !hourly && input.distanceMeters && Number.isFinite(input.distanceMeters) && input.distanceMeters > 0 ? Math.round(input.distanceMeters / 1000) : null;
+  const km = distance === null ? null : { distance, lines: kmLines(input.cars, hours, distance, input.segment) };
   const legs: PriceLeg[] = [];
   for (const [leg, at] of [["outward", input.pickupAt], ["return", input.returnAt]] as const) {
     if (!at) continue;
@@ -176,10 +218,10 @@ export function priceBooking(input: PriceInput): Price | null {
       }
     }
     if (lines.length === 0) return null;
-    legs.push({ leg, at, day, hours, lines });
+    legs.push({ leg, at, day, hours, lines, ...(km ? { km } : {}) });
   }
   if (legs.length === 0) return null;
-  const rides = legs.reduce((sum, leg) => sum + leg.lines.reduce((n, line) => n + line.amount, 0), 0);
+  const rides = legs.reduce((sum, leg) => sum + leg.lines.reduce((n, line) => n + line.amount, 0) + (leg.km?.lines ?? []).reduce((n, line) => n + line.amount, 0), 0);
   // The client's order: the rides, then 9% VAT on them, then the service fee
   const vat = Math.round(rides * VAT_RATE);
   const fee = SERVICE_FEE_CENTS;
@@ -197,8 +239,25 @@ export function priceBooking(input: PriceInput): Price | null {
     feeVat,
     ...(extras.length > 0 ? { extras, extrasVat } : {}),
     total: rides + vat + fee + feeVat + extrasNet + extrasVat,
-    exact: timed !== null && !input.suggested,
+    // A timed transfer whose distance is not known may still owe kilometres: then it is a lower bound too
+    exact: timed !== null && !input.suggested && (hourly || distance !== null),
   };
+}
+
+/** Per car that drives beyond its allowance on one leg: the kilometres included, the extra, and what they cost. */
+function kmLines(cars: PriceInput["cars"], hours: number, distance: number, segment: Segment): KmLine[] {
+  const lines: KmLine[] = [];
+  for (const car of cars) {
+    const key = normalizeVehicleKey(car.key);
+    const perHour = key ? KM_PER_HOUR[key] : null;
+    if (!key || perHour == null || !Number.isInteger(car.count) || car.count < 1) continue;
+    const included = hours * perHour;
+    const extra = Math.max(0, distance - included);
+    if (extra === 0) continue;
+    const rate = EXTRA_KM_RATE[segment];
+    lines.push({ key, count: car.count, included, extra, rate, amount: extra * rate * car.count });
+  }
+  return lines;
 }
 
 /** A stored price before any VAT: the rides, the service fee and the add-ons. */

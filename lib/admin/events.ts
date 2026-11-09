@@ -15,7 +15,9 @@ export type RequestEventChange =
   /** The team sent the client the email for this status (confirm, cancel, complete). */
   | { kind: "dispatch"; to: RequestStatus }
   /** The car that does the job: a fleet key, "advise" for none in particular, or null when it was left open. */
-  | { kind: "vehicle"; from: string | null; to: string | null };
+  | { kind: "vehicle"; from: string | null; to: string | null }
+  /** The booking's cars, changed by the team in review (the client, 8 Nov 2026): fleet keys and counts, "audi:2|range_rover:1" */
+  | { kind: "cars"; from: string; to: string };
 
 export type RequestEventParams = {
   /** For `event: "changes"` — several fields can change in one save. */
@@ -79,6 +81,8 @@ export type EventLabels = {
   partnerErased: string;
   /** Interpolates {from} and {to}: the car that does the job */
   vehicleChanged: string;
+  /** Interpolates {from} and {to}: the booking's cars ("2 × Audi e-tron GT, 1 × Range Rover EV") */
+  carsChanged: string;
   /** Interpolates {reference}: a partner accepted a quote for a car that another confirmed booking already holds */
   carClash: string;
   /** Shown for an absent amount */
@@ -94,6 +98,17 @@ export const eventLabels = (events: Omit<EventLabels, "statuses">, statuses: Rec
   ...events,
   statuses,
 });
+
+/** "audi:2|range_rover:1" as "2 × Audi e-tron GT, 1 × Range Rover EV". */
+const carsLine = (value: string) =>
+  value
+    .split("|")
+    .filter(Boolean)
+    .map((part) => {
+      const [key, count] = part.split(":");
+      return `${count} × ${vehicleByKey(key)?.name ?? key}`;
+    })
+    .join(", ");
 
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
@@ -142,6 +157,7 @@ export function renderEvent(
         const car = (value: string | null) => (value ? (vehicleByKey(value)?.name ?? value) : labels.none);
         return fill(labels.vehicleChanged, { from: car(change.from), to: car(change.to) });
       }
+      if (change.kind === "cars") return fill(labels.carsChanged, { from: carsLine(change.from) || labels.none, to: carsLine(change.to) || labels.none });
       return labels.notesUpdated;
     });
     return parts.join(" · ");

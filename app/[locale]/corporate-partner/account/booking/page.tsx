@@ -21,6 +21,7 @@ import { MessageForm } from "../../../_components/portal-message-form";
 import { QuoteResponse } from "../../../_components/portal-quote-response";
 import { PortalPage } from "../../../_components/portal-shell";
 import { PortalStatus } from "../../../_components/portal-status";
+import { ReviewRefresh } from "../../../_components/review-refresh";
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -76,6 +77,17 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
       </Link>
 
       {created === "1" && <p className="m-0 border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-[15px] text-ink-950">{p.createdNotice}</p>}
+
+      {/* Every booking is reviewed by hand (the client, 8 Nov 2026): the page follows the review by itself */}
+      {(booking.status === "new" || booking.status === "contacted") && (
+        <div role="status" className="flex items-start gap-4 border border-solid border-ink-225 bg-white p-5 text-ink-950">
+          {booking.status === "new" && (
+            <span aria-hidden="true" className="mt-0.5 size-6 shrink-0 animate-spin rounded-full border-[3px] border-solid border-ink-150 border-t-ink-950 motion-reduce:animate-none" />
+          )}
+          <p className="m-0 text-[15px]">{booking.status === "new" ? p.reviewNew : p.reviewContacted}</p>
+          <ReviewRefresh />
+        </div>
+      )}
 
 
       {waiting && (

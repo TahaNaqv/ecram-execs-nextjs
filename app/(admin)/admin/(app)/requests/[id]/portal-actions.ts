@@ -1,12 +1,13 @@
 "use server";
 
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { emailPartnerBooking } from "@/lib/email";
+import { emailEnquiryStatus, emailPartnerBooking } from "@/lib/email";
+import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { attachRestriction } from "@/lib/admin/portal";
 import { isUniqueViolation } from "@/lib/request-meta";
 import { listFiles, removeFiles, signedUploadUrl, storageConfigured } from "@/lib/storage";
@@ -60,35 +61,90 @@ export async function detachPartner(formData: FormData) {
 
 export type ReplyState = { ok?: boolean; error?: string };
 
-/** The team's reply in a request's conversation with its partner. It is emailed to the partner and shows in their portal. */
-export async function replyToPartner(_prev: ReplyState, formData: FormData): Promise<ReplyState> {
-  const admin = await requireAdmin();
-  const input = z.object({ requestId: id, body: z.string().trim().min(1, "Write a reply first.").max(2000, "That reply is too long.") }).safeParse(Object.fromEntries(formData));
-  if (!input.success) return { error: input.error.issues[0]?.message ?? "Invalid input." };
+const replyInput = z.object({ requestId: id, body: z.string().trim().min(1, "Write a reply first.").max(2000, "That reply is too long.") });
 
-  const [request] = await db.select().from(q).where(eq(q.id, input.data.requestId)).limit(1);
-  if (!request?.corporateContactId) return { error: "This request is not linked to a partner." };
+/** The partner a request is linked to, for emailing them; null for a website visitor with no account. */
+async function linkedPartner(contactId: string | null) {
+  if (!contactId) return null;
   const [partner] = await db
     .select({ email: schema.corporateContacts.email, name: schema.corporateContacts.name, locale: schema.corporateContacts.locale })
     .from(schema.corporateContacts)
-    .where(eq(schema.corporateContacts.id, request.corporateContactId))
+    .where(eq(schema.corporateContacts.id, contactId))
     .limit(1);
-  if (!partner) return { error: "This request is not linked to a partner." };
+  return partner ?? null;
+}
+
+/**
+ * The team's reply in a request's conversation with its customer: a partner (emailed, shown in their portal) or a website
+ * visitor with no account (emailed with the private link, shown on their booking's page).
+ */
+export async function replyToCustomer(_prev: ReplyState, formData: FormData): Promise<ReplyState> {
+  const admin = await requireAdmin();
+  const input = replyInput.safeParse(Object.fromEntries(formData));
+  if (!input.success) return { error: input.error.issues[0]?.message ?? "Invalid input." };
+
+  const [request] = await db.select().from(q).where(eq(q.id, input.data.requestId)).limit(1);
+  if (!request) return { error: "Request not found." };
+  const partner = await linkedPartner(request.corporateContactId);
+  if (request.corporateContactId && !partner) return { error: "This request's partner account is gone." };
 
   await db.insert(schema.bookingMessages).values({ requestId: request.id, authorKind: "team", adminId: admin.id, kind: "message", body: input.data.body });
-  after(() => emailPartnerBooking({ request, to: partner, kind: "reply", message: input.data.body }));
+  after(() =>
+    partner
+      ? emailPartnerBooking({ request, to: partner, kind: "reply", message: input.data.body })
+      : emailEnquiryStatus({ request, kind: "reply", message: input.data.body }),
+  );
   refresh();
   return { ok: true };
 }
 
-/** Called when a team member opens a request that has partner messages nobody has read. */
+export type DiscussState = { ok?: boolean; error?: string };
+
+/**
+ * "Discuss further" (the client, 8 Nov 2026): the booking manager cannot approve the booking as it is, so they write to the
+ * customer and the booking goes to "in discussion". The status changes only if it is still the one the manager saw; the
+ * status, the first message and the history are written together. The customer is emailed with the message and the link.
+ */
+export async function discussBooking(_prev: DiscussState, formData: FormData): Promise<DiscussState> {
+  const admin = await requireAdmin();
+  const t = (await adminDictionary()).admin.review;
+  const input = z
+    .object({ requestId: id, seenStatus: z.string(), body: z.string().trim().min(1, t.messageRequired).max(2000, t.messageTooLong) })
+    .safeParse(Object.fromEntries(formData));
+  if (!input.success) return { error: input.error.issues[0]?.message ?? t.failed };
+  const { requestId, seenStatus, body } = input.data;
+
+  const result = await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(q).where(eq(q.id, requestId)).limit(1);
+    if (!before || before.status !== seenStatus || !["new", "contacted"].includes(before.status)) return null;
+    const [request] = await tx.update(q).set({ status: "contacted", updatedAt: sql`now()` }).where(and(eq(q.id, requestId), eq(q.status, seenStatus))).returning();
+    if (!request) return null;
+    await tx.insert(schema.bookingMessages).values({ requestId, authorKind: "team", adminId: admin.id, kind: "message", body });
+    if (before.status !== "contacted") {
+      await tx.insert(schema.requestEvents).values({ requestId, adminId: admin.id, event: "changes", params: { changes: [{ kind: "status", from: before.status, to: "contacted" }] } });
+    }
+    return request;
+  });
+  if (!result) return { error: t.stale };
+
+  const partner = await linkedPartner(result.corporateContactId);
+  after(() =>
+    partner
+      ? emailPartnerBooking({ request: result, to: partner, kind: "contacted", message: body })
+      : emailEnquiryStatus({ request: result, kind: "contacted", message: body }),
+  );
+  refresh();
+  return { ok: true };
+}
+
+/** Called when a team member opens a request that has customer messages nobody has read. */
 export async function markMessagesSeen(requestId: string) {
   await requireAdmin();
   if (!id.safeParse(requestId).success) return;
   await db
     .update(schema.bookingMessages)
     .set({ seenByTeamAt: sql`now()` })
-    .where(and(eq(schema.bookingMessages.requestId, requestId), eq(schema.bookingMessages.authorKind, "partner"), isNull(schema.bookingMessages.seenByTeamAt)));
+    .where(and(eq(schema.bookingMessages.requestId, requestId), inArray(schema.bookingMessages.authorKind, ["partner", "guest"]), isNull(schema.bookingMessages.seenByTeamAt)));
   refresh();
 }
 

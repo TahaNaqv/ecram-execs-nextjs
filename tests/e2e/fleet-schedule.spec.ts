@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { blocksOf, BUFFER_MINUTES, layOut, overlaps, tripMinutes, wallMinutes, wallText } from "../../lib/fleet/schedule";
+import { blocksOf, BUFFER_MINUTES, layOut, overlaps, tripMinutes, wallMinutes, wallText, windowBlocks } from "../../lib/fleet/schedule";
 import en from "../../lib/i18n/dictionaries/en.json";
 import { carChoice, fillJourney } from "./booking-helpers";
 import { fillAdminLogin } from "./helpers";
@@ -112,27 +112,27 @@ test("after the outward trip the car is held for its drive home, or the turnarou
   expect(back.end - back.tripEnd).toBe(BUFFER_MINUTES);
 });
 
-test("the availability endpoint names the cars a confirmed booking holds at that time, and only those", async ({ request }) => {
-  // Audi is held 09:00 to 11:00 (90 minutes of trip and 30 of turnaround); a quote does not hold Cadillac
-  await seed({ vehicle: "audi", at: `${DAY}T09:00` });
-  await seed({ vehicle: "cadillac_escalade", status: "quoted", at: `${DAY}T09:00` });
-  const busy = async (at: string, extra = "") => ((await (await request.get(`/api/vehicles/unavailable?at=${at}${extra}`)).json()) as { busy: string[] }).busy;
-
-  expect(await busy(`${DAY}T10:30`)).toEqual(["audi"]);
-  expect(await busy(`${DAY}T08:30`)).toEqual(["audi"]); // would still be on the road when the next job starts
-  expect(await busy(`${DAY}T07:15`)).toEqual(["audi"]); // and needs its turnaround before it
+test("a trip asked about clashes with a confirmed booking only while that booking holds its car", () => {
+  // The team's rule (lib/fleet/availability.ts): Audi is held 09:00 to 11:00 (90 minutes of trip and 30 of turnaround)
+  const held = blocksOf({ id: "held", status: "confirmed", service: "airport_transfer", pickupAt: `${DAY}T09:00`, returnAt: null, durationHours: null, blockMinutes: null });
+  const clashes = (w: Parameters<typeof windowBlocks>[0]) => windowBlocks(w).some((m) => held.some((h) => overlaps(m, h)));
+  expect(clashes({ pickupAt: `${DAY}T10:30` })).toBe(true);
+  expect(clashes({ pickupAt: `${DAY}T08:30` })).toBe(true); // would still be on the road when the next job starts
+  expect(clashes({ pickupAt: `${DAY}T07:15` })).toBe(true); // and needs its turnaround before it
   // Before the service is known a trip is taken as two hours long, so the turnaround after it must also fit before 09:00
-  expect(await busy(`${DAY}T06:15`)).toEqual([]);
-  expect(await busy(`${DAY}T06:45`)).toEqual(["audi"]);
-  expect(await busy(`${DAY}T11:00`)).toEqual([]); // free again the minute the turnaround ends
+  expect(clashes({ pickupAt: `${DAY}T06:15` })).toBe(false);
+  expect(clashes({ pickupAt: `${DAY}T06:45` })).toBe(true);
+  expect(clashes({ pickupAt: `${DAY}T11:00` })).toBe(false); // free again the minute the turnaround ends
   // An hourly booking holds the car for its hours, and a return journey for its second trip too
-  expect(await busy(`${DAY}T06:00`, "&hours=4")).toEqual(["audi"]);
-  expect(await busy(`${DAY}T05:00`, `&returnAt=${DAY}T10:15`)).toEqual(["audi"]);
-  // Nothing is said about the past, or when no time is given
-  expect(await busy("2020-01-01T09:00")).toEqual([]);
-  expect(await busy(`${DAY}T15:00`, `&returnAt=2001-01-01T09:00`)).toEqual([]); // nor through a return journey in the past
-  const plain = (await (await request.get("/api/vehicles/unavailable")).json()) as { busy: string[] };
-  expect(plain.busy).toEqual([]);
+  expect(clashes({ pickupAt: `${DAY}T06:00`, durationHours: 4 })).toBe(true);
+  expect(clashes({ pickupAt: `${DAY}T05:00`, returnAt: `${DAY}T10:15` })).toBe(true);
+});
+
+test("visitors are told which cars are switched off, never which are booked (the client, 8 Nov 2026)", async ({ request }) => {
+  await seed({ vehicle: "audi", at: `${DAY}T09:00` });
+  const answer = await (await request.get(`/api/vehicles/unavailable?at=${DAY}T10:00`)).json();
+  expect(answer).not.toHaveProperty("busy");
+  expect(answer.unavailable).not.toContain("audi");
 });
 
 test("the day schedule shows a column per car with the confirmed bookings, and those without a car apart", async ({ page }) => {
@@ -208,12 +208,10 @@ test("the booking page gives the booking its car, and refuses one that is held a
   await expect(page.getByText(/Car: .* → Range Rover/)).toBeVisible();
 });
 
-test("every car of a confirmed booking for several cars is held, and confirming into any of them is refused", async ({ page, request }) => {
+test("every car of a confirmed booking for several cars is held, and confirming into any of them is refused", async ({ page }) => {
   test.slow();
   // The team gave this booking the Cadillac in place of the visitor's Mercedes; the two Audis stay with it
   await seed({ vehicle: "cadillac_escalade", vehicles: [{ key: "mercedes_vle_300", count: 1 }, { key: "audi", count: 2 }], at: `${DAY}T09:00` });
-  const busy = ((await (await request.get(`/api/vehicles/unavailable?at=${DAY}T10:00`)).json()) as { busy: string[] }).busy;
-  expect(busy.sort()).toEqual(["audi", "cadillac_escalade"]);
 
   // A second booking whose other car is one of those Audis cannot be confirmed at that time
   const second = await seed({ vehicle: "range_rover", vehicles: [{ key: "range_rover", count: 1 }, { key: "audi", count: 1 }], status: "quoted", at: `${DAY}T10:00`, name: "Second Booking" });
@@ -221,23 +219,24 @@ test("every car of a confirmed booking for several cars is held, and confirming 
   const refused = await page.request.post(`/api/admin/requests/${second.id}/authorise`, { data: { status: "confirmed", amount: 120, sendMail: false } });
   expect(refused.status()).toBe(409);
   expect((await row(second.id)).status).toBe("quoted");
+  // Nor one led by the Cadillac, while the Mercedes the team replaced is free again
+  const cadillac = await seed({ vehicle: "cadillac_escalade", status: "quoted", at: `${DAY}T10:00`, name: "Third Booking" });
+  const mercedes = await seed({ vehicle: "mercedes_vle_300", status: "quoted", at: `${DAY}T10:00`, name: "Fourth Booking" });
+  const confirm = (id: string) => page.request.post(`/api/admin/requests/${id}/authorise`, { data: { status: "confirmed", amount: 120, sendMail: false } });
+  expect((await confirm(cadillac.id)).status()).toBe(409);
+  expect((await confirm(mercedes.id)).status()).toBe(200);
 
   // The day schedule draws the first booking in each of its cars' columns: the Cadillac's and the Audi's
   await page.goto(`/admin/requests/schedule?date=${DAY}`);
   await expect(page.getByText("Schedule Test", { exact: true })).toHaveCount(2);
 });
 
-test("a car held at the time of the trip is shown greyed out in the booking flow, and cannot be chosen", async ({ page }) => {
+test("a car held at the time of the trip is still offered to the visitor: the team decides in review (the client, 8 Nov 2026)", async ({ page }) => {
   await seed({ vehicle: "audi", at: `${DAY}T09:00` });
   await page.goto("/en/book");
   const [day, month, year] = [DAY.slice(8, 10), DAY.slice(5, 7), DAY.slice(0, 4)];
   await fillJourney(page, { from: "Schiphol Airport", to: "Hotel Des Indes, The Hague", at: `${day}-${month}-${year} 10:00`, flight: "KL1234" });
   await expect(page.getByRole("heading", { name: en.booking.carTitle })).toBeVisible();
-  await expect(carChoice(page, "Mercedes-Benz VLE 300")).toBeEnabled();
-  await expect(carChoice(page, "Audi")).toBeDisabled();
-  await expect(carChoice(page, "Audi")).toContainText(en.booking.carBookedAtTime);
-  // It stays in the tab order (so it is read out), but a click does not choose it
-  await carChoice(page, "Audi").click({ force: true });
-  await expect(carChoice(page, "Audi")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByText(en.booking.carsBookedHint)).toBeVisible();
+  await carChoice(page, "Audi").click();
+  await expect(carChoice(page, "Audi")).toHaveAttribute("aria-pressed", "true");
 });

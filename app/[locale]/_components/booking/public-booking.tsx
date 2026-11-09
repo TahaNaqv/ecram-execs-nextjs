@@ -6,7 +6,7 @@ import type { DateTimeCopy } from "@/components/date-time-field";
 import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
-import { BookingDone, BookingFlow, startsAtCar, type BookingStep, type OfferedVehicle } from "./booking-flow";
+import { BookingDone, BookingFlow, claimRideReceipt, startsAtCar, type BookingStep, type OfferedVehicle } from "./booking-flow";
 import type { BookingCopy, TripMessages } from "./copy";
 import { markBookingSent, useResetAfterBooking } from "./sent";
 import { tripFromParams } from "./trip";
@@ -60,12 +60,20 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
     return () => controller.abort();
   }, []);
 
-  // Counted once per sent booking, so the booking bar on the home page and the next visit to /book start empty
+  // Counted once per sent booking, so the booking bar on the home page and the next visit to /book start empty. Then the
+  // visitor goes to the booking's own page, where they follow the review by hand (the client, 8 Nov 2026)
+  const href = state.status === "success" ? state.href : undefined;
+  const sentReference = state.status === "success" ? state.reference : "";
   useEffect(() => {
-    if (state.status === "success") markBookingSent();
-  }, [state.status]);
+    if (!sentReference) return;
+    markBookingSent();
+    claimRideReceipt(sentReference);
+    if (href) router.push(href);
+  }, [sentReference, href, router]);
 
   if (state.status === "success") {
+    // On its way to the booking's page: nothing to show for the moment it takes
+    if (href) return <div className="min-h-[60svh]" aria-busy="true" />;
     return <BookingDone copy={copy} locale={locale} name={state.name} reference={state.reference} map={state.map} price={state.price} onAgain={() => {
           router.push(`/${locale}`); // Redirects back to the main home screen for the current locale
           onAgain();

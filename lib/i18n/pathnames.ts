@@ -24,6 +24,8 @@ export const PATHNAMES = {
   "/terms": { en: "terms", nl: "voorwaarden" },
   // The booking flow after the homepage's bar; the trip travels in the query string
   "/book": { en: "book", nl: "boeken" },
+  // A visitor's own booking after it is sent, opened with ?ref=EE-XXXXXX&k=… (the private key, see lib/quotes/guest-link.ts)
+  "/booking": { en: "booking", nl: "boeking" },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type AppRoute = keyof typeof PATHNAMES;

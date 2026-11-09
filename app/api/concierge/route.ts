@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { applyPatch, assess, bookedVehicleKeys, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
+import { applyPatch, assess, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
 import { BOOKING_TOOL, SHOW_CARS_TOOL } from "@/lib/concierge/booking-tool";
 import { faqsFrom } from "@/lib/concierge/faqs";
 import { bookingByChat, fleetNames, siteGuide } from "@/lib/concierge/guide";
@@ -139,8 +139,7 @@ export async function POST(req: Request) {
 
     // The card for the booking the browser already holds, so a later message can draw it again instead of a stock sentence.
     const cardFor = async (draft: Draft) => {
-      const held = new Set([...await unavailableVehicleKeys(), ...await bookedVehicleKeys(draft)]);
-      const assessed = assess(draft, dict.forms, locale, held, dict.addOns);
+      const assessed = assess(draft, dict.forms, locale, await unavailableVehicleKeys(), dict.addOns);
       const pricedQuote = await quoteDraft(draft, dict.booking, dict.addOns, locale);
       const named: Record<string, string> = {
         from: dict.quoteForm.labelCollection,
@@ -243,9 +242,9 @@ CRITICAL RULES:
     // The booking so far, as the visitor's browser holds it (cleaned: only known fields that fit). The model changes it with
     // its tool; the visitor sends it with the button, so nothing here ever creates a booking.
     let draft = incoming;
-    const switchedOff = await unavailableVehicleKeys();
-    // What the visitor may not choose: the cars switched off, and the cars a confirmed booking holds at the time they asked for
-    let unavailable: ReadonlySet<string> = new Set([...switchedOff, ...(await bookedVehicleKeys(draft))]);
+    // What the visitor may not choose: the cars the team switched off. Whether a car is free at that time is not said: every
+    // booking is reviewed by hand (the client, 8 Nov 2026)
+    const unavailable = await unavailableVehicleKeys();
     // Set when the model asks for the cars to be shown: the keys of the cars the visitor may choose (not the ones switched off)
     let cars: string[] | undefined;
     let quote: ChatQuote | null = null;
@@ -348,7 +347,6 @@ CRITICAL RULES:
         }
         const applied = applyPatch(draft, call.input);
         draft = applied.draft;
-        unavailable = new Set([...switchedOff, ...(await bookedVehicleKeys(draft))]);
         const a = assess(draft, dict.forms, locale, unavailable, dict.addOns);
         results.push({
           type: "tool_result" as const,

@@ -268,7 +268,7 @@ export function ReviewStep({
   const seats = label ? null : (lead?.specs?.passengers ?? null);
 
   const segment = segmentOf(variant);
-  const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null);
+  const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null, estimate && estimate !== "pending" ? estimate.meters : null);
 
   const card = (title: string, children: ReactNode) => (
     <section aria-label={title} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
@@ -398,6 +398,8 @@ export function ReviewStep({
               </button>
             )}
           </div>
+          {/* Nothing is paid yet: every booking is reviewed by hand first (the client, 8 Nov 2026) */}
+          <p className="m-0 w-full text-right text-[13px] text-ink-600">{t.submitNote}</p>
         </div>
       </div>
     </section>

@@ -6,13 +6,23 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { linkChatToRequest, SESSION_ID } from "@/lib/concierge/store";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
-import { chosenCarIsBooked } from "@/lib/fleet/availability";
 import { allocationFor } from "@/lib/fleet/vehicles";
 import { browserMapKey, routeMapLinks, type RouteMapLinks } from "@/lib/fleet/map";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { createQuoteRequest } from "./create";
+import { guestPath } from "./guest-link";
+
+/** The booking's private page, or nothing when the link cannot be made (no secret configured): the booking is in either way. */
+function safeGuestPath(request: { id: string; reference: string; locale: "en" | "nl" }): string | undefined {
+  try {
+    return guestPath(request, request.locale);
+  } catch (err) {
+    console.error("[booking] no private link for", request.reference, err);
+    return undefined;
+  }
+}
 import { readStops } from "./stops";
 import { quoteSchema, type QuoteField } from "./validation";
 
@@ -25,7 +35,15 @@ export type QuoteFormState =
       values: Record<string, string>;
       attempt: number;
     }
-  | { status: "success"; reference: string; name: string; map?: RouteMapLinks | null; price?: { total: number; exact: boolean } | null };
+  | {
+      status: "success";
+      reference: string;
+      name: string;
+      map?: RouteMapLinks | null;
+      price?: { total: number; exact: boolean } | null;
+      /** The booking's private page, where the visitor follows the review (the client, 8 Nov 2026) */
+      href?: string;
+    };
 
 const FIELDS = [
   // No "returnAt": the client takes no return journeys, so one sent anyway is not read
@@ -71,9 +89,6 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     }
     return fail(t.checkHighlighted, fieldErrors);
   }
-
-  // The car may have been taken since it was shown: say so, and let them choose again
-  if (await chosenCarIsBooked(parsed.data)) return fail(t.carBooked, { vehicle: t.carBooked });
 
   const { ipHash, userAgent } = await visitor();
 
@@ -143,6 +158,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     reference: request.reference,
     name: request.name.split(" ")[0],
     map: routeMapLinks(request, browserMapKey()),
+    href: safeGuestPath(request),
     price: request.priceEstimate ? { total: request.priceEstimate.total, exact: request.priceEstimate.exact } : null,
   };
 }

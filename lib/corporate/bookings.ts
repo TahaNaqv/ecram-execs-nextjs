@@ -159,7 +159,8 @@ export async function bookingTimeline(requestId: string): Promise<TimelineItem[]
   ]);
   return [
     ...events.map((e) => ({ type: "event" as const, ...e })),
-    ...messages.map((m) => ({ type: "message" as const, ...m })),
+    // A partner's booking never has guest messages; anything not the partner's own is the team's
+    ...messages.map((m) => ({ type: "message" as const, ...m, by: m.by === "partner" ? ("partner" as const) : ("team" as const) })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 

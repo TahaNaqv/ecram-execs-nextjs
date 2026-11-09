@@ -9,7 +9,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 
 type PricingCopy = Dictionary["admin"]["pricing"];
 type StatusCopy = Dictionary["admin"]["statuses"];
-const STATUSES = ["new", "confirmed", "completed", "cancelled"] as const;
+const STATUSES = ["new", "contacted", "confirmed", "completed", "cancelled"] as const;
 type StatusChoice = (typeof STATUSES)[number];
 
 const asStatus = (value: string): StatusChoice => ((STATUSES as readonly string[]).includes(value) ? (value as StatusChoice) : "new");
@@ -37,7 +37,11 @@ const euros = (cents: unknown) => {
  */
 function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): { label: string; amount: number }[] {
   if (!price || centsOf(price.total) == null) return [];
-  const rideCents = (price.legs ?? []).reduce((sum, leg) => sum + (leg.lines ?? []).reduce((n, line) => n + (centsOf(line.amount) ?? 0), 0), 0);
+  // The hours, and the kilometres beyond the allowance (the 2027 card): both are the ride
+  const rideCents = (price.legs ?? []).reduce(
+    (sum, leg) => sum + (leg.lines ?? []).reduce((n, line) => n + (centsOf(line.amount) ?? 0), 0) + (leg.km?.lines ?? []).reduce((n, line) => n + (centsOf(line.amount) ?? 0), 0),
+    0,
+  );
   const vat = vatByRate({ ...price, vat: centsOf(price.vat) ?? 0, feeVat: centsOf(price.feeVat) ?? 0, extrasVat: centsOf(price.extrasVat) ?? 0 });
   const rows = [
     { label: copy.baseFare, amount: rideCents > 0 ? rideCents / 100 : euros(price.rides) },
@@ -75,6 +79,7 @@ export function AutoPricingGateway({
   addOns,
   addOnNames,
   activity = [],
+  bookingLink,
   children,
 }: {
   request: QuoteRequest;
@@ -87,6 +92,8 @@ export function AutoPricingGateway({
   addOnNames?: ExtraNames;
   /** Later changes on this booking: status, amount, dispatch, and the rest of the audit trail */
   activity?: { id: string; text: string; at: string; by: string | null }[];
+  /** Where the customer follows this booking: their private page, or a partner's portal page */
+  bookingLink?: string;
   /** Sits above Authorisation in the left column, usually the rate-card price */
   children?: React.ReactNode;
 }) {
@@ -243,7 +250,7 @@ export function AutoPricingGateway({
 
   function handleWhatsappLink() {
     const waNumber = request.phone.replace(/[^\d]/g, "");
-    const text = encodeURIComponent(`Dear ${request.name}, your Ecram Execs booking (${request.reference}) of ${formatEuro(grandTotal)} is ready. Secure payment link via Mollie: https://ecramexecs.com/pay/${request.reference}`);
+    const text = encodeURIComponent(`Dear ${request.name}, your Ecram Execs booking (${request.reference}) of ${formatEuro(grandTotal)} is ready.${bookingLink ? ` Your booking: ${bookingLink}` : ""}`);
     if (waNumber.length >= 8) {
       window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
     } else {

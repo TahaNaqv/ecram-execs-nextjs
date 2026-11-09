@@ -8,7 +8,7 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   test.slow();
   const email = `addons-${Date.now()}@e2e.ecramexecs.test`;
   await page.goto("/en");
-  // A Monday, so the Audi is €84 an hour
+  // A Monday, so the Audi is €95 an hour (the 2027 card)
   await fillJourney(page, { from: "Kurhaus, Scheveningen", to: "Hotel Des Indes, The Hague", at: nextYear("14-06", "10:00") });
   await expect(page.getByRole("heading", { name: en.booking.carTitle })).toBeVisible();
   await carChoice(page, "Audi e-tron GT").click();

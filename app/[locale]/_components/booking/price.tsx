@@ -20,7 +20,7 @@ export const dayLabel = (t: BookingCopy, day: DayKind) => (day === "sunday" ? t.
 export const tripWaitMinutes = (trip: Trip) => (trip.mode === "hourly" ? 0 : trip.stops.filter((s) => s.place.trim()).reduce((sum, s) => sum + s.wait, 0));
 
 /** The trip's price by the rate card, as the server will work it out (lib/pricing/quote.ts), from the drive time the review fetched. */
-export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | null): (Price & { suggested: boolean }) | null {
+export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | null, distanceMeters: number | null = null): (Price & { suggested: boolean }) | null {
   if (!trip.at) return null;
   const { cars, suggested } = carsToPrice({ vehicles: trip.cars, vehicle: trip.vehicle, passengers: trip.pax, luggage: trip.bags });
   const hourly = trip.mode === "hourly";
@@ -29,6 +29,7 @@ export function tripPrice(trip: Trip, segment: Segment, driveSeconds: number | n
     pickupAt: trip.at,
     hours: hourly && trip.hours !== "" ? trip.hours : null,
     driveSeconds: hourly ? null : driveSeconds,
+    distanceMeters: hourly ? null : distanceMeters,
     waitMinutes: hourly ? 0 : tripWaitMinutes(trip),
     cars,
     suggested,
@@ -91,6 +92,17 @@ export function PriceBreakdown({
               euro(line.amount),
             );
           }),
+          // Kilometres beyond each car's allowance (the 2027 card): "320 km × €1.75 · 280 km included"
+          ...(leg.km?.lines ?? []).map((line) =>
+            row(
+              `${leg.leg}-${line.key}-km`,
+              <span className="flex flex-col">
+                <span className="text-ink-950">{interpolate(t.priceKmTitle, { car: `${line.count} × ${vehicleByKey(line.key)?.name ?? line.key}` })}</span>
+                <span className="text-[12px]">{interpolate(t.priceKmLine, { extra: line.extra, rate: euro(line.rate), included: line.included, distance: leg.km!.distance })}</span>
+              </span>,
+              euro(line.amount),
+            ),
+          ),
         ])}
         {(price.extras ?? []).map((line) =>
           row(

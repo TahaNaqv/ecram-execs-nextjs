@@ -8,7 +8,7 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
-import { formatCents, hasHighRateExtras, hourlyRate, hoursByDay, MIN_HOURS, priceNet, SERVICE_FEE_CENTS, vatByRate, type Price, type Segment } from "@/lib/pricing/rates";
+import { formatCents, hasHighRateExtras, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, priceNet, type Segment, SERVICE_FEE_CENTS, vatByRate } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
@@ -41,7 +41,6 @@ export type DetailDefaults = {
 
 const JOURNEY_FIELDS = ["collection", "destination", "pickupAt", "durationHours", "flightNumber", "passengers", "luggage", "service"];
 const CAR_FIELDS = ["vehicle"];
-const NONE_BOOKED: ReadonlySet<string> = new Set();
 const EXTRAS_FIELDS = ["extras"];
 const DETAILS_FIELDS = ["name", "email", "phone", "phoneCountry", "passengerName", "passengerPhone", "passengerPhoneCountry", "entity", "entityKvk", "notes"];
 
@@ -185,34 +184,6 @@ export function BookingFlow({
   }, [ready, step, trip, draft, entered]);
   const go = setStep;
 
-  // Which cars a confirmed booking already holds at this pick-up (only keys come back). Asked when the car step shows, and
-  // again when the time changes. Those cars are shown greyed out and cannot be chosen; one chosen earlier is let go. If the
-  // question fails every car can be chosen: the server checks again when the booking is sent, and the team when confirming.
-  const asked = step === "car" && trip.at ? `${trip.at}|${trip.mode === "hourly" ? trip.hours : ""}` : "";
-  const [answer, setAnswer] = useState<{ asked: string; keys: ReadonlySet<string> }>({ asked: "", keys: new Set() });
-  useEffect(() => {
-    if (!asked) return;
-    const [at, hours] = asked.split("|");
-    const query = new URLSearchParams({ at });
-    if (hours) query.set("hours", hours);
-    const controller = new AbortController();
-    fetch(`/api/vehicles/unavailable?${query}`, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { busy?: string[] } | null) => {
-        if (!data?.busy) return;
-        const keys = new Set(data.busy.map((k) => normalizeVehicleKey(k) ?? k));
-        setAnswer({ asked, keys });
-        setTrip((current) => {
-          const cars = current.cars.filter((c) => !keys.has(c.key));
-          if (cars.length === current.cars.length) return current;
-          return normalizeTrip({ ...current, cars, vehicle: cars[0]?.key ?? "" });
-        });
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [asked]);
-  const booked = answer.asked !== "" && answer.asked === asked ? answer.keys : NONE_BOOKED;
-  const free = vehicles.filter((v) => !booked.has(normalizeVehicleKey(v.key) ?? v.key));
 
   const errorKeys = Object.keys(result.fieldErrors);
   const [answered, setAnswered] = useState(result.fieldErrors);
@@ -324,7 +295,6 @@ export function BookingFlow({
           segment={segmentOf(variant)}
           locale={locale}
           vehicles={vehicles}
-          booked={booked}
           copy={t}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
@@ -337,7 +307,7 @@ export function BookingFlow({
             else if (trip.vehicle !== "advise") {
               if (trip.pax > LARGEST_CAR_SEATS) next = { ...trip, vehicle: "advise" };
               else {
-                const pick = suggestVehicle(free, { pax: trip.pax, bags: trip.bags });
+                const pick = suggestVehicle(vehicles, { pax: trip.pax, bags: trip.bags });
                 next = pick ? { ...trip, vehicle: pick.key, cars: [{ key: pick.key, count: 1 }] } : { ...trip, vehicle: "advise" };
               }
             }
@@ -437,14 +407,12 @@ function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
   return normalizeTrip({ ...trip, cars, vehicle: cars.length > 0 ? cars[0].key : "" });
 }
 
-function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
+function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   segment: Segment;
   locale: Locale;
   vehicles: OfferedVehicle[];
-  /** Cars a confirmed booking holds at this time: shown, but not offered. */
-  booked: ReadonlySet<string>;
   copy: BookingCopy;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
@@ -460,7 +428,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
   const party = guestsText(t, trip.pax);
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
-  const recommendation = suggestVehicle(cars.filter((c) => !booked.has(c.vehicle.key)).map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
+  const recommendation = suggestVehicle(cars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
   // The days the booking is billed at: an hourly booking's own hours, a transfer's two-hour minimum (its drive is timed
   // on the review). Past midnight into the weekend the next day's rate applies, so both rates are shown.
   const days = trip.at ? hoursByDay(trip.at, trip.mode === "hourly" && trip.hours !== "" ? trip.hours : MIN_HOURS).map((part) => part.day) : [];
@@ -486,14 +454,13 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
   const qtyButton = "grid size-9 cursor-pointer place-items-center rounded-full border border-solid border-ink-225 bg-white text-[18px] leading-none text-ink-950 hover:border-ink-950 disabled:cursor-default disabled:opacity-40";
   const card = (c: (typeof cars)[number]) => {
     const count = trip.cars.find((pick) => pick.key === c.vehicle.key)?.count ?? 0;
-    const taken = booked.has(c.vehicle.key);
-    const selected = count > 0 && !taken;
+    const selected = count > 0;
     // The car we would book is marked on its own card, so it can be chosen and counted like any other (the client, 8 Nov 2026)
-    const recommended = !taken && recommendation?.key === c.vehicle.key;
+    const recommended = recommendation?.key === c.vehicle.key;
     return (
       <li key={c.vehicle.key} className="relative">
         <div
-          className={`flex h-full flex-col rounded-2xl bg-white text-ink-950 ${taken ? "opacity-75" : ""} ${
+          className={`flex h-full flex-col rounded-2xl bg-white text-ink-950 ${
             recommended
               ? `border-2 border-solid border-emerald-500 p-[7px] ${selected ? "shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" : ""}`
               : selected
@@ -512,10 +479,8 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
             aria-pressed={selected}
             // The badge sits above the button, so it is read out as the button's description
             aria-describedby={recommended ? `recommended-${c.vehicle.key}` : undefined}
-            // Still reachable by keyboard, so a screen reader hears that this car is booked at this time
-            aria-disabled={taken || undefined}
-            onClick={() => !taken && onCars(c.vehicle.key, selected ? 0 : 1)}
-            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit aria-disabled:cursor-not-allowed"
+            onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
+            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
@@ -533,15 +498,16 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
                 {rate}
               </span>
             ))}
+            {kmPerHour(c.vehicle.key) !== null && (
+              <span className="px-1.5 pb-1 text-[12px] text-ink-600">{interpolate(t.carKmIncluded, { km: kmPerHour(c.vehicle.key)! })}</span>
+            )}
             {recommended && <span className="px-1.5 pt-0.5 pb-1 text-[13px] font-semibold text-emerald-600">{interpolate(t.recommendedBasis, { party, bags: luggage })}</span>}
             <span
               className={`m-1.5 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
-                taken ? "bg-ink-100 text-ink-700" : selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
+                selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
               }`}
             >
-              {taken ? (
-                t.carBookedAtTime
-              ) : selected ? (
+              {selected ? (
                 <>
                   <Check />
                   {t.carSelected}
@@ -604,7 +570,6 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, booked, copy: t,
         </p>
       )}
       <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsSeveral}</p>
-      {cars.some((c) => booked.has(c.vehicle.key)) && <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsBookedHint}</p>}
       <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {[...cars].sort((a, b) => Number(b.vehicle.key === recommendation?.key) - Number(a.vehicle.key === recommendation?.key)).map(card)}
         <li>
@@ -1167,6 +1132,35 @@ function isRideReceipt(value: unknown): value is RideReceipt {
   return typeof receipt.price === "object" && typeof receipt.price.total === "number" && Array.isArray(receipt.price.legs);
 }
 
+const RECEIPT_FOR_KEY = "ee-booking-receipt-for";
+
+/** Ties the receipt kept in this tab to the booking it was sent as, once the server has given it a reference. */
+export function claimRideReceipt(reference: string) {
+  try {
+    sessionStorage.setItem(RECEIPT_FOR_KEY, reference);
+  } catch {}
+}
+
+/** The receipt kept in this tab, as stored, but only for the booking it belongs to (a link to another booking has none). */
+export function storedRideReceipt(reference: string): string | null {
+  try {
+    return sessionStorage.getItem(RECEIPT_FOR_KEY) === reference ? sessionStorage.getItem(RECEIPT_KEY) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A stored receipt read back, or null when it is missing or not one. */
+export function parseRideReceipt(raw: string | null): RideReceipt | null {
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw) as unknown;
+    return isRideReceipt(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 function readRideReceipt(): RideReceipt | null {
   try {
     const raw = sessionStorage.getItem(RECEIPT_KEY);
@@ -1217,8 +1211,11 @@ function receiptLines(p: Price | null, serverTotal: number | null, names: string
   // A receipt kept from an older page may lack the add-on lines: show no breakdown rather than one that does not add up
   const extrasNet = (p.extras ?? []).reduce((sum, line) => sum + line.amount, 0);
   if (p.rides + extrasNet + p.fee !== priceNet(p) || priceNet(p) + vat.low + vat.high !== p.total) return [];
+  // The kilometres beyond the allowance (the 2027 card) on a line of their own, so the hours line reads as the hours
+  const km = p.legs.reduce((sum, leg) => sum + (leg.km?.lines ?? []).reduce((n, line) => n + line.amount, 0), 0);
   return [
-    { label: t.receiptRides, cents: p.rides },
+    { label: t.receiptRides, cents: p.rides - km },
+    ...(km > 0 ? [{ label: t.receiptKm, cents: km }] : []),
     ...(p.extras ?? []).map((line, i) => ({ label: `${line.count} × ${names[i] ?? line.key}`, cents: line.amount })),
     { label: t.priceServiceFee, cents: p.fee },
     { label: t.receiptNet, cents: priceNet(p) },
@@ -1430,7 +1427,7 @@ export function RouteMap({ map, copy: t }: { map: RouteMapLinks; copy: Pick<Book
     <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950">
       <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-500 uppercase">{t.doneMapTitle}</span>
       <div className="h-[280px] max-h-[280px] w-full overflow-hidden rounded-[12px]">
-        <iframe title={t.doneMapFrame} src={mapFrameSrc(map)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-full w-full border-0" />
+        <iframe title={t.doneMapFrame} src={mapFrameSrc(map)} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" className="h-full w-full border-0" />
       </div>
     </div>
   );

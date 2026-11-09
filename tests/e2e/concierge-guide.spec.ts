@@ -93,8 +93,9 @@ test("the model is briefed on the fleet, on how booking works and on what it can
   }
   expect(prompt).toContain("this confirms the booking at once");
   expect(prompt).toContain("this cancels the booking");
-  // Said in the briefing because the website has no such thing: no online payment, and no separate bespoke form
-  expect(prompt).toContain("there is no online payment step");
+  // Said in the briefing: every booking is reviewed by hand before payment (the client, 8 Nov 2026), and there is no separate bespoke form
+  expect(prompt).toContain("every booking is reviewed by hand by the booking manager");
+  expect(prompt).toContain("There is no payment before the booking manager has reviewed it");
   expect(prompt).toContain("there is no separate form");
   expect(prompt).not.toContain("Bespoke inquiry");
   // Every car is offered in the car step, not only those that fit

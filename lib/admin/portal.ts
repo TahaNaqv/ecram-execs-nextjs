@@ -104,6 +104,6 @@ export async function unseenPartnerMessages(requestIds: string[]) {
   const rows = await db
     .selectDistinct({ requestId: schema.bookingMessages.requestId })
     .from(schema.bookingMessages)
-    .where(and(inArray(schema.bookingMessages.requestId, requestIds), eq(schema.bookingMessages.authorKind, "partner"), sql`${schema.bookingMessages.seenByTeamAt} is null`));
+    .where(and(inArray(schema.bookingMessages.requestId, requestIds), inArray(schema.bookingMessages.authorKind, ["partner", "guest"]), sql`${schema.bookingMessages.seenByTeamAt} is null`));
   return new Set(rows.map((r) => r.requestId));
 }
