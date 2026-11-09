@@ -184,10 +184,14 @@ test("the home page follows the client's section order and lacks the removed sec
   for (const id of ["fleet", "bespoke", "sustainability"]) expect(order).not.toContain(id);
   await expect(page.locator("body")).not.toContainText("SUSTAINABILITY & ESG");
   await expect(page.locator('a[href$="#fleet"]')).toHaveCount(0);
-  // No vehicle carries a "100% electric" label, in either language
+  // No vehicle carries a "100% electric" label, in either language. Running text may still say so: the client's own copy for
+  // the close protection section speaks of "our 100% electric luxury fleet" (9 Nov 2026), so only a label on its own counts.
   for (const path of ["/en", "/nl"]) {
     await page.goto(path);
-    await expect(page.locator("body")).not.toContainText(/100% ELEKTRISCH|100% ELECTRIC/i);
+    const labels = await page.evaluate(() =>
+      [...document.body.querySelectorAll("*")].filter((el) => el.children.length === 0 && /^\s*100% (ELEKTRISCH|ELECTRIC)\s*$/i.test(el.textContent ?? "")).length,
+    );
+    expect(labels, path).toBe(0);
   }
 });
 

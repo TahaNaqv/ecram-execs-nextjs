@@ -13,6 +13,7 @@ import {
   FinalCta,
   Hero,
   Services,
+  Protection,
   SiteFooter,
   SiteHeader,
   Statement,
@@ -78,6 +79,7 @@ export default async function HomePage() {
         <Experience />
         <Destinations />
         <Services />
+        <Protection />
         <Statement />
         <Concierge />
         <FinalCta />

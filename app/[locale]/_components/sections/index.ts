@@ -2,6 +2,7 @@ export { SiteHeader } from "./site-header";
 export { Hero } from "./hero";
 export { Statement } from "./statement";
 export { Services } from "./services";
+export { Protection } from "./protection";
 export { Experience } from "./experience";
 
 export { RegionsMarquee } from "./regions-marquee";
