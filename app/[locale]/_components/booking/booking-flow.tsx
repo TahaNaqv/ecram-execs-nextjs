@@ -459,8 +459,9 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
     const recommended = recommendation?.key === c.vehicle.key;
     return (
       <li key={c.vehicle.key} className="relative">
+        {/* border-box: the site has no CSS reset, so without it the border and padding come on top of h-full and the card runs 18px into the next row (the client, 9 Nov 2026) */}
         <div
-          className={`flex h-full flex-col rounded-2xl bg-white text-ink-950 ${
+          className={`box-border flex h-full flex-col rounded-2xl bg-white text-ink-950 ${
             recommended
               ? `border-2 border-solid border-emerald-500 p-[7px] ${selected ? "shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" : ""}`
               : selected
@@ -468,19 +469,13 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
                 : "border border-solid border-ink-225 p-2"
           }`}
         >
-          {recommended && (
-            <span id={`recommended-${c.vehicle.key}`} className="mx-1.5 mt-1 mb-2.5 inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] text-[#ffffff] uppercase">
-              <Check size={12} />
-              {t.recommendedTitle}
-            </span>
-          )}
           <button
             type="button"
             aria-pressed={selected}
             // The badge sits above the button, so it is read out as the button's description
             aria-describedby={recommended ? `recommended-${c.vehicle.key}` : undefined}
             onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
-            className="flex w-full cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit"
+            className="flex w-full flex-1 cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
@@ -502,9 +497,10 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
               <span className="px-1.5 pb-1 text-[12px] text-ink-600">{interpolate(t.carKmIncluded, { km: kmPerHour(c.vehicle.key)! })}</span>
             )}
             {recommended && <span className="px-1.5 pt-0.5 pb-1 text-[13px] font-semibold text-emerald-600">{interpolate(t.recommendedBasis, { party, bags: luggage })}</span>}
+            {/* At the foot of every card, so the buttons of a row line up; once chosen it makes room for the counter beside it, so nothing moves */}
             <span
-              className={`m-1.5 flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
-                selected ? "bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
+              className={`m-1.5 mt-auto box-border flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-semibold ${
+                selected ? "mr-[134px] bg-ink-950 text-white" : "border border-solid border-ink-225 text-ink-950"
               }`}
             >
               {selected ? (
@@ -518,7 +514,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
             </span>
           </button>
           {selected && (
-            <span className="flex items-center justify-center gap-2 px-2 pt-1 pb-2">
+            <span className="absolute right-[15px] bottom-[15px] flex h-11 w-[120px] items-center justify-between">
               <button type="button" aria-label={interpolate(t.fewerOf, { car: c.vehicle.name })} onClick={() => onCars(c.vehicle.key, count - 1)} className={qtyButton}>
                 −
               </button>
@@ -536,9 +532,20 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
               </button>
             </span>
           )}
-          {selected && (
-            <span aria-hidden="true" className={`absolute ${recommended ? "top-[56px]" : "top-[18px]"} left-[18px] grid size-8 place-items-center rounded-full bg-ink-950 text-white`}>
-              <Check size={15} />
+          {/* On the photo, so every card's photo, name and price start at the same height */}
+          {(selected || recommended) && (
+            <span className="pointer-events-none absolute top-[18px] left-[18px] flex items-center gap-1.5">
+              {selected && (
+                <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-ink-950 text-white">
+                  <Check size={15} />
+                </span>
+              )}
+              {recommended && (
+                <span id={`recommended-${c.vehicle.key}`} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500 px-3 text-[11px] font-semibold tracking-[0.14em] whitespace-nowrap text-[#ffffff] uppercase shadow-sm">
+                  <Check size={12} />
+                  {t.recommendedTitle}
+                </span>
+              )}
             </span>
           )}
         </div>
@@ -546,7 +553,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
           type="button"
           onClick={() => onDetails(c.vehicle)}
           aria-label={interpolate(t.carDetails, { car: c.vehicle.name })}
-          className={`absolute ${recommended ? "top-[56px]" : "top-[18px]"} right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-[#ffffff] text-[#10224f] shadow-sm hover:bg-[#e8eeff]`}
+          className={`absolute top-[18px] right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-[#ffffff] text-[#10224f] shadow-sm hover:bg-[#e8eeff]`}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
