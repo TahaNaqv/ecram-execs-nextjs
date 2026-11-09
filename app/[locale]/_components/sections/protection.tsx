@@ -15,10 +15,10 @@ export async function Protection() {
   const p = d.protectionSection;
   const mailto = `mailto:${siteConfig.contact.email}?subject=${encodeURIComponent(p.mailSubject)}`;
   const pillars = [
-    { title: p.pillar1Title, text: p.pillar1Text, icon: <path d="M5 16l1.5-5h11L19 16M4 16h16v3H4zM7 19v1M17 19v1M8.5 13.5h.01M15.5 13.5h.01" /> },
-    { title: p.pillar2Title, text: p.pillar2Text, icon: <path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4" /> },
-    { title: p.pillar3Title, text: p.pillar3Text, icon: <path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4zM9 4v13M15 6.5v13" /> },
-    { title: p.pillar4Title, text: p.pillar4Text, icon: <path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3M12 15v2" /> },
+    { title: p.pillar1Title, icon: <path d="M5 16l1.5-5h11L19 16M4 16h16v3H4zM7 19v1M17 19v1M8.5 13.5h.01M15.5 13.5h.01" /> },
+    { title: p.pillar2Title, icon: <path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4" /> },
+    { title: p.pillar3Title, icon: <path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4zM9 4v13M15 6.5v13" /> },
+    { title: p.pillar4Title, icon: <path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3M12 15v2" /> },
   ];
   return (
     <section className="border-b border-b-ink-850" id="protection">
@@ -33,22 +33,34 @@ export async function Protection() {
             <p className="reveal m-0 text-ink-150 font-serif text-[19px] italic leading-[1.45] md:text-[21px]">{p.lead}</p>
           </div>
         </div>
-        {/* Text on the left, photo beside it on the right; on a phone the photo comes first, under the title */}
-        <div className="grid grid-cols-1 items-center gap-8 md:gap-10 lg:grid-cols-2 lg:gap-16">
-          <div className="reveal relative min-w-0 overflow-hidden lg:order-2">
+        {/* Text on the left, its top level with the photo's, then the four services as short bullets and the button under
+            them, so the column ends with the photo (the client, 10 Nov 2026). On lg the photo is absolutely placed so the text alone
+            sets the row height and the photo fills it. On a phone the photo comes first, under the title. */}
+        <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-2 lg:gap-16">
+          <div className="reveal relative min-w-0 overflow-hidden lg:order-2 lg:min-h-[420px]">
             <Image
               src="/assets/protection-v2.jpg"
               alt={p.imageAlt}
               width={IMAGE_WIDTH}
               height={IMAGE_HEIGHT}
               sizes="(min-width: 1024px) 50vw, 100vw"
-              className="block aspect-[4/3] h-auto w-full object-cover object-[50%_40%] lg:aspect-[5/4]"
+              className="block aspect-[4/3] h-auto w-full object-cover object-[50%_40%] lg:absolute lg:inset-0 lg:h-full lg:w-full lg:object-[60%_50%]"
             />
           </div>
-          <div className="flex min-w-0 flex-col gap-6 text-left lg:order-1">
+          <div className="flex min-w-0 flex-col gap-6 lg:order-1">
             <p className="reveal m-0 text-ink-400 font-light">{p.body1}</p>
             <p className="reveal m-0 text-ink-400 font-light">{p.body2}</p>
-            <div className="reveal flex flex-col gap-3">
+            <ul role="list" aria-label={p.pillarsLabel} className="reveal m-0 flex list-none flex-col gap-3 p-0">
+              {pillars.map((pillar) => (
+                <li key={pillar.title} className="flex items-center gap-3">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0 stroke-ink-250" strokeWidth="1.3" aria-hidden="true">
+                    {pillar.icon}
+                  </svg>
+                  <span className="text-white font-display text-[12px] leading-[1.5] tracking-[0.18em] uppercase">{pillar.title}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="reveal flex flex-col gap-3 pt-2">
               <a
                 className="btn-fill py-0 px-[34px] gap-3 no-underline items-center self-start bg-ink-50 text-ink-950 inline-flex text-[12px] font-semibold tracking-[0.24em] min-h-[52px] uppercase"
                 href={mailto}
@@ -63,17 +75,6 @@ export async function Protection() {
             </div>
           </div>
         </div>
-        <ul aria-label={p.pillarsLabel} className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 md:gap-5 lg:grid-cols-4">
-          {pillars.map((pillar) => (
-            <li key={pillar.title} className="reveal flex flex-col gap-3 border border-ink-800 px-5 py-7 md:px-6">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="stroke-ink-250" strokeWidth="1.2" aria-hidden="true">
-                {pillar.icon}
-              </svg>
-              <h3 className="m-0 text-white font-display text-[13px] font-normal leading-[1.5] tracking-[0.18em] uppercase">{pillar.title}</h3>
-              <p className="m-0 text-ink-400 text-[14px] font-light leading-[1.6]">{pillar.text}</p>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );
