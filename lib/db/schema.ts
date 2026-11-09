@@ -405,6 +405,14 @@ export const conciergeMessages = pgTable(
   ],
 );
 
+/** Settings the team changes in the admin, one row per key (the fleet's base: lib/fleet/base.ts). */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedBy: uuid("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Vehicle = typeof vehicles.$inferSelect;

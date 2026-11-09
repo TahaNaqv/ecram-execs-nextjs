@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { MAX_TRIP_MINUTES } from "../../lib/fleet/schedule";
 import { amsterdamInstant, blockMinutesFor, parseDuration } from "../../lib/fleet/trip";
+import en from "../../lib/i18n/dictionaries/en.json";
 import { fillAdminLogin } from "./helpers";
 
 const run = promisify(execFile);
@@ -126,6 +127,17 @@ test.describe("with a stand-in Routes server", () => {
     const db = sql();
     try {
       await db`delete from quote_requests where email = ${EMAIL}`;
+      await db`delete from app_settings where key = 'fleet_base'`;
+    } finally {
+      await db.end();
+    }
+  }
+
+  async function setting() {
+    const db = sql();
+    try {
+      const [r] = await db`select value from app_settings where key = 'fleet_base'`;
+      return (r?.value ?? null) as Record<string, unknown> | null;
     } finally {
       await db.end();
     }
@@ -178,6 +190,43 @@ test.describe("with a stand-in Routes server", () => {
     await expect(page.getByText(/\b80 min\b/).first()).toBeVisible();
     await page.goto(`/admin/requests/schedule?date=${DAY}`);
     await expect(page.getByRole("link", { name: /Trip Length/ }).first()).toContainText("09:00 – 10:20");
+  });
+
+  test("the team sets the fleet's base on the Fleet page, and the drive home goes there", async ({ page }) => {
+    test.slow();
+    const v = en.admin.vehicles;
+    await signIn(page);
+    await page.goto("/admin/vehicles");
+    // The address search is found by its id (its label is the visible text, the list reuses the booking form)
+    const field = page.locator("#fleet-base:visible");
+    await expect(page.getByText(v.baseUnset)).toBeVisible();
+    await field.fill("Ecram Garage Amstelveen");
+    await page.getByRole("option", { name: /Ecram Garage Amstelveen/ }).click();
+    await page.getByRole("button", { name: v.baseSave }).click();
+    // Drawn again from what was saved, with who saved it
+    await expect(page.getByText(v.baseSavedBy.replace("{name}", "E2E Admin").replace(", {when}", ""))).toBeVisible();
+    expect(await setting()).toEqual({ address: "Ecram Garage Amstelveen", placeId: "fake-ecram-garage-amstelveen" });
+
+    // A trip confirmed now holds its car until it is back at the base
+    const id = await seed({ at: `${DAY}T09:00`, placeIds: true });
+    expect((await confirm(page, id)).status()).toBe(200);
+    const home = calls.find((c) => c.body.routingPreference === "TRAFFIC_UNAWARE")!;
+    expect(home.body.origin).toEqual({ address: "Hotel Des Indes, The Hague" });
+    expect(home.body.destination).toEqual({ placeId: "fake-ecram-garage-amstelveen" });
+
+    // A typed address is kept as typed, without the place id of the one picked before
+    await page.reload();
+    await expect(field).toHaveValue("Ecram Garage Amstelveen");
+    await field.fill("Kalfjeslaan 2, Amstelveen");
+    await field.press("Escape");
+    await page.getByRole("button", { name: v.baseSave }).click();
+    await expect.poll(setting).toEqual({ address: "Kalfjeslaan 2, Amstelveen", placeId: null });
+
+    // Emptied, the drive back is measured to the pick-up again
+    await field.fill("");
+    await page.getByRole("button", { name: v.baseSave }).click();
+    await expect.poll(setting).toEqual({});
+    await expect(page.getByText(v.baseUnset)).toBeVisible();
   });
 
   test("stops on the way are asked about, and the waits at them are added", async ({ page }) => {

@@ -14,6 +14,9 @@ import { priceForRequest } from "@/lib/pricing/quote";
 import { createQuoteRequest } from "./create";
 import { guestPath } from "./guest-link";
 
+import { readStops } from "./stops";
+import { quoteSchema, type QuoteField } from "./validation";
+
 /** The booking's private page, or nothing when the link cannot be made (no secret configured): the booking is in either way. */
 function safeGuestPath(request: { id: string; reference: string; locale: "en" | "nl" }): string | undefined {
   try {
@@ -23,8 +26,6 @@ function safeGuestPath(request: { id: string; reference: string; locale: "en" | 
     return undefined;
   }
 }
-import { readStops } from "./stops";
-import { quoteSchema, type QuoteField } from "./validation";
 
 export type QuoteFormState =
   | { status: "idle" }

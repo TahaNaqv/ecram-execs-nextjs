@@ -20,6 +20,8 @@ type Message = {
   cars?: string[];
   /** The add-ons to show under this message, as the same kind of carousel */
   extras?: boolean;
+  /** The sent booking's own page, where its review is followed (the private link) */
+  link?: string;
 };
 
 
@@ -41,6 +43,7 @@ type Copy = {
   /** Placeholder in the message box while that change is being written. */
   bookChangeHint: string;
   bookSent: string;
+  bookFollow: string;
   bookFailed: string;
   carChoose: string;
   carChosen: string;
@@ -376,7 +379,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
         setDraft({});
         setReady(null);
         setQuote(null);
-        setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookSent, { name: result.name, reference: result.reference }) }]);
+        setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookSent, { name: result.name, reference: result.reference }), link: result.href }]);
       } else {
         const reason = result.status === "error" ? Object.values(result.fieldErrors).filter(Boolean).join(" ") || result.message : "";
         setMessages((prev) => [...prev, { from: "agent", text: interpolate(copy.bookFailed, { reason }).replace("  ", " "), handoff: true }]);
@@ -435,6 +438,19 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
                 >
                   {m.text}
                 </div>
+
+                {/* The sent booking's own page: the review is followed there, and the booking manager's messages arrive there */}
+                {m.link && (
+                  <div className="mt-2.5">
+                    <a
+                      href={m.link}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-ink-950 no-underline shadow-2xs transition-colors hover:bg-ink-150"
+                    >
+                      <span>{copy.bookFollow}</span>
+                      <span aria-hidden="true">→</span>
+                    </a>
+                  </div>
+                )}
 
                 {/* WhatsApp transfer button when query requires personal touch */}
                 {m.handoff && (

@@ -6,6 +6,7 @@
 // A booking whose longer hold would overlap another confirmed booking of one of its cars is left alone and listed, for the team
 // to sort out. Bookings whose drive home cannot be found keep the turnaround.
 import postgres from "postgres";
+import { FLEET_BASE_KEY, parseFleetBase } from "../lib/fleet/base.ts";
 import { heldKeys } from "../lib/fleet/held.ts";
 import { routeDriveBackMinutes, routesEnabled } from "../lib/fleet/route-core.ts";
 import { BUFFER_MINUTES, blocksOf, overlaps, wallText } from "../lib/fleet/schedule.ts";
@@ -86,6 +87,11 @@ const rows = await sql<Row[]>`
 
 console.log(`${rows.length} upcoming confirmed booking(s) without a drive home.${apply ? "" : " (Dry run: nothing is saved. Add --apply to save.)"}\n`);
 
+// The base the team set on the admin's Fleet page; until then the drive back is measured to each trip's pick-up
+const [setting] = await sql<{ value: unknown }[]>`select value from app_settings where key = ${FLEET_BASE_KEY}`;
+const base = parseFleetBase(setting?.value);
+console.log(base ? `Drive home to the base: ${base.address}\n` : "No base set on the Fleet page: the drive back is measured to each trip's pick-up.\n");
+
 const tally = { saved: 0, short: 0, clash: 0, notFound: 0 };
 for (const row of rows) {
   const label = `${row.reference}  ${row.pickup_at?.slice(0, 16) ?? "?"}  ${row.collection} → ${row.destination}`;
@@ -95,7 +101,7 @@ for (const row of rows) {
     destination: row.destination,
     pickupPlaceId: row.pickup_place_id,
     destinationPlaceId: row.destination_place_id,
-  });
+  }, base);
   if (back === null) {
     tally.notFound++;
     console.log(`  not found  ${label}  (keeps the ${BUFFER_MINUTES}-minute turnaround)`);

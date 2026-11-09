@@ -1,4 +1,4 @@
-import { FLEET_BASE } from "./base.ts";
+import type { FleetBase } from "./base.ts";
 import { amsterdamInstant, blockMinutesFor, parseDuration, ROUTED_SERVICES } from "./trip.ts";
 
 /**
@@ -115,11 +115,11 @@ export async function routeLine(b: RoutedBooking): Promise<string | null> {
 }
 
 /**
- * The minutes the car needs after the trip to drive home: from the drop-off to `FLEET_BASE` (until that is set, back to the
- * pick-up), without traffic and rounded up to five minutes. Null when it cannot be told; the buffer then applies on its own.
+ * The minutes the car needs after the trip to drive home: from the drop-off to the fleet's base (until that is set, back to
+ * the pick-up), without traffic and rounded up to five minutes. Null when it cannot be told; the buffer then applies on its own.
  */
-export async function routeDriveBackMinutes(b: RoutedBooking): Promise<number | null> {
-  const home = FLEET_BASE.address ? FLEET_BASE : { address: b.collection ?? "", placeId: b.pickupPlaceId ?? null };
+export async function routeDriveBackMinutes(b: RoutedBooking, base: FleetBase | null): Promise<number | null> {
+  const home = base?.address ? base : { address: b.collection ?? "", placeId: b.pickupPlaceId ?? null };
   if (!b.destination || !home.address) return null;
   const found = await lookup(
     { service: b.service, collection: b.destination, pickupPlaceId: b.destinationPlaceId, destination: home.address, destinationPlaceId: home.placeId, destinations: [] },
@@ -130,10 +130,13 @@ export async function routeDriveBackMinutes(b: RoutedBooking): Promise<number | 
 }
 
 /** What confirming a booking needs from the route, asking Google only for what the booking does not have yet. */
-export async function routeHold(b: RoutedBooking & { blockMinutes?: number | null; driveBackMinutes?: number | null }): Promise<{ blockMinutes: number | null; driveBackMinutes: number | null }> {
+export async function routeHold(
+  b: RoutedBooking & { blockMinutes?: number | null; driveBackMinutes?: number | null },
+  base: FleetBase | null,
+): Promise<{ blockMinutes: number | null; driveBackMinutes: number | null }> {
   const [blockMinutes, driveBackMinutes] = await Promise.all([
     b.blockMinutes == null ? routeBlockMinutes(b) : null,
-    b.driveBackMinutes == null ? routeDriveBackMinutes(b) : null,
+    b.driveBackMinutes == null ? routeDriveBackMinutes(b, base) : null,
   ]);
   return { blockMinutes, driveBackMinutes };
 }

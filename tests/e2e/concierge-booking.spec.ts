@@ -410,12 +410,15 @@ test("the chat takes a booking from start to finish: the card shows it, Send mak
 
   // Send: the same action as the form
   await card.getByRole("button", { name: en.conciergeSection.bookSend }).click();
-  await expect(log).toContainText("has been received", { timeout: 20_000 });
+  await expect(log).toContainText("has been sent", { timeout: 20_000 });
   await expect(card).toHaveCount(0);
   const [row] = await db`select id, reference, status, service, collection, destination, passengers, luggage, phone, notes, source, locale, name, extras from quote_requests where email = ${email}`;
   await db.end();
   expect(row).toMatchObject({ status: "new", service: "airport_transfer", collection: "Rotterdam The Hague Airport", destination: "Amstel Hotel, Amsterdam", passengers: 2, luggage: 1, phone: "+31 612345678", notes: "Meet at arrivals", source: "website", locale: "en", name: "Jan de Vries", extras: [{ key: "champagne", count: 1 }] });
   await expect(log).toContainText(row.reference);
+  // The booking's own page is one click away: the private link, where the review is followed
+  const follow = log.getByRole("link", { name: en.conciergeSection.bookFollow });
+  await expect(follow).toHaveAttribute("href", new RegExp(`^/en/booking\\?ref=${row.reference}&k=[A-Za-z0-9_-]{32}$`));
   // The model was called once for the booking, and not again to be told it was sent
   expect(model.calls).toHaveLength(2);
   // The chat is saved and joined to the request that came of it; the request holds the details now, so the chat's own copy is gone

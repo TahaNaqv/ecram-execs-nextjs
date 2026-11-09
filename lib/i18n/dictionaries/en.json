@@ -501,6 +501,7 @@
     "bookPress": "The booking card is below. Press “Send my request” to send it. Tell me here if you would like to change anything.",
     "bookNeed": "I still need a few details before that card can be sent: {fields}.",
     "bookSent": "Thank you, {name}. Your booking {reference} has been sent. Our booking manager checks every booking by hand before payment, usually within the hour, and you'll receive an email with a link to follow it.",
+    "bookFollow": "Follow your booking",
     "bookFailed": "I could not send your request. {reason} You can also use the Plan Your Journey bar above, or write to our team on WhatsApp.",
     "carChoose": "Choose this car",
     "carChosen": "Chosen",
@@ -1443,7 +1444,19 @@
       "serviceDetail": "Executive Interior Detailing",
       "scheduledDate": "Scheduled Date",
       "confirmBooking": "Confirm Booking",
-      "permitValid": "Valid"
+      "permitValid": "Valid",
+      "baseTitle": "Fleet base",
+      "baseNote": "Where the cars live. After every trip the car is held until it has driven back here, so the next booking cannot take it too early.",
+      "baseLabel": "Base address",
+      "basePlaceholder": "Search for the address",
+      "baseSuggestions": "Suggestions",
+      "baseHelp": "Used for trips confirmed from now on. Trips already confirmed keep the drive home they were given.",
+      "baseUnset": "Not set yet: until it is, the drive back is measured to each trip's own pick-up.",
+      "baseSave": "Save base",
+      "baseSaving": "Saving…",
+      "baseSavedBy": "Last saved by {name}, {when}",
+      "baseSavedAt": "Last saved {when}",
+      "baseFailed": "The address could not be saved. Please try again."
     },
     "financials": {
       "title": "Financial Automation & Bookkeeper Export Engine",
