@@ -7,8 +7,8 @@ import { siteConfig } from "@/lib/site-config";
  * offered on request, so the button writes to the enquiries address rather than opening the booking form. After the client's
  * feedback of 10 Nov 2026 the title sits above, styled like the services section, and the photo (AI-generated, showing a
  * close protection officer rather than a driver) sits beside the text. The photo became a daylight scene on an
- * Amsterdam canal (the client's reference, 10 Nov 2026); protection-v5.jpg (11 Nov 2026) puts the black Mercedes-Benz on a sunny,
- * tree-lined canal, with a white plate carrying the Ecram Execs logo (laid onto the photo from logo.png).
+ * Amsterdam canal (the client's reference, 10 Nov 2026); protection-v6.jpg (11 Nov 2026) shows the group on a tree-lined canal
+ * street in one natural light, with a white plate carrying the Ecram Execs logo (blended into the photo from logo.png).
  */
 const IMAGE_WIDTH = 1600;
 const IMAGE_HEIGHT = 1600;
@@ -41,12 +41,12 @@ export async function Protection() {
         <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="reveal relative min-w-0 overflow-hidden lg:order-2 lg:min-h-[420px]">
             <Image
-              src="/assets/protection-v5.jpg"
+              src="/assets/protection-v6.jpg"
               alt={p.imageAlt}
               width={IMAGE_WIDTH}
               height={IMAGE_HEIGHT}
               sizes="(min-width: 1024px) 50vw, 100vw"
-              className="block aspect-[4/3] h-auto w-full object-cover object-[50%_70%] lg:absolute lg:inset-0 lg:h-full lg:w-full lg:object-[40%_50%]"
+              className="block aspect-[4/3] h-auto w-full object-cover object-[50%_70%] lg:absolute lg:inset-0 lg:h-full lg:w-full lg:object-[60%_50%]"
             />
           </div>
           <div className="flex min-w-0 flex-col gap-6 lg:order-1">
