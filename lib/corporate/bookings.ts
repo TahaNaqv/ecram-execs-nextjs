@@ -32,6 +32,8 @@ const bookingColumns = {
   service: q.service,
   collection: q.collection,
   destination: q.destination,
+  pickupPlaceId: q.pickupPlaceId,
+  destinationPlaceId: q.destinationPlaceId,
   destinations: q.destinations,
   destinationWaits: q.destinationWaits,
   pickupAt: q.pickupAt,

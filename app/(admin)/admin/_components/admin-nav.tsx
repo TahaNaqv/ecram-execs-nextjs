@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BriefcaseIcon,
@@ -43,7 +43,7 @@ type NavItem = {
   key: keyof AdminNavCopy;
   defaultLabel: string;
   icon: (props: { size?: number; className?: string }) => React.JSX.Element;
-  match: (p: string) => boolean;
+  match: (p: string, from?: string | null) => boolean;
 };
 
 type NavSection = {
@@ -56,8 +56,20 @@ const SECTIONS: NavSection[] = [
     titleKey: "operations",
     items: [
       { href: "/admin", key: "dashboard", defaultLabel: "Dashboard", icon: LayoutGridIcon, match: (p: string) => p === "/admin" },
-      { href: "/admin/enquiries", key: "enquiries", defaultLabel: "Enquiries", icon: ClockIcon, match: (p: string) => p.startsWith("/admin/enquiries") },
-      { href: "/admin/requests", key: "requests", defaultLabel: "Bookings", icon: InboxIcon, match: (p: string) => p.startsWith("/admin/requests") },
+      {
+        href: "/admin/enquiries",
+        key: "enquiries",
+        defaultLabel: "Enquiries",
+        icon: ClockIcon,
+        match: (p: string, from?: string | null) => p.startsWith("/admin/enquiries") || (p.startsWith("/admin/requests/") && from === "enquiries"),
+      },
+      {
+        href: "/admin/requests",
+        key: "requests",
+        defaultLabel: "Bookings",
+        icon: InboxIcon,
+        match: (p: string, from?: string | null) => p.startsWith("/admin/requests") && !(p.startsWith("/admin/requests/") && from === "enquiries"),
+      },
       { href: "/admin/chats", key: "chats", defaultLabel: "Live Chats", icon: ChatIcon, match: (p: string) => p.startsWith("/admin/chats") },
     ],
   },
@@ -109,6 +121,8 @@ export function AdminChrome({
   copy: AdminNavCopy;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams();
+  const from = search.get("from");
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
 
@@ -123,7 +137,7 @@ export function AdminChrome({
     };
   }, [open]);
 
-  const current = ALL_LINKS.find((l) => l.match(pathname));
+  const current = ALL_LINKS.find((l) => l.match(pathname, from));
 
   return (
     <>
@@ -182,7 +196,7 @@ export function AdminChrome({
               </p>
               <div className="flex flex-col gap-0.5">
                 {section.items.map((l) => {
-                  const active = l.match(pathname);
+                  const active = l.match(pathname, from);
                   const Icon = l.icon;
                   const label = copy[l.key] || l.defaultLabel;
                   return (

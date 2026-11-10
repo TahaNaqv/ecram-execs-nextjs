@@ -23,9 +23,9 @@ export async function Hero() {
         <h1 className="rise d2 mx-0 mt-1 mb-0 font-serif text-[clamp(28px,8vw,40px)] leading-[1.08] font-light tracking-[-0.01em] text-white md:mt-2 md:text-[clamp(40px,5.4vw,76px)] md:leading-[1.05]">
           {d.hero.headingBefore}{" "}
           <br className="hidden md:inline" />
-          <em className="chrome-live-light block italic font-light md:inline">
+          <span className="chrome-live-light block font-light not-italic md:inline">
             {d.hero.headingEmphasis}
-          </em>
+          </span>
         </h1>
         <p className="rise d3 m-0 max-w-[34rem] text-[14px] leading-relaxed font-normal text-white [text-shadow:0_1px_12px_rgba(var(--ec-deep-rgb),0.7)] md:max-w-[620px] md:text-[17px] md:leading-normal md:font-light">
           {d.hero.intro}

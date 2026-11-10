@@ -24,6 +24,12 @@ export type ExtrasCopy = {
   slide: string;
 };
 
+/** The same zoom as the booking cards, inside this strip's wider photo frame. */
+const PHOTO_SCALE: Partial<Record<ExtraKey, string>> = {
+  chocolates: "origin-center scale-[1.26]",
+  newspapers: "origin-center scale-[1.48]",
+};
+
 const Chevron = ({ direction }: { direction: "left" | "right" }) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
     <path d={direction === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"} />
@@ -101,8 +107,10 @@ export function ExtrasCarousel({ names, copy, locale, disabled, onConfirm }: {
               aria-label={interpolate(copy.slide, { car: name, number: i + 1, total: slides })}
               className={`w-[82%] shrink-0 snap-center overflow-hidden rounded-2xl border bg-ink-850 ${count > 0 ? "border-white" : "border-ink-700"}`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- a small product photo from /public, as on the booking form */}
-              <img src={spec.image} alt="" loading="lazy" draggable={false} className="aspect-[16/10] w-full bg-white object-contain" />
+              <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#ffffff]">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a small product photo from /public, as on the booking form */}
+                <img src={spec.image} alt="" loading="lazy" draggable={false} className={`absolute inset-0 h-full w-full object-contain ${PHOTO_SCALE[key] ?? ""}`} />
+              </div>
               <div className="flex flex-col gap-2.5 p-3.5">
                 <span className="text-[14px] font-semibold leading-snug text-white">{name}</span>
                 <span className="text-[13px] font-medium text-white tabular-nums">

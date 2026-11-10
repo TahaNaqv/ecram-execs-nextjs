@@ -12,7 +12,7 @@ import { isUrgent } from "@/lib/quotes/urgency";
 import { guestUrl } from "@/lib/quotes/guest-link";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
-import { bookingTotalEuros, formatCents, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, formatCents, formatCurrency, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
 import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 const esc = (s: string) =>
@@ -355,8 +355,12 @@ export async function notifyTeamGuestMessage({ request: q, body }: { request: Qu
 
 export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
 
-const euro = (amount: string | null, locale: QuoteRequest["locale"]) =>
-  amount === null ? "" : new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { style: "currency", currency: "EUR" }).format(Number(amount));
+const euro = (amount: string | null, locale: QuoteRequest["locale"]) => {
+  void locale;
+  if (amount === null || amount === "") return "";
+  const value = Number(amount);
+  return Number.isFinite(value) ? formatCurrency(value) : "";
+};
 
 /**
  * Emails the partner about one of their bookings, in their language, with a link straight to it. Best-effort: the

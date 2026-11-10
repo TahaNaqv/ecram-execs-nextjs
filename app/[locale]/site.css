@@ -841,7 +841,21 @@ body:has(dialog[open]) {
   }
 }
 
+@media (min-width: 1280px) {
+  .header-bar {
+    flex-wrap: nowrap;
+  }
+
+  .nav-burger {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1279px) {
+  .header-bar {
+    flex-wrap: wrap;
+  }
+
   .nav-burger {
     display: flex;
     flex-direction: column;
@@ -850,8 +864,8 @@ body:has(dialog[open]) {
     gap: 6px;
     width: 44px;
     height: 44px;
-    margin-left: auto;
     cursor: pointer;
+    order: 3;
   }
 
   .nav-burger span {
@@ -881,32 +895,27 @@ body:has(dialog[open]) {
     transform: translateY(-7px) rotate(-45deg);
   }
 
-  /* Closed */
+  /* Closed: logo, language flags, and burger stay on one bar. */
   .primary-nav,
   .nav-actions {
     display: none !important;
     width: 100%;
   }
 
-  .nav-actions a {
-    justify-content: center;
-    min-height: 50px !important;
-  }
-
-  /* Language flags stay in the header bar (beside the burger) instead of inside the menu. */
   .nav-lang {
-    order: 1;
+    order: 2;
     margin-left: auto;
   }
 
-  .nav-burger {
-    order: 2;
-    margin-left: 0;
+  .nav-actions a {
+    justify-content: center;
+    width: 100%;
+    min-height: 50px !important;
   }
 
   .primary-nav,
   .nav-actions {
-    order: 3;
+    order: 4;
   }
 
   /* An open menu taller than the screen scrolls inside the sticky header */
@@ -919,9 +928,12 @@ body:has(dialog[open]) {
   .nav-toggle:checked ~ .primary-nav {
     display: flex !important;
     flex-direction: column;
+    flex: none;
+    justify-content: flex-start;
     gap: 0 !important;
     padding-top: 20px;
-    font-size: 13px !important;
+    font-size: 16px !important;
+    letter-spacing: 0.08em;
   }
 
   .nav-toggle:checked ~ .primary-nav a {
@@ -932,7 +944,7 @@ body:has(dialog[open]) {
 
   .nav-toggle:checked ~ .nav-actions {
     display: flex !important;
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch !important;
     gap: 18px !important;
     padding: 20px 0 12px;

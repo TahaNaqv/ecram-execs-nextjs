@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
 import type { ApplicationStatus } from "@/lib/partners/criteria";
+import { formatCurrency } from "@/lib/pricing/rates";
 import type { RequestStatus } from "@/lib/quotes/constants";
 
 const TZ = "Europe/Amsterdam";
@@ -45,14 +46,7 @@ export function formatEuro(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return "—";
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "—";
-  // Two decimals first, so a summed numeric never reaches the formatter with stray precision.
-  const rounded = Number(amount.toFixed(2));
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(rounded);
+  return formatCurrency(amount);
 }
 
 /** Headline totals: whole euros ("€ 34.932") so the symbol and the amount stay on one line. */

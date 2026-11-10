@@ -71,8 +71,12 @@ function readTicket(token: string): Ticket | null {
   if (!body || !sig) return null;
   const expected = Buffer.from(mac(body));
   if (expected.length !== sig.length || !timingSafeEqual(expected, Buffer.from(sig))) return null;
-  const t = JSON.parse(Buffer.from(body, "base64url").toString()) as Ticket;
-  return t.expires > Date.now() ? t : null;
+  try {
+    const t = JSON.parse(Buffer.from(body, "base64url").toString()) as Ticket;
+    return t.expires > Date.now() ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Validates the form and applies the per-visitor and per-car limits. */

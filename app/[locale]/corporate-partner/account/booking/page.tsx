@@ -161,7 +161,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
           {booking.notes && (
             <div className="md:col-span-2">
               <Fact label={d.quoteForm.labelNotes}>
-                <span className="whitespace-pre-wrap">{booking.notes}</span>
+                <span className="block max-h-28 overflow-y-auto text-left break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{booking.notes}</span>
               </Fact>
             </div>
           )}

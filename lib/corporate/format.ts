@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
+import { formatCurrency } from "@/lib/pricing/rates";
 
 const intl = (locale: Locale) => (locale === "nl" ? "nl-NL" : "en-GB");
 
@@ -12,8 +13,12 @@ export function formatPickup(pickupAt: string, locale: Locale) {
   return new Intl.DateTimeFormat(intl(locale), { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(`${wallClock}:00Z`));
 }
 
-export const formatPartnerAmount = (amount: string, locale: Locale) =>
-  new Intl.NumberFormat(intl(locale), { style: "currency", currency: "EUR" }).format(Number(amount));
+/** Partner invoices use the same Dutch euros as the rate card, in either language. */
+export const formatPartnerAmount = (amount: string, locale: Locale) => {
+  void locale;
+  const value = Number(amount);
+  return Number.isFinite(value) ? formatCurrency(value) : amount;
+};
 
 export const formatStamp = (at: Date, locale: Locale) =>
   new Intl.DateTimeFormat(intl(locale), { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Amsterdam" }).format(at);

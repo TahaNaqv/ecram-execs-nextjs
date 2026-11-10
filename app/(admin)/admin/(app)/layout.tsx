@@ -10,12 +10,14 @@ import { setAdminLocale } from "../actions";
 import { LogOutIcon } from "../_components/icons";
 import { Avatar } from "../_components/ui";
 import { AdminLang } from "../_components/admin-lang";
+import { AutoRefresh } from "../_components/auto-refresh";
 
-/** Shell shared by every signed-in admin page: sidebar navigation plus the page content. */
 /** Shell shared by every signed-in admin page: sidebar navigation plus the page content. */
 export default function AdminAppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
+      {/* Live lists, enquiries and messages refresh while the panel is open. */}
+      <AutoRefresh seconds={5} />
       {/* The sidebar reads the URL and the admin's language, so it streams in after the shell
           (same size, no layout shift). Resolving the dictionary here rather than in the layout
           body keeps the static shell instant under Cache Components. */}
@@ -30,26 +32,28 @@ export default function AdminAppLayout({ children }: { children: React.ReactNode
 async function Chrome() {
   const { admin: t } = await adminDictionary();
   return (
-    <AdminChrome
-      copy={{ ...t.nav, openMenu: t.common.openMenu, closeMenu: t.common.closeMenu }}
-      badges={{
-        "/admin/enquiries": (
-          <Suspense fallback={null}>
-            <WaitingEnquiriesBadge />
+    <Suspense fallback={<ChromeFallback />}>
+      <AdminChrome
+        copy={{ ...t.nav, openMenu: t.common.openMenu, closeMenu: t.common.closeMenu }}
+        badges={{
+          "/admin/enquiries": (
+            <Suspense fallback={null}>
+              <WaitingEnquiriesBadge />
+            </Suspense>
+          ),
+          "/admin/drivers/applications": (
+            <Suspense fallback={null}>
+              <NewApplicationsBadge />
+            </Suspense>
+          ),
+        }}
+        account={
+          <Suspense fallback={<AccountFallback />}>
+            <Account />
           </Suspense>
-        ),
-        "/admin/drivers/applications": (
-          <Suspense fallback={null}>
-            <NewApplicationsBadge />
-          </Suspense>
-        ),
-      }}
-      account={
-        <Suspense fallback={<AccountFallback />}>
-          <Account />
-        </Suspense>
-      }
-    />
+        }
+      />
+    </Suspense>
   );
 }
 

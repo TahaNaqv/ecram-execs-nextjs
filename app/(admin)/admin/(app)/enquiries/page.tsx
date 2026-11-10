@@ -9,7 +9,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { CheckCircleIcon, ClockIcon } from "../../_components/icons";
 import { StatusBadge, UrgentBadge } from "../../_components/status-badge";
 import { Card, EmptyState, PageBody, PageHeader, Skeleton } from "../../_components/ui";
-import { AutoRefresh, Countdown } from "./live";
+import { Countdown } from "./live";
 
 // Allow blocking dynamic rendering under cacheComponents for this route
 export const instant = false;
@@ -97,8 +97,7 @@ async function Queues() {
 
   return (
     <>
-      <AutoRefresh />
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
         <QueueCard summary={standard} nowMs={nowMs} locale={admin.locale} />
         <QueueCard summary={corporate} nowMs={nowMs} locale={admin.locale} />
       </div>
@@ -124,9 +123,9 @@ async function QueueCard({ summary, nowMs, locale }: { summary: QueueSummary; no
   const headingId = `queue-${summary.queue}`;
 
   return (
-    <Card>
-      <section aria-labelledby={headingId} data-queue={summary.queue}>
-        <header className="border-b border-zinc-100 px-5 py-4">
+    <Card className="flex h-full min-h-0 flex-col">
+      <section aria-labelledby={headingId} data-queue={summary.queue} className="flex h-full min-h-0 flex-col">
+        <header className="shrink-0 border-b border-zinc-100 px-5 py-4">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h2 id={headingId} className="text-sm font-semibold text-zinc-950">
               {interpolate(e.queueLabel, { name })}
@@ -172,7 +171,7 @@ async function QueueCard({ summary, nowMs, locale }: { summary: QueueSummary; no
               <span>{e.colLeft}</span>
             </div>
             {/* Open Enquiries Container with Explicit Scrollbars */}
-            <div className="max-h-[260px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
+            <div className="min-h-0 max-h-[320px] flex-1 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
               <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5" aria-label={interpolate(e.queueLabel, { name })}>
                 {summary.open.map((r) => (
                   <Row key={r.id} row={r} nowMs={nowMs} targetMs={targetMs} dueSoonMs={dueSoonMs} locale={locale} overdueLabel={e.overdue} timeLeftLabel={e.colLeft} />
@@ -200,7 +199,7 @@ function Row({ row, nowMs, targetMs, dueSoonMs, locale, overdueLabel, timeLeftLa
   return (
     <li className="relative grid cursor-pointer grid-cols-1 gap-x-4 gap-y-2 py-4 hover:bg-zinc-50 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(9rem,1fr)] md:items-center" data-enquiry={row.reference}>
       <Link
-        href={`/admin/requests/${row.id}`}
+        href={`/admin/requests/${row.id}?from=enquiries`}
         aria-label={`${row.reference}, ${row.who}`}
         className="absolute inset-0 z-10 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
       />
@@ -236,7 +235,7 @@ async function Answered({ answered, nowMs, locale }: { answered: AnsweredEnquiry
             {answered.map((a) => (
               <li key={a.id} className="relative flex cursor-pointer items-center justify-between gap-3 py-2 text-sm hover:bg-zinc-50" data-answered={a.reference}>
                 <Link
-                  href={`/admin/requests/${a.id}`}
+                  href={`/admin/requests/${a.id}?from=enquiries`}
                   aria-label={`${a.reference}, ${a.who}`}
                   className="absolute inset-0 z-10 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
                 />

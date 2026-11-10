@@ -15,9 +15,7 @@ import { stopsWithWaits } from "@/lib/quotes/stops";
 import type { QuoteRequest } from "@/lib/db/schema";
 import {
   ActivityIcon,
-  ArrowLeftIcon,
   BriefcaseIcon,
-  CalendarIcon,
   ChatIcon,
   CheckIcon,
   ClockIcon,
@@ -30,6 +28,7 @@ import { StatusBadge, UrgentBadge } from "../../../_components/status-badge";
 import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
+import { AdminReturnLink } from "../../../_components/return-link";
 import { PartnerCard } from "./partner-card";
 import { MessagesCard } from "./messages-card";
 import { ReviewCard } from "./review-card";
@@ -37,29 +36,33 @@ import { CarsEditor } from "./cars-editor";
 import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
 import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import { BUFFER_MINUTES, tripMinutes } from "@/lib/fleet/schedule";
-import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, vatByRate } from "@/lib/pricing/rates";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
-async function BackLabel() {
+async function BackLink({ fromEnquiries }: { fromEnquiries: boolean }) {
   const { admin } = await adminDictionary();
-  return admin.common.backToRequests;
+  return (
+    <AdminReturnLink
+      fromEnquiries={fromEnquiries}
+      enquiriesLabel={admin.enquiries.back}
+      requestsLabel={admin.common.backToRequests}
+    />
+  );
 }
 
-export default function RequestPage({ params }: PageProps<"/admin/requests/[id]">) {
+export default async function RequestPage({ params, searchParams }: PageProps<"/admin/requests/[id]">) {
+  const raw = (await searchParams).from;
+  const from = Array.isArray(raw) ? raw[0] : raw;
+  const fromEnquiries = from === "enquiries";
   return (
     <PageBody>
-      <Link href="/admin/requests" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-950">
-        <ArrowLeftIcon size={14} />
-        <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
-          <BackLabel />
-        </Suspense>
-      </Link>
+      <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
+        <BackLink fromEnquiries={fromEnquiries} />
+      </Suspense>
       <Suspense fallback={<DetailSkeleton />}>
-        <RequestDetail params={params} />
+        <RequestDetail params={params} fromEnquiries={fromEnquiries} />
       </Suspense>
     </PageBody>
   );
@@ -112,7 +115,7 @@ function ContactRow({ icon, label, children }: { icon: React.ReactNode; label: s
   );
 }
 
-async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">, "params">) {
+async function RequestDetail({ params, fromEnquiries }: Pick<PageProps<"/admin/requests/[id]">, "params"> & { fromEnquiries: boolean }) {
   const { id } = await params;
   const data = await getRequest(id);
   if (!data) notFound();
@@ -218,41 +221,50 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
         </AutoPricingGateway>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <Suspense fallback={<Skeleton className="h-40" />}>
-            <MessagesCard requestId={r.id} guest={!r.corporateContactId} />
-          </Suspense>
+      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+        <Suspense fallback={<Skeleton className="h-40" />}>
+          <MessagesCard requestId={r.id} guest={!r.corporateContactId} />
+        </Suspense>
 
-          {/* Activity */}
-          <Card>
-            <CardHeader title={d.admin.requestDetail.activity} description={d.admin.requestDetail.activityNote} icon={<ActivityIcon />} />
-            <ol className="p-5">
-              {events.map((e, i) => (
-                <li key={e.id} className="relative flex gap-3 pb-5 last:pb-0">
-                  {i < events.length - 1 && <span aria-hidden="true" className="absolute bottom-0 left-[11px] top-7 w-px bg-zinc-200" />}
-                  <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-zinc-100 ring-4 ring-white">
-                    <span className={`size-2 rounded-full ${i === 0 ? "bg-zinc-950" : "bg-zinc-400"}`} />
-                  </span>
-                  <div className="min-w-0 pt-0.5">
-                    <p className="wrap-break-word text-sm text-zinc-900">
-                      {renderEvent(e.event, e.params, eventLabels(d.admin.events, d.admin.statuses), formatEuro)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      {formatTimestamp(e.createdAt)}
-                      {e.by ? ` · ${e.by}` : ""}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+        <div className="flex min-h-0 w-full flex-col gap-6">
+          <PartnerCard requestId={r.id} />
+          <Card className="flex flex-col overflow-hidden">
+            <CardHeader title={d.admin.requestDetail.client} />
+            <dl className="divide-y divide-zinc-100 p-5">
+              <ContactRow icon={<MailIcon />} label={d.admin.common.email}>
+                <a className="hover:underline" href={mailto}>{r.email}</a>
+              </ContactRow>
+              <ContactRow icon={<PhoneIcon />} label={d.admin.common.phone}>
+                <a className="hover:underline" href={tel}>{r.phone}</a>
+              </ContactRow>
+            </dl>
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
-          <PartnerCard requestId={r.id} />
+        <Card className="flex min-h-0 flex-col overflow-hidden">
+          <CardHeader title={d.admin.requestDetail.activity} description={d.admin.requestDetail.activityNote} icon={<ActivityIcon />} />
+          <ol className="max-h-[350px] overflow-y-auto overscroll-contain p-5">
+            {events.map((e, i) => (
+              <li key={e.id} className="relative flex gap-3 pb-5 last:pb-0">
+                {i < events.length - 1 && <span aria-hidden="true" className="absolute bottom-0 left-[11px] top-7 w-px bg-zinc-200" />}
+                <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-zinc-100 ring-4 ring-white">
+                  <span className={`size-2 rounded-full ${i === 0 ? "bg-zinc-950" : "bg-zinc-400"}`} />
+                </span>
+                <div className="min-w-0 pt-0.5">
+                  <p className="wrap-break-word text-sm text-zinc-900">
+                    {renderEvent(e.event, e.params, eventLabels(d.admin.events, d.admin.statuses), formatEuro)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {formatTimestamp(e.createdAt)}
+                    {e.by ? ` · ${e.by}` : ""}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Card>
 
+        <div className="flex min-h-0 w-full flex-col gap-6">
           {(r.status === "new" || r.status === "contacted") && !isBespoke(r) && (
             <CarsEditor
               key={r.status}
@@ -266,46 +278,12 @@ async function RequestDetail({ params }: Pick<PageProps<"/admin/requests/[id]">,
               copy={d.admin.review}
             />
           )}
-
-          <Card>
-            <CardHeader title={d.admin.schedule.carTitle} icon={<CalendarIcon />} />
-            <AssignVehicle
-              id={r.id}
-              vehicle={r.vehicle === "advise" ? "advise" : (normalizeVehicleKey(r.vehicle) ?? "")}
-              confirmed={r.status === "confirmed"}
-              scheduleHref={r.pickupAt ? `/admin/requests/schedule?date=${r.pickupAt.slice(0, 10)}` : null}
-              tripNote={[
-                (r.blockMinutes ? d.admin.schedule.tripRoute : d.admin.schedule.tripEstimate).replace(
-                  "{minutes}",
-                  String(tripMinutes({ service: r.service, durationHours: r.durationHours, blockMinutes: r.blockMinutes })),
-                ),
-                // The drive home holds the car too, when it is longer than the turnaround (the client, 8 Nov 2026)
-                r.driveBackMinutes && r.driveBackMinutes > BUFFER_MINUTES ? d.admin.schedule.tripDriveBack.replace("{minutes}", String(r.driveBackMinutes)) : null,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              cars={FLEET.map((v) => ({ key: v.key, name: v.name }))}
-              copy={d.admin.schedule}
-            />
-          </Card>
-
-          <Card>
-            <CardHeader title={d.admin.requestDetail.client} />
-            <dl className="divide-y divide-zinc-100 p-5">
-              <ContactRow icon={<MailIcon />} label={d.admin.common.email}>
-                <a className="hover:underline" href={mailto}>{r.email}</a>
-              </ContactRow>
-              <ContactRow icon={<PhoneIcon />} label={d.admin.common.phone}>
-                <a className="hover:underline" href={tel}>{r.phone}</a>
-              </ContactRow>
-            </dl>
-          </Card>
-
           <DeleteRecord
             id={r.id}
             reference={r.reference}
             noun={d.admin.requestDetail.deleteNoun}
             action={deleteRequest}
+            returnTo={fromEnquiries ? "/admin/enquiries" : "/admin/requests"}
             copy={{ title: d.admin.common.dangerZone, note: d.admin.common.dangerZoneNote, confirm: d.admin.common.deleteConfirm, deleting: d.admin.common.deleting }}
           />
         </div>

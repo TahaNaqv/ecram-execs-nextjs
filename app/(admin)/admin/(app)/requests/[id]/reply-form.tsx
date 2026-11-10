@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
@@ -7,12 +8,15 @@ import { markMessagesSeen, replyToCustomer, type ReplyState } from "./portal-act
 
 /** The team's reply to the customer: a partner, or a website visitor through their booking's page. */
 export function ReplyForm({ requestId, copy }: { requestId: string; copy: { label: string; placeholder: string; send: string; sending: string; sent: string } }) {
+  const router = useRouter();
   const [state, action, pending] = useActionState<ReplyState, FormData>(replyToCustomer, {});
   const form = useRef<HTMLFormElement>(null);
-  // A sent reply empties the box
+  // A sent reply empties the box and pulls the new message into the thread
   useEffect(() => {
-    if (state.ok) form.current?.reset();
-  }, [state]);
+    if (!state.ok) return;
+    form.current?.reset();
+    router.refresh();
+  }, [state.ok, router]);
 
   return (
     <form ref={form} action={action} className="flex flex-col gap-3">

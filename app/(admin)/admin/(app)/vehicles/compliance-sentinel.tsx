@@ -2,15 +2,38 @@
 
 import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AdminDateField, AdminSelect, type AdminDateCopy } from "../../_components/admin-fields";
 import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
 import type { VehicleRow } from "@/lib/admin/live-queries";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
+import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
 
-export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleRow[]; copy: VehicleCopy }) {
+const dateTag = (locale: Locale) => (locale === "nl" ? "nl-NL" : "en-GB");
+
+function formatStoredDate(value: string | null | undefined, locale: Locale) {
+  if (!value) return "—";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  return new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "short", year: "numeric" }).format(
+    new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
+}
+
+export function FleetComplianceSentinel({
+  vehicles,
+  copy,
+  locale,
+  dateCopy,
+}: {
+  vehicles: VehicleRow[];
+  copy: VehicleCopy;
+  locale: Locale;
+  dateCopy: AdminDateCopy;
+}) {
   const router = useRouter();
   const [vehicleList, setVehicleList] = useState<VehicleRow[]>(vehicles);
   const [activeTab, setActiveTab] = useState<"snapshot" | "reminders">("snapshot");
@@ -39,6 +62,14 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
   });
 
   const [isPending, startTransition] = useTransition();
+  const [serviceType, setServiceType] = useState(copy.serviceApk);
+  const permitOptions = [
+    { value: "Valid", label: copy.permitValid },
+    { value: "Pending", label: copy.permitPending },
+    { value: "Expired", label: copy.permitExpired },
+  ];
+  const permitLabel = (status: string) => permitOptions.find((option) => option.value === status)?.label ?? status;
+  const [serviceDate, setServiceDate] = useState(() => new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0] ?? "");
 
   useEffect(() => {
     setVehicleList(vehicles);
@@ -156,8 +187,8 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
       )}
 
       {/* Main grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start w-full">
-        <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden w-full">
+      <div className="grid w-full grid-cols-1 items-stretch gap-6 xl:grid-cols-3">
+        <div className="flex h-full min-h-[32rem] w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm xl:col-span-2">
           <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.telemetryTitle}</h3>
@@ -179,7 +210,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
           {vehicleList.length === 0 ? (
             <p className="p-8 text-center text-sm text-zinc-400">{copy.emptyFleet}</p>
           ) : activeTab === "snapshot" ? (
-            <div className="w-full">
+            <div className="max-h-[70vh] w-full overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                   <tr>
@@ -310,7 +341,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
               </table>
             </div>
           ) : (
-            <div className="w-full">
+            <div className="max-h-[70vh] w-full overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                   <tr>
@@ -329,44 +360,46 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                         <td className="px-4 py-3.5 font-medium text-zinc-950">{veh.name}</td>
                         <td className="px-3 py-3.5 font-mono text-zinc-700">
                           {isEditing ? (
-                            <input
-                              type="date"
+                            <AdminDateField
+                              compact
+                              placement="above"
+                              locale={locale}
+                              copy={dateCopy}
                               value={editForm.apkExpiry}
-                              onChange={(e) => setEditForm({ ...editForm, apkExpiry: e.target.value })}
-                              className="bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                              onChange={(apkExpiry) => setEditForm({ ...editForm, apkExpiry })}
                             />
                           ) : (
-                            veh.apkExpiry ?? "—"
+                            formatStoredDate(veh.apkExpiry, locale)
                           )}
                         </td>
                         <td className="px-3 py-3.5 font-mono text-zinc-700">
                           {isEditing ? (
-                            <input
-                              type="date"
+                            <AdminDateField
+                              compact
+                              placement="above"
+                              locale={locale}
+                              copy={dateCopy}
                               value={editForm.insuranceExpiry}
-                              onChange={(e) => setEditForm({ ...editForm, insuranceExpiry: e.target.value })}
-                              className="bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
+                              onChange={(insuranceExpiry) => setEditForm({ ...editForm, insuranceExpiry })}
                             />
                           ) : (
-                            veh.insuranceExpiry ?? "—"
+                            formatStoredDate(veh.insuranceExpiry, locale)
                           )}
                         </td>
                         <td className="px-3 py-3.5">
                           {isEditing ? (
-                            <select
+                            <AdminSelect
+                              compact
+                              placement="above"
                               value={editForm.iltPermitStatus}
-                              onChange={(e) => setEditForm({ ...editForm, iltPermitStatus: e.target.value })}
-                              className="bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
-                            >
-                              <option value="Valid">Valid</option>
-                              <option value="Pending">Pending</option>
-                              <option value="Expired">Expired</option>
-                            </select>
+                              onChange={(iltPermitStatus) => setEditForm({ ...editForm, iltPermitStatus })}
+                              options={permitOptions}
+                            />
                           ) : (
                             <span
                               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
                             >
-                              {veh.iltPermitStatus === "Valid" ? copy.permitValid : veh.iltPermitStatus}
+                              {permitLabel(veh.iltPermitStatus ?? "")}
                             </span>
                           )}
                         </td>
@@ -417,15 +450,15 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
           )}
         </div>
 
-        {/* Quick actions sidebar */}
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
+        {/* Quick actions first, summary underneath — fills the column without a blank gap. */}
+        <div className="flex h-full min-h-0 flex-col gap-6">
+          <div className="flex flex-1 flex-col space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.quickActions}</h3>
             <div className="space-y-2 text-xs">
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
-                className="w-full bg-zinc-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-between cursor-pointer"
+                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white transition hover:bg-black"
               >
                 <span>{copy.addVehicleAction}</span>
                 <PlusIcon size={14} />
@@ -433,7 +466,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
               <button
                 type="button"
                 onClick={() => setIsServiceModalOpen(true)}
-                className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-between cursor-pointer"
+                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-100 px-4 py-2.5 font-semibold text-zinc-900 transition hover:bg-zinc-200"
               >
                 <span>{copy.scheduleService}</span>
                 <ClockIcon size={14} />
@@ -441,17 +474,16 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
               <button
                 type="button"
                 onClick={handleDownloadReport}
-                className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-between cursor-pointer"
+                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-100 px-4 py-2.5 font-semibold text-zinc-900 transition hover:bg-zinc-200"
               >
                 <span>{copy.exportCsv}</span>
-                <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="size-2 animate-pulse rounded-full bg-amber-500" />
               </button>
             </div>
           </div>
-
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 mb-3">{copy.summaryTitle}</h3>
-            <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 space-y-2 text-xs font-mono">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.summaryTitle}</h3>
+            <div className="space-y-2 rounded-xl border border-zinc-100 bg-zinc-50 p-4 font-mono text-xs">
               {[
                 { label: copy.totalRegistered, value: total },
                 { label: copy.availableNow, value: available, cls: "text-emerald-700" },
@@ -459,7 +491,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                 { label: copy.iltCompliance, value: `${complianceRate}%` },
               ].map(({ label, value, cls }) => (
                 <div key={label} className="flex justify-between border-t border-zinc-200 pt-2 first:border-0 first:pt-0">
-                  <span className="text-zinc-500 font-sans">{label}</span>
+                  <span className="font-sans text-zinc-500">{label}</span>
                   <span className={`font-bold text-zinc-950 ${cls ?? ""}`}>{value}</span>
                 </div>
               ))}
@@ -471,7 +503,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
       {/* Add Vehicle Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="relative box-border w-full min-w-0 max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
+          <div className="relative box-border w-full min-w-0 max-w-md overflow-visible rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
@@ -525,23 +557,13 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
                   <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-apk-expiry">
                     {copy.colApk}
                   </label>
-                  <input
-                    id="vehicle-apk-expiry"
-                    type="date"
-                    name="apkExpiry"
-                    className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
-                  />
+                  <AdminDateField id="vehicle-apk-expiry" name="apkExpiry" placement="above" locale={locale} copy={dateCopy} />
                 </div>
                 <div className="min-w-0">
                   <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-insurance-expiry">
                     {copy.colInsurance}
                   </label>
-                  <input
-                    id="vehicle-insurance-expiry"
-                    type="date"
-                    name="insuranceExpiry"
-                    className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
-                  />
+                  <AdminDateField id="vehicle-insurance-expiry" name="insuranceExpiry" placement="above" locale={locale} copy={dateCopy} />
                 </div>
               </div>
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">
@@ -568,7 +590,7 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
       {/* Schedule Service Modal */}
       {isServiceModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="relative box-border w-full min-w-0 max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
+          <div className="relative box-border w-full min-w-0 max-w-md overflow-visible rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <button
               onClick={() => setIsServiceModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
@@ -580,20 +602,15 @@ export function FleetComplianceSentinel({ vehicles, copy }: { vehicles: VehicleR
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block font-medium text-zinc-700 mb-1">{copy.serviceType}</label>
-                <select className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 text-zinc-900 focus:outline-none cursor-pointer">
-                  <option>{copy.serviceApk}</option>
-                  <option>{copy.serviceBattery}</option>
-                  <option>{copy.serviceTyres}</option>
-                  <option>{copy.serviceDetail}</option>
-                </select>
+                <AdminSelect
+                  value={serviceType}
+                  onChange={setServiceType}
+                  options={[copy.serviceApk, copy.serviceBattery, copy.serviceTyres, copy.serviceDetail].map((label) => ({ value: label, label }))}
+                />
               </div>
               <div>
                 <label className="block font-medium text-zinc-700 mb-1">{copy.scheduledDate}</label>
-                <input
-                  type="date"
-                  defaultValue={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
-                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none"
-                />
+                <AdminDateField value={serviceDate} onChange={setServiceDate} placement="above" locale={locale} copy={dateCopy} />
               </div>
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">
                 <button

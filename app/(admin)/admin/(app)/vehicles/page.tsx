@@ -49,7 +49,12 @@ async function VehiclesContent() {
         <p className="text-sm text-zinc-500 mt-1">{t.description}</p>
       </div>
       <FleetBaseCard key={`${base.base?.address ?? ""}|${base.base?.placeId ?? ""}`} base={base.base} saved={saved} locale={me.locale} copy={admin.vehicles} />
-      <FleetComplianceSentinel vehicles={vehicles} copy={admin.vehicles} />
+      <FleetComplianceSentinel
+        vehicles={vehicles}
+        copy={admin.vehicles}
+        locale={me.locale}
+        dateCopy={{ chooseDate: admin.common.chooseDate, previousMonth: admin.common.previousMonth, nextMonth: admin.common.nextMonth }}
+      />
     </div>
   );
 }

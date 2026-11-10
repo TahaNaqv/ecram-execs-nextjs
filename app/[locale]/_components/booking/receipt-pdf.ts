@@ -6,6 +6,11 @@ export type ReceiptPdfInput = {
   clientPhone: string;
   route: string;
   when: string;
+  pickup?: string;
+  stops?: string[];
+  dropoff?: string;
+  vehicle?: string;
+  passengers?: string;
   /** The price lines above the total, already formatted; none when the total cannot be split */
   lines: { label: string; value: string }[];
   total: string;
@@ -97,7 +102,8 @@ export function buildReceiptPdf(input: ReceiptPdfInput): Uint8Array {
   text("F2", 9, 320, y, muted, "ITINERARY & DISTANCE");
   y -= 18;
   const left = [input.clientName, input.clientEmail, input.clientPhone].filter(Boolean);
-  const right = [...wrap(input.route, 34), input.when].filter(Boolean);
+  const journey = [input.pickup, ...(input.stops ?? []), input.dropoff].filter(Boolean).join(" - ");
+  const right = [...wrap(journey || input.route, 34), input.when, input.vehicle, input.passengers].filter((line): line is string => Boolean(line));
   const rows = Math.max(left.length, right.length, 1);
   for (let i = 0; i < rows; i++) {
     if (left[i]) text(i === 0 ? "F2" : "F1", i === 0 ? 12 : 10, 48, y, i === 0 ? ink : muted, left[i]);

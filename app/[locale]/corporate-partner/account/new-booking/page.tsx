@@ -10,7 +10,8 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { PortalBooking } from "../../../_components/booking/portal-booking";
-import { cleanCars, emptyTrip, normalizeTrip, type Trip } from "../../../_components/booking/trip";
+import { CURATED_PLACES, curatedKind } from "@/lib/places/curated";
+import { cleanCars, emptyTrip, normalizeTrip, type Place, type Trip } from "../../../_components/booking/trip";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { PortalPage } from "../../../_components/portal-shell";
 
@@ -20,6 +21,23 @@ function carsFromBooking(source: { vehicle: string | null; vehicleCount: number;
   if (stored.length > 0) return cleanCars(stored);
   const key = normalizeVehicleKey(source.vehicle);
   return key ? [{ key, count: 1 }] : [];
+}
+
+/** Restore a place so "Choose your car" sees the same id the visitor originally picked (or a curated match by name). */
+function placeFromBooking(text: string | null | undefined, id: string | null | undefined): Place {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return { text: "", id: null, kind: null };
+  const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const needle = fold(trimmed);
+  const curated = CURATED_PLACES.find((p) => {
+    const name = fold(p.name);
+    return needle === name || needle.startsWith(`${name},`) || needle.includes(name);
+  });
+  return {
+    text: trimmed,
+    id: id?.trim() || curated?.id || `repeat:${trimmed}`,
+    kind: curated?.kind ?? curatedKind(trimmed),
+  };
 }
 
 /** A booking request, with the partner's details filled in. `?repeat=EE-…` starts from one of their own earlier bookings. */
@@ -47,8 +65,8 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
     Object.assign(trip, normalizeTrip({
       ...trip,
       mode: source.service === "hourly" && !source.destination ? "hourly" : "oneway",
-      from: { text: source.collection ?? "", id: null, kind: null },
-      to: { text: source.destination ?? "", id: null, kind: null },
+      from: placeFromBooking(source.collection, source.pickupPlaceId),
+      to: placeFromBooking(source.destination, source.destinationPlaceId),
       stops: stopsWithWaits(source.destinations, source.destinationWaits),
       hours: (HOURLY_DURATIONS as readonly number[]).includes(source.durationHours ?? 0) ? source.durationHours! : trip.hours,
       pax: source.passengers ?? trip.pax,

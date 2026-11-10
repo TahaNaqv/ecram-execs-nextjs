@@ -204,7 +204,19 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
   // Pick up this tab's conversation after a refresh (read here, not while rendering, so the page and the browser agree on the first draw)
   useEffect(() => {
     try {
-      const saved = JSON.parse(sessionStorage.getItem(CHAT_KEY) ?? "null");
+      const raw = sessionStorage.getItem(CHAT_KEY);
+      if (!raw) {
+        setLoaded(true);
+        return;
+      }
+      let saved: { messages?: unknown; at?: unknown; draft?: unknown; ready?: { summary?: unknown; form?: unknown }; quote?: unknown } | null;
+      try {
+        saved = JSON.parse(raw);
+      } catch {
+        sessionStorage.removeItem(CHAT_KEY);
+        setLoaded(true);
+        return;
+      }
       if (saved && Array.isArray(saved.messages) && saved.messages.length > 0 && Date.now() - Number(saved.at) < KEEP_MS) {
         const restored = (saved.messages as unknown[])
           .filter((m): m is Message => !!m && typeof m === "object" && ((m as Message).from === "guest" || (m as Message).from === "agent") && typeof (m as Message).text === "string")
@@ -212,13 +224,17 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
         if (restored.length > 0) {
           // eslint-disable-next-line react-hooks/set-state-in-effect -- the browser's storage is an outside system, read once after the first draw
           setMessages(restored);
-          if (saved.draft && typeof saved.draft === "object") setDraft(saved.draft);
-          if (saved.ready?.summary && Array.isArray(saved.ready.form)) setReady(saved.ready);
+          if (saved.draft && typeof saved.draft === "object") setDraft(saved.draft as never);
+          if (saved.ready?.summary && Array.isArray(saved.ready.form)) setReady(saved.ready as never);
           if (isQuote(saved.quote)) setQuote(saved.quote);
         }
       }
     } catch {
-      // nothing usable was kept: start fresh
+      try {
+        sessionStorage.removeItem(CHAT_KEY);
+      } catch {
+        /* ignore */
+      }
     }
     setLoaded(true);
   }, []);

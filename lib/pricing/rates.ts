@@ -318,7 +318,24 @@ export const lineDay = (leg: PriceLeg, line: PriceLine): { day: DayKind; hours: 
 /** Whether a leg is billed at more than one day's rate. */
 export const legSpansDays = (leg: PriceLeg) => new Set(leg.lines.map((l) => lineDay(leg, l).day)).size > 1;
 
-/** "€ 1.234,50" or "€1,234.50": cents as euros in the reader's language. */
+/**
+ * Dutch euros for every amount a person reads: `€ 316,61`.
+ * The same helper is used on the website, in emails, on receipts and in the admin panel,
+ * so a figure never changes shape between those surfaces.
+ */
+export function formatCurrency(amount: number): string {
+  const value = Number(amount);
+  const rounded = Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rounded);
+}
+
+/** Cents as Dutch euros. `locale` stays so existing callers compile; the figure itself is always nl-NL / EUR. */
 export function formatCents(cents: number, locale: string): string {
-  return new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { style: "currency", currency: "EUR" }).format(cents / 100);
+  void locale;
+  return formatCurrency(cents / 100);
 }

@@ -97,13 +97,65 @@ export async function listRequestInvoices(requestId: string) {
     .orderBy(desc(schema.bookingInvoices.createdAt));
 }
 
-/** How many partner messages nobody on the team has opened yet, for the requests on one page of the list. */
-export async function unseenPartnerMessages(requestIds: string[]) {
+/**
+ * Unread customer messages (partner or guest) per request, for list badges.
+ * Keys are request ids; values are how many messages the team has not opened yet.
+ */
+export async function unseenPartnerMessages(requestIds: string[]): Promise<Map<string, number>> {
   await requireAdmin();
-  if (requestIds.length === 0) return new Set<string>();
+  if (requestIds.length === 0) return new Map();
   const rows = await db
-    .selectDistinct({ requestId: schema.bookingMessages.requestId })
+    .select({
+      requestId: schema.bookingMessages.requestId,
+      n: count(),
+    })
     .from(schema.bookingMessages)
-    .where(and(inArray(schema.bookingMessages.requestId, requestIds), inArray(schema.bookingMessages.authorKind, ["partner", "guest"]), sql`${schema.bookingMessages.seenByTeamAt} is null`));
-  return new Set(rows.map((r) => r.requestId));
+    .where(
+      and(
+        inArray(schema.bookingMessages.requestId, requestIds),
+        inArray(schema.bookingMessages.authorKind, ["partner", "guest"]),
+        sql`${schema.bookingMessages.seenByTeamAt} is null`,
+      ),
+    )
+    .groupBy(schema.bookingMessages.requestId);
+  return new Map(rows.map((r) => [r.requestId, Number(r.n)]));
+}
+
+/** How many unread customer messages exist across all bookings (sidebar badge). */
+export async function unseenMessageCount(): Promise<number> {
+  await requireAdmin();
+  const [row] = await db
+    .select({ n: count() })
+    .from(schema.bookingMessages)
+    .where(and(inArray(schema.bookingMessages.authorKind, ["partner", "guest"]), sql`${schema.bookingMessages.seenByTeamAt} is null`));
+  return Number(row?.n ?? 0);
+}
+
+/** Lightweight poll payload for an open request's message thread. */
+export async function requestMessageState(requestId: string) {
+  await requireAdmin();
+  const [latest] = await db
+    .select({
+      id: schema.bookingMessages.id,
+      at: schema.bookingMessages.createdAt,
+    })
+    .from(schema.bookingMessages)
+    .where(eq(schema.bookingMessages.requestId, requestId))
+    .orderBy(desc(schema.bookingMessages.createdAt))
+    .limit(1);
+  const [unseen] = await db
+    .select({ n: count() })
+    .from(schema.bookingMessages)
+    .where(
+      and(
+        eq(schema.bookingMessages.requestId, requestId),
+        inArray(schema.bookingMessages.authorKind, ["partner", "guest"]),
+        sql`${schema.bookingMessages.seenByTeamAt} is null`,
+      ),
+    );
+  return {
+    latestId: latest?.id ?? null,
+    lastMessageAt: latest?.at?.toISOString() ?? null,
+    unseenCount: Number(unseen?.n ?? 0),
+  };
 }

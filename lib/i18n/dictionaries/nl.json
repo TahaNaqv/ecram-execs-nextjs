@@ -14,8 +14,8 @@
   "statement": {
     "eyebrow": "DE KUNST VAN EXECUTIVE GASTVRIJHEID",
     "before": "Luxe gaat niet alleen over waar u aankomt, maar over",
-    "emphasis": "hoe u zich onderweg voelt.",
-    "after": "Elk detail is doordacht, elk moment moeiteloos en elke rit is afgestemd op u. Meer dan vervoer is het een ervaring die wordt bepaald door comfort, discretie en uitzonderlijke zorg."
+    "emphasis": "hoe u zich onderweg voelt,",
+    "after": "elk detail is doordacht, elk moment moeiteloos en elke rit is afgestemd op u. Meer dan vervoer is het een ervaring die wordt bepaald door comfort, discretie en uitzonderlijke zorg."
   },
   "notFound": {
     "eyebrow": "ECRAM EXECS · 404",
@@ -746,6 +746,9 @@
       "deleteConfirm": "Ja, definitief verwijderen",
       "deleting": "Verwijderen…",
       "language": "Taal",
+      "chooseDate": "Kies een datum",
+      "previousMonth": "Vorige maand",
+      "nextMonth": "Volgende maand",
       "driverName": "Naam chauffeur",
       "backToRequests": "Alle aanvragen",
       "backToApplications": "Alle aanmeldingen",
@@ -869,7 +872,8 @@
       "alertOverdueText": "{queue}: {count} te laat.",
       "alertSoonText": "{queue}: {count} met minder dan {minutes} min over.",
       "queueStandardShort": "Standaard",
-      "queueCorporateShort": "Zakelijk"
+      "queueCorporateShort": "Zakelijk",
+      "back": "Alle aanvragen"
     },
     "dashboard": {
       "title": "Dashboard",
@@ -977,6 +981,7 @@
       "unread": "Ongelezen",
       "all": "Alles",
       "partnerMessage": "Nieuw bericht",
+      "partnerMessages": "{count} nieuw",
       "urgent": "Spoed",
       "urgentNote": "Ophalen binnen 24 uur",
       "streamLabel": "Boekingsstroom:",
@@ -1355,6 +1360,8 @@
       "scheduledDate": "Geplande datum",
       "confirmBooking": "Afspraak bevestigen",
       "permitValid": "Geldig",
+      "permitPending": "In behandeling",
+      "permitExpired": "Verlopen",
       "baseTitle": "Thuisbasis van de vloot",
       "baseNote": "Waar de auto's staan. Na elke rit blijft de auto vastgehouden tot hij hier terug is, zodat de volgende boeking hem niet te vroeg krijgt.",
       "baseLabel": "Adres thuisbasis",
@@ -1397,6 +1404,7 @@
       "tagChange": "Wijziging aangevraagd",
       "tagCancel": "Annulering aangevraagd",
       "unseen": "Nieuw",
+      "unreadBadge": "{count} ongelezen",
       "needsPartner": "Koppel deze aanvraag aan een partner om berichten uit te wisselen.",
       "sent": "Reactie verstuurd."
     },

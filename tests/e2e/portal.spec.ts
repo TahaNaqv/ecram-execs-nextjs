@@ -18,6 +18,9 @@ import {
 } from "./corporate-helpers";
 import { carChoice, chooseCar, fillDetails, fillJourney, nextYear, pickDateTime } from "./booking-helpers";
 import { fillAdminLogin, CONSENTED_STATE } from "./helpers";
+import { formatCents } from "../../lib/pricing/rates";
+
+const money = (euros: string) => formatCents(Math.round(Number(euros) * 100), "en");
 
 /**
  * The partner portal: what a partner sees and does with their bookings, and what the team does on the other side.
@@ -55,7 +58,7 @@ test("the bookings are grouped into open, past and cancelled", async ({ page, co
 
   await page.goto("/en/corporate-partner/account");
   await expect(page.getByText(waiting.reference)).toBeVisible();
-  await expect(page.getByText("€185.50")).toBeVisible();
+  await expect(page.getByText(money("185.50"))).toBeVisible();
   // A pick-up is the wall-clock time it was booked for, whatever zone the server or the reader is in
   await expect(page.getByText("14 Mar 2031, 08:30")).toBeVisible();
   await expect(page.getByText(open.reference)).toBeVisible();
@@ -206,11 +209,11 @@ test("accepting a quote confirms the booking, at the amount the partner saw", as
 
   await page.goto(detail(booking.reference));
   await expect(page.getByRole("heading", { name: p.quoteReadyTitle })).toBeVisible();
-  await expect(page.getByText("€185.50").first()).toBeVisible();
+  await expect(page.getByText(money("185.50")).first()).toBeVisible();
   await submit(page, p.acceptCta);
   await expect(page.getByRole("heading", { name: p.quoteReadyTitle })).toHaveCount(0);
   await expect(page.getByText(p.statuses.confirmed, { exact: true })).toBeVisible();
-  await expect(page.getByText(p.events.accepted.replace("{amount}", "€185.50"))).toBeVisible();
+  await expect(page.getByText(p.events.accepted.replace("{amount}", money("185.50")))).toBeVisible();
 
   expect((await bookingRow(booking.reference))?.status).toBe("confirmed");
   expect((await eventsOf(booking.id)).map((e) => e.event)).toContain("partner_accepted");
@@ -222,7 +225,7 @@ test("a quote that changed while the partner was looking cannot be accepted blin
   const booking = await seedBooking({ contactId, email, status: "quoted", quotedAmount: "100.00" });
 
   await page.goto(detail(booking.reference));
-  await expect(page.getByText("€100.00").first()).toBeVisible();
+  await expect(page.getByText(money("100.00")).first()).toBeVisible();
   // The team changes the price after the page was opened
   const db = sql();
   await db`update quote_requests set quoted_amount = 120.00 where id = ${booking.id}`;
@@ -234,7 +237,7 @@ test("a quote that changed while the partner was looking cannot be accepted blin
 
   // With the new amount in front of them, they can accept it
   await page.reload();
-  await expect(page.getByText("€120.00").first()).toBeVisible();
+  await expect(page.getByText(money("120.00")).first()).toBeVisible();
   await submit(page, p.acceptCta);
   await expect(page.getByText(p.statuses.confirmed, { exact: true })).toBeVisible();
   expect((await bookingRow(booking.reference))?.status).toBe("confirmed");

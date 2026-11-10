@@ -131,6 +131,21 @@ export function DateTimeField({
   // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
   useLayoutEffect(() => () => setOpen(false), []);
 
+  useEffect(() => {
+    const parsed = parseDateTime(defaultValue ?? "");
+    if (!parsed) {
+      setDay(null);
+      setText("");
+      timeChosen.current = false;
+      return;
+    }
+    setDay(parsed.day);
+    setTime(parsed.time);
+    timeChosen.current = true;
+    setText(display(parsed.day, parsed.time));
+    setView({ y: parsed.day.y, m: parsed.day.m });
+  }, [defaultValue]);
+
   const value = day ? iso(day, time) : "";
   const reported = useRef(value);
   const report = useRef(onValueChange);

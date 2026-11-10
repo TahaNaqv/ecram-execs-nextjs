@@ -3,6 +3,9 @@ import postgres from "postgres";
 import { fillAdminLogin } from "./helpers";
 import { carChoice, chooseExtras, confirmedReference, fillJourney, forgetRecentRequests, nextYear } from "./booking-helpers";
 import en from "../../lib/i18n/dictionaries/en.json";
+import { formatCents } from "../../lib/pricing/rates";
+
+const euro = (cents: number) => formatCents(cents, "en");
 
 test("add-ons are chosen after the car, kept when going back, priced on the review and stored with the booking", async ({ page }) => {
   test.slow();
@@ -19,8 +22,8 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   for (const name of [en.addOns.champagne, en.addOns.chocolates, en.addOns.flowers, en.addOns.newspapers]) {
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   }
-  await expect(page.getByText("€78.00 excl. 21% BTW / VAT")).toBeVisible();
-  await expect(page.getByText("€66.00 excl. 9% BTW / VAT")).toBeVisible();
+  await expect(page.getByText(`${euro(7800)} excl. 21% BTW / VAT`)).toBeVisible();
+  await expect(page.getByText(`${euro(6600)} excl. 9% BTW / VAT`)).toBeVisible();
   await expect(page.getByRole("button", { name: en.booking.extrasSkip })).toBeVisible();
 
   // Two bottles of champagne and the dairy-free chocolates; the selection can change after the box is added
@@ -38,13 +41,13 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   await flowers.getByRole("button", { name: `${en.booking.extrasAdd}: ${en.addOns.flowers}` }).click();
   await flowers.getByRole("button", { name: en.booking.extrasFewer.replace("{item}", en.addOns.flowers) }).click();
   // 2 × €78 + €42 before VAT
-  await expect(page.getByText("Add-ons: €198.00 excl. BTW / VAT")).toBeVisible();
+  await expect(page.getByText(`Add-ons: ${euro(19800)} excl. BTW / VAT`)).toBeVisible();
 
   // Back to the car and forward again: the add-ons are still chosen
   await page.getByRole("button", { name: en.booking.back }).click();
   await expect(page.getByRole("heading", { name: en.booking.carTitle })).toBeVisible();
   await page.getByRole("button", { name: /^Continue/ }).click();
-  await expect(page.getByText("Add-ons: €198.00 excl. BTW / VAT")).toBeVisible();
+  await expect(page.getByText(`Add-ons: ${euro(19800)} excl. BTW / VAT`)).toBeVisible();
   await page.getByRole("button", { name: en.booking.extrasContinue, exact: true }).click();
 
   // The review lists them, prices them and groups the VAT by rate
@@ -61,11 +64,11 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   await expect(ride).toContainText(`1 × ${en.addOns.chocolates} (${en.addOns.chocolatesDairyFree})`);
   const price = page.getByRole("region", { name: en.booking.reviewPrice });
   await expect(price).toContainText(en.addOns.champagne);
-  await expect(price).toContainText("€156.00");
-  await expect(price).toContainText("€42.00");
+  await expect(price).toContainText(euro(15600));
+  await expect(price).toContainText(euro(4200));
   await expect(price).toContainText(en.booking.priceVatHigh);
   // 21% on the service fee and on the champagne and chocolates: €2.63 + €32.76 + €8.82
-  await expect(price).toContainText("€44.21");
+  await expect(price).toContainText(euro(4421));
   await page.getByLabel(new RegExp(`^${en.booking.reviewAgree}`)).check();
   await page.getByRole("button", { name: en.booking.submit }).click();
   const reference = await confirmedReference(page, "Thank you, Anna");
@@ -78,7 +81,7 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   await expect(receipt).toContainText(`1 × ${en.addOns.chocolates} (${en.addOns.chocolatesDairyFree})`);
   await expect(receipt).toContainText(en.booking.receiptNet);
   await expect(receipt).toContainText(en.booking.priceVatHigh);
-  await expect(receipt).toContainText("€44.21");
+  await expect(receipt).toContainText(euro(4421));
   await receipt.getByRole("button", { name: "Close", exact: true }).last().click();
 
   const db = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });

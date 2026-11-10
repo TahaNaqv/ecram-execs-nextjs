@@ -21,6 +21,11 @@ const NOTES: Record<ExtraKey, keyof AddOnsCopy> = {
   newspapers: "newspapersNote",
 };
 const OPTION_LABELS: Record<string, keyof AddOnsCopy> = { classic: "chocolatesClassic", dairy_free: "chocolatesDairyFree" };
+/** Zoom inside the same photo frame, so the box and the papers fill it. The frame itself does not change size. */
+const PHOTO_SCALE: Partial<Record<ExtraKey, string>> = {
+  chocolates: "origin-center scale-[1.26]",
+  newspapers: "origin-center scale-[1.48]",
+};
 
 /** The step after the car: champagne, chocolates, flowers and newspapers, waiting in the car. All optional. */
 export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChange, onBack, onNext }: {
@@ -61,8 +66,10 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
             count > 0 ? "border-2 border-solid border-ink-950 p-[7px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-2"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- small product photo from /public; next/image would need sizes per breakpoint for no gain here */}
-          <img src={spec.image} alt="" className="aspect-[4/3] w-full rounded-[11px] bg-[#ffffff] object-contain" />
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[11px] bg-[#ffffff]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- small product photo from /public; next/image would need sizes per breakpoint for no gain here */}
+            <img src={spec.image} alt="" className={`absolute inset-0 h-full w-full object-contain ${PHOTO_SCALE[key] ?? ""}`} />
+          </div>
           <div className="flex flex-1 flex-col gap-1.5 px-1.5 pt-3 pb-1.5">
             <h3 className="m-0 text-[15px] leading-snug font-semibold">{name}</h3>
             <p className="m-0 flex-1 text-[13px] leading-snug text-ink-600">{names[NOTES[key]]}</p>

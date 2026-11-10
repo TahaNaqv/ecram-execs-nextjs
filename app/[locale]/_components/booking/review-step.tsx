@@ -115,7 +115,7 @@ export function CarMixPreview({ cars, copy }: { cars: { key: string; name: strin
             </span>
           </div>
           <div className="relative aspect-video w-full overflow-hidden bg-ink-100">
-            <VehicleGallery key={car.images.join("|")} name={car.name} images={car.images} alt={car.name} copy={copy} />
+            <VehicleGallery key={car.images.join("|")} name={car.name} images={car.images} alt={car.name} copy={copy} fit="contain" />
           </div>
         </li>
       ))}
@@ -271,19 +271,37 @@ export function ReviewStep({
   const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null, estimate && estimate !== "pending" ? estimate.meters : null);
 
   const card = (title: string, children: ReactNode) => (
-    <section aria-label={title} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+    <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
       <h3 className="m-0 shrink-0 text-[16px] font-semibold">{title}</h3>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </section>
   );
   const rows = (items: [string, ReactNode][]) => (
-    <dl className="m-0 flex h-full flex-1 flex-col justify-between">
-      {items.map(([k, v], i) => (
-        <div key={`${k}-${i}`} className="flex justify-between gap-4 border-0 border-b border-solid border-ink-150 py-2.5 text-[14px] last:border-b-0">
-          <dt className="shrink-0 text-ink-500">{k}</dt>
-          <dd className="m-0 min-w-0 text-right wrap-break-word">{v}</dd>
-        </div>
-      ))}
+    <dl className="m-0 flex h-full flex-1 flex-col">
+      {items.map(([k, v], i) => {
+        const notes = k === t.notes;
+        return (
+          <div
+            key={`${k}-${i}`}
+            className={
+              notes
+                ? "flex flex-col gap-1.5 border-0 border-b border-solid border-ink-150 py-2.5 text-[14px] last:border-b-0"
+                : "flex justify-between gap-4 border-0 border-b border-solid border-ink-150 py-2.5 text-[14px] last:border-b-0"
+            }
+          >
+            <dt className="shrink-0 text-ink-500">{k}</dt>
+            <dd
+              className={
+                notes
+                  ? "m-0 max-h-28 min-w-0 overflow-y-auto text-left break-words whitespace-pre-wrap [overflow-wrap:anywhere]"
+                  : "m-0 min-w-0 text-right wrap-break-word"
+              }
+            >
+              {v}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 
@@ -305,10 +323,8 @@ export function ReviewStep({
                 <CarMixPreview cars={mix} copy={gallery} />
               </div>
             ) : photos.length > 0 ? (
-              <div className="relative min-h-48 w-full flex-1 overflow-hidden rounded-[12px] bg-ink-100">
-                <div className="absolute inset-0">
-                  <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} />
-                </div>
+              <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-[12px] bg-ink-100">
+                <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} fit="contain" />
               </div>
             ) : (
               <div className="min-h-0 flex-1" />

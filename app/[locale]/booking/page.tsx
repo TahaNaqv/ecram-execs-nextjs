@@ -7,10 +7,12 @@ import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
+import { extraName } from "@/lib/pricing/extras";
 import { bookingTotalEuros, formatCents } from "@/lib/pricing/rates";
 import { getGuestBooking, guestMessages } from "@/lib/quotes/guest";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
+import type { RideReceipt } from "../_components/booking/booking-flow";
 import { GuestBookingView } from "../_components/booking/guest-booking";
 import { LanguageSwitcher } from "../_components/language-switcher";
 import { SiteFooter } from "../_components/sections";
@@ -52,6 +54,29 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
     : booking.priceEstimate
       ? `${booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `}${formatCents(booking.priceEstimate.total, locale)}`
       : null;
+  const hourly = booking.service === "hourly";
+  const party = [
+    booking.passengers == null ? "" : booking.passengers === 1 ? d.booking.passengerOne : interpolate(d.booking.passengerMany, { count: booking.passengers }),
+    booking.luggage == null || booking.luggage === 0 ? "" : booking.luggage === 1 ? d.booking.largeOne : interpolate(d.booking.largeMany, { count: booking.luggage }),
+    booking.handLuggage == null || booking.handLuggage === 0 ? "" : booking.handLuggage === 1 ? d.booking.smallOne : interpolate(d.booking.smallMany, { count: booking.handLuggage }),
+  ].filter(Boolean).join(", ");
+  const savedReceipt: RideReceipt = {
+    passengerName: booking.name,
+    passengerEmail: booking.email,
+    passengerPhone: booking.phone,
+    leadPassenger: booking.passengerName
+      ? [booking.passengerName, booking.passengerPhone].filter(Boolean).join(" · ")
+      : d.booking.reviewSameAsBooker,
+    pickup: booking.collection ?? "",
+    dropoff: booking.destination ?? (hourly && booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : ""),
+    when: booking.pickupAt ? formatPickup(booking.pickupAt, locale) : "",
+    hourly,
+    stops: booking.destinations ?? [],
+    price: booking.priceEstimate,
+    extraNames: (booking.extras ?? []).map((pick) => extraName(d.addOns, pick)),
+    vehicle: cars ?? "",
+    passengers: party,
+  };
   const facts = [
     { label: t.labelReference, value: booking.reference },
     { label: t.labelWhen, value: [booking.pickupAt && formatPickup(booking.pickupAt, locale), booking.returnAt && `${d.booking.summaryReturn}: ${formatPickup(booking.returnAt, locale)}`].filter(Boolean).join(" · ") },
@@ -69,12 +94,13 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       name={booking.name.split(" ")[0]}
       facts={facts}
       map={routeMapLinks(booking, browserMapKey())}
-      price={booking.priceEstimate ? { total: booking.priceEstimate.total, exact: booking.priceEstimate.exact } : null}
+      price={total ? { total: Math.round(Number(total) * 100), exact: booking.priceEstimate?.exact ?? true } : null}
       messages={messages.map((m) => ({ id: m.id, by: m.by, body: m.body, at: formatStamp(m.at, locale) }))}
       lastMessageAt={messages.at(-1)?.at.toISOString() ?? null}
       open={(GUEST_MESSAGEABLE as readonly string[]).includes(booking.status)}
       copy={t}
       bookingCopy={d.booking}
+      savedReceipt={savedReceipt}
     />
   );
 }

@@ -25,7 +25,7 @@ const Chevron = ({ direction }: { direction: "left" | "right" }) => (
   </svg>
 );
 
-export function VehicleGallery({ name, images, alt, copy }: { name: string; images: string[]; alt: string; copy: GalleryCopy }) {
+export function VehicleGallery({ name, images, alt, copy, fit = "cover" }: { name: string; images: string[]; alt: string; copy: GalleryCopy; fit?: "cover" | "contain" }) {
   const [index, setIndex] = useState(0);
   const track = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -128,7 +128,7 @@ export function VehicleGallery({ name, images, alt, copy }: { name: string; imag
         {images.map((src, i) => (
           <div key={src} className="relative h-full min-w-0 shrink-0 grow-0 basis-full snap-center" aria-hidden={i !== index}>
             <Image
-              className="block h-full w-full object-cover object-center"
+              className={`block h-full w-full ${fit === "contain" ? "object-contain object-center" : "object-cover object-center"}`}
               src={src}
               alt={many ? `${alt} (${i + 1}/${images.length})` : alt}
               fill

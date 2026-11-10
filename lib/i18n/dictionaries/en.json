@@ -14,8 +14,8 @@
   "statement": {
     "eyebrow": "THE ART OF EXECUTIVE HOSPITALITY",
     "before": "Luxury is not simply about where you arrive, but",
-    "emphasis": "how you feel along the way.",
-    "after": "Every detail is considered, every moment is effortless, and every journey is tailored around you. More than transportation, it is an experience defined by comfort, discretion, and exceptional care."
+    "emphasis": "how you feel along the way,",
+    "after": "every detail is considered, every moment is effortless, and every journey is tailored around you. More than transportation, it is an experience defined by comfort, discretion, and exceptional care."
   },
   "notFound": {
     "eyebrow": "ECRAM EXECS · 404",
@@ -746,6 +746,9 @@
       "deleteConfirm": "Yes, delete permanently",
       "deleting": "Deleting…",
       "language": "Language",
+      "chooseDate": "Select a date",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
       "driverName": "Driver name",
       "backToRequests": "All requests",
       "backToApplications": "All applications",
@@ -869,7 +872,8 @@
       "alertOverdueText": "{queue}: {count} overdue.",
       "alertSoonText": "{queue}: {count} with less than {minutes} min left.",
       "queueStandardShort": "Standard",
-      "queueCorporateShort": "Corporate"
+      "queueCorporateShort": "Corporate",
+      "back": "All enquiries"
     },
     "dashboard": {
       "title": "Dashboard",
@@ -977,6 +981,7 @@
       "unread": "Unread",
       "all": "All",
       "partnerMessage": "New message",
+      "partnerMessages": "{count} new",
       "urgent": "Urgent",
       "urgentNote": "Collection within 24 hours",
       "streamLabel": "Booking Stream:",
@@ -1316,6 +1321,7 @@
       "tagChange": "Change requested",
       "tagCancel": "Cancellation requested",
       "unseen": "New",
+      "unreadBadge": "{count} unread",
       "needsPartner": "Link this request to a partner to exchange messages with them.",
       "sent": "Reply sent."
     },
@@ -1462,6 +1468,8 @@
       "scheduledDate": "Scheduled Date",
       "confirmBooking": "Confirm Booking",
       "permitValid": "Valid",
+      "permitPending": "Pending",
+      "permitExpired": "Expired",
       "baseTitle": "Fleet base",
       "baseNote": "Where the cars live. After every trip the car is held until it has driven back here, so the next booking cannot take it too early.",
       "baseLabel": "Base address",

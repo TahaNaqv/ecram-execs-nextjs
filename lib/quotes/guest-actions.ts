@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq, gt, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
@@ -19,8 +19,8 @@ const m = schema.bookingMessages;
 const LIMIT = { max: 10, minutes: 60 };
 
 const input = z.object({
-  reference: z.string(),
-  k: z.string(),
+  reference: z.string().trim().min(1),
+  k: z.string().trim().min(1),
   locale: z.enum(["en", "nl"]).catch("en"),
   body: z.string().trim().min(1).max(2000),
 });
@@ -32,33 +32,48 @@ const input = z.object({
 export async function sendGuestMessage(_prev: GuestMessageState, formData: FormData): Promise<GuestMessageState> {
   const locale = formData.get("locale") === "nl" ? "nl" : "en";
   const t = (await getDictionary(locale)).guestBooking;
-  const parsed = input.safeParse(Object.fromEntries(formData));
+  const parsed = input.safeParse({
+    reference: formData.get("reference"),
+    k: formData.get("k"),
+    locale: formData.get("locale"),
+    body: formData.get("body"),
+  });
   if (!parsed.success) {
     const tooLong = parsed.error.issues.some((i) => i.path[0] === "body" && i.code === "too_big");
     return { status: "error", message: tooLong ? t.messageTooLong : t.messageRequired };
   }
   const booking = await getGuestBooking(parsed.data.reference, parsed.data.k);
   if (!booking) return { status: "error", message: t.messageFailed };
+  if (!(GUEST_MESSAGEABLE as readonly string[]).includes(booking.status)) {
+    return { status: "error", message: t.messagesClosed };
+  }
 
   try {
+    const since = new Date(Date.now() - LIMIT.minutes * 60_000);
     const [{ recent }] = await db
       .select({ recent: count() })
       .from(m)
-      .where(and(eq(m.requestId, booking.id), eq(m.authorKind, "guest"), gt(m.createdAt, sql`now() - make_interval(mins => ${LIMIT.minutes})`)));
+      .where(and(eq(m.requestId, booking.id), eq(m.authorKind, "guest"), gt(m.createdAt, since)));
     if (recent >= LIMIT.max) return { status: "error", message: t.messageRateLimited };
 
-    // Only while the booking is still open: the status is checked in the same statement that writes the message
-    const open = sql.join(GUEST_MESSAGEABLE.map((s) => sql`${s}`), sql`, `);
-    const inserted = await db.execute<{ request_id: string }>(sql`
-      insert into booking_messages (request_id, author_kind, kind, body)
-      select ${q.id}, 'guest', 'message', ${parsed.data.body}::text
-      from ${q}
-      where ${q.id} = ${booking.id}::uuid and ${q.status}::text in (${open})
-      returning request_id`);
-    if (Array.from(inserted).length === 0) return { status: "error", message: t.messagesClosed };
+    // Status is checked again in the same write so a booking that closed between page load and click cannot receive one.
+    const inserted = await db.transaction(async (tx) => {
+      const [open] = await tx
+        .select({ id: q.id })
+        .from(q)
+        .where(and(eq(q.id, booking.id), inArray(q.status, [...GUEST_MESSAGEABLE])))
+        .limit(1);
+      if (!open) return null;
+      const [row] = await tx
+        .insert(m)
+        .values({ requestId: booking.id, authorKind: "guest", kind: "message", body: parsed.data.body })
+        .returning({ requestId: m.requestId });
+      return row ?? null;
+    });
+    if (!inserted) return { status: "error", message: t.messagesClosed };
 
     const [request] = await db.select().from(q).where(eq(q.id, booking.id)).limit(1);
-    after(() => notifyTeamGuestMessage({ request, body: parsed.data.body }));
+    if (request) after(() => notifyTeamGuestMessage({ request, body: parsed.data.body }));
   } catch (err) {
     console.error("[booking] guest message failed", err);
     return { status: "error", message: t.messageFailed };

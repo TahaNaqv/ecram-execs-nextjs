@@ -23,6 +23,7 @@ export function DeleteRecord({
   reference,
   noun,
   action,
+  returnTo,
 }: {
   copy: DeleteRecordCopy;
   id: string;
@@ -30,6 +31,8 @@ export function DeleteRecord({
   /** Already localized by the caller — it appears inside the confirmation sentence. */
   noun: string;
   action: (formData: FormData) => Promise<void>;
+  /** Where to send the admin after a successful delete (enquiries vs bookings). */
+  returnTo?: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
@@ -49,6 +52,7 @@ export function DeleteRecord({
       ) : (
         <form action={action} className="mt-3 flex animate-fade-in flex-col gap-3">
           <input type="hidden" name="id" value={id} />
+          {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <p className="flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-900 ring-1 ring-inset ring-red-200">
             <AlertIcon className="mt-0.5 shrink-0 text-red-600" />
             <span>

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { dashboardFigures, fleetStatus, recentRequests, upcomingPickups } from "@/lib/admin/dashboard";
 import { formatEuro, formatRelative, pickupParts } from "@/lib/admin/format";
 import { systemHealth, type HealthKey, type HealthState } from "@/lib/admin/health";
+import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { requireAdmin } from "@/lib/auth/session";
 import { normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -57,20 +58,29 @@ export default function DashboardPage() {
       <Suspense fallback={<FiguresSkeleton />}>
         <Figures />
       </Suspense>
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="mt-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Suspense fallback={<PanelSkeleton rows={4} />}>
-          <ScheduleMap />
+          <div className="flex h-full min-h-0 flex-col xl:h-[420px]">
+            <ScheduleMap />
+          </div>
         </Suspense>
-        <Suspense fallback={<PanelSkeleton rows={4} />}>
-          <Fleet />
+        <Suspense fallback={<PanelSkeleton rows={5} />}>
+          <div className="flex h-full min-h-0 flex-col gap-4 xl:h-[420px]">
+            <Incoming />
+            <Recent />
+          </div>
         </Suspense>
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <Suspense fallback={<PanelSkeleton rows={5} />}>
-          <Recent />
+      <div className="mt-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Suspense fallback={<PanelSkeleton rows={4} />}>
+          <div className="flex h-full min-h-0 flex-col xl:h-[420px]">
+            <Fleet />
+          </div>
         </Suspense>
         <Suspense fallback={<PanelSkeleton rows={4} />}>
-          <SystemHealthStatus />
+          <div className="flex h-full min-h-0 flex-col xl:h-[420px]">
+            <SystemHealthStatus />
+          </div>
         </Suspense>
       </div>
     </PageBody>
@@ -152,7 +162,38 @@ function Pill({ tone, children }: { tone: "good" | "warn" | "bad" | "muted"; chi
 async function ScheduleMap() {
   const { admin: t, locale } = await dashboardCopy();
   const d = t.dashboard;
-  const [rows, fleet, today] = await Promise.all([upcomingPickups(), fleetStatus(), daySchedule(amsterdamToday())]);
+  const today = await daySchedule(amsterdamToday());
+
+  return (
+    <Card className="flex h-full max-h-[420px] min-h-[16rem] flex-col overflow-hidden">
+      <CardHeader
+        title={d.mapLiveTitle}
+        description={d.mapLiveDescription}
+        icon={<MapIcon size={16} />}
+        actions={
+          <Link href="/admin/requests/schedule" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
+            {d.dispatchGrid}
+          </Link>
+        }
+      />
+      <div className="min-h-0 max-h-[420px] flex-1 overflow-y-auto overscroll-contain">
+        {today.trips.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-zinc-500">{d.mapEmpty}</p>
+        ) : (
+          <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+            <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} />
+          </Suspense>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+async function Incoming() {
+  const { admin: t, locale } = await dashboardCopy();
+  const d = t.dashboard;
+  const [rows, fleet] = await Promise.all([upcomingPickups(), fleetStatus()]);
+  const unseen = await unseenPartnerMessages(rows.map((r) => r.id));
   const carName = (raw: string | null) => {
     if (!raw) return null;
     const key = normalizeVehicleKey(raw) ?? raw;
@@ -160,33 +201,8 @@ async function ScheduleMap() {
   };
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <Card>
-        <CardHeader
-          title={d.mapLiveTitle}
-          description={d.mapLiveDescription}
-          icon={<MapIcon size={16} />}
-          actions={
-            <Link href="/admin/requests/schedule" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
-              {d.dispatchGrid}
-            </Link>
-          }
-        />
-        <div className="p-5">
-          <div className="-mx-5 -mt-5 overflow-hidden rounded-t-xl border-b border-zinc-100">
-            {today.trips.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-zinc-500">{d.mapEmpty}</p>
-            ) : (
-              <Suspense fallback={<Skeleton className="h-80 w-full" />}>
-                <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} />
-              </Suspense>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      <section aria-labelledby="incoming-requests" className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <header className="flex items-start gap-3 border-b border-gray-100 px-5 py-4">
+    <section aria-labelledby="incoming-requests" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <header className="flex shrink-0 items-start gap-3 border-b border-gray-100 px-5 py-4">
           <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
             {d.nextBadge}
           </span>
@@ -198,14 +214,17 @@ async function ScheduleMap() {
         {rows.length === 0 ? (
           <p className="px-5 py-6 text-sm text-gray-500">{d.nextEmpty}</p>
         ) : (
-          <ul className="m-0 flex list-none flex-col divide-y divide-gray-100 p-0 px-5 max-h-[280px] overflow-y-auto">
+          <ul className="m-0 flex max-h-[420px] min-h-0 flex-1 list-none flex-col divide-y divide-gray-100 overflow-y-auto overscroll-contain p-0 px-5">
             {rows.map((r) => {
               const when = pickupParts(r.at, locale);
               const journey = r.to ? [r.from, r.to].filter(Boolean).join(" → ") : [r.from, r.durationHours ? interpolate(t.requestDetail.durationValue, { hours: r.durationHours }) : null].filter(Boolean).join(" · ");
               const car = carName(r.vehicle);
+              const unread = unseen.get(r.id) ?? 0;
+              const unreadLabel =
+                unread === 1 ? t.requests.partnerMessage : interpolate(t.requests.partnerMessages, { count: unread });
               return (
                 <li key={r.id}>
-                  <Link href={`/admin/requests/${r.id}`} className="flex items-center gap-4 py-3 no-underline hover:bg-gray-50 sm:-mx-2 sm:px-2 sm:rounded-lg">
+                  <Link href={`/admin/requests/${r.id}`} className="flex items-center gap-4 py-3 no-underline hover:bg-gray-50 sm:-mx-2 sm:rounded-lg">
                     <span className="w-24 shrink-0 text-xs text-gray-500">
                       <span className="block font-semibold tabular-nums text-gray-900">{when.time}</span>
                       {when.date}
@@ -217,6 +236,15 @@ async function ScheduleMap() {
                       </span>
                       <span className="block truncate text-xs text-gray-500">{[r.entity ?? r.name, car].filter(Boolean).join(" · ")}</span>
                     </span>
+                    {unread > 0 && (
+                      <span
+                        className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-950 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white"
+                        title={unreadLabel}
+                        aria-label={unreadLabel}
+                      >
+                        {unread}
+                      </span>
+                    )}
                     <span className="hidden shrink-0 font-mono text-xs text-gray-400 sm:block">{r.reference}</span>
                   </Link>
                 </li>
@@ -224,18 +252,17 @@ async function ScheduleMap() {
             })}
           </ul>
         )}
-      </section>
-    </div>
+    </section>
   );
 }
 
 async function Fleet() {
-  const { admin: t, locale } = await dashboardCopy();
+  const { admin: t } = await dashboardCopy();
   const d = t.dashboard;
   const rows = await fleetStatus();
 
   return (
-    <Card>
+    <Card className="flex h-full max-h-[420px] min-h-[16rem] flex-col overflow-hidden">
       <CardHeader
         title={d.fleetLiveTitle}
         icon={<BatteryIcon size={16} />}
@@ -251,7 +278,7 @@ async function Fleet() {
       {rows.length === 0 ? (
         <EmptyState icon={<CarIcon size={18} />} title={d.fleetEmpty} />
       ) : (
-        <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5 max-h-[380px] overflow-y-auto">
+        <ul className="m-0 flex max-h-[420px] min-h-0 flex-1 list-none flex-col divide-y divide-zinc-100 overflow-y-auto overscroll-contain p-0 px-5">
           {rows.map((v) => (
             <li key={v.id} className="flex items-center justify-between gap-3 py-3">
               <span className="min-w-0">
@@ -267,7 +294,7 @@ async function Fleet() {
           ))}
         </ul>
       )}
-      <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
+      <div className="mt-auto flex shrink-0 items-center justify-between border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
         <span>{d.telemetryConnected}</span>
         <span className="font-mono text-[11px] text-emerald-700 font-semibold">● {d.telemetryLive}</span>
       </div>
@@ -280,7 +307,7 @@ async function Recent() {
   const d = t.dashboard;
   const rows = await recentRequests();
   return (
-    <Card>
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <CardHeader
         title={d.recentTitle}
         description={d.recentDescription}
@@ -294,7 +321,7 @@ async function Recent() {
       {rows.length === 0 ? (
         <EmptyState icon={<InboxIcon size={18} />} title={d.recentEmpty} />
       ) : (
-        <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5">
+        <ul className="m-0 flex max-h-[420px] min-h-0 flex-1 list-none flex-col divide-y divide-zinc-100 overflow-y-auto overscroll-contain p-0 px-5">
           {rows.map((r) => (
             <li key={r.id}>
               <Link href={`/admin/requests/${r.id}`} className="flex items-center gap-3 py-3 no-underline hover:bg-zinc-50 sm:-mx-2 sm:rounded-lg sm:px-2">
@@ -341,9 +368,9 @@ async function SystemHealthStatus() {
   };
 
   return (
-    <Card>
+    <Card className="flex h-full max-h-[420px] min-h-[16rem] flex-col overflow-hidden">
       <CardHeader title={d.healthTitle} description={d.healthDescription} icon={<ActivityIcon size={16} />} />
-      <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5">
+      <ul className="m-0 flex max-h-[420px] min-h-0 flex-1 list-none flex-col divide-y divide-zinc-100 overflow-y-auto overscroll-contain p-0 px-5">
         {items.map((item) => (
           <li key={item.key} data-health={item.key} data-state={item.state} className="flex items-center justify-between gap-3 py-3">
             <span className="text-sm font-medium text-zinc-950">
@@ -356,7 +383,7 @@ async function SystemHealthStatus() {
           </li>
         ))}
       </ul>
-      <p className="m-0 border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">{d.healthNote}</p>
+      <p className="m-0 mt-auto shrink-0 border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">{d.healthNote}</p>
     </Card>
   );
 }

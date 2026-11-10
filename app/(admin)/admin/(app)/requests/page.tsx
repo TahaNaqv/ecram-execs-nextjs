@@ -161,11 +161,23 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   ]);
   const serviceLabels = dict.services;
   const t = dict.admin;
-  // Requests on this page where a partner has written and nobody on the team has opened it yet
+  // Requests on this page where a partner/guest has written and nobody on the team has opened it yet
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
-  const partnerBadge = (id: string) =>
-    unseen.has(id) ? <span className="mt-1 inline-block rounded bg-zinc-950 px-1.5 py-0.5 text-[10px] font-medium text-white">{t.requests.partnerMessage}</span> : null;
+  const partnerBadge = (id: string) => {
+    const n = unseen.get(id) ?? 0;
+    if (!n) return null;
+    const label = n === 1 ? t.requests.partnerMessage : interpolate(t.requests.partnerMessages, { count: n });
+    return (
+      <span
+        className="mt-1 inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-950 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white"
+        title={label}
+        aria-label={label}
+      >
+        {n}
+      </span>
+    );
+  };
   // Where a journey ends: its destination, or for an hourly booking without one, how long the chauffeur is booked
   const journeyEnd = (r: QuoteRequest) =>
     r.destination ?? (r.durationHours ? interpolate(t.requestDetail.durationValue, { hours: r.durationHours }) : null);

@@ -7,6 +7,7 @@ import { AdminDrawer } from "@/app/(admin)/admin/_components/admin-drawer";
 import { AdminModal } from "@/app/(admin)/admin/_components/admin-modal";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { formatCurrency } from "@/lib/pricing/rates";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -118,7 +119,7 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
                       <p className="font-semibold text-zinc-900">{b.passengerName}</p>
                       <p className="text-[11px] text-zinc-400">{b.pickupDate}</p>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono font-semibold">€ {b.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold">{formatCurrency(b.amount)}</td>
                   </tr>
                 ))}
               </tbody>

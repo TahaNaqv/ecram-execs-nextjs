@@ -185,12 +185,12 @@ export function JourneyBar({
       if (hidden instanceof HTMLInputElement) hidden.value = fresh;
     }
     const found = tripProblems(current, netherlandsNow());
-    
-    // Strict dropdown suggestion check for origin and destination
-    if (!current.from.id && !found.includes("collection")) {
+    // A picked suggestion (or a repeat seed that restored its place id) is required; typed-only empty ids stay invalid.
+    // Text alone is not enough — except when a non-empty id is already on the place (repeat / curated restore).
+    if (!current.from.id?.trim() && !found.includes("collection")) {
       found.push("collection");
     }
-    if (current.mode === "oneway" && !current.to.id && !found.includes("destination")) {
+    if (current.mode === "oneway" && !current.to.id?.trim() && !found.includes("destination")) {
       found.push("destination");
     }
 

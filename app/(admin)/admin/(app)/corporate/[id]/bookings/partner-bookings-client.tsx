@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "@/app/(admin)/admin/_components/icons";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { formatCurrency } from "@/lib/pricing/rates";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -84,7 +85,7 @@ export function PartnerBookingsClient({
                       <p className="text-[11px] text-zinc-500 truncate max-w-xs">{b.route}</p>
                     </td>
                     <td className="px-4 py-3.5 text-zinc-700">{b.vehicle}</td>
-                    <td className="px-4 py-3.5 font-mono font-semibold text-zinc-950">€ {b.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3.5 font-mono font-semibold text-zinc-950">{formatCurrency(b.amount)}</td>
                     <td className="px-5 py-3.5 text-right">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
                         {b.status}

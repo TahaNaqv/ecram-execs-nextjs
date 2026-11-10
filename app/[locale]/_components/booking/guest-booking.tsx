@@ -7,7 +7,7 @@ import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-actions";
-import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt } from "./booking-flow";
+import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
 
 type Copy = Dictionary["guestBooking"];
@@ -40,6 +40,7 @@ export function GuestBookingView({
   open,
   copy: t,
   bookingCopy,
+  savedReceipt,
 }: {
   reference: string;
   linkKey: string;
@@ -54,12 +55,14 @@ export function GuestBookingView({
   open: boolean;
   copy: Copy;
   bookingCopy: BookingCopy;
+  /** Itinerary from the stored booking, used when this tab has no receipt of its own (chat bookings, email links). */
+  savedReceipt: RideReceipt | null;
 }) {
   const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
   // The receipt this tab kept when the booking was sent (none on the server, nor in another browser)
   const storedReceipt = useSyncExternalStore(noSubscription, () => storedRideReceipt(reference), () => null);
-  const receipt = useMemo(() => parseRideReceipt(storedReceipt), [storedReceipt]);
+  const receipt = useMemo(() => parseRideReceipt(storedReceipt) ?? savedReceipt, [storedReceipt, savedReceipt]);
 
   // Asks for the status and the conversation's last change; the page is fetched again only when one of them moved
   useEffect(() => {
@@ -134,14 +137,14 @@ export function GuestBookingView({
             {t.conversationTitle}
           </h3>
           {messages.length > 0 && (
-            <ol className="m-0 flex list-none flex-col gap-3 p-0">
+            <ol className="m-0 flex max-h-60 list-none flex-col gap-3 overflow-y-auto overscroll-contain p-0 pr-1">
               {messages.map((m) => (
                 <li key={m.id} className={`flex max-w-[600px] flex-col gap-1 rounded-[12px] p-4 ${m.by === "guest" ? "self-end border border-solid border-ink-150 bg-white" : "bg-ink-50"}`}>
                   <span className="text-[11px] tracking-[0.16em] text-ink-600 uppercase">
                     <strong className="text-ink-950">{m.by === "guest" ? t.you : t.team}</strong> · {m.at}
                   </span>
                   {/* Plain text: whatever was written, with its line breaks, never as markup */}
-                  <p className="m-0 whitespace-pre-wrap wrap-break-word text-[15px]">{m.body}</p>
+                  <p className="m-0 text-left whitespace-pre-wrap wrap-break-word break-words text-[15px]">{m.body}</p>
                 </li>
               ))}
             </ol>
@@ -194,12 +197,15 @@ function GuestReply({ reference, linkKey, locale, copy: t }: { reference: string
       <input type="hidden" name="k" value={linkKey} />
       <input type="hidden" name="locale" value={locale} />
       <div className="flex flex-wrap items-center gap-4">
-        <button type="submit" disabled={pending} className="inline-flex h-11 cursor-pointer items-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:opacity-60">
+        <button type="submit" disabled={pending} aria-busy={pending} className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:opacity-60">
+          {pending && <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-white/35 border-t-white motion-reduce:animate-none" />}
           {pending ? t.sending : t.send}
         </button>
-        <span aria-live="polite" className={`text-[13px] ${state.status === "error" ? "text-error" : "text-emerald-700"}`}>
-          {state.status === "ok" ? state.notice : state.status === "error" ? state.message : null}
-        </span>
+        {state.status === "error" && (
+          <span aria-live="polite" className="text-[13px] text-error">
+            {state.message}
+          </span>
+        )}
       </div>
     </form>
   );

@@ -116,7 +116,7 @@ test("the booking manager discusses a booking, changes its cars, and approves it
   await expect(page.getByText("Would an Audi suit you?")).toBeVisible();
   await page.getByLabel(g.replyLabel).fill("Yes, an Audi is fine.");
   await page.getByRole("button", { name: g.send, exact: true }).click();
-  await expect(page.getByText(g.sent)).toBeVisible();
+  await expect(page.getByText("Yes, an Audi is fine.").last()).toBeVisible();
 
   // The team sees the answer, changes the cars, and approves
   await team.page.reload();

@@ -8,11 +8,11 @@ export async function Statement() {
         <span className="reveal text-white/80 font-display text-[12px] tracking-[0.3em] md:tracking-[0.42em]">
           {d.statement.eyebrow}
         </span>
-        <p className="reveal m-0 text-ink-50 font-serif text-[clamp(30px,3.6vw,50px)] font-light leading-[1.22]">
+        <p className="reveal m-0 text-ink-50 font-serif text-[clamp(30px,3.6vw,50px)] font-light leading-[1.22] not-italic">
           {d.statement.before}{" "}
-          <em className="chrome italic">
+          <span className="chrome font-normal not-italic">
             {d.statement.emphasis}
-          </em>
+          </span>
           {" "}{d.statement.after}
         </p>
         

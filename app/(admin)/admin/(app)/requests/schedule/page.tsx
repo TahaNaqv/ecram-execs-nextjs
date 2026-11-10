@@ -8,8 +8,9 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { amsterdamToday, daySchedule, shiftDay, UNASSIGNED, type DayBlock, type DayColumn } from "@/lib/admin/schedule";
 import { layOut } from "@/lib/fleet/schedule";
 import type { RequestStatus } from "@/lib/quotes/constants";
+import { AdminDateField } from "../../../_components/admin-fields";
 import { ChevronLeftIcon, ChevronRightIcon } from "../../../_components/icons";
-import { btn, Card, field, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
+import { btn, Card, PageBody, PageHeader, Skeleton } from "../../../_components/ui";
 import { DayMap } from "./day-map";
 import { ScrollToMorning } from "./scroll-to-morning";
 
@@ -123,7 +124,15 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
             <label htmlFor="schedule-date" className="sr-only">
               {t.dateLabel}
             </label>
-            <input id="schedule-date" type="date" name="date" defaultValue={date} className={`${field} h-10`} />
+            <AdminDateField
+              key={date}
+              id="schedule-date"
+              name="date"
+              defaultValue={date}
+              locale={who?.locale === "en" ? "en" : "nl"}
+              copy={{ chooseDate: admin.common.chooseDate, previousMonth: admin.common.previousMonth, nextMonth: admin.common.nextMonth }}
+              submitOnChange
+            />
             <button className={`${btn.base} ${btn.secondary} ${btn.md}`}>{t.go}</button>
           </form>
         </div>

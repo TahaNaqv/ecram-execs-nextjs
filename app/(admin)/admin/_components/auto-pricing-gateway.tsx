@@ -423,11 +423,13 @@ export function AutoPricingGateway({
           document.body,
         )}
 
-      <div className="grid h-fit w-full grid-cols-1 items-start gap-6 lg:grid-cols-2" style={{ alignItems: "start" }}>
-        <div className="box-border h-fit w-full min-w-0 self-start overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-card" style={{ alignSelf: "start", height: "fit-content" }}>
-          {children}
+      <div className="grid w-full grid-cols-1 items-stretch gap-6 lg:grid-cols-2 lg:h-[560px]">
+        <div className="box-border flex h-full max-h-[560px] w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-card lg:max-h-none">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {children}
+          </div>
           {/* Authorisation & Dispatch — same box as the rate card */}
-          <div className={children ? "border-t border-zinc-100 px-5 py-5" : "px-5 py-5"}>
+          <div className={children ? "shrink-0 border-t border-zinc-100 px-5 py-5" : "shrink-0 px-5 py-5"}>
             <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-2.5">{copy.authTitle}</h3>
             
             {/* Status Dropdown Selector */}
@@ -483,115 +485,119 @@ export function AutoPricingGateway({
 
         </div>
 
-        <div className="box-border flex h-fit w-full min-w-0 flex-col gap-6 self-start rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-5" style={{ alignSelf: "start", height: "fit-content" }}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-zinc-950">
-                <span className="inline-block size-2 animate-pulse rounded-full bg-emerald-600" />
-                {copy.heading}
-              </h2>
-              <p className="mt-1 text-xs font-semibold tracking-wider text-zinc-500 uppercase">{copy.itinerary}</p>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <div className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-mono text-xs text-zinc-600 shadow-2xs">
-                {formatTimestamp(request.createdAt)}
+        <div className="box-border flex h-full max-h-[560px] w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/60 lg:max-h-none">
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-5">
+            <div className="flex shrink-0 flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-zinc-950">
+                  <span className="inline-block size-2 animate-pulse rounded-full bg-emerald-600" />
+                  {copy.heading}
+                </h2>
+                <p className="mt-1 text-xs font-semibold tracking-wider text-zinc-500 uppercase">{copy.itinerary}</p>
               </div>
-              {routeMap ? (
-                <a
-                  href={routeMap.open}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1 rounded font-mono hover:bg-zinc-100"
-                >
-                  {routeMap.openLabel}
-                </a>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-mono text-xs text-zinc-600 shadow-2xs">
+                  {formatTimestamp(request.createdAt)}
+                </div>
+                {routeMap ? (
+                  <a
+                    href={routeMap.open}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1 rounded font-mono hover:bg-zinc-100"
+                  >
+                    {routeMap.openLabel}
+                  </a>
+                ) : (
+                  <span className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded font-mono">{copy.googleMap}</span>
+                )}
+              </div>
+            </div>
+
+            {routeMap &&
+              (routeMap.embed ? (
+                <iframe
+                  title={routeMap.frameTitle}
+                  src={routeMap.embed}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className="block h-56 w-full shrink-0 rounded-lg border border-zinc-200 bg-zinc-100"
+                />
               ) : (
-                <span className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded font-mono">{copy.googleMap}</span>
-              )}
-            </div>
-          </div>
+                <p className="rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-4 text-xs text-zinc-500">{routeMap.noKey}</p>
+              ))}
 
-          {routeMap &&
-            (routeMap.embed ? (
-              <iframe
-                title={routeMap.frameTitle}
-                src={routeMap.embed}
-                loading="lazy"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-                className="block h-56 w-full rounded-lg border border-zinc-200 bg-zinc-100"
-              />
-            ) : (
-              <p className="rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-4 text-xs text-zinc-500">{routeMap.noKey}</p>
-            ))}
+            <div className="shrink-0">
+              <label className="mb-2 block text-xs font-medium text-zinc-500">{copy.waypoints}</label>
+              <div className="space-y-2">
+                <Waypoint place={collection} label={copy.collection} />
+                {stopovers.map((stop: string, idx: number) => {
+                  const waitMins = stopWaits[idx] ?? 0;
+                  return (
+                    <Waypoint
+                      key={`${stop}-${idx}`}
+                      place={stop}
+                      label={interpolate(copy.stop, { number: idx + 1 })}
+                      wait={waitMins > 0 ? interpolate(copy.waitTime, { minutes: waitMins }) : null}
+                    />
+                  );
+                })}
+                <Waypoint place={destination} label={copy.destination} />
+              </div>
+            </div>
 
-          <div>
-            <label className="text-xs font-medium text-zinc-500 block mb-2">{copy.waypoints}</label>
-            <div className="space-y-2">
-              <Waypoint place={collection} label={copy.collection} />
-              {stopovers.map((stop: string, idx: number) => {
-                const waitMins = stopWaits[idx] ?? 0;
-                return (
-                  <Waypoint
-                    key={`${stop}-${idx}`}
-                    place={stop}
-                    label={interpolate(copy.stop, { number: idx + 1 })}
-                    wait={waitMins > 0 ? interpolate(copy.waitTime, { minutes: waitMins }) : null}
-                  />
-                );
-              })}
-              <Waypoint place={destination} label={copy.destination} />
-            </div>
-          </div>
-
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 grid grid-cols-2 gap-3 text-xs shadow-2xs">
-            <div>
-              <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
-                <CalendarIcon size={12} /> {copy.pickupDate}
-              </p>
-              <p className="font-semibold text-zinc-900 mt-0.5">{pickup?.date ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
-                <ClockIcon size={12} /> {copy.pickupTime}
-              </p>
-              <p className="font-semibold text-zinc-900 mt-0.5">{pickup?.time ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
-                <UsersIcon size={12} /> {copy.passengers}
-              </p>
-              <p className="font-semibold text-zinc-900 mt-0.5">{request.passengers ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
-                🧳 Luggage
-              </p>
-              <p className="font-semibold text-zinc-900 mt-0.5">{[request.luggage != null ? `${request.luggage} large` : null, request.handLuggage ? `${request.handLuggage} small` : null].filter(Boolean).join(", ") || "—"}</p>
-            </div>
-            <div className="col-span-2 pt-2 border-t border-zinc-100">
-              <p className="text-[10px] uppercase font-semibold text-zinc-400 flex items-center gap-1">
-                <BriefcaseIcon size={12} /> {copy.vehicle}
-              </p>
-              <p className="mt-0.5 font-semibold whitespace-normal text-zinc-900">
-                {convoyTitle(request) ?? (request.vehicle && request.vehicle !== "advise" ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—")}
-              </p>
-              {(request.vehicleCount ?? 1) > 1 && request.internalNotes?.trim() ? (
-                <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>
+            <div className="grid shrink-0 grid-cols-2 gap-3 rounded-xl border border-zinc-200 bg-white p-4 text-xs shadow-2xs">
+              <div>
+                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase text-zinc-400">
+                  <CalendarIcon size={12} /> {copy.pickupDate}
+                </p>
+                <p className="mt-0.5 font-semibold text-zinc-900">{pickup?.date ?? "—"}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase text-zinc-400">
+                  <ClockIcon size={12} /> {copy.pickupTime}
+                </p>
+                <p className="mt-0.5 font-semibold text-zinc-900">{pickup?.time ?? "—"}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase text-zinc-400">
+                  <UsersIcon size={12} /> {copy.passengers}
+                </p>
+                <p className="mt-0.5 font-semibold text-zinc-900">{request.passengers ?? "—"}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase text-zinc-400">
+                  🧳 Luggage
+                </p>
+                <p className="mt-0.5 font-semibold text-zinc-900">{[request.luggage != null ? `${request.luggage} large` : null, request.handLuggage ? `${request.handLuggage} small` : null].filter(Boolean).join(", ") || "—"}</p>
+              </div>
+              <div className="col-span-2 border-t border-zinc-100 pt-2">
+                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase text-zinc-400">
+                  <BriefcaseIcon size={12} /> {copy.vehicle}
+                </p>
+                <p className="mt-0.5 font-semibold whitespace-normal text-zinc-900">
+                  {convoyTitle(request) ?? (request.vehicle && request.vehicle !== "advise" ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—")}
+                </p>
+                {(request.vehicleCount ?? 1) > 1 && request.internalNotes?.trim() ? (
+                  <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>
+                ) : null}
+              </div>
+              {addOns ? (
+                <div className="col-span-2 border-t border-zinc-100 pt-2">
+                  <p className="text-[10px] font-semibold uppercase text-zinc-400">{copy.addOns}</p>
+                  <p className="mt-0.5 font-medium whitespace-normal text-zinc-900">{addOns}</p>
+                </div>
+              ) : null}
+              {request.notes?.trim() ? (
+                <div className="col-span-2 border-t border-zinc-100 pt-2">
+                  <p className="text-[10px] font-semibold uppercase text-zinc-400">{copy.note}</p>
+                  <p className="mt-0.5 max-h-28 overflow-y-auto text-left font-medium break-words whitespace-pre-wrap text-zinc-900 [overflow-wrap:anywhere]">
+                    {request.notes.trim()}
+                  </p>
+                </div>
               ) : null}
             </div>
-            {addOns ? (
-              <div className="col-span-2 pt-2 border-t border-zinc-100">
-                <p className="text-[10px] uppercase font-semibold text-zinc-400">{copy.addOns}</p>
-                <p className="mt-0.5 font-medium whitespace-normal text-zinc-900">{addOns}</p>
-              </div>
-            ) : null}
-            {request.notes?.trim() ? (
-              <div className="col-span-2 pt-2 border-t border-zinc-100">
-                <p className="text-[10px] uppercase font-semibold text-zinc-400">{copy.note}</p>
-                <p className="mt-0.5 font-medium whitespace-pre-wrap text-zinc-900">{request.notes.trim()}</p>
-              </div>
-            ) : null}
           </div>
         </div>
 

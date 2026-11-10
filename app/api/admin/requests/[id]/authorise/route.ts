@@ -8,7 +8,7 @@ import { clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { routeHold } from "@/lib/fleet/route";
 import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 import { after } from "next/server";
-import { emailPartnerBooking, emailEnquiryStatus } from "@/lib/email";
+import { emailPartnerBooking, emailEnquiryStatus, emailBookingRecorded } from "@/lib/email";
 import type { RequestEventChange } from "@/lib/admin/events";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
 
@@ -118,9 +118,23 @@ export async function POST(
       console.log(`Target Status / Email Kind: ${newStatus}`);
       console.log(`Amount: €${updated.quotedAmount ?? "—"}`);
 
-      const emailKind = newStatus === "completed" || newStatus === "cancelled" || newStatus === "contacted" ? newStatus : "confirmed";
+      // "New" has not been confirmed. Notify Client on that status sends the acknowledgement
+      // ("booking recorded"), never the "your booking is confirmed" template.
+      const emailKind = newStatus === "new" ? null : newStatus;
 
-      if (updated.corporateContactId && updated.source !== "website-corporate") {
+      if (emailKind === null) {
+        console.log(`[EMAIL TARGET] Client Email: ${updated.email} with kind: recorded (status is still new)`);
+        after(async () => {
+          try {
+            await emailBookingRecorded(updated);
+            console.log("[EMAIL SUCCESS] Booking-received email dispatched successfully.");
+          } catch (mailErr: unknown) {
+            console.error("================ RESEND ERROR LOG ================");
+            console.error("Failed to send booking-received email:", mailErr instanceof Error ? mailErr.message : mailErr);
+            console.error("==================================================");
+          }
+        });
+      } else if (updated.corporateContactId && updated.source !== "website-corporate") {
         const [partner] = await db
           .select({ email: schema.corporateContacts.email, name: schema.corporateContacts.name, locale: schema.corporateContacts.locale })
           .from(schema.corporateContacts)

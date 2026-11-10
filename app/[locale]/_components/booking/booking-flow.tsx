@@ -68,10 +68,17 @@ const isTrip = (value: unknown): value is Trip => {
 };
 
 const readDraft = (): BookingDraft | null => {
+  const key = draftKey();
   try {
-    const raw = sessionStorage.getItem(draftKey());
+    const raw = sessionStorage.getItem(key);
     if (!raw) return null;
-    const data = JSON.parse(raw) as BookingDraft;
+    let data: BookingDraft;
+    try {
+      data = JSON.parse(raw) as BookingDraft;
+    } catch {
+      sessionStorage.removeItem(key);
+      return null;
+    }
     if (data.sent !== bookingsSent()) return null;
     if (!DRAFT_STEPS.includes(data.step) || !isTrip(data.trip) || !isTrip(data.draft)) return null;
     const entered = data.entered;
@@ -86,6 +93,11 @@ const readDraft = (): BookingDraft | null => {
     data.draft = normalizeTrip(data.draft);
     return data;
   } catch {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
     return null;
   }
 };
@@ -1061,6 +1073,10 @@ export type RideReceipt = {
   price: Price | null;
   /** The add-ons' names as shown when booking, in the order of `price.extras` */
   extraNames?: string[];
+  /** Vehicle model as shown when booking, for the receipt itinerary. */
+  vehicle?: string;
+  /** Passenger and luggage line, for the receipt itinerary. */
+  passengers?: string;
 };
 
 const detailValue = (entry: DetailsEntry, key: string) => (entry.fields.find(([name]) => name === key)?.[1] ?? "").trim();
@@ -1119,7 +1135,16 @@ function buildRideReceipt({
     stops: hourly ? [] : trip.stops.map((s) => s.place.trim()).filter(Boolean),
     price: storedPrice(quoted),
     extraNames: (quoted?.extras ?? []).map((line) => extraName(addOns, line)),
+    vehicle: receiptVehicle(trip, t),
+    passengers: partyLine(t, trip.pax, trip.bags, trip.small),
   };
+}
+
+function receiptVehicle(trip: Trip, t: BookingCopy): string {
+  const picks = trip.cars.filter((c) => c.count > 0);
+  if (picks.length > 0) return picks.map((p) => `${p.count} × ${vehicleByKey(p.key)?.name ?? p.key}`).join(", ");
+  if (trip.vehicle === "advise") return t.noPreference;
+  return vehicleByKey(trip.vehicle)?.name ?? "";
 }
 
 function rememberRideReceipt(receipt: RideReceipt) {
@@ -1135,6 +1160,8 @@ function isRideReceipt(value: unknown): value is RideReceipt {
   if (typeof receipt.leadPassenger !== "string" || typeof receipt.pickup !== "string" || typeof receipt.dropoff !== "string") return false;
   if (typeof receipt.when !== "string" || typeof receipt.hourly !== "boolean" || !Array.isArray(receipt.stops)) return false;
   if (receipt.extraNames !== undefined && !(Array.isArray(receipt.extraNames) && receipt.extraNames.every((n) => typeof n === "string"))) return false;
+  if (receipt.vehicle !== undefined && typeof receipt.vehicle !== "string") return false;
+  if (receipt.passengers !== undefined && typeof receipt.passengers !== "string") return false;
   if (receipt.price == null) return true;
   return typeof receipt.price === "object" && typeof receipt.price.total === "number" && Array.isArray(receipt.price.legs);
 }
@@ -1172,7 +1199,14 @@ function readRideReceipt(): RideReceipt | null {
   try {
     const raw = sessionStorage.getItem(RECEIPT_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw) as unknown;
+    let data: unknown;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      sessionStorage.removeItem(RECEIPT_KEY);
+      sessionStorage.removeItem(RECEIPT_FOR_KEY);
+      return null;
+    }
     return isRideReceipt(data) ? data : null;
   } catch {
     return null;
@@ -1285,6 +1319,11 @@ export function DownloadableReceiptCard({
         clientPhone: receipt?.passengerPhone ?? "",
         route,
         when: receipt?.when ?? "",
+        pickup: receipt?.pickup,
+        stops: receipt?.stops,
+        dropoff: receipt?.dropoff,
+        vehicle: receipt?.vehicle,
+        passengers: receipt?.passengers,
         lines,
         total,
       }),
@@ -1296,7 +1335,7 @@ export function DownloadableReceiptCard({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#ffffff] px-4 py-2 text-[14px] font-semibold text-[#10224f] shadow-sm transition-all hover:bg-[#f2f5ff]"
+        className="inline-flex shrink-0 cursor-pointer items-center gap-2 self-start rounded-full border border-[#10224f]/15 bg-[#f6f1e7] px-4 py-2.5 text-[13px] font-semibold tracking-wide text-[#10224f] shadow-sm transition hover:border-[#10224f]/35 hover:bg-[#ffffff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#10224f]"
       >
         <ReceiptIcon />
         <span>{t.receiptTitle}</span>
@@ -1311,18 +1350,21 @@ export function DownloadableReceiptCard({
             onClick={(e) => e.stopPropagation()}
             className="flex max-h-[calc(100dvh-24px)] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-[#081b62] font-sans text-[#ffffff] shadow-2xl"
           >
-            <div className="relative shrink-0 px-5 pt-4 pb-3 text-center">
+            <div className="grid shrink-0 grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-start gap-2 px-4 pt-4 pb-3">
+              <span aria-hidden="true" />
+              <div className="min-w-0 text-center">
+                <p className="m-0 font-serif text-[11px] tracking-[0.22em] text-zinc-300 uppercase">Ecram Execs</p>
+                <h3 id="receipt-title" className="m-0 mt-1 font-serif text-[20px] leading-none font-normal tracking-wide text-[#ffffff] uppercase">{t.receiptHeading}</h3>
+                <p className="m-0 mt-1.5 text-[12px] text-zinc-200">Reference: {reference}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                aria-label="Close"
-                className="absolute top-3 right-3 grid size-7 cursor-pointer place-items-center rounded-full bg-[#ffffff] text-[#10224f] hover:bg-[#e7edff]"
+                aria-label={t.receiptClose}
+                className="grid size-8 cursor-pointer place-items-center justify-self-end rounded-full bg-[#ffffff] text-[#10224f] hover:bg-[#e7edff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffffff]"
               >
                 <CloseIcon />
               </button>
-              <p className="m-0 font-serif text-[11px] tracking-[0.22em] text-zinc-300 uppercase">Ecram Execs</p>
-              <h3 id="receipt-title" className="m-0 mt-1 font-serif text-[20px] leading-none font-normal tracking-wide text-[#ffffff] uppercase">{t.receiptHeading}</h3>
-              <p className="m-0 mt-1.5 text-[12px] text-zinc-200">Reference: {reference}</p>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
@@ -1335,8 +1377,16 @@ export function DownloadableReceiptCard({
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">Itinerary</span>
-                  <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{route}</strong>
+                  {receipt?.pickup && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{receipt.pickup}</strong>}
+                  {receipt?.stops.map((stop, index) => (
+                    <span key={`${stop}-${index}`} className="break-words text-[12px] text-zinc-200">{stop}</span>
+                  ))}
+                  {receipt?.dropoff && <span className="break-words text-[13px] font-semibold text-[#ffffff]">{receipt.dropoff}</span>}
+                  {!receipt?.pickup && !receipt?.dropoff && route && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{route}</strong>}
                   {receipt?.when && <span className="text-[12px] text-zinc-200">{receipt.when}</span>}
+                  {receipt?.vehicle && <span className="text-[12px] text-zinc-200">{receipt.vehicle}</span>}
+                  {receipt?.passengers && <span className="text-[12px] text-zinc-200">{receipt.passengers}</span>}
+                  {receipt?.leadPassenger && <span className="text-[12px] text-zinc-200">{receipt.leadPassenger}</span>}
                 </div>
               </div>
 

@@ -203,7 +203,8 @@ export async function deleteRequest(formData: FormData) {
     await removeFiles(invoices.map((i) => i.path));
     console.info(`[admin] request ${deleted.reference} deleted`);
   }
-  redirect("/admin/requests");
+  const returnTo = formData.get("returnTo");
+  redirect(returnTo === "/admin/enquiries" ? "/admin/enquiries" : "/admin/requests");
 }
 
 /** Sets the signed-in admin's panel language (D3: admin is not locale-routed). */

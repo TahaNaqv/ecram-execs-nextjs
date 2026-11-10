@@ -75,7 +75,7 @@ test("the model is briefed on the fleet, on how booking works and on what it can
   for (const car of FLEET) expect(prompt, car.name).toContain(car.name);
   // The briefing, with the website's own button names and numbers
   expect(prompt).toContain("HOW THIS WEBSITE WORKS");
-  for (const label of [en.enquiry.heading, en.booking.stepJourney, en.booking.stepCar, en.booking.stepDetails, en.booking.modeOneWay, en.booking.modeHourly, en.booking.noPreference, en.booking.submit]) {
+  for (const label of [en.booking.from, en.booking.to, en.booking.when, en.booking.guests, en.booking.continue, en.booking.stepJourney, en.booking.stepCar, en.booking.stepDetails, en.booking.modeOneWay, en.booking.modeHourly, en.booking.noPreference, en.booking.submit]) {
     expect(prompt, label).toContain(`"${label}"`);
   }
   expect(prompt).toContain("2 to 12 hours");

@@ -125,11 +125,14 @@ export const quoteSchema = (t: QuoteMessages) =>
     vehicles: z.preprocess((v) => {
       if (v == null || v === "") return undefined;
       if (typeof v === "string") {
-        try {
-          return JSON.parse(v);
-        } catch {
-          return v;
-        }
+        const parsed = (() => {
+          try {
+            return JSON.parse(v);
+          } catch {
+            return undefined;
+          }
+        })();
+        return parsed ?? undefined;
       }
       return v;
     }, z.array(z.object({
