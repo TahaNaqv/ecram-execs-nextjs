@@ -40,7 +40,7 @@ export async function Protection() {
         <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="reveal relative min-w-0 overflow-hidden lg:order-2 lg:min-h-[420px]">
             <Image
-              src="/assets/protection-v3.jpg"
+              src="/assets/protection-v4.jpg"
               alt={p.imageAlt}
               width={IMAGE_WIDTH}
               height={IMAGE_HEIGHT}

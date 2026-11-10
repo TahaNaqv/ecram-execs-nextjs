@@ -815,8 +815,10 @@ body:has(dialog[open]) {
 
 /* ---------- Mobile menu (≤1279px) ----------
  * CSS-only: a visually hidden checkbox (#nav-toggle) drives the burger and the
- * slide-down panel. Kept unlayered and together so its !important rules win
- * over the nav's desktop utility classes in one predictable place.
+ * slide-down panel. From 1280px the six primary links stay inline; compact
+ * spacing in the header markup keeps them from colliding with brand / CTA.
+ * Kept unlayered and together so its !important rules win over the nav's
+ * desktop utility classes in one predictable place.
  */
 .nav-toggle {
   position: absolute;
@@ -839,15 +841,21 @@ body:has(dialog[open]) {
   .nav-toggle {
     display: none;
   }
-}
 
-@media (min-width: 1280px) {
   .header-bar {
     flex-wrap: nowrap;
   }
 
   .nav-burger {
     display: none !important;
+  }
+
+  .primary-nav {
+    display: flex !important;
+  }
+
+  .nav-actions {
+    display: flex !important;
   }
 }
 
