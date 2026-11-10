@@ -7,11 +7,11 @@ import { siteConfig } from "@/lib/site-config";
  * offered on request, so the button writes to the enquiries address rather than opening the booking form. After the client's
  * feedback of 10 Nov 2026 the title sits above, styled like the services section, and the photo (AI-generated, showing a
  * close protection officer rather than a driver) sits beside the text. The photo became a daylight scene on an
- * Amsterdam canal (the client's reference, 10 Nov 2026); protection-v4.jpg shows a black Mercedes-Benz with an
- * Ecram Execs plate.
+ * Amsterdam canal (the client's reference, 10 Nov 2026); protection-v5.jpg (11 Nov 2026) puts the black Mercedes-Benz on a sunny,
+ * tree-lined canal, with a white plate carrying the Ecram Execs logo (laid onto the photo from logo.png).
  */
-const IMAGE_WIDTH = 1024;
-const IMAGE_HEIGHT = 1024;
+const IMAGE_WIDTH = 1600;
+const IMAGE_HEIGHT = 1600;
 export async function Protection() {
   const d = await getDict();
   const p = d.protectionSection;
@@ -41,7 +41,7 @@ export async function Protection() {
         <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="reveal relative min-w-0 overflow-hidden lg:order-2 lg:min-h-[420px]">
             <Image
-              src="/assets/protection-v4.jpg"
+              src="/assets/protection-v5.jpg"
               alt={p.imageAlt}
               width={IMAGE_WIDTH}
               height={IMAGE_HEIGHT}
