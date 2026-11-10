@@ -7,10 +7,11 @@ import { siteConfig } from "@/lib/site-config";
  * offered on request, so the button writes to the enquiries address rather than opening the booking form. After the client's
  * feedback of 10 Nov 2026 the title sits above, styled like the services section, and the photo (AI-generated, showing a
  * close protection officer rather than a driver) sits beside the text. The photo became a daylight scene on an
- * Amsterdam canal with the fleet's Cadillac Escalade IQ on a Dutch plate (the client's reference, 10 Nov 2026).
+ * Amsterdam canal (the client's reference, 10 Nov 2026); protection-v4.jpg shows a black Mercedes-Benz with an
+ * Ecram Execs plate.
  */
-const IMAGE_WIDTH = 1600;
-const IMAGE_HEIGHT = 1600;
+const IMAGE_WIDTH = 1024;
+const IMAGE_HEIGHT = 1024;
 export async function Protection() {
   const d = await getDict();
   const p = d.protectionSection;
