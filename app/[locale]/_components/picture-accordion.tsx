@@ -53,7 +53,7 @@ export function PictureAccordion({ items, variant, anchorPrefix }: { items: Pict
   const id = useId();
   const buttons = useRef(new Map<string, HTMLButtonElement>());
 
-  // With an anchor prefix each card can be linked to (#service-airport): the link scrolls to the card, and the card opens
+  // With an anchor prefix each card can be linked to (#service-business): the link scrolls to the card, and the card opens
   useEffect(() => {
     if (!anchorPrefix) return;
     const keyOf = (hash: string) => {

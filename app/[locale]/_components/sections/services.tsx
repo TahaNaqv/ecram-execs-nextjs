@@ -6,11 +6,14 @@ export async function Services() {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const s = d.servicesSection;
   // Each service is a picture card that unfolds into its details. They book through the form; Corporate Accounts leads to the
-  // Corporate Partner page instead. The pictures are stills from the client's showreel, 2000px wide (public/assets/service-*-v4/v5.jpg).
+  // Corporate Partner page instead. The pictures are 2000px wide (public/assets/service-*.jpg): stills from the client's showreel, and AI-generated
+  // photographs for Business Travel (the arrival) and Close Protection.
   const quote = { label: d.common.requestQuote, href: "#enquire" };
   const items: PictureItem[] = [
-    { key: "airport", numeral: "I", title: s.airportTitle, text: s.airportText, points: [s.airportP1, s.airportP2, s.airportP3], image: "/assets/service-airport-v6.jpg", focus: "50% 50%", brightness: 1.15, cta: quote },
-    { key: "business", numeral: "II", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-business-v5.jpg", focus: "62% 42%", brightness: 1.15, cta: quote },
+    // The first two cards follow the client's notes of 11 Nov 2026: Airport Transfers became Business Travel (keeping the arrival
+    // photograph), and Close Protection took the second place, its button leading to the close protection section (V) below.
+    { key: "business", numeral: "I", title: s.businessTitle, text: s.businessText, points: [s.businessP1, s.businessP2, s.businessP3], image: "/assets/service-airport-v6.jpg", focus: "50% 50%", brightness: 1.15, cta: quote },
+    { key: "protection", numeral: "II", title: s.protectionTitle, text: s.protectionText, points: [s.protectionP1, s.protectionP2, s.protectionP3], image: "/assets/service-protection-v1.jpg", focus: "62% 45%", brightness: 1.15, cta: { label: s.protectionCta, href: "#protection" } },
     { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate-v5.jpg", focus: "62% 40%", brightness: 1.15, cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
     { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private-v5.jpg", focus: "52% 62%", brightness: 1.15, cta: quote },
     { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels-v5.jpg", focus: "60% 55%", brightness: 1.15, cta: quote },

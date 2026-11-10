@@ -65,7 +65,7 @@ test("the concierge answers a typed question, hands an unknown one to WhatsApp, 
 test("a starter topic is sent into the chat as the visitor's own message and answered, and the topics then leave", async ({ page }) => {
   await page.goto("/en");
   const log = page.getByRole("log");
-  // (inside the chat: a Services card is also called "Airport Transfers")
+  // (inside the chat, so a link elsewhere with the same name cannot be picked)
   const chip = log.getByRole("button", { name: en.conciergeSection.chipAirport });
   await chip.click();
   await expect(log).toContainText("Can you explain your airport transfer services", { timeout: 8000 });

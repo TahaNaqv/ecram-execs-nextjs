@@ -13,13 +13,13 @@ test("each footer service link has a place of its own, and opens its card", asyn
   const footer = page.locator("footer");
   const services = footer.getByRole("navigation", { name: "SERVICES" });
   const hrefs = await services.getByRole("link").evaluateAll((links) => links.map((l) => l.getAttribute("href")));
-  // Airport, business, corporate, private, bespoke and the reservation link: six links, six different places
-  expect(hrefs).toEqual(["/en#service-airport", "/en#service-business", "/en#corporate", "/en#service-private", "/en#service-bespoke", "/en#enquire"]);
+  // Business, close protection, corporate, private, bespoke and the reservation link: six links, six different places
+  expect(hrefs).toEqual(["/en#service-business", "/en#service-protection", "/en#corporate", "/en#service-private", "/en#service-bespoke", "/en#enquire"]);
   expect(new Set(hrefs).size).toBe(hrefs.length);
 
   for (const [name, key] of [
-    ["Airport Transfers", "airport"],
     ["Business Travel", "business"],
+    ["Close Protection", "protection"],
     ["Private Occasions", "private"],
     ["Bespoke Journeys", "bespoke"],
   ] as const) {
@@ -151,8 +151,8 @@ test("pressed with a finger or the keyboard, a quick run of presses still lands 
 test("a link opened in a new tab does not unfold its card in this one", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/en");
-  const link = page.locator("footer").getByRole("link", { name: "Airport Transfers", exact: true });
+  const link = page.locator("footer").getByRole("link", { name: "Close Protection", exact: true });
   await link.click({ modifiers: ["Control"] });
   await page.waitForTimeout(300);
-  await expect(card(page, "airport").getByRole("button").first()).toHaveAttribute("aria-expanded", "false");
+  await expect(card(page, "protection").getByRole("button").first()).toHaveAttribute("aria-expanded", "false");
 });

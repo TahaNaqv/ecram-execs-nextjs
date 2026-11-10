@@ -33,11 +33,11 @@ export async function SiteFooter() {
               <span className="text-ink-450 text-[11px] tracking-[0.24em]">
                 {d.footer.servicesLabel}
               </span>
-              <Link className="navlink no-underline" href={`${home}#service-airport`}>
-                {d.footer.linkAirport}
-              </Link>
               <Link className="navlink no-underline" href={`${home}#service-business`}>
                 {d.footer.linkBusiness}
+              </Link>
+              <Link className="navlink no-underline" href={`${home}#service-protection`}>
+                {d.footer.linkProtection}
               </Link>
               <Link className="navlink no-underline" href={`${home}#corporate`}>
                 {d.footer.linkCorporate}

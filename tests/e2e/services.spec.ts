@@ -6,7 +6,7 @@ import { CONSENTED_STATE } from "./helpers";
 // The Services section: a picture and a title per service, which unfolds into its details when pressed. (It replaces the plain
 // text cards of the first QA round, whose same-hash scroll bug, W12, is covered here through the booking button inside.)
 const s = en.servicesSection;
-const TITLES = [s.airportTitle, s.businessTitle, s.corporateTitle, s.privateTitle, s.hotelsTitle, s.bespokeTitle];
+const TITLES = [s.businessTitle, s.protectionTitle, s.corporateTitle, s.privateTitle, s.hotelsTitle, s.bespokeTitle];
 
 const section = (page: Page) => page.locator("#services");
 const trigger = (page: Page, title: string) => section(page).getByRole("button", { name: title, exact: true });
@@ -40,13 +40,13 @@ test("every service shows its own picture and title, with the details folded awa
 
 test("pressing a service unfolds its details with an animation, and pressing again, another service or Escape folds it", async ({ page }) => {
   await toServices(page);
-  const airport = trigger(page, s.airportTitle);
-  const region = details(page, s.airportTitle);
+  const first = trigger(page, s.businessTitle);
+  const region = details(page, s.businessTitle);
   const height = () => region.evaluate((el) => el.getBoundingClientRect().height);
   expect(await height()).toBe(0);
 
-  await airport.click();
-  await expect(airport).toHaveAttribute("aria-expanded", "true");
+  await first.click();
+  await expect(first).toHaveAttribute("aria-expanded", "true");
   // It is animated: a transition on the row height is running (not timing samples, which a slow machine would miss), and the
   // height then settles at the details' own height
   await expect
@@ -55,28 +55,29 @@ test("pressing a service unfolds its details with an animation, and pressing aga
   await expect.poll(height, { timeout: 5000 }).toBeGreaterThan(150);
 
   // The details are there to read, with a way to book
-  await expect(region).toContainText(s.airportText);
-  for (const point of [s.airportP1, s.airportP2, s.airportP3]) await expect(region).toContainText(point);
+  await expect(region).toContainText(s.businessText);
+  for (const point of [s.businessP1, s.businessP2, s.businessP3]) await expect(region).toContainText(point);
   await expect(region.getByRole("link", { name: en.common.requestQuote })).toBeVisible();
 
-  // Pressing another opens that one and folds this one: one at a time
-  const business = trigger(page, s.businessTitle);
-  await business.click();
-  await expect(business).toHaveAttribute("aria-expanded", "true");
-  await expect(airport).toHaveAttribute("aria-expanded", "false");
+  // Pressing another opens that one and folds this one: one at a time. Close Protection's button leads to its own section
+  const protection = trigger(page, s.protectionTitle);
+  await protection.click();
+  await expect(protection).toHaveAttribute("aria-expanded", "true");
+  await expect(first).toHaveAttribute("aria-expanded", "false");
   await expect.poll(height, { timeout: 5000 }).toBe(0);
+  await expect(details(page, s.protectionTitle).getByRole("link", { name: s.protectionCta })).toHaveAttribute("href", "#protection");
 
   // Escape folds it and puts the focus back on its title
   await page.keyboard.press("Escape");
-  await expect(business).toHaveAttribute("aria-expanded", "false");
-  await expect(business).toBeFocused();
+  await expect(protection).toHaveAttribute("aria-expanded", "false");
+  await expect(protection).toBeFocused();
 
   // Pressing the same one again folds it as well; Enter works from the keyboard
-  await airport.focus();
+  await first.focus();
   await page.keyboard.press("Enter");
-  await expect(airport).toHaveAttribute("aria-expanded", "true");
+  await expect(first).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Enter");
-  await expect(airport).toHaveAttribute("aria-expanded", "false");
+  await expect(first).toHaveAttribute("aria-expanded", "false");
 });
 
 test("the booking button inside a service scrolls to the form every time, and Corporate Accounts leads to the Corporate Partner page", async ({ page }) => {
