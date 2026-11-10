@@ -6,10 +6,11 @@ import { siteConfig } from "@/lib/site-config";
  * V — Security & Close Protection, between the services and the statement (the client, 9 Nov 2026; their text). It is
  * offered on request, so the button writes to the enquiries address rather than opening the booking form. After the client's
  * feedback of 10 Nov 2026 the title sits above, styled like the services section, and the photo (AI-generated, showing a
- * close protection officer rather than a driver) sits beside the text.
+ * close protection officer rather than a driver) sits beside the text. The photo became a daylight scene on an
+ * Amsterdam canal with the fleet's Cadillac Escalade IQ on a Dutch plate (the client's reference, 10 Nov 2026).
  */
 const IMAGE_WIDTH = 1600;
-const IMAGE_HEIGHT = 1279;
+const IMAGE_HEIGHT = 1600;
 export async function Protection() {
   const d = await getDict();
   const p = d.protectionSection;
@@ -39,12 +40,12 @@ export async function Protection() {
         <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="reveal relative min-w-0 overflow-hidden lg:order-2 lg:min-h-[420px]">
             <Image
-              src="/assets/protection-v2.jpg"
+              src="/assets/protection-v3.jpg"
               alt={p.imageAlt}
               width={IMAGE_WIDTH}
               height={IMAGE_HEIGHT}
               sizes="(min-width: 1024px) 50vw, 100vw"
-              className="block aspect-[4/3] h-auto w-full object-cover object-[50%_40%] lg:absolute lg:inset-0 lg:h-full lg:w-full lg:object-[60%_50%]"
+              className="block aspect-[4/3] h-auto w-full object-cover object-[50%_70%] lg:absolute lg:inset-0 lg:h-full lg:w-full lg:object-[40%_50%]"
             />
           </div>
           <div className="flex min-w-0 flex-col gap-6 lg:order-1">

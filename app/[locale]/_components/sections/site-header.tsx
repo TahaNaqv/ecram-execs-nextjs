@@ -27,7 +27,8 @@ export async function SiteHeader() {
           <span></span>
           <span></span>
         </label>
-        <nav className="primary-nav gap-3 lg:gap-3.5 xl:gap-5 flex flex-wrap text-[13px] lg:text-[13px] xl:text-[14px] tracking-[0.02em] shrink" id="primary-nav" aria-label={d.nav.primaryLabel}>
+        {/* Six links since Close Protection joined (10 Nov 2026): the tighter size runs up to 2xl so the bar still fits on one row at 1280px */}
+        <nav className="primary-nav gap-3 lg:gap-3.5 2xl:gap-5 flex flex-wrap text-[13px] 2xl:text-[14px] tracking-[0.02em] shrink" id="primary-nav" aria-label={d.nav.primaryLabel}>
           <a className="navlink" href="#corporate">
             {d.nav.corporate}
           </a>
@@ -39,6 +40,9 @@ export async function SiteHeader() {
           </a>
           <a className="navlink" href="#services">
             {d.nav.services}
+          </a>
+          <a className="navlink" href="#protection">
+            {d.nav.protection}
           </a>
           <a className="navlink" href="#concierge">
             {d.nav.concierge}

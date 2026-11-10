@@ -292,6 +292,7 @@
     "menu": "Menu",
     "openMenu": "Open menu",
     "services": "Services",
+    "protection": "Close Protection",
     "experience": "The Experience",
     "fleet": "Fleet",
     "destinations": "Destinations",
@@ -361,7 +362,7 @@
     "cta": "Enquire about protection",
     "note": "Tell us about your plans and we will reply with a proposal.",
     "mailSubject": "Close protection enquiry",
-    "imageAlt": "An executive walking to his car on a city street at dusk, with a close protection officer at his side while the chauffeur holds the door"
+    "imageAlt": "An executive walking along an Amsterdam canal in daylight between two close protection officers, towards a black Cadillac Escalade IQ"
   },
   "experienceSection": {
     "eyebrow": "II — THE EXPERIENCE",
