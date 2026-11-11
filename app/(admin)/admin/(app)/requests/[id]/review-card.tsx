@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { publishBookingStatus } from "../../../_components/booking-status";
+import { refreshOnce } from "../../../_components/refresh-once";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
@@ -46,7 +47,7 @@ export function ReviewCard({ requestId, status, copy: t }: { requestId: string; 
       } else {
         setApproved(true);
         publishBookingStatus(requestId, "confirmed");
-        router.refresh();
+        refreshOnce(router);
       }
     } catch {
       setError(t.failed);

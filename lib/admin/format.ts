@@ -15,8 +15,9 @@ const TAGS: Record<Locale, string> = { en: "en-GB", nl: "nl-NL" };
 
 /** pickup_at is stored as Netherlands wall-clock time ("2026-11-12 08:30:00"). */
 export function formatPickup(value: string, locale: Locale = "en") {
-  const [d, t] = value.replace("T", " ").split(" ");
+  const [d, t = ""] = value.replace("T", " ").split(" ");
   const [y, m, day] = d.split("-").map(Number);
+  if (!y || !m || !day || !t) return value;
   const date = new Date(Date.UTC(y, m - 1, day)).toLocaleDateString(TAGS[locale], {
     weekday: "short",
     day: "numeric",
@@ -27,8 +28,10 @@ export function formatPickup(value: string, locale: Locale = "en") {
   return `${date} · ${t.slice(0, 5)}`;
 }
 
-export function formatTimestamp(value: Date, locale: Locale = "en") {
-  return value.toLocaleString(TAGS[locale], {
+export function formatTimestamp(value: Date | string | null | undefined, locale: Locale = "en") {
+  const date = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString(TAGS[locale], {
     timeZone: TZ,
     day: "numeric",
     month: "short",
@@ -84,8 +87,10 @@ export const STATUS_DOT: Record<RequestStatus, string> = {
 };
 
 /** Compact "3h ago" / "in 2 days" relative to now. */
-export function formatRelative(target: Date, now = Date.now(), locale: Locale = "en") {
-  const diff = target.getTime() - now;
+export function formatRelative(target: Date | string | null | undefined, now = Date.now(), locale: Locale = "en") {
+  const date = target instanceof Date ? target : target ? new Date(target) : null;
+  if (!date || Number.isNaN(date.getTime())) return "—";
+  const diff = date.getTime() - now;
   const abs = Math.abs(diff);
   const rtf = new Intl.RelativeTimeFormat(TAGS[locale], { numeric: "auto", style: "short" });
   const units: [Intl.RelativeTimeFormatUnit, number][] = [

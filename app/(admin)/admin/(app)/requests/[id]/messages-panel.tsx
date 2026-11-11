@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { refreshOnce } from "../../../_components/refresh-once";
 import { markMessagesSeen, replyToCustomer, type ReplyState } from "./portal-actions";
 
 export type ThreadMessage = {
@@ -51,43 +52,48 @@ export function MessagesPanel({
 }) {
   const router = useRouter();
   const [pendingBody, setPendingBody] = useState<string | null>(null);
-  const fingerprint = `${messages[0]?.id ?? ""}:${messages.length}:${unread}`;
+  const [seenLocally, setSeenLocally] = useState(false);
+  const latestId = messages[0]?.id ?? null;
+  const fingerprint = `${latestId ?? ""}:${messages.length}:${unread}`;
 
   useEffect(() => {
     setPendingBody(null);
+    setSeenLocally(false);
   }, [fingerprint]);
 
-  // Mark customer messages read as soon as this thread is on screen.
+  // Mark customer messages read as soon as this thread is on screen. This does not refresh the page:
+  // a refresh here restarts the Suspense stream, and the new render still looked unread until it landed.
   useEffect(() => {
     if (unread <= 0) return;
-    void markMessagesSeen(requestId);
+    let cancel = false;
+    void markMessagesSeen(requestId).then(() => {
+      if (!cancel) setSeenLocally(true);
+    });
+    return () => {
+      cancel = true;
+    };
   }, [requestId, unread]);
 
-  // Refresh only when the conversation actually moved (or unread count changed).
+  // Refresh only when a new message exists. An unread-count change is this tab marking the thread read.
   useEffect(() => {
     let stopped = false;
-    const latestId = messages[0]?.id ?? null;
     const ask = async () => {
       if (document.visibilityState === "hidden" || stopped) return;
       try {
         const res = await fetch(`/api/admin/requests/${requestId}/messages/state`, { cache: "no-store" });
         if (!res.ok || stopped) return;
-        const now = (await res.json()) as { latestId: string | null; unseenCount: number };
-        if (now.latestId !== latestId || now.unseenCount !== unread) router.refresh();
+        const now = (await res.json()) as { latestId?: string | null };
+        if (typeof now.latestId === "string" && now.latestId !== latestId) refreshOnce(router);
       } catch {
         /* network blip — next tick retries */
       }
     };
     const timer = window.setInterval(ask, POLL_MS);
-    document.addEventListener("visibilitychange", ask);
-    window.addEventListener("focus", ask);
     return () => {
       stopped = true;
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", ask);
-      window.removeEventListener("focus", ask);
     };
-  }, [requestId, messages, unread, router]);
+  }, [requestId, latestId, router]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -116,7 +122,7 @@ export function MessagesPanel({
                     </strong>
                     {m.kind === "change" && <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-900">{t.tagChange}</span>}
                     {m.kind === "cancel" && <span className="rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-800">{t.tagCancel}</span>}
-                    {partner && !m.seen && <span className="rounded bg-zinc-950 px-1.5 py-0.5 font-medium text-white">{t.unseen}</span>}
+                    {partner && !m.seen && !seenLocally && <span className="rounded bg-zinc-950 px-1.5 py-0.5 font-medium text-white">{t.unseen}</span>}
                     <span>{m.at}</span>
                   </p>
                   <p className="mt-1.5 mb-0 whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">{m.body}</p>
@@ -143,7 +149,6 @@ export function ReplyForm({
   copy: Pick<Copy, "replyLabel" | "replyPlaceholder" | "send" | "sending" | "sent">;
   onOptimistic?: (body: string | null) => void;
 }) {
-  const router = useRouter();
   const [state, action, pending] = useActionState<ReplyState, FormData>(replyToCustomer, {});
   const form = useRef<HTMLFormElement>(null);
   const sentToken = useRef(0);
@@ -157,8 +162,8 @@ export function ReplyForm({
     sentToken.current += 1;
     form.current?.reset();
     onOptimistic?.(null);
-    router.refresh();
-  }, [state, router, onOptimistic]);
+    // replyToCustomer already calls refresh(). A second refresh from the browser aborts that stream.
+  }, [state, onOptimistic]);
 
   return (
     <form

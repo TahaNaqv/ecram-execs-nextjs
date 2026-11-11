@@ -266,14 +266,17 @@ export function priceNet(p: Price): number {
 }
 
 /** The price's VAT by rate, as an invoice shows it: 9% on the rides (and flowers), 21% on the service fee and the other add-ons. */
+const extraLines = (p: { extras?: unknown } | null | undefined): { vatRate?: number; vat?: unknown }[] =>
+  (Array.isArray(p?.extras) ? p.extras : []).filter((line): line is { vatRate?: number; vat?: unknown } => !!line && typeof line === "object");
+
 export function vatByRate(p: Price): { low: number; high: number } {
   // Flowers are the add-on at the low rate; every other add-on's VAT is counted with the service fee's, so none is left out
-  const low = (p.extras ?? []).filter((line) => line.vatRate === VAT_RATE).reduce((sum, line) => sum + line.vat, 0);
-  return { low: p.vat + low, high: (p.feeVat ?? 0) + (p.extrasVat ?? 0) - low };
+  const low = extraLines(p).filter((line) => line.vatRate === VAT_RATE).reduce((sum, line) => sum + (centsOf(line.vat) ?? 0), 0);
+  return { low: (centsOf(p?.vat) ?? 0) + low, high: (centsOf(p?.feeVat) ?? 0) + (centsOf(p?.extrasVat) ?? 0) - low };
 }
 
 /** Whether any add-on carries the high rate, so the 21% line is not the service fee's alone. */
-export const hasHighRateExtras = (p: Price) => (p.extras ?? []).some((line) => line.vatRate === SERVICE_FEE_VAT_RATE);
+export const hasHighRateExtras = (p: Price) => extraLines(p).some((line) => line.vatRate === SERVICE_FEE_VAT_RATE);
 
 /** Whole euro cents from a stored amount. JSON sometimes returns the cents as a numeric string; both are the same number. */
 export function centsOf(value: unknown): number | null {
@@ -313,10 +316,13 @@ export function bookingTotalEuros(request: {
 }
 
 /** A line's own day and hours, or its leg's on a price stored before lines carried them. */
-export const lineDay = (leg: PriceLeg, line: PriceLine): { day: DayKind; hours: number } => ({ day: line.day ?? leg.day, hours: line.hours ?? leg.hours });
+export const lineDay = (leg: PriceLeg, line: PriceLine): { day: DayKind; hours: number } => ({
+  day: line?.day ?? leg?.day ?? "weekday",
+  hours: line?.hours ?? leg?.hours ?? 0,
+});
 
 /** Whether a leg is billed at more than one day's rate. */
-export const legSpansDays = (leg: PriceLeg) => new Set(leg.lines.map((l) => lineDay(leg, l).day)).size > 1;
+export const legSpansDays = (leg: PriceLeg) => new Set((Array.isArray(leg?.lines) ? leg.lines : []).map((l) => lineDay(leg, l).day)).size > 1;
 
 /**
  * Dutch euros for every amount a person reads: `€ 316,61`.

@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { formatTimestamp } from "@/lib/admin/format";
 import { listRequestMessages } from "@/lib/admin/portal";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -11,7 +12,30 @@ import { MessagesPanel } from "./messages-panel";
  * booking's private page (`guest`). What the customer wrote is shown as plain text, never as markup.
  */
 export async function MessagesCard({ requestId, guest }: { requestId: string; guest: boolean }) {
-  const [messages, { admin }] = await Promise.all([listRequestMessages(requestId), adminDictionary()]);
+  let messages: Awaited<ReturnType<typeof listRequestMessages>>;
+  let admin: Awaited<ReturnType<typeof adminDictionary>>["admin"];
+  try {
+    const [rows, dictionary] = await Promise.all([listRequestMessages(requestId), adminDictionary()]);
+    messages = rows;
+    admin = dictionary.admin;
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[admin messages]", error);
+    let title = "Messages";
+    let note = "Messages could not be loaded.";
+    try {
+      const dictionary = await adminDictionary();
+      title = dictionary.admin.messages.title;
+      note = dictionary.admin.messages.loadError;
+    } catch (dictionaryError) {
+      unstable_rethrow(dictionaryError);
+    }
+    return (
+      <Card className="flex min-h-0 flex-col overflow-hidden">
+        <CardHeader title={title} description={note} icon={<ChatIcon />} />
+      </Card>
+    );
+  }
   const t = admin.messages;
   const unread = messages.filter((m) => m.authorKind !== "team" && !m.seen).length;
   const thread = messages.map((m) => ({
@@ -25,7 +49,7 @@ export async function MessagesCard({ requestId, guest }: { requestId: string; gu
   }));
 
   return (
-    <Card className="flex h-[420px] max-h-[420px] min-h-0 flex-col overflow-hidden">
+    <Card className="flex h-[378px] max-h-[378px] min-h-0 flex-col overflow-hidden">
       <CardHeader
         title={t.title}
         description={t.note}

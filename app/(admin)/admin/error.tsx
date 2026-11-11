@@ -17,7 +17,7 @@ const COPY = {
   back: "All requests · Alle aanvragen",
 };
 
-export default function AdminError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+export default function AdminError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -34,7 +34,7 @@ export default function AdminError({ error, retry }: { error: Error & { digest?:
         </p>
         {error.digest && <p className="mt-3 font-mono text-xs text-zinc-400">Ref: {error.digest}</p>}
         <div className="mt-6 flex justify-center gap-2">
-          <button onClick={() => retry()} className={`${btn.base} ${btn.primary} ${btn.md}`}>
+          <button onClick={() => reset()} className={`${btn.base} ${btn.primary} ${btn.md}`}>
             <RefreshIcon /> {COPY.retry}
           </button>
           <Link href="/admin/requests" className={`${btn.base} ${btn.secondary} ${btn.md}`}>

@@ -100,8 +100,8 @@ export const eventLabels = (events: Omit<EventLabels, "statuses">, statuses: Rec
 });
 
 /** "audi:2|range_rover:1" as "2 × Audi e-tron GT, 1 × Range Rover EV". */
-const carsLine = (value: string) =>
-  value
+const carsLine = (value: unknown) =>
+  (typeof value === "string" ? value : "")
     .split("|")
     .filter(Boolean)
     .map((part) => {
@@ -110,8 +110,8 @@ const carsLine = (value: string) =>
     })
     .join(", ");
 
-const fill = (template: string, values: Record<string, string>) =>
-  template.replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
+const fill = (template: string | undefined, values: Record<string, string>) =>
+  (template ?? "").replace(/\{(\w+)\}/g, (token, key: string) => values[key] ?? token);
 
 /**
  * One history line, in the reader's language.
@@ -139,7 +139,8 @@ export function renderEvent(
   if (event === "car_clash") return fill(labels.carClash, { reference: params?.clashWith ?? "" });
 
   if (event === "changes") {
-    const parts = (params?.changes ?? []).map((change) => {
+    const parts = (Array.isArray(params?.changes) ? params.changes : []).map((change) => {
+      if (!change || typeof change !== "object") return labels.notesUpdated;
       if (change.kind === "status") {
         return fill(labels.statusChanged, {
           from: labels.statuses[change.from] ?? change.from,
