@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { FLEET, normalizeVehicleKey, type FleetVehicle } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { dayKind, formatCents, hourlyRate } from "@/lib/pricing/rates";
+import { formatCents, hourlyRate, hoursByDay, MIN_HOURS, type DayKind } from "@/lib/pricing/rates";
 import { VehicleDetails, type FleetDictionary } from "./booking/vehicle-details";
 
 /** The words the carousel needs: the chat's own, and the booking form's for the car step (the section hands them over). */
@@ -19,8 +19,13 @@ export type CarsCopy = {
   noPreference: string;
   /** "Up to {seats}" */
   seatsUpTo: string;
-  /** "{price} / hour" for the pick-up day. Omitted when the day is not known yet. */
+  /** "{price} / hour". The weekday public rate when the pick-up day is not known yet. */
   rate?: string;
+  /** "{price} / hour · {day}" when the booking crosses midnight into another rate. */
+  rateDay?: string;
+  weekday?: string;
+  saturday?: string;
+  sunday?: string;
   /** "Photos and details of the {car}" */
   details: string;
   close: string;
@@ -37,7 +42,7 @@ const Chevron = ({ direction }: { direction: "left" | "right" }) => (
  * each car its seats, a button to choose it and one for its photos and answers (the dialog the booking flow uses). The last
  * slide is "no preference". Choosing is the visitor's own act; the chat turns it into their message and into the booking draft.
  */
-export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale, at }: {
+export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale, at, hours }: {
   /** The cars on offer (the server leaves out the ones the team has switched off) */
   keys: string[];
   /** The car chosen so far: a fleet key, or "advise" for no preference */
@@ -48,6 +53,8 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale,
   locale: Locale;
   /** Pick-up, Dutch wall clock, so each car can show that day's hourly rate */
   at?: string;
+  /** Booked hours. A transfer uses the two-hour minimum until its drive is timed. */
+  hours?: number;
 }) {
   const cars = keys.map((k) => FLEET.find((f) => f.key === normalizeVehicleKey(k))).filter((v): v is FleetVehicle => Boolean(v));
   const slides = cars.length + 1;
@@ -75,11 +82,22 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale,
   };
 
   const arrow = "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full border border-ink-600 bg-ink-850 text-ink-200 transition-colors hover:border-ink-400 hover:text-white disabled:cursor-default disabled:opacity-30";
-  const day = at ? dayKind(at) : null;
+  // The public rate card, as the booking form's car step shows it: the weekday rate until a pick-up is known, then that
+  // day's rate, and both rates when the hours run past midnight into another day.
+  const booked = at ? hoursByDay(at, hours && hours > 0 ? Math.max(hours, MIN_HOURS) : MIN_HOURS) : [];
+  const days: DayKind[] = booked.length > 0 ? [...new Set(booked.map((part) => part.day))] : ["weekday"];
+  const split = days.length > 1;
+  const dayName = (day: DayKind) => (day === "sunday" ? copy.sunday : day === "saturday" ? copy.saturday : copy.weekday);
   const rateText = (key: string) => {
-    if (!day || !copy.rate) return null;
-    const rate = hourlyRate(key, "public", day);
-    return rate === null ? null : interpolate(copy.rate, { price: formatCents(rate, locale) });
+    if (!copy.rate) return null;
+    const parts = days.flatMap((day) => {
+      const rate = hourlyRate(key, "public", day);
+      if (rate === null) return [];
+      const price = formatCents(rate, locale);
+      const named = split && copy.rateDay && dayName(day);
+      return [named ? interpolate(copy.rateDay!, { price, day: dayName(day)! }) : interpolate(copy.rate!, { price })];
+    });
+    return parts.length > 0 ? parts.join(" · ") : null;
   };
 
   return (

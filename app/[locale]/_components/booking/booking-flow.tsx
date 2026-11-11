@@ -8,7 +8,8 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
-import { formatCents, hasHighRateExtras, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, priceNet, type Segment, SERVICE_FEE_CENTS, vatByRate } from "@/lib/pricing/rates";
+import { receiptLineItems } from "@/lib/pricing/receipt-lines";
+import { formatCents, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
@@ -1248,21 +1249,8 @@ export function BookingStatusBadge({ label }: { label: string }) {
  */
 function receiptLines(p: Price | null, serverTotal: number | null, names: string[], t: BookingCopy): { label: string; cents: number }[] {
   if (!p || (serverTotal !== null && serverTotal !== p.total)) return [];
-  const vat = vatByRate(p);
   // A receipt kept from an older page may lack the add-on lines: show no breakdown rather than one that does not add up
-  const extrasNet = (p.extras ?? []).reduce((sum, line) => sum + line.amount, 0);
-  if (p.rides + extrasNet + p.fee !== priceNet(p) || priceNet(p) + vat.low + vat.high !== p.total) return [];
-  // The kilometres beyond the allowance (the 2027 card) on a line of their own, so the hours line reads as the hours
-  const km = p.legs.reduce((sum, leg) => sum + (leg.km?.lines ?? []).reduce((n, line) => n + line.amount, 0), 0);
-  return [
-    { label: t.receiptRides, cents: p.rides - km },
-    ...(km > 0 ? [{ label: t.receiptKm, cents: km }] : []),
-    ...(p.extras ?? []).map((line, i) => ({ label: `${line.count} × ${names[i] ?? line.key}`, cents: line.amount })),
-    { label: t.priceServiceFee, cents: p.fee },
-    { label: t.receiptNet, cents: priceNet(p) },
-    { label: t.priceVat, cents: vat.low },
-    ...(vat.high ? [{ label: hasHighRateExtras(p) ? t.priceVatHigh : t.priceFeeVat, cents: vat.high }] : []),
-  ];
+  return receiptLineItems(p, t, names) ?? [];
 }
 
 /** Small pill button on the side that opens the complete styled booking confirmation receipt modal */
@@ -1401,7 +1389,7 @@ export function DownloadableReceiptCard({
 
               <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#06144a] px-3.5 py-3">
                 <span className="font-serif text-[12px] tracking-wide text-zinc-200 uppercase">{t.priceTotal}</span>
-                <span className="shrink-0 font-serif text-[18px] font-bold text-[#6ee7b7]">{total}</span>
+                <span className="Ecram Execs · Amsterdam, Netherlands ">{total}</span>
               </div>
 
               <p className="m-0 mt-3 text-center text-[11px] text-zinc-400">Ecram Execs · Amsterdam, Netherlands</p>

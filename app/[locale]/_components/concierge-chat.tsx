@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
 import type { Summary } from "@/lib/concierge/booking";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -107,6 +108,11 @@ export type CardCopy = {
   carDetails: string;
   /** "{price} / hour" */
   carRate: string;
+  /** "{price} / hour · {day}" when a booking crosses into another rate-card day */
+  carRateDay: string;
+  rateWeekday: string;
+  rateSaturday: string;
+  rateSunday: string;
   extrasPrice: string;
   extrasAdd: string;
   extrasAdded: string;
@@ -171,7 +177,7 @@ function WhatsAppIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns, privacyHref, keepDays }: { copy: Copy; locale: string; card: CardCopy; fleetDict: FleetDictionary; addOns: ExtraNames; privacyHref: string; keepDays: number }) {
+export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns, privacyHref, keepDays, panelTitle, panelSubtitle }: { copy: Copy; locale: string; card: CardCopy; fleetDict: FleetDictionary; addOns: ExtraNames; privacyHref: string; keepDays: number; panelTitle: string; panelSubtitle: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       from: "agent",
@@ -226,7 +232,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
           setMessages(restored);
           if (saved.draft && typeof saved.draft === "object") setDraft(saved.draft as never);
           if (saved.ready?.summary && Array.isArray(saved.ready.form)) setReady(saved.ready as never);
-          if (isQuote(saved.quote)) setQuote(saved.quote);
+          if (saved.ready?.summary && Array.isArray(saved.ready.form) && isQuote(saved.quote)) setQuote(saved.quote);
         }
       }
     } catch {
@@ -299,10 +305,11 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
       if (data.draft && typeof data.draft === "object") setDraft(data.draft);
       // A reply that never says whether the booking is ready (a network failure) leaves the card where it was.
       if (typeof data.ready === "boolean") {
-        setReady(data.ready && data.summary && Array.isArray(data.form) ? { summary: data.summary, form: data.form } : null);
-        if (!isQuote(data.quote)) setQuote(null);
+        const finished = data.ready && data.summary && Array.isArray(data.form);
+        setReady(finished ? { summary: data.summary, form: data.form } : null);
+        // The receipt arrives with the finished card, and only then
+        setQuote(finished && isQuote(data.quote) ? data.quote : null);
       }
-      if (isQuote(data.quote)) setQuote(data.quote);
       setMessages((prev) => [
         ...prev,
         {
@@ -421,6 +428,28 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
 
   return (
     <div className="flex flex-col flex-1 min-h-[460px] max-h-[560px]">
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-b-ink-600 bg-[linear-gradient(180deg,var(--color-ink-800),var(--color-ink-900))] px-[22px] py-4">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="relative grid size-12 shrink-0 place-items-center rounded-full border border-solid border-ink-400 bg-ink-950">
+            <Image src="/assets/logo-mark.png" alt="" width={48} height={48} className="size-9" />
+            <span className="live absolute bottom-0 left-0 size-3 rounded-full border-2 border-solid border-ink-800 bg-[#25D366]" aria-hidden="true"></span>
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <span className="font-display text-[13px] tracking-[0.3em] text-white">{panelTitle}</span>
+            <span className="text-[12px] text-ink-300">{panelSubtitle}</span>
+          </div>
+        </div>
+        {messages.length > 1 && (
+          <button
+            type="button"
+            onClick={newConversation}
+            disabled={waiting || sending}
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-right text-[12px] text-ink-450 underline underline-offset-4 transition-colors hover:text-white disabled:cursor-default disabled:opacity-40"
+          >
+            {copy.newChat}
+          </button>
+        )}
+      </div>
       {/* Active Conversation Messages Area */}
       <div
         ref={log}
@@ -428,16 +457,6 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
         aria-live="polite"
         className="flex-1 py-5 px-4 gap-4 flex flex-col overflow-y-auto text-[14px] md:px-6"
       >
-        {messages.length > 1 && (
-          <button
-            type="button"
-            onClick={newConversation}
-            disabled={waiting || sending}
-            className="-mb-2 cursor-pointer self-end border-0 bg-transparent p-0 text-[12px] text-ink-450 underline underline-offset-4 transition-colors hover:text-white disabled:cursor-default disabled:opacity-40"
-          >
-            {copy.newChat}
-          </button>
-        )}
         {messages.map((m, i) => {
           const isGuest = m.from === "guest";
           return (
@@ -494,6 +513,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
                     fleetDict={fleetDict}
                     locale={locale as Locale}
                     at={typeof draft.at === "string" ? draft.at : undefined}
+                    hours={typeof draft.hours === "number" ? draft.hours : undefined}
                     copy={{
                       label: cardCopy.stepCar,
                       choose: copy.carChoose,
@@ -504,6 +524,10 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
                       noPreference: cardCopy.noPreference,
                       seatsUpTo: cardCopy.seatsUpTo,
                       rate: cardCopy.carRate,
+                      rateDay: cardCopy.carRateDay,
+                      weekday: cardCopy.rateWeekday,
+                      saturday: cardCopy.rateSaturday,
+                      sunday: cardCopy.rateSunday,
                       details: cardCopy.carDetails,
                       close: fleetDict.galleryClose,
                     }}
@@ -554,7 +578,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
           </div>
         )}
 
-        {/* The booking the visitor can send. The receipt stays off until every detail, including add-ons, is in. */}
+        {/* The receipt is part of the finished booking card, after every detail, including add-ons, is in. */}
         {ready && (
           <section role="group" aria-labelledby="concierge-card-title" className="self-start w-full max-w-[94%] rounded-2xl border border-ink-600 bg-ink-850 p-4 text-[13px] text-ink-150">
             <h3 id="concierge-card-title" className="m-0 font-display text-[12px] uppercase tracking-[0.24em] text-ink-300">

@@ -72,7 +72,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   }
 
   const tripPurpose = String(formData.get("tripPurpose") ?? "");
-  const parsed = quoteSchema(t).safeParse({
+  const parsed = quoteSchema(t, destinations).safeParse({
     ...values,
     passengers: values.passengers || undefined,
     vehicle: values.vehicle || undefined,

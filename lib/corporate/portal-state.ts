@@ -5,5 +5,7 @@ export type PortalState =
   | { status: "idle" }
   | { status: "error"; message: string; fieldErrors: Partial<Record<QuoteField | "message" | "reason", string>>; values: Record<string, string> }
   | { status: "ok"; notice: string }
+  /** The booking was saved. The browser opens its page; the action itself does not redirect. */
+  | { status: "sent"; href: string }
   // The sign-in ended while the form was open
   | { status: "locked"; message: string };

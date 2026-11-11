@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { publishBookingStatus } from "../../../_components/booking-status";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
@@ -23,6 +24,10 @@ export function ReviewCard({ requestId, status, copy: t }: { requestId: string; 
   const [discussing, setDiscussing] = useState(false);
   const [state, action, pending] = useActionState<DiscussState, FormData>(discussBooking, {});
 
+  useEffect(() => {
+    if (state.ok) publishBookingStatus(requestId, "contacted");
+  }, [state.ok, requestId]);
+
   async function approve() {
     setApproving(true);
     setError(null);
@@ -40,6 +45,7 @@ export function ReviewCard({ requestId, status, copy: t }: { requestId: string; 
         setError(t.failed);
       } else {
         setApproved(true);
+        publishBookingStatus(requestId, "confirmed");
         router.refresh();
       }
     } catch {

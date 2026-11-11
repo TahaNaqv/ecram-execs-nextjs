@@ -136,7 +136,7 @@ async function Figures() {
       <StatCard
         label={d.revenueLabel}
         value={formatEuro(revenue.amount)}
-        hint={interpolate(d.revenueHint, { count: revenue.count })}
+        hint={d.revenueHint}
         icon={<EuroIcon />}
       />
     </div>

@@ -10,7 +10,7 @@ export async function Statement() {
         </span>
         <p className="reveal m-0 text-ink-50 font-serif text-[clamp(30px,3.6vw,50px)] font-light leading-[1.22] not-italic">
           {d.statement.before}{" "}
-          <span className="chrome font-normal not-italic">
+          <span className="font-serif  ">
             {d.statement.emphasis}
           </span>
           {" "}{d.statement.after}

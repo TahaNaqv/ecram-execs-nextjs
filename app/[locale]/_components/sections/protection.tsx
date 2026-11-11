@@ -32,7 +32,7 @@ export async function Protection() {
             <h2 className="reveal m-0 text-white font-serif text-[clamp(32px,8.6vw,40px)] font-light leading-[1.08] md:text-[clamp(36px,4vw,56px)]">
               {p.heading}
             </h2>
-            <p className="reveal m-0 text-ink-150 font-serif text-[19px] italic leading-[1.45] md:text-[21px]">{p.lead}</p>
+            <p className="reveal m-0 text-ink-150 font-serif text-[17px]  leading-[1.45] md:text-[21px]">{p.lead}</p>
           </div>
         </div>
         {/* Text on the left, its top level with the photo's, then the four services as short bullets and the button under

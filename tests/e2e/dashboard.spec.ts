@@ -44,7 +44,7 @@ test("signing in lands on the dashboard; the requests list is its own page in th
   await expect(page).toHaveURL(/\/admin\/requests\?status=new/);
 });
 
-test("the four figures follow the vehicles, the day's bookings, the partner accounts and the month's bookings", async ({ page }) => {
+test("the four figures follow the vehicles, the day's confirmed bookings, the partner accounts and every booking that was not cancelled", async ({ page }) => {
   test.slow();
   const db = sql();
   const [vehicles] = await db`select count(*) filter (where status = 'available')::int as available, count(*)::int as total from vehicles`;
@@ -67,12 +67,12 @@ test("the four figures follow the vehicles, the day's bookings, the partner acco
   expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 123, 2);
   expect(await card(page, d.jobsLabel).innerText()).toContain(d.jobsHint);
 
-  // Quoted and completed bookings are not today's pick-ups. Revenue still counts a completed trip.
+  // Quoted and completed bookings are not today's jobs. Total business still counts both, because neither was cancelled.
   await seedBooking({ contactId, email, status: "quoted", pickupAt: `${today()}T23:58`, quotedAmount: "999.00" });
   await seedBooking({ contactId, email, status: "completed", pickupAt: `${today()}T12:00`, quotedAmount: "50.00" });
   await page.reload();
   await expect.poll(async () => Number(await figure(page, d.jobsLabel))).toBe(jobsBefore + 1);
-  expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 173, 2);
+  expect(euros(await figure(page, d.revenueLabel))).toBeCloseTo(revenueBefore + 123 + 999 + 50, 2);
 
   // Confirmed trips stay on Today's routes. Only a new request is listed under New Incoming Requests.
   const incoming = page.locator("section").filter({ has: page.getByRole("heading", { name: d.nextTitle }) });
@@ -80,6 +80,7 @@ test("the four figures follow the vehicles, the day's bookings, the partner acco
   const fresh = await seedBooking({ contactId, email, status: "new", pickupAt: `${today()}T23:50` });
   await page.reload();
   await expect(page.getByRole("heading", { name: d.title })).toBeVisible();
+  await expect.poll(async () => Number(await figure(page, d.jobsLabel))).toBe(jobsBefore + 1);
   await expect(incoming).toContainText(fresh.reference);
   await expect(incoming).not.toContainText(booking.reference);
   await incoming.getByRole("link").filter({ hasText: fresh.reference }).click();
