@@ -44,7 +44,7 @@ export async function updateCars(_prev: CarsState, formData: FormData): Promise<
 
   const [before] = await db.select().from(q).where(eq(q.id, input.data.requestId)).limit(1);
   if (!before || before.status !== input.data.seenStatus) return { error: t.stale };
-  if (before.status !== "new" && before.status !== "contacted") return { error: t.carsLocked };
+  if (before.status !== "new" && before.status !== "contacted" && before.status !== "quoted") return { error: t.carsLocked };
 
   const fleet = allocationFor({ passengers: before.passengers, vehicle: cars[0].key, vehicles: cars });
   // Priced outside the transaction (the drive time may be looked up), at the rates the booking was made at

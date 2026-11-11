@@ -145,7 +145,8 @@ export async function markMessagesSeen(requestId: string) {
     .update(schema.bookingMessages)
     .set({ seenByTeamAt: sql`now()` })
     .where(and(eq(schema.bookingMessages.requestId, requestId), inArray(schema.bookingMessages.authorKind, ["partner", "guest"]), isNull(schema.bookingMessages.seenByTeamAt)));
-  refresh();
+  // No refresh(): the open page already has the thread, and a refresh here restarts its Suspense
+  // stream on every visit that still has an unread message.
 }
 
 // ── Invoices ─────────────────────────────────────────────────────────────────────────────────────────────────

@@ -48,15 +48,17 @@ const euros = (cents: unknown) => {
  */
 function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): { label: string; amount: number }[] {
   if (!price || centsOf(price.total) == null) return [];
+  const legs = Array.isArray(price.legs) ? price.legs : [];
+  const extras = (Array.isArray(price.extras) ? price.extras : []).filter((line) => line && typeof line === "object");
   // The hours, and the kilometres beyond the allowance (the 2027 card): both are the ride
-  const rideCents = (price.legs ?? []).reduce(
-    (sum, leg) => sum + (leg.lines ?? []).reduce((n, line) => n + (centsOf(line.amount) ?? 0), 0) + (leg.km?.lines ?? []).reduce((n, line) => n + (centsOf(line.amount) ?? 0), 0),
+  const rideCents = legs.reduce(
+    (sum, leg) => sum + (Array.isArray(leg?.lines) ? leg.lines : []).reduce((n, line) => n + (centsOf(line?.amount) ?? 0), 0) + (Array.isArray(leg?.km?.lines) ? leg.km.lines : []).reduce((n, line) => n + (centsOf(line?.amount) ?? 0), 0),
     0,
   );
   const vat = vatByRate({ ...price, vat: centsOf(price.vat) ?? 0, feeVat: centsOf(price.feeVat) ?? 0, extrasVat: centsOf(price.extrasVat) ?? 0 });
   const rows = [
     { label: copy.baseFare, amount: rideCents > 0 ? rideCents / 100 : euros(price.rides) },
-    ...(price.extras ?? []).map((line) => ({ label: `${line.count} × ${names ? extraName(names, line) : line.key}`, amount: euros(line.amount) })),
+    ...extras.map((line) => ({ label: `${line.count ?? 0} × ${names ? extraName(names, line) : line.key}`, amount: euros(line.amount) })),
     { label: copy.btw9, amount: vat.low / 100 },
     { label: copy.serviceFee, amount: euros(price.fee) },
   ];
@@ -68,6 +70,7 @@ import { bookingTotalEuros, centsOf, hasHighRateExtras, vatByRate, type Price } 
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { convoyTitle, FLEET, fleetPicks, suggestVehicle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { publishBookingStatus, useBookingStatus } from "./booking-status";
+import { refreshOnce } from "./refresh-once";
 import { 
   ShieldIcon,
   CheckIcon,
@@ -133,9 +136,9 @@ export function AutoPricingGateway({
   // Real data extracted from request
   const collection = request.collection ?? "—";
   const destination = request.destination ?? (request.durationHours ? interpolate(copy.hoursAsDirected, { hours: request.durationHours }) : "—");
-  const stopovers = request.destinations ?? [];
-  const stopWaits = request.destinationWaits ?? [];
-  const pickup = request.pickupAt ? pickupParts(request.pickupAt) : null;
+  const stopovers = Array.isArray(request.destinations) ? request.destinations : [];
+  const stopWaits = Array.isArray(request.destinationWaits) ? request.destinationWaits : [];
+  const pickup = typeof request.pickupAt === "string" && request.pickupAt ? pickupParts(request.pickupAt) : null;
 
   // Notify Client Button: Commits the selected status and dispatches email (including on cancel).
   // The amount is not sent: the server keeps the total stored when the booking was submitted.
@@ -164,12 +167,12 @@ export function AutoPricingGateway({
 
       setStatus(selectedStatus); // Commit status change
       publishBookingStatus(request.id, selectedStatus);
+      refreshOnce(router);
       if (data.warning || data.error) {
         setToast(`Sent with note: Check terminal for Resend logs.`);
       } else {
         setToast(selectedStatus === "cancelled" ? "Cancellation email dispatched!" : "Email Dispatched!");
       }
-      router.refresh();
     } catch (err) {
       console.error("Resend Mail Dispatch Error:", err);
       setToast("Error sending email. Check server terminal logs.");
@@ -599,7 +602,7 @@ export function AutoPricingGateway({
                 <p className="mt-0.5 font-semibold whitespace-normal text-zinc-900">
                   {vehicleName(request)}
                 </p>
-                {(request.vehicleCount ?? 1) > 1 && request.internalNotes?.trim() ? (
+                {(request.vehicleCount ?? 1) > 1 && typeof request.internalNotes === "string" && request.internalNotes.trim() ? (
                   <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>
                 ) : null}
               </div>
@@ -609,7 +612,7 @@ export function AutoPricingGateway({
                   <p className="mt-0.5 font-medium whitespace-normal text-zinc-900">{addOns}</p>
                 </div>
               ) : null}
-              {request.notes?.trim() ? (
+              {typeof request.notes === "string" && request.notes.trim() ? (
                 <div className="col-span-2 border-t border-zinc-100 pt-2">
                   <p className="text-[10px] font-semibold uppercase text-zinc-400">{copy.note}</p>
                   <p className="mt-0.5 max-h-28 overflow-y-auto text-left font-medium break-words whitespace-pre-wrap text-zinc-900 [overflow-wrap:anywhere]">

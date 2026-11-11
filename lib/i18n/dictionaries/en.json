@@ -1019,6 +1019,7 @@
       "noNotes": "No notes from the client.",
       "activity": "Activity",
       "activityNote": "Every change made by the team",
+      "loadError": "This booking could not be loaded. Refresh the page to try again.",
       "noActivity": "No activity yet.",
       "manage": "Manage request",
       "manageNote": "Changes are logged in the activity feed",
@@ -1325,7 +1326,8 @@
       "unseen": "New",
       "unreadBadge": "{count} unread",
       "needsPartner": "Link this request to a partner to exchange messages with them.",
-      "sent": "Reply sent."
+      "sent": "Reply sent.",
+      "loadError": "Messages could not be loaded. The rest of this booking is still here."
     },
     "review": {
       "title": "Review this booking",

@@ -1019,6 +1019,7 @@
       "noNotes": "Geen opmerkingen van de klant.",
       "activity": "Activiteit",
       "activityNote": "Elke wijziging door het team",
+      "loadError": "Deze boeking kon niet worden geladen. Vernieuw de pagina om het opnieuw te proberen.",
       "noActivity": "Nog geen activiteit.",
       "manage": "Aanvraag beheren",
       "manageNote": "Wijzigingen worden vastgelegd in de activiteitenlijst",
@@ -1408,7 +1409,8 @@
       "unseen": "Nieuw",
       "unreadBadge": "{count} ongelezen",
       "needsPartner": "Koppel deze aanvraag aan een partner om berichten uit te wisselen.",
-      "sent": "Reactie verstuurd."
+      "sent": "Reactie verstuurd.",
+      "loadError": "Berichten konden niet worden geladen. De rest van deze boeking staat er nog."
     },
     "review": {
       "title": "Deze boeking beoordelen",
