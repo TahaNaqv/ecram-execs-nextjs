@@ -12,7 +12,7 @@ export type ReceiptPdfInput = {
   vehicle?: string;
   passengers?: string;
   /** The price lines above the total, already formatted; none when the total cannot be split */
-  lines: { label: string; value: string }[];
+  lines: { label: string; value: string; divider?: boolean }[];
   total: string;
 };
 
@@ -119,7 +119,15 @@ export function buildReceiptPdf(input: ReceiptPdfInput): Uint8Array {
     textRight("F2", 11, 547, y, ink, value);
     y -= 22;
   };
-  for (const line of input.lines) money(line.label, line.value);
+  for (const line of input.lines) {
+    // A rule between the 9% and the 21% lines
+    if (line.divider) {
+      y += 6;
+      cmds.push("0.82 0.84 0.88 RG", "0.6 w", `48 ${y} m 547 ${y} l S`);
+      y -= 20;
+    }
+    money(line.label, line.value);
+  }
 
   y -= 14;
   fill(navy, 48, y - 16, 499, 42);

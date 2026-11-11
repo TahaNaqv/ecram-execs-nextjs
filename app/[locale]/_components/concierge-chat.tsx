@@ -69,7 +69,7 @@ type Copy = {
 type ChatQuote = {
   heading: string;
   exact: boolean;
-  lines: { label: string; amount: string }[];
+  lines: { label: string; amount: string; divider?: boolean }[];
   totalLabel: string;
   total: string;
 };
@@ -668,7 +668,7 @@ function FareBreakdown({ quote, titled }: { quote: ChatQuote; titled: boolean })
       {titled && <p className="m-0 text-[11px] font-semibold tracking-[0.18em] text-ink-300 uppercase">{quote.heading}</p>}
       <dl className="m-0 mt-2">
         {quote.lines.map((line, index) => (
-          <div key={`${index}-${line.label}`} className="flex items-baseline justify-between gap-3 py-1">
+          <div key={`${index}-${line.label}`} className={`flex items-baseline justify-between gap-3 py-1 ${line.divider ? "mt-1 border-t border-ink-700 pt-2" : ""}`}>
             <dt className="min-w-0 break-words text-ink-300">{line.label}</dt>
             <dd className="m-0 shrink-0 font-mono text-white tabular-nums">{line.amount}</dd>
           </div>

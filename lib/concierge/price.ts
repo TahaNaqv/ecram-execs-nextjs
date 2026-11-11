@@ -12,7 +12,8 @@ import { formatCents, type Price } from "@/lib/pricing/rates";
 export type ChatQuote = {
   heading: string;
   exact: boolean;
-  lines: { label: string; amount: string }[];
+  /** `divider`: the first of the 21% lines, drawn with a line above it */
+  lines: { label: string; amount: string; divider?: boolean }[];
   totalLabel: string;
   total: string;
 };
@@ -61,7 +62,7 @@ function present(price: Price, booking: Dictionary["booking"], names: ExtraNames
   return {
     heading: booking.reviewPrice,
     exact: price.exact,
-    lines: items.map((line) => ({ label: line.label, amount: formatCents(line.cents, locale) })),
+    lines: items.map((line) => ({ label: line.label, amount: formatCents(line.cents, locale), ...(line.divider ? { divider: true } : {}) })),
     totalLabel: booking.priceTotal,
     total: `${price.exact ? "" : `${booking.priceFromWord} `}${formatCents(price.total, locale)}`,
   };

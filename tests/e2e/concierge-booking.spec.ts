@@ -300,7 +300,7 @@ test("add-ons are asked once the ride and contact details are in, then itemised 
   model.reset();
   model.script.push({ content: [model.toolUse({ extras: picks })] }, { content: [model.say("Please check the card below.")] });
   const booked = (await ask(playwright, baseURL, { message: "One champagne, two dairy-free chocolate boxes, flowers and the newspapers", locale: "en", draft: asked.draft })) as Reply & {
-    quote?: { lines: { label: string; amount: string }[]; totalLabel: string; total: string };
+    quote?: { lines: { label: string; amount: string; divider?: boolean }[]; totalLabel: string; total: string };
   };
   expect(booked.ready).toBe(true);
   const stored: ExtraPick[] = [
@@ -315,16 +315,18 @@ test("add-ons are asked once the ride and contact details are in, then itemised 
   const quote = booked.quote;
   expect(quote?.totalLabel).toBe(en.booking.priceTotal);
   const labels = quote?.lines.map((line) => line.label) ?? [];
-  const extras = [
+  // Grouped by VAT rate (the client, 11 Nov 2026): the flowers with the rides at 9%, a divider, then the rest at 21%
+  const extras9 = [`1 × ${extraName(en.addOns, { key: "flowers" })}`];
+  const extras21 = [
     `1 × ${extraName(en.addOns, { key: "champagne" })}`,
     `2 × ${extraName(en.addOns, { key: "chocolates", option: "dairy_free" })}`,
-    `1 × ${extraName(en.addOns, { key: "flowers" })}`,
     `1 × ${extraName(en.addOns, { key: "newspapers" })}`,
   ];
   // Extra kilometres sit on their own line when the rate card adds them, in the same place as the website receipt
   expect(labels[0]).toBe(en.booking.receiptRides);
   const afterRides = labels[1] === en.booking.receiptKm ? labels.slice(2) : labels.slice(1);
-  expect(afterRides).toEqual([...extras, en.booking.priceServiceFee, en.booking.priceVat, en.booking.priceVatHigh]);
+  expect(afterRides).toEqual([...extras9, en.booking.priceVat, ...extras21, en.booking.priceServiceFee, en.booking.priceVatHigh]);
+  expect(quote?.lines.filter((line) => line.divider).map((line) => line.label)).toEqual([extras21[0]]);
   expect(quote?.lines.find((line) => line.label === en.booking.priceServiceFee)?.amount).toBe(euro(1250));
   expect(quote?.lines.find((line) => line.label.startsWith("2 ×"))?.amount).toBe(euro(EXTRAS.chocolates.unit * 2));
 });

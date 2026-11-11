@@ -38,7 +38,7 @@ import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, vatByRate } from "@/lib/pricing/rates";
+import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 async function BackLink({ fromEnquiries }: { fromEnquiries: boolean }) {
@@ -306,6 +306,9 @@ const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
 const canEditCars = (r: QuoteRequest) => !isBespoke(r) && (r.status === "new" || r.status === "contacted" || r.status === "quoted");
 
 /** The rate card's price stored with the request (lib/pricing/rates.ts): each car's hours × rate, then VAT, the service fee and the total. */
+/** A stored price's add-on lines (an older or odd record may hold something else) */
+const extrasOf = (price: Price) => (Array.isArray(price.extras) ? price.extras : []).filter((e) => e && typeof e === "object");
+
 function RateCardPrice({ price, finalEuros, copy: rd, names }: { price: Price | null; finalEuros: string | null; copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["requestDetail"]; names: ExtraNames }) {
   const euro = (cents: number) => formatEuro(cents / 100);
   const days = { weekday: rd.rateCardWeekday, saturday: rd.rateCardSaturday, sunday: rd.rateCardSunday };
@@ -336,12 +339,18 @@ function RateCardPrice({ price, finalEuros, copy: rd, names }: { price: Price | 
               ))}
             </div>
           ))}
-          {(Array.isArray(price.extras) ? price.extras : []).filter((e) => e && typeof e === "object").map((e) => (
+          {/* Grouped by VAT rate, as the customer sees it: the 9% lines and their VAT, a line, then the 21% lines and theirs */}
+          {extrasOf(price).filter((e) => e.vatRate === VAT_RATE).map((e) => (
             <div key={e.key}>{line(`${e.count} × ${extraName(names, e)} (${Math.round((e.vatRate ?? 0) * 100)}% BTW)`, euro(e.amount))}</div>
           ))}
           {line(rd.rateCardVat, euro(vatByRate(price).low))}
-          {line(rd.rateCardFee, euro(price.fee))}
-          {vatByRate(price).high ? line(hasHighRateExtras(price) ? rd.rateCardVatHigh : rd.rateCardFeeVat, euro(vatByRate(price).high)) : null}
+          <div className="mt-1 border-t border-zinc-100 pt-1">
+            {extrasOf(price).filter((e) => e.vatRate !== VAT_RATE).map((e) => (
+              <div key={e.key}>{line(`${e.count} × ${extraName(names, e)} (${Math.round((e.vatRate ?? 0) * 100)}% BTW)`, euro(e.amount))}</div>
+            ))}
+            {line(rd.rateCardFee, euro(price.fee))}
+            {vatByRate(price).high ? line(hasHighRateExtras(price) ? rd.rateCardVatHigh : rd.rateCardFeeVat, euro(vatByRate(price).high)) : null}
+          </div>
           {line(rd.rateCardTotal, finalEuros != null ? formatEuro(finalEuros) : euro(price.total), true)}
         </div>
       )}

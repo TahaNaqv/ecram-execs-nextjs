@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { carsToPrice } from "@/lib/pricing/booking";
-import { formatCents, hasHighRateExtras, legSpansDays, lineDay, priceBooking, vatByRate, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
+import { formatCents, hasHighRateExtras, legSpansDays, lineDay, priceBooking, VAT_RATE, vatByRate, type DayKind, type Price, type Segment } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
@@ -62,15 +62,33 @@ export function PriceBreakdown({
   if (pending) return <p className="m-0 text-[14px] text-ink-500">{t.pricePending}</p>;
   if (!price) return <p className="m-0 text-[14px] text-ink-700">{t.reviewPriceNote}</p>;
 
-  const row = (key: string, label: ReactNode, value: ReactNode, strong = false) => (
-    <div key={key} className={`flex justify-between gap-4 py-2 text-[14px] ${strong ? "border-0 border-t border-solid border-ink-150 pt-3 text-[16px] font-semibold" : ""}`}>
+  // `divider` opens the 21% group with a line (the total has its own)
+  const row = (key: string, label: ReactNode, value: ReactNode, strong = false, divider = false) => (
+    <div
+      key={key}
+      className={`flex justify-between gap-4 py-2 text-[14px] ${strong ? "border-0 border-t border-solid border-ink-150 pt-3 text-[16px] font-semibold" : divider ? "mt-1 border-0 border-t border-solid border-ink-150 pt-3" : ""}`}
+    >
       <dt className={`min-w-0 ${strong ? "" : "text-ink-600"}`}>{label}</dt>
       <dd className="m-0 shrink-0 text-right tabular-nums">{value}</dd>
     </div>
   );
   const legs = price.legs.length > 1;
-  // VAT as an invoice groups it: flowers with the rides at 9%, the other add-ons with the service fee at 21%
+  // VAT as an invoice groups it, each rate's lines together with a line between them (the client, 11 Nov 2026): the rides
+  // and the flowers, then the 9% VAT; the other add-ons and the service fee, then the 21% VAT
   const vat = vatByRate(price);
+  const extra = (line: NonNullable<Price["extras"]>[number], divider = false) =>
+    row(
+      `extra-${line.key}`,
+      <span className="flex flex-col">
+        <span className="text-ink-950">{extraName(names, line)}</span>
+        <span className="text-[12px]">{`${line.count} × ${euro(line.unit)}`}</span>
+      </span>,
+      euro(line.amount),
+      false,
+      divider,
+    );
+  const lowExtras = (price.extras ?? []).filter((line) => line.vatRate === VAT_RATE);
+  const highExtras = (price.extras ?? []).filter((line) => line.vatRate !== VAT_RATE);
 
   return (
     <div className="flex flex-col gap-3">
@@ -104,18 +122,10 @@ export function PriceBreakdown({
             ),
           ),
         ])}
-        {(price.extras ?? []).map((line) =>
-          row(
-            `extra-${line.key}`,
-            <span className="flex flex-col">
-              <span className="text-ink-950">{extraName(names, line)}</span>
-              <span className="text-[12px]">{`${line.count} × ${euro(line.unit)}`}</span>
-            </span>,
-            euro(line.amount),
-          ),
-        )}
+        {lowExtras.map((line) => extra(line))}
         {row("vat", t.priceVat, euro(vat.low))}
-        {row("fee", t.priceServiceFee, euro(price.fee))}
+        {highExtras.map((line, i) => extra(line, i === 0))}
+        {row("fee", t.priceServiceFee, euro(price.fee), false, highExtras.length === 0)}
         {vat.high ? row("feeVat", hasHighRateExtras(price) ? t.priceVatHigh : t.priceFeeVat, euro(vat.high)) : null}
         {row("total", t.priceTotal, price.exact ? euro(price.total) : interpolate(t.priceFrom, { price: euro(price.total) }), true)}
       </dl>

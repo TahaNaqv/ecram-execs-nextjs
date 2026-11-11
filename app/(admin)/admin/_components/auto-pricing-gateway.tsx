@@ -46,7 +46,9 @@ const euros = (cents: unknown) => {
  * The stored rate-card lines, in euros: the ride, each add-on, the service fee and the VAT by rate (9% on the ride and
  * the flowers, 21% on the service fee and the other add-ons), so they add up to the stored total. Empty without a snapshot.
  */
-function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): { label: string; amount: number }[] {
+/** The fare's lines grouped by VAT rate, as the customer sees them (the client, 11 Nov 2026): the ride and the 9% add-ons
+ * (flowers) with the 9% BTW, then the 21% add-ons and the service fee with the 21% BTW. `divider` opens the 21% group. */
+function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): { label: string; amount: number; divider?: boolean }[] {
   if (!price || centsOf(price.total) == null) return [];
   const legs = Array.isArray(price.legs) ? price.legs : [];
   const extras = (Array.isArray(price.extras) ? price.extras : []).filter((line) => line && typeof line === "object");
@@ -56,17 +58,20 @@ function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): {
     0,
   );
   const vat = vatByRate({ ...price, vat: centsOf(price.vat) ?? 0, feeVat: centsOf(price.feeVat) ?? 0, extrasVat: centsOf(price.extrasVat) ?? 0 });
-  const rows = [
+  const extra = (line: (typeof extras)[number]) => ({ label: `${line.count ?? 0} × ${names ? extraName(names, line) : line.key}`, amount: euros(line.amount) });
+  const high = extras.filter((line) => line.vatRate !== VAT_RATE).map(extra);
+  const rows: { label: string; amount: number; divider?: boolean }[] = [
     { label: copy.baseFare, amount: rideCents > 0 ? rideCents / 100 : euros(price.rides) },
-    ...extras.map((line) => ({ label: `${line.count ?? 0} × ${names ? extraName(names, line) : line.key}`, amount: euros(line.amount) })),
+    ...extras.filter((line) => line.vatRate === VAT_RATE).map(extra),
     { label: copy.btw9, amount: vat.low / 100 },
-    { label: copy.serviceFee, amount: euros(price.fee) },
+    ...high.map((row, i) => (i === 0 ? { ...row, divider: true } : row)),
+    { label: copy.serviceFee, amount: euros(price.fee), ...(high.length ? {} : { divider: true }) },
   ];
   if (vat.high) rows.push({ label: hasHighRateExtras(price) ? copy.serviceFeeAddOnsVat : copy.serviceFeeVat, amount: vat.high / 100 });
   return rows;
 }
 import { formatEuro, formatTimestamp, pickupParts } from "@/lib/admin/format";
-import { bookingTotalEuros, centsOf, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
+import { bookingTotalEuros, centsOf, hasHighRateExtras, VAT_RATE, vatByRate, type Price } from "@/lib/pricing/rates";
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { convoyTitle, FLEET, fleetPicks, suggestVehicle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { publishBookingStatus, useBookingStatus } from "./booking-status";
@@ -211,6 +216,7 @@ export function AutoPricingGateway({
   table { width: 100%; margin-top: 22px; border-collapse: collapse; }
   td { padding: 10px 0; border-bottom: 1px solid #e4e4e7; font-size: 14px; vertical-align: top; }
   td.amt { text-align: right; font-family: ui-monospace, Consolas, monospace; font-weight: 600; white-space: nowrap; }
+  tr.split td { border-top: 1px solid #a1a1aa; }
   tr.total td { border-bottom: 0; border-top: 2px solid #111; padding-top: 14px; font-size: 16px; font-weight: 700; }
   tr.total td.amt { color: #065f46; }
   footer { margin-top: 48px; padding-top: 14px; border-top: 1px solid #e4e4e7; text-align: center; font-size: 11px; color: #71717a; }
@@ -235,7 +241,7 @@ export function AutoPricingGateway({
     </div>
   </div>
   <table>
-    ${fare.map((row) => `<tr><td>${esc(row.label)}</td><td class="amt">${esc(formatEuro(row.amount))}</td></tr>`).join("")}
+    ${fare.map((row) => `<tr${row.divider ? ' class="split"' : ""}><td>${esc(row.label)}</td><td class="amt">${esc(formatEuro(row.amount))}</td></tr>`).join("")}
     <tr class="total"><td>${esc(copy.finalAmount)}</td><td class="amt">${esc(formatEuro(grandTotal))}</td></tr>
   </table>
   <footer>Ecram Execs Chauffeur Services · Amsterdam, Netherlands</footer>
@@ -317,7 +323,7 @@ export function AutoPricingGateway({
                 </div>
                 <div className="mt-3 space-y-1.5">
                   {fare.map((row, index) => (
-                    <div key={`${row.label}-${index}`} className="flex justify-between gap-4 text-zinc-600">
+                    <div key={`${row.label}-${index}`} className={`flex justify-between gap-4 text-zinc-600 ${row.divider ? "mt-2 border-t border-zinc-200 pt-2" : ""}`}>
                       <span className="min-w-0">{row.label}</span>
                       <span className="shrink-0 font-mono">{formatEuro(row.amount)}</span>
                     </div>
@@ -409,7 +415,7 @@ export function AutoPricingGateway({
 
                 <div className="mt-6 text-sm">
                   {fare.map((row) => (
-                    <div key={row.label} className="flex justify-between gap-6 border-b border-zinc-200 py-2.5">
+                    <div key={row.label} className={`flex justify-between gap-6 border-b border-zinc-200 py-2.5 ${row.divider ? "border-t border-t-zinc-400" : ""}`}>
                       <span className="text-zinc-800">{row.label}</span>
                       <span className="font-mono font-semibold text-zinc-950">{formatEuro(row.amount)}</span>
                     </div>

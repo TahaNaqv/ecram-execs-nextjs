@@ -8,7 +8,7 @@ import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleB
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
-import { receiptLineItems } from "@/lib/pricing/receipt-lines";
+import { receiptLineItems, type ReceiptLine } from "@/lib/pricing/receipt-lines";
 import { formatCents, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
@@ -1247,7 +1247,7 @@ export function BookingStatusBadge({ label }: { label: string }) {
  * rate (9% on the rides and flowers, 21% on the service fee and the other add-ons), from the price the visitor confirmed.
  * None when that price is unknown or the server's total differs from it, so the receipt never splits a total it cannot.
  */
-function receiptLines(p: Price | null, serverTotal: number | null, names: string[], t: BookingCopy): { label: string; cents: number }[] {
+function receiptLines(p: Price | null, serverTotal: number | null, names: string[], t: BookingCopy): ReceiptLine[] {
   if (!p || (serverTotal !== null && serverTotal !== p.total)) return [];
   // A receipt kept from an older page may lack the add-on lines: show no breakdown rather than one that does not add up
   return receiptLineItems(p, t, names) ?? [];
@@ -1290,7 +1290,7 @@ export function DownloadableReceiptCard({
   const quoted = receipt?.price ?? null;
   const totalAmount = price?.total ?? quoted?.total ?? 0;
   const euro = (cents: number) => formatCents(cents, locale);
-  const lines = receiptLines(quoted, price?.total ?? null, receipt?.extraNames ?? [], t).map(({ label, cents }) => ({ label, value: euro(cents) }));
+  const lines = receiptLines(quoted, price?.total ?? null, receipt?.extraNames ?? [], t).map(({ label, cents, divider }) => ({ label, value: euro(cents), divider }));
   const total = euro(totalAmount);
   const clientName = receipt?.passengerName || name;
   const route = receipt ? `${receipt.pickup} → ${receipt.dropoff}` : "";
@@ -1380,7 +1380,7 @@ export function DownloadableReceiptCard({
 
               <div className="mt-3 flex flex-col gap-1.5 border-t border-zinc-400/30 pt-3 text-[13px] text-zinc-200">
                 {lines.map((line) => (
-                  <div key={line.label} className="flex items-center justify-between gap-3">
+                  <div key={line.label} className={`flex items-center justify-between gap-3 ${line.divider ? "mt-1.5 border-t border-zinc-400/30 pt-3" : ""}`}>
                     <span className="min-w-0">{line.label}</span>
                     <span className="shrink-0 font-medium text-[#ffffff] tabular-nums">{line.value}</span>
                   </div>
