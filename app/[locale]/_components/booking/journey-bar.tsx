@@ -10,9 +10,11 @@ import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
 import { AddressField } from "./address-field";
 import { netherlandsNow, type BookingCopy, type TripMessages } from "./copy";
+import { isPastWall } from "@/lib/time/amsterdam";
+import { wallMinutes } from "@/lib/fleet/schedule";
 import { GuestsPicker } from "./guests-picker";
 import { useResetAfterBooking } from "./sent";
-import { emptyPlace, emptyTrip, normalizeTrip, pickupAtAirport, samePlace, tripFromParams, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
+import { adjacentPlaceTexts, consecutiveRouteFlags, emptyPlace, emptyTrip, normalizeTrip, pickupAtAirport, tripFromParams, tripProblems, tripToParams, type Trip, type TripField } from "./trip";
 
 const PlusIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -165,8 +167,8 @@ export function JourneyBar({
     ({
       collection: messages.collectionRequired,
       destination: messages.destinationRequired,
-      samePlace: messages.samePlace,
-      pickupAt: !trip.at ? messages.pickupInvalid : trip.at < netherlandsNow() ? messages.pickupPast : messages.pickupTooFar,
+      consecutivePlace: messages.consecutivePlace,
+      pickupAt: wallMinutes(trip.at) === null ? messages.pickupInvalid : isPastWall(trip.at, netherlandsNow()) ? messages.pickupPast : messages.pickupTooFar,
       durationHours: messages.checkHighlighted,
       guests: messages.guestsRequired,
       flightNumber: messages.flightInvalid,
@@ -197,7 +199,17 @@ export function JourneyBar({
     setProblems(found);
     if (found.length > 0) {
       e.preventDefault();
-      document.getElementById({ collection: ids.from, destination: ids.to, samePlace: ids.to, pickupAt: ids.at, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]])?.focus();
+      const flags = consecutiveRouteFlags(current);
+      const stopAt = flags.stops.findIndex(Boolean);
+      const focusId =
+        found[0] === "consecutivePlace"
+          ? flags.from
+            ? ids.from
+            : stopAt >= 0
+              ? `${uid}-stop-${stopAt}`
+              : ids.to
+          : { collection: ids.from, destination: ids.to, pickupAt: ids.at, durationHours: ids.hours, guests: ids.guests, flightNumber: ids.flight }[found[0]];
+      document.getElementById(focusId)?.focus();
       return;
     }
     if (onDone) {
@@ -206,9 +218,13 @@ export function JourneyBar({
     }
   };
 
-  const same = trip.mode === "oneway" && samePlace(trip.from.text, trip.to.text);
-  const liveProblems: TripField[] = same ? ["samePlace", ...problems.filter((field) => field !== "samePlace")] : problems.filter((field) => field !== "samePlace");
-  const invalid = (field: TripField) => liveProblems.includes(field) || (field === "destination" && liveProblems.includes("samePlace"));
+  const routeFlags = consecutiveRouteFlags(trip);
+  const consecutive = routeFlags.from || routeFlags.to || routeFlags.stops.some(Boolean);
+  const liveProblems: TripField[] = consecutive
+    ? ["consecutivePlace", ...problems.filter((field) => field !== "consecutivePlace")]
+    : problems.filter((field) => field !== "consecutivePlace");
+  const invalid = (field: TripField) =>
+    liveProblems.includes(field) || (field === "collection" && routeFlags.from) || (field === "destination" && routeFlags.to);
   const stacked = layout === "stacked";
   const focusCell = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -216,22 +232,25 @@ export function JourneyBar({
     event.currentTarget.querySelector<HTMLElement>("input:not([type='hidden']), textarea, select, button")?.focus();
   };
   // A field: in the bar a borderless cell that lights up; on the journey step a bordered box, like the details step's fields
-  const cell = (field: TripField | null, children: ReactNode, extra = "") => (
-    <div
-      onClick={focusCell}
-      className={
-        stacked
-          ? `relative flex min-w-0 cursor-pointer flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 [--field-pad:14px] focus-within:border-ink-950 ${
-              field && invalid(field) ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"
-            } ${extra}`
-          : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-3.5 py-2.5 [--field-pad:14px] sm:px-4 sm:py-3 sm:[--field-pad:16px] ${
-              dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
-            } ${field && invalid(field) ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`
-      }
-    >
-      {children}
-    </div>
-  );
+  const cell = (field: TripField | null, children: ReactNode, extra = "", forceInvalid = false) => {
+    const bad = forceInvalid || (field != null && invalid(field));
+    return (
+      <div
+        onClick={focusCell}
+        className={
+          stacked
+            ? `relative flex min-w-0 cursor-pointer flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 [--field-pad:14px] focus-within:border-ink-950 ${
+                bad ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"
+              } ${extra}`
+            : `relative flex min-w-0 cursor-pointer flex-col justify-center gap-1.5 rounded-xl px-3.5 py-2.5 [--field-pad:14px] sm:px-4 sm:py-3 sm:[--field-pad:16px] ${
+                dark ? "focus-within:bg-white/10 hover:bg-white/[0.07]" : "focus-within:bg-ink-50 hover:bg-ink-50"
+              } ${bad ? "ring-[1.5px] ring-inset ring-[#f97066]" : ""} ${extra}`
+        }
+      >
+        {children}
+      </div>
+    );
+  };
   const label = stacked
     ? "text-[12px] text-ink-600"
     : dark
@@ -248,7 +267,7 @@ export function JourneyBar({
   const divider = dark ? "border-white/10" : "border-ink-150";
   const dateClass = `border-0 bg-transparent p-0 font-medium ${dark ? "text-white placeholder:font-normal placeholder:text-ink-400" : "text-ink-950 placeholder:font-normal placeholder:text-ink-475"}`;
 
-  const extraCell = (field: TripField | null, labelFor: string, labelText: string, control: ReactNode, onRemove?: () => void, removeLabel?: string, extra = "") =>
+  const extraCell = (field: TripField | null, labelFor: string, labelText: string, control: ReactNode, onRemove?: () => void, removeLabel?: string, extra = "", forceInvalid = false) =>
     cell(
       field,
       <>
@@ -273,6 +292,7 @@ export function JourneyBar({
         {control}
       </>,
       extra,
+      forceInvalid,
     );
 
   const modeToggle = (
@@ -331,6 +351,7 @@ export function JourneyBar({
         locale={locale}
         copy={t}
         tone={tone}
+        excludePlaces={adjacentPlaceTexts(trip, { kind: "from" })}
         invalid={invalid("collection")}
         describedBy={describedBy("collection")}
       />
@@ -369,6 +390,7 @@ export function JourneyBar({
               copy={t}
               tone={tone}
               alignEnd={!stacked}
+              excludePlaces={adjacentPlaceTexts(trip, { kind: "to" })}
               invalid={invalid("destination")}
               describedBy={describedBy("destination")}
             />
@@ -446,8 +468,11 @@ export function JourneyBar({
         copy={dateTimeCopy}
         defaultValue={trip.at}
         onValueChange={(at) => {
-          if (at !== autoAt.current) autoAt.current = "";
+          const edited = at !== autoAt.current;
+          if (edited) autoAt.current = "";
           update({ at });
+          // The picker refuses a past time; a typed or restored one still shows the message without blocking the rest of the form
+          if (edited && at && isPastWall(at, netherlandsNow())) setProblems(["pickupAt"]);
         }}
         invalid={invalid("pickupAt")}
         describedBy={describedBy("pickupAt")}
@@ -499,6 +524,9 @@ export function JourneyBar({
             locale={locale}
             copy={t}
             tone={tone}
+            excludePlaces={adjacentPlaceTexts(trip, { kind: "stop", index: i })}
+            invalid={routeFlags.stops[i]}
+            describedBy={routeFlags.stops[i] ? ids.error : undefined}
           />
           <div ref={waitOpen === i ? waitRef : undefined} className="relative w-full sm:w-auto sm:shrink-0">
             <button
@@ -545,6 +573,7 @@ export function JourneyBar({
         () => update({ stops: trip.stops.filter((_, j) => j !== i) }),
         interpolate(t.removeStop, { number: i + 1 }),
         waitOpen === i ? "z-30" : "",
+        routeFlags.stops[i],
       )}
     </Fragment>
   ));
@@ -596,7 +625,7 @@ export function JourneyBar({
           ) : (
             <span />
           )}
-          <button type="submit" className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 sm:w-auto">
+          <button type="submit" disabled={consecutive} aria-describedby={consecutive ? ids.error : undefined} className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">
             {t.chooseCar}
             <ArrowIcon />
           </button>
@@ -613,7 +642,9 @@ export function JourneyBar({
   const continueButton = (
     <button
       type="submit"
-      className={`inline-flex max-w-[200px] cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-8 py-2.5 text-[13px] font-semibold tracking-wide ${
+      disabled={consecutive}
+      aria-describedby={consecutive ? ids.error : undefined}
+      className={`inline-flex max-w-[200px] cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-8 py-2.5 text-[13px] font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-40 ${
         dark ? "bg-white text-ink-950 hover:bg-ink-100" : "bg-ink-950 text-white hover:bg-ink-800"
       }`}
     >

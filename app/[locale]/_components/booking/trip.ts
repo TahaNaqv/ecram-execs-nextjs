@@ -4,6 +4,8 @@ import { bagCapacity, FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, v
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
 import { cleanExtras, type ExtraPick } from "@/lib/pricing/extras";
+import { wallMinutes } from "@/lib/fleet/schedule";
+import { isBeyondHorizon, isPastWall } from "@/lib/time/amsterdam";
 
 /**
  * The journey being booked, as the booking flow holds it between steps. The hero bar sends it to /book in the URL (so it
@@ -55,6 +57,73 @@ export function samePlace(a: string, b: string): boolean {
   const left = norm(a);
   const right = norm(b);
   return left.length > 0 && left === right;
+}
+
+/** One place in travelling order: where from, each stop on the way, then where to. */
+export type RoutePoint = { kind: "from" } | { kind: "to" } | { kind: "stop"; index: number };
+
+/** From, then stops, then to. Hourly trips have no route of places. Blank stops stay, so neighbours can be found around them. */
+export function routeSequence(trip: Trip): { point: RoutePoint; text: string }[] {
+  if (trip.mode !== "oneway") return [];
+  return [
+    { point: { kind: "from" }, text: trip.from.text },
+    ...trip.stops.map((stop, index) => ({ point: { kind: "stop" as const, index }, text: stop.place })),
+    { point: { kind: "to" }, text: trip.to.text },
+  ];
+}
+
+/**
+ * True when two successive non-empty places are the same. A blank is not a place, so it does not separate its
+ * neighbours: Home, (empty stop), Home is still a consecutive duplicate. Home, Office, Home is not.
+ */
+export function hasConsecutivePlaces(places: readonly string[]): boolean {
+  let previous = "";
+  for (const place of places) {
+    if (!place.trim()) continue;
+    if (previous && samePlace(previous, place)) return true;
+    previous = place;
+  }
+  return false;
+}
+
+/** Which route fields match the place immediately before or after them. */
+export function consecutiveRouteFlags(trip: Trip): { from: boolean; to: boolean; stops: boolean[] } {
+  const flags = { from: false, to: false, stops: trip.stops.map(() => false) };
+  const filled = routeSequence(trip).filter((item) => item.text.trim());
+  const mark = (point: RoutePoint) => {
+    if (point.kind === "from") flags.from = true;
+    else if (point.kind === "to") flags.to = true;
+    else flags.stops[point.index] = true;
+  };
+  for (let i = 1; i < filled.length; i++) {
+    if (!samePlace(filled[i - 1].text, filled[i].text)) continue;
+    mark(filled[i - 1].point);
+    mark(filled[i].point);
+  }
+  return flags;
+}
+
+/** The non-empty place before this field and the one after it, in travelling order. A stop's list hides both. */
+export function adjacentPlaceTexts(trip: Trip, point: RoutePoint): string[] {
+  const seq = routeSequence(trip);
+  const at = seq.findIndex((item) =>
+    point.kind === "stop" ? item.point.kind === "stop" && item.point.index === point.index : item.point.kind === point.kind,
+  );
+  if (at < 0) return [];
+  const texts: string[] = [];
+  for (let i = at - 1; i >= 0; i--) {
+    if (seq[i].text.trim()) {
+      texts.push(seq[i].text);
+      break;
+    }
+  }
+  for (let i = at + 1; i < seq.length; i++) {
+    if (seq[i].text.trim()) {
+      texts.push(seq[i].text);
+      break;
+    }
+  }
+  return texts;
 }
 
 /** Whether the chosen car can seat this party and take these large suitcases. Hand luggage is not part of this. "advise" is not a car yet. */
@@ -267,19 +336,16 @@ export function tripFields(trip: Trip, purpose: "business" | "private"): [string
 }
 
 /** Which of the trip's fields are missing or wrong, by the action's field names, so the bar can mark them. */
-export type TripField = "collection" | "destination" | "samePlace" | "pickupAt" | "durationHours" | "guests" | "flightNumber";
+export type TripField = "collection" | "destination" | "consecutivePlace" | "pickupAt" | "durationHours" | "guests" | "flightNumber";
 export function tripProblems(trip: Trip, nowWallClock: string): TripField[] {
   const problems: TripField[] = [];
-  // The server takes bookings up to two years ahead (lib/quotes/validation.ts); same limit here, so nothing typed later is lost to it
-  const latest = new Date(Date.parse(`${nowWallClock}:00Z`) + 730 * 86_400_000).toISOString().slice(0, 16);
-  // The server lets a pick-up be up to an hour in the past, for a form that took a while to fill in (lib/quotes/validation.ts); the same
-  // here, so the time the bar starts with (the time it is now) is still accepted a few minutes later
-  const earliest = new Date(Date.parse(`${nowWallClock}:00Z`) - 60 * 60_000).toISOString().slice(0, 16);
   if (!trip.from.text.trim()) problems.push("collection");
   if (trip.mode === "oneway" && !trip.to.text.trim()) problems.push("destination");
-  if (trip.mode === "oneway" && samePlace(trip.from.text, trip.to.text)) problems.push("samePlace");
+  // Home → Office → Home is allowed. Home → Home, or a stop that repeats the place beside it, is not.
+  if (trip.mode === "oneway" && hasConsecutivePlaces(routeSequence(trip).map((item) => item.text))) problems.push("consecutivePlace");
   if (trip.mode === "hourly" && trip.hours === "") problems.push("durationHours");
-  if (!WALL_CLOCK.test(trip.at) || trip.at < earliest || trip.at > latest) problems.push("pickupAt");
+  // Dutch wall-clock minutes, the same scale as the server. Parsing the text with `new Date` would use the browser's zone and reject a time that is still ahead in the Netherlands.
+  if (wallMinutes(trip.at) === null || isPastWall(trip.at, nowWallClock) || isBeyondHorizon(trip.at, nowWallClock)) problems.push("pickupAt");
   if (!trip.guestsSet) problems.push("guests");
   if (pickupAtAirport(trip) && trip.flight.trim() && !FLIGHT.test(trip.flight.trim().toUpperCase().replace(/\s+/g, " "))) problems.push("flightNumber");
   return problems;

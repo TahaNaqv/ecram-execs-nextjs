@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import type { PlaceHit, PlaceKind } from "@/lib/places/types";
 import { curatedKind } from "@/lib/places/curated";
-import type { Place } from "./trip";
+import { samePlace, type Place } from "./trip";
 
 export type AddressCopy = { suggestions: string };
 
@@ -28,6 +28,8 @@ export function PlaceIcon({ kind, size = 18 }: { kind: PlaceKind; size?: number 
 /** A picked suggestion as the text the chauffeur reads: the name, then the street and town Google gives. */
 const placeText = (hit: PlaceHit) => (hit.source === "google" && hit.detail ? `${hit.name}, ${hit.detail}` : hit.name);
 const fullAddress = (hit: PlaceHit) => (hit.detail ? `${hit.name}, ${hit.detail}` : hit.name);
+const matchesExcluded = (hit: PlaceHit, places: readonly string[]) =>
+  places.some((place) => [placeText(hit), fullAddress(hit), hit.name].some((label) => samePlace(place, label)));
 
 /**
  * An address with suggestions as the visitor types (ARIA 1.2 combobox with a list popup), from /api/places: our own
@@ -47,6 +49,7 @@ export function AddressField({
   describedBy,
   tone,
   alignEnd = false,
+  excludePlaces = [],
   className = "",
 }: {
   id: string;
@@ -62,6 +65,8 @@ export function AddressField({
   tone: "dark" | "light";
   /** In the right-hand column of the two-column (tablet) bar the list opens leftwards, so it stays on the screen */
   alignEnd?: boolean;
+  /** Places that sit immediately beside this field. Those suggestions stay visible but cannot be chosen. */
+  excludePlaces?: string[];
   className?: string;
 }) {
   const listId = useId();
@@ -136,6 +141,7 @@ export function AddressField({
       return;
     }
     if (!open || items.length === 0) return;
+    const blocked = (index: number) => matchesExcluded(items[index], excludePlaces);
     if (e.key === "ArrowDown") {
       setActive((i) => (i + 1) % items.length);
       e.preventDefault();
@@ -144,7 +150,7 @@ export function AddressField({
       e.preventDefault();
     } else if (e.key === "Enter" && active >= 0) {
       e.preventDefault();
-      pick(items[active]);
+      if (!blocked(active)) pick(items[active]);
     }
   };
 
@@ -190,32 +196,36 @@ export function AddressField({
             dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
           }`}
         >
-          {items.map((hit, i) => (
-            <li
-              key={`${hit.source}-${hit.id ?? hit.name}`}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={i === active}
-              title={fullAddress(hit)}
-              // mousedown, not click: the input's blur would close the list before a click lands
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(hit);
-              }}
-              onMouseEnter={() => setActive(i)}
-              className={`flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 ${
-                i === active ? (dark ? "bg-white/10" : "bg-ink-100") : ""
-              }`}
-            >
-              <span className={`grid size-6 shrink-0 place-items-center rounded-md ${dark ? "bg-white/10" : "bg-ink-100"}`}>
-                <PlaceIcon kind={hit.kind} size={13} />
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[13px] leading-snug font-semibold">{hit.name}</span>
-                {hit.detail && <span className={`truncate text-[11px] leading-snug ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
-              </span>
-            </li>
-          ))}
+          {items.map((hit, i) => {
+            const blocked = matchesExcluded(hit, excludePlaces);
+            return (
+              <li
+                key={`${hit.source}-${hit.id ?? hit.name}`}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                aria-disabled={blocked}
+                title={fullAddress(hit)}
+                // mousedown, not click: the input's blur would close the list before a click lands
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (!blocked) pick(hit);
+                }}
+                onMouseEnter={() => setActive(i)}
+                className={`flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 ${
+                  blocked ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                } ${!blocked && i === active ? (dark ? "bg-white/10" : "bg-ink-100") : ""}`}
+              >
+                <span className={`grid size-6 shrink-0 place-items-center rounded-md ${dark ? "bg-white/10" : "bg-ink-100"}`}>
+                  <PlaceIcon kind={hit.kind} size={13} />
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-[13px] leading-snug font-semibold">{hit.name}</span>
+                  {hit.detail && <span className={`truncate text-[11px] leading-snug ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

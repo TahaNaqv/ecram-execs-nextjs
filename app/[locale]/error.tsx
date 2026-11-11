@@ -14,7 +14,7 @@ const COPY = {
   retry: "Try again · Opnieuw",
 };
 
-export default function SiteError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+export default function SiteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -26,7 +26,7 @@ export default function SiteError({ error, retry }: { error: Error & { digest?: 
         {COPY.body}
       </p>
       <button
-        onClick={() => retry()}
+        onClick={() => reset()}
         className="btn-fill min-h-[52px] cursor-pointer border-none bg-ink-50 px-[34px] text-[12px] font-semibold tracking-[0.24em] text-ink-950 uppercase"
       >
         {COPY.retry}

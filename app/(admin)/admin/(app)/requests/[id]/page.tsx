@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { chatForRequest } from "@/lib/admin/chats";
 import { getRequest } from "@/lib/admin/queries";
-import { type RequestStatus } from "@/lib/quotes/constants";
 import { bookingServiceName, isCorporateBooking } from "@/lib/quotes/audience";
 import { eventLabels, renderEvent } from "@/lib/admin/events";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -17,19 +16,18 @@ import {
   ActivityIcon,
   BriefcaseIcon,
   ChatIcon,
-  CheckIcon,
   ClockIcon,
   MailIcon,
   NoteIcon,
   PhoneIcon,
   UsersIcon,
 } from "../../../_components/icons";
-import { StatusBadge, UrgentBadge } from "../../../_components/status-badge";
+import { LivePipeline, LiveStatusBadge } from "../../../_components/booking-status";
+import { UrgentBadge } from "../../../_components/status-badge";
 import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { AdminReturnLink } from "../../../_components/return-link";
-import { PartnerCard } from "./partner-card";
 import { MessagesCard } from "./messages-card";
 import { ReviewCard } from "./review-card";
 import { CarsEditor } from "./cars-editor";
@@ -65,41 +63,6 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
         <RequestDetail params={params} fromEnquiries={fromEnquiries} />
       </Suspense>
     </PageBody>
-  );
-}
-
-const PIPELINE: RequestStatus[] = ["new", "contacted", "confirmed", "completed"];
-
-async function Pipeline({ status }: { status: RequestStatus }) {
-  const { admin: t } = await adminDictionary();
-  if (status === "cancelled") {
-    return (
-      <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        {t.requestDetail.cancelledNote}
-      </div>
-    );
-  }
-  const at = status === "quoted" ? PIPELINE.indexOf("new") : PIPELINE.indexOf(status);
-  return (
-    <ol className="grid grid-cols-4 gap-1" aria-label={t.common.progress}>
-      {PIPELINE.map((s, i) => {
-        const done = i < at;
-        const current = i === at;
-        return (
-          <li key={s} aria-current={current ? "step" : undefined} className="min-w-0">
-            <span className={`block h-1 rounded-full ${i <= at ? "bg-zinc-950" : "bg-zinc-200"}`} />
-            <span
-              className={`mt-2 flex items-center gap-1 truncate text-[11px] font-medium sm:text-xs ${
-                current ? "text-zinc-950" : done ? "text-zinc-600" : "text-zinc-400"
-              }`}
-            >
-              {done && <CheckIcon size={12} className="hidden shrink-0 sm:block" />}
-              {t.statuses[s] ?? s}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
@@ -143,7 +106,7 @@ async function RequestDetail({ params, fromEnquiries }: Pick<PageProps<"/admin/r
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{r.name}</h1>
-              <StatusBadge status={r.status} size="md" />
+              <LiveStatusBadge requestId={r.id} status={r.status} labels={d.admin.statuses} size="md" />
               <UrgentBadge request={r} size="md" />
               <span className="inline-flex items-center gap-1.5 text-sm text-zinc-700">
                 {bookingServiceName(r, d.services)}
@@ -187,7 +150,13 @@ async function RequestDetail({ params, fromEnquiries }: Pick<PageProps<"/admin/r
       </div>
 
       <div className="mt-6">
-        <Pipeline status={r.status} />
+        <LivePipeline
+          requestId={r.id}
+          status={r.status}
+          labels={d.admin.statuses}
+          progressLabel={d.admin.common.progress}
+          cancelledNote={rd.cancelledNote}
+        />
       </div>
 
       {/* Every booking is approved by hand, or discussed with the customer first (the client, 8 Nov 2026) */}
@@ -227,7 +196,6 @@ async function RequestDetail({ params, fromEnquiries }: Pick<PageProps<"/admin/r
         </Suspense>
 
         <div className="flex min-h-0 w-full flex-col gap-6">
-          <PartnerCard requestId={r.id} />
           <Card className="flex flex-col overflow-hidden">
             <CardHeader title={d.admin.requestDetail.client} />
             <dl className="divide-y divide-zinc-100 p-5">

@@ -127,8 +127,8 @@ async function Stats() {
       />
       <StatCard
         label={t.requests.statOpenQuotes}
-        value={formatEuro(stats.openValue)}
-        hint={t.requests.statOpenQuotesNote}
+        value={formatEuro(stats.monthAmount)}
+        hint={interpolate(t.requests.statOpenQuotesNote, { count: stats.monthCount })}
         icon={<EuroIcon />}
       />
       <StatCard

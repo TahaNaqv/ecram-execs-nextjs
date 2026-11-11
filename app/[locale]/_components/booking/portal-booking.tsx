@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import type { Locale } from "@/lib/i18n/config";
@@ -18,7 +19,7 @@ const NO_ERRORS = {};
 
 /**
  * The portal's new-booking panel: the same flow as the website, with the signed-in partner as the booker. A successful
- * booking leaves through the action's redirect to the booking's own page; an expired session offers the sign-in instead
+ * booking returns its page address and the browser opens it; an expired session offers the sign-in instead
  * of the send button.
  */
 export function PortalBooking({
@@ -54,8 +55,13 @@ export function PortalBooking({
   loginHref: string;
   loginLabel: string;
 }) {
+  const router = useRouter();
   const [state, action, pending] = useActionState<PortalState, FormData>(createBooking, { status: "idle" });
   const locked = state.status === "locked";
+  const sent = state.status === "sent";
+  useEffect(() => {
+    if (state.status === "sent") router.push(state.href);
+  }, [state, router]);
   const [round, setRound] = useState(0);
   useResetAfterBooking(() => setRound((r) => r + 1));
   const send = (data: FormData) => {
@@ -82,7 +88,7 @@ export function PortalBooking({
         initialTrip={initialTrip}
         initialStep="journey"
         result={{
-          pending,
+          pending: pending || sent,
           message: state.status === "error" || locked ? state.message : null,
           fieldErrors: state.status === "error" ? state.fieldErrors : NO_ERRORS,
         }}

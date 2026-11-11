@@ -2,7 +2,6 @@
 
 import { and, count, eq, gt, isNotNull, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
@@ -54,7 +53,7 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
   const contact = await getCorporateContact();
   if (!contact) return { status: "locked", message: c.sessionExpired };
 
-  const parsed = quoteSchema(f).safeParse({
+  const parsed = quoteSchema(f, stops).safeParse({
     ...values,
     name: contact.name,
     email: contact.email,
@@ -106,7 +105,10 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
     console.error("[portal] booking failed", err);
     return fail(f.quoteServerError);
   }
-  redirect(`${localizedPath("/corporate-partner/account/booking", locale)}?ref=${created!.reference}&created=1`);
+  if (!created) return fail(f.quoteServerError);
+  // A thrown redirect from this action reaches the error screen, while the booking is already saved.
+  // The browser opens the booking page from the returned address instead.
+  return { status: "sent", href: `${localizedPath("/corporate-partner/account/booking", locale)}?ref=${encodeURIComponent(created.reference)}&created=1` };
 }
 
 /**

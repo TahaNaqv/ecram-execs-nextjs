@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { amsterdamParts } from "@/lib/time/amsterdam";
 
 export type DateTimeCopy = Record<
   "placeholder" | "open" | "dialog" | "prevMonth" | "nextMonth" | "hour" | "minute" | "period" | "done" | "today" | "clear" | "selected",
@@ -26,18 +27,11 @@ const addMonths = (y: number, m: number, by: number) => {
 
 /** The date and time in the Netherlands right now: pick-ups are Dutch wall-clock times, so "today" and "now" are read there, not in the visitor's own zone. */
 const nowInNetherlands = (): { day: Day; time: Time } => {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Amsterdam",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  return { day: { y: get("year"), m: get("month"), d: get("day") }, time: { h: get("hour"), min: get("minute") } };
+  const p = amsterdamParts();
+  return { day: { y: p.y, m: p.m, d: p.d }, time: { h: p.h, min: p.min } };
 };
+const earlierTime = (a: Time, b: Time) => a.h < b.h || (a.h === b.h && a.min < b.min);
+const hour24 = (h12: number, period: "AM" | "PM") => (h12 % 12) + (period === "PM" ? 12 : 0);
 
 const to12 = (h: number) => ({ h12: h % 12 || 12, period: h >= 12 ? "PM" : "AM" });
 const display = (day: Day, time: Time) => {
@@ -119,6 +113,8 @@ export function DateTimeField({
   const [text, setText] = useState(initial ? display(initial.day, initial.time) : "");
   const [open, setOpen] = useState(false);
   const [today, setToday] = useState<Day | null>(null);
+  // The Dutch clock the open picker measures past times against. Refreshed while the dialog is open, so a minute passing disables what has just gone.
+  const [clock, setClock] = useState<Time | null>(null);
   const [view, setView] = useState<{ y: number; m: number }>({ y: initial?.day.y ?? 2000, m: initial?.day.m ?? 1 });
   const [active, setActive] = useState<Day | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -172,11 +168,12 @@ export function DateTimeField({
   };
 
   const openPicker = () => {
-    const { day: now, time: clock } = nowInNetherlands();
+    const { day: now, time: clockNow } = nowInNetherlands();
     setToday(now);
+    setClock(clockNow);
     // No time chosen yet and no day either: the lists show the time it is now. With a day chosen the time already shown in
     // the box stays, or the value submitted would drift away from what the visitor can see.
-    if (!timeChosen.current && !day) setTime(clock);
+    if (!timeChosen.current && !day) setTime(clockNow);
     // The chosen day, or today when none is chosen (or the chosen one is already past): the calendar opens on it
     const start = day && !before(day, now) ? day : now;
     setView({ y: start.y, m: start.m });
@@ -188,6 +185,17 @@ export function DateTimeField({
     setOpen(false);
     if (returnFocus) input.current?.focus();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const tick = () => {
+      const { day: now, time: clockNow } = nowInNetherlands();
+      setToday(now);
+      setClock(clockNow);
+    };
+    const id = window.setInterval(tick, 15_000);
+    return () => window.clearInterval(id);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -294,19 +302,31 @@ export function DateTimeField({
   const canGoBack = !today || before({ y: today.y, m: today.m, d: 1 }, { ...view, d: 1 });
   const period = time.h >= 12 ? "PM" : "AM";
   const hour12 = time.h % 12 || 12;
+  // Past means earlier today in the Netherlands. A later day keeps every hour, including ones that have already passed today.
+  const onToday = !!day && !!today && !!clock && sameDay(day, today);
+  const timeIsPast = (h: number, min: number) => !!clock && onToday && earlierTime({ h, min }, clock);
   const setHour12 = (h12: number) => {
+    const h = hour24(h12, period);
+    const live = nowInNetherlands();
+    if (day && sameDay(day, live.day) && h < live.time.h) return;
+    const min = day && sameDay(day, live.day) && h === live.time.h && time.min < live.time.min ? live.time.min : time.min;
     timeChosen.current = true;
-    commit(day, { ...time, h: (h12 % 12) + (period === "PM" ? 12 : 0) });
+    commit(day, { h, min });
   };
   const setPeriod = (next: "AM" | "PM") => {
+    const h = hour24(time.h % 12 || 12, next);
+    const live = nowInNetherlands();
+    if (day && sameDay(day, live.day) && h < live.time.h) return;
+    const min = day && sameDay(day, live.day) && h === live.time.h && time.min < live.time.min ? live.time.min : time.min;
     timeChosen.current = true;
-    commit(day, { ...time, h: (time.h % 12) + (next === "PM" ? 12 : 0) });
+    commit(day, { h, min });
   };
   const applyToday = () => {
     const now = nowInNetherlands();
     timeChosen.current = true;
     commit(now.day, now.time);
     setToday(now.day);
+    setClock(now.time);
     setView({ y: now.day.y, m: now.day.m });
     setActive(now.day);
   };
@@ -314,7 +334,7 @@ export function DateTimeField({
   const navBtn = "grid size-7 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20";
   const column = "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const optionCls = (selected: boolean) =>
-    `block w-full max-w-full min-h-6 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none ${
+    `block w-full max-w-full min-h-6 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:text-[#5f6368] disabled:hover:bg-transparent ${
       selected ? "bg-[#a8c7fa] text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
     }`;
 
@@ -441,8 +461,14 @@ export function DateTimeField({
                               aria-label={longDate.format(new Date(Date.UTC(cell.y, cell.m - 1, cell.d)))}
                               tabIndex={sameDay(cell, active) ? 0 : -1}
                               onClick={() => {
+                                const live = nowInNetherlands();
+                                setToday(live.day);
+                                setClock(live.time);
                                 setActive(cell);
-                                commit(cell, time);
+                                // Choosing today keeps a later hour and lifts an earlier one up to the current minute
+                                const next = sameDay(cell, live.day) && earlierTime(time, live.time) ? live.time : time;
+                                if (next.h !== time.h || next.min !== time.min) timeChosen.current = true;
+                                commit(cell, next);
                               }}
                               className={`mx-auto grid h-6 w-6 max-w-full cursor-pointer place-items-center rounded border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#5f6368] ${
                                 chosen ? "bg-[#a8c7fa] font-semibold text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
@@ -463,8 +489,9 @@ export function DateTimeField({
                 {Array.from({ length: 12 }, (_, i) => {
                   const h12 = i + 1;
                   const selected = hour12 === h12;
+                  const past = timeIsPast(hour24(h12, period), 59);
                   return (
-                    <button key={h12} type="button" role="option" data-time-part="hour" data-value={h12} aria-selected={selected} onClick={() => setHour12(h12)} className={optionCls(selected)}>
+                    <button key={h12} type="button" role="option" data-time-part="hour" data-value={h12} aria-selected={selected} disabled={past} onClick={() => setHour12(h12)} className={optionCls(selected)}>
                       {pad(h12)}
                     </button>
                   );
@@ -473,6 +500,7 @@ export function DateTimeField({
               <div role="listbox" aria-label={copy.minute} className={column}>
                 {minutes.map((m) => {
                   const selected = time.min === m;
+                  const past = timeIsPast(time.h, m);
                   return (
                     <button
                       key={m}
@@ -481,7 +509,9 @@ export function DateTimeField({
                       data-time-part="minute"
                       data-value={m}
                       aria-selected={selected}
+                      disabled={past}
                       onClick={() => {
+                        if (timeIsPast(time.h, m)) return;
                         timeChosen.current = true;
                         commit(day, { ...time, min: m });
                       }}
@@ -495,8 +525,10 @@ export function DateTimeField({
               <div role="listbox" aria-label={copy.period} className={column}>
                 {(["AM", "PM"] as const).map((p) => {
                   const selected = period === p;
+                  // AM is entirely in the past once the Dutch clock is in the afternoon. PM always still has a later hour, until 23:59.
+                  const past = onToday && !!clock && p === "AM" && clock.h >= 12;
                   return (
-                    <button key={p} type="button" role="option" data-time-part="period" data-value={p} aria-selected={selected} onClick={() => setPeriod(p)} className={optionCls(selected)}>
+                    <button key={p} type="button" role="option" data-time-part="period" data-value={p} aria-selected={selected} disabled={past} onClick={() => setPeriod(p)} className={optionCls(selected)}>
                       {p.toLowerCase()}
                     </button>
                   );

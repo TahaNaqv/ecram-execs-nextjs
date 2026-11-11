@@ -34,17 +34,12 @@ async function Heading({ part }: { part: "title" | "description" }) {
   return admin.schedule[part];
 }
 
-async function ViewSwitch() {
+async function BackToBookings() {
   const { admin: t } = await adminDictionary();
   return (
-    <nav aria-label={t.schedule.title} className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-sm">
-      <Link href="/admin/requests" className="rounded-md px-3 py-1.5 text-zinc-600 hover:text-zinc-950">
-        {t.schedule.viewList}
-      </Link>
-      <span aria-current="page" className="rounded-md bg-zinc-950 px-3 py-1.5 font-medium text-white">
-        {t.schedule.viewSchedule}
-      </span>
-    </nav>
+    <Link href="/admin/requests" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+      <ChevronLeftIcon /> {t.common.backToRequests}
+    </Link>
   );
 }
 
@@ -64,7 +59,7 @@ export default function SchedulePage({ searchParams }: PageProps<"/admin/request
         }
         actions={
           <Suspense fallback={null}>
-            <ViewSwitch />
+            <BackToBookings />
           </Suspense>
         }
       />

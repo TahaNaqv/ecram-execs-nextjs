@@ -82,7 +82,9 @@ export async function requestStats() {
   await requireAdmin();
   const [row] = await db
     .select({
-      openValue: sql<string>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} <> 'cancelled'), 2), 0)`,
+      // Confirmed and completed bookings whose pick-up is in the current Amsterdam month
+      monthAmount: sql<string>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} in ('confirmed', 'completed') and ${q.pickupAt} is not null and date_trunc('month', ${q.pickupAt}) = date_trunc('month', (now() at time zone 'Europe/Amsterdam'))), 2), 0)`,
+      monthCount: sql<number>`count(*) filter (where ${q.status} in ('confirmed', 'completed') and ${q.pickupAt} is not null and date_trunc('month', ${q.pickupAt}) = date_trunc('month', (now() at time zone 'Europe/Amsterdam')))`.mapWith(Number),
       // The same bookings the upcoming count includes, at the same final amount each row shows. Past and cancelled trips are not in this sum.
       confirmedValue: sql<string>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} = 'confirmed' and greatest(${q.pickupAt}, ${q.returnAt}) >= (now() at time zone 'Europe/Amsterdam')), 2), 0)`,
       // A booking with a return journey is still upcoming until its return (greatest() skips a null return_at)

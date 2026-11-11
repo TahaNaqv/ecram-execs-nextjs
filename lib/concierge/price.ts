@@ -5,7 +5,8 @@ import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/types";
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { priceForRequest } from "@/lib/pricing/quote";
-import { formatCents, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
+import { receiptLineItems } from "@/lib/pricing/receipt-lines";
+import { formatCents, type Price } from "@/lib/pricing/rates";
 
 /** The fare the concierge card shows. Amounts are already formatted, so the chat does not calculate. */
 export type ChatQuote = {
@@ -55,26 +56,12 @@ export async function quoteDraft(draft: Draft, booking: Dictionary["booking"], n
 }
 
 function present(price: Price, booking: Dictionary["booking"], names: ExtraNames, locale: Locale): ChatQuote {
-  const vat = vatByRate(price);
-  const lines = [
-    { label: booking.receiptRides, amount: formatCents(price.rides, locale) },
-    ...(price.extras ?? []).map((line) => ({
-      label: `${line.count} × ${extraName(names, line)} (${formatCents(line.unit, locale)})`,
-      amount: formatCents(line.amount, locale),
-    })),
-    { label: booking.priceVat, amount: formatCents(vat.low, locale) },
-    { label: booking.priceServiceFee, amount: formatCents(price.fee, locale) },
-  ];
-  if (vat.high) {
-    lines.push({
-      label: hasHighRateExtras(price) ? booking.priceVatHigh : booking.priceFeeVat,
-      amount: formatCents(vat.high, locale),
-    });
-  }
+  // The same lines, in the same order, as the receipt a booking made on the website can be downloaded as
+  const items = receiptLineItems(price, booking, (price.extras ?? []).map((line) => extraName(names, line))) ?? [];
   return {
     heading: booking.reviewPrice,
     exact: price.exact,
-    lines,
+    lines: items.map((line) => ({ label: line.label, amount: formatCents(line.cents, locale) })),
     totalLabel: booking.priceTotal,
     total: `${price.exact ? "" : `${booking.priceFromWord} `}${formatCents(price.total, locale)}`,
   };

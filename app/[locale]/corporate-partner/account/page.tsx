@@ -108,7 +108,7 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
           )}
         </nav>
       )}
-      <p className="m-0 text-[12px] text-ink-600">{p.amsterdamTime}</p>
+      
     </div>
   );
 }

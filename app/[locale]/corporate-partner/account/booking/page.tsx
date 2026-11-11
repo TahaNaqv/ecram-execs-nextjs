@@ -166,7 +166,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
             </div>
           )}
         </dl>
-        <p className="m-0 text-[12px] text-ink-600">{p.amsterdamTime}</p>
+        
         {/* The route on Google's map: only here, once the booking is in, never while it is being made */}
         {routeMap && <RouteMap map={routeMap} copy={d.booking} />}
         {!bespoke && (

@@ -349,7 +349,7 @@ test("a new booking from the portal carries the partner's details, and can be re
 });
 
 test("the booking flow says what is wrong, and a past time is refused", async ({ page, context }) => {
-  // The picker offers no day that has gone, so a past pick-up is today's early hours: refused once they are more than an hour ago (the server's slack)
+  // The picker offers no day that has gone, so a past pick-up is today's early hours: refused once they are more than a few minutes ago
   const nl = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   const part = (type: string) => nl.find((p) => p.type === type)!.value;
   test.skip(Number(part("hour")) < 2, "Needs today's 00:00 to be more than an hour ago in the Netherlands");
@@ -367,22 +367,17 @@ test("the booking flow says what is wrong, and a past time is refused", async ({
 
 // ── The team's side ──────────────────────────────────────────────────────────────────────────────────────────
 
-test("the team links a request to a partner, they talk, and detaching takes it out of the portal", async ({ page, context, browser }) => {
+test("the team and a linked partner talk about a booking", async ({ page, context, browser }) => {
   test.slow(); // many round trips between three browsers
   await ownAddress(context);
   const email = newEmail("team");
-  await seedContact(email, PASSWORD, "Anouk Jansen", "Orion Holdings B.V.");
-  // A request made on the public form with the partner's address: not linked, because nothing links at submit time
-  const request = await seedBooking({ contactId: null, email, status: "quoted", quotedAmount: "300.00", destination: "Admin Linked Street" });
+  const contactId = await seedContact(email, PASSWORD, "Anouk Jansen", "Orion Holdings B.V.");
+  const request = await seedBooking({ contactId, email, status: "quoted", quotedAmount: "300.00", destination: "Admin Linked Street" });
 
   await adminSignIn(page);
   await page.goto(`/admin/requests/${request.id}`);
-  await expect(page.getByText(a.partnerCard.suggest.replace("{name}", "Anouk Jansen"))).toBeVisible();
-  await page.getByRole("button", { name: a.partnerCard.attach }).first().click();
-  await expect(page.getByText(a.partnerCard.linkedTo, { exact: true })).toBeVisible();
-  await expect(page.getByText(a.events.attached.replace("{partner}", "Anouk Jansen"))).toBeVisible();
 
-  // The partner now has it, and writes about it
+  // The partner writes about it
   const partnerContext = await browser.newContext({ baseURL: ORIGIN, storageState: CONSENTED_STATE });
   await ownAddress(partnerContext);
   const partner = await partnerContext.newPage();
@@ -413,50 +408,7 @@ test("the team links a request to a partner, they talk, and detaching takes it o
   await partner.reload();
   await expect(partner.getByText("Understood, we have cancelled it.")).toBeVisible();
   await expect(partner.getByText(p.team)).toBeVisible();
-
-  // Detached, it is gone from the portal
-  await page.getByRole("button", { name: a.partnerCard.detach }).click();
-  await expect(page.getByText(a.partnerCard.notLinked)).toBeVisible();
-  await partner.goto(detail(request.reference));
-  await expect(partner.getByText(p.bookingNotFound)).toBeVisible();
   await partnerContext.close();
-});
-
-test("a request with a partner's messages or invoices can only be attached to that same partner again", async ({ page, context }) => {
-  test.slow(); // several admin round trips
-  await ownAddress(context);
-  const first = await seedContact(newEmail("first"), PASSWORD, "First Partner", "First Co");
-  const second = await seedContact(newEmail("second"), PASSWORD, "Second Partner", "Second Co");
-  const request = await seedBooking({ contactId: first, email: "someone@e2e.ecramexecs.test", status: "confirmed" });
-  const db = sql();
-  await db`insert into booking_messages (request_id, author_kind, contact_id, kind, body) values (${request.id}, 'partner', ${first}, 'message', 'First partner only')`;
-  await db.end();
-
-  await adminSignIn(page);
-  await page.goto(`/admin/requests/${request.id}`);
-  await page.getByRole("button", { name: a.partnerCard.detach }).click();
-  await expect(page.getByText(a.partnerCard.notLinked)).toBeVisible();
-  await expect(page.getByText(a.partnerCard.historyNote)).toBeVisible();
-  // Only the partner whose conversation this is can be chosen
-  await page.locator("#attach-partner").click();
-  const options = page.getByRole("listbox").getByRole("option");
-  await expect(options.filter({ hasText: "First Partner" })).toBeVisible();
-  await expect(options.filter({ hasText: "Second Partner" })).toHaveCount(0);
-
-  // And the server says no even to a form that was tampered with
-  await page.locator('input[name="contactId"]').evaluate((el, id) => {
-    (el as HTMLInputElement).value = id;
-  }, second);
-  await page.getByRole("button", { name: a.partnerCard.attach }).first().click();
-  await page.waitForLoadState("networkidle");
-  expect((await bookingRow(request.reference))?.corporate_contact_id).toBeNull();
-
-  // The same partner can be attached again
-  await page.reload();
-  await page.locator("#attach-partner").click();
-  await page.getByRole("option", { name: /First Partner/ }).click();
-  await page.getByRole("button", { name: a.partnerCard.attach }).first().click();
-  await expect(page.getByText(a.partnerCard.linkedTo, { exact: true })).toBeVisible();
 });
 
 test("the team cannot overwrite a booking the partner has just answered", async ({ page, context }) => {

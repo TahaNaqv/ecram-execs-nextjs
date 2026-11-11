@@ -19,7 +19,6 @@ import { StatusBadge, UrgentBadge } from "../../../_components/status-badge";
 import { Avatar, btn, Card, CardHeader } from "../../../_components/ui";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
-import { PartnerCard } from "./partner-card";
 import { tripMinutes } from "@/lib/fleet/schedule";
 import { AssignVehicle } from "./assign-vehicle";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
@@ -165,8 +164,6 @@ export function RequestDetailClient({ initialData, dictionary }: { initialData: 
 
         {/* Sidebar */}
         <div className="flex flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
-          <PartnerCard requestId={r.id} />
-
           <Card>
             <CardHeader title={d.admin.schedule.carTitle} icon={<CalendarIcon />} />
             <AssignVehicle

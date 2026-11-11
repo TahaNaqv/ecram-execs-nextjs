@@ -18,12 +18,11 @@ function amsterdamNow() {
 const minutes = (value: string) => value.replace("T", " ").slice(0, 16);
 
 /**
- * What "today" means for the headline "Today's jobs" figure: a request whose pick-up or return falls
- * on today's Amsterdam date. Only bookings still to run: new and confirmed. Completed and cancelled
- * trips are left out, and so are ones that are only contacted or quoted.
+ * What "today" means for the headline "Today's jobs" figure: a confirmed booking whose pick-up or return
+ * falls on today's Amsterdam date. New, contacted, quoted, completed and cancelled trips are left out.
  * The New Incoming Requests list does not use this. It is every status "new" booking, soonest first.
  */
-const TODAY_STATUSES = ["new", "confirmed"] as const;
+const TODAY_STATUSES = ["confirmed"] as const;
 
 /** A fresh fragment each time: the same sql object must not be embedded twice in one query. */
 const amsterdamClock = () => sql`(now() at time zone 'Europe/Amsterdam')`;
@@ -40,11 +39,11 @@ function todayJobsWhere() {
 
 export type DashboardFigures = {
   fleet: { available: number; total: number };
-  /** Requests with a pick-up or a return today, and the time of the next one still to come today */
+  /** Confirmed bookings with a pick-up or a return today, and the time of the next one still to come today */
   jobs: { today: number; nextAt: string | null };
   /** Every corporate partner account, the same set as the Corporate Partners list */
   partners: { total: number };
-  /** Confirmed and completed bookings whose pick-up is in the current month, at the calculated price: trips, not payments received (a bespoke one has no pick-up and is not counted) */
+  /** Every booking that was not cancelled, at the calculated price: the same total the bookings list used to show as Total business */
   revenue: { amount: string; count: number };
 };
 
@@ -69,13 +68,7 @@ export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(q)
-      .where(
-        and(
-          inArray(q.status, ["confirmed", "completed"]),
-          isNotNull(q.pickupAt),
-          sql`date_trunc('month', ${q.pickupAt}) = date_trunc('month', ${NOW})`,
-        ),
-      ),
+      .where(sql`${q.status} <> 'cancelled'`),
   ]);
 
   const now = amsterdamNow();

@@ -1,26 +1,15 @@
 import { z } from "zod";
 import { HOURLY_DURATIONS, SERVICES } from "@/lib/quotes/constants";
-import { capacityProblem, carsCapacityProblem, cleanCars, MAX_GROUP, MAX_GROUP_BAGS, MAX_PER_CAR, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
+import { capacityProblem, carsCapacityProblem, cleanCars, hasConsecutivePlaces, MAX_GROUP, MAX_GROUP_BAGS, MAX_PER_CAR, MAX_SMALL_BAGS } from "@/app/[locale]/_components/booking/trip";
 import { FLEET, VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import { cleanExtras } from "@/lib/pricing/extras";
+import { amsterdamWallOffset, isBeyondHorizon, isPastWall } from "@/lib/time/amsterdam";
 
-const AMS = "Europe/Amsterdam";
-
-/** Current wall-clock time in the Netherlands as "YYYY-MM-DDTHH:mm". */
+/** Current wall-clock time in the Netherlands as "YYYY-MM-DDTHH:mm". `offsetMinutes` moves a real instant, then reads that clock. */
 export function amsterdamNow(offsetMinutes = 0) {
-  const d = new Date(Date.now() + offsetMinutes * 60_000);
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: AMS,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-    .format(d)
-    .replace(" ", "T");
+  return amsterdamWallOffset(offsetMinutes);
 }
 
 /**
@@ -50,7 +39,7 @@ export type QuoteMessages = {
   passengerNameTooLong: string;
   passengerPhoneInvalid: string;
   luggageInvalid: string;
-  samePlace: string;
+  consecutivePlace: string;
   vehiclePassengers: string;
   vehicleLuggage: string;
   vehicleBoth: string;
@@ -69,7 +58,7 @@ const countryCode = (message: string) =>
 // Only the id Google gives a place; the address text itself is kept in collection/destination
 const placeId = z.preprocess(blank, z.string().max(300).regex(/^[A-Za-z0-9_-]+$/).optional());
 
-export const quoteSchema = (t: QuoteMessages) =>
+export const quoteSchema = (t: QuoteMessages, stops: readonly string[] = []) =>
   z.object({
     collection: z.string().trim().min(1, t.collectionRequired).max(200, t.collectionTooLong),
     // Required unless the booking is hourly with a duration (checked below)
@@ -77,12 +66,12 @@ export const quoteSchema = (t: QuoteMessages) =>
     pickupAt: z
       .string()
       .regex(WALL_CLOCK, t.pickupInvalid)
-      // Allow a little slack for slow form fills; reject clearly past or far-future dates
-      .refine((v) => v >= amsterdamNow(-60), t.pickupPast)
-      .refine((v) => v <= amsterdamNow(60 * 24 * 730), t.pickupTooFar),
+      // A few minutes of slack for a form that was filled in as "now"; anything older has passed. Compared as Dutch wall-clock minutes.
+      .refine((v) => !isPastWall(v, amsterdamNow()), t.pickupPast)
+      .refine((v) => !isBeyondHorizon(v, amsterdamNow()), t.pickupTooFar),
     returnAt: z.preprocess(
       blank,
-      z.string().regex(WALL_CLOCK, t.returnInvalid).refine((v) => v <= amsterdamNow(60 * 24 * 730), t.pickupTooFar).optional(),
+      z.string().regex(WALL_CLOCK, t.returnInvalid).refine((v) => !isBeyondHorizon(v, amsterdamNow()), t.pickupTooFar).optional(),
     ),
     service: z.enum(SERVICES, { error: t.serviceRequired }),
     durationHours: z.preprocess(
@@ -169,7 +158,8 @@ export const quoteSchema = (t: QuoteMessages) =>
     if (!v.destination && v.service !== "hourly") issue("destination", t.destinationRequired);
     if (!v.destination && v.service === "hourly" && !v.durationHours) issue("durationHours", t.durationRequired);
     if (v.returnAt && v.returnAt <= v.pickupAt) issue("returnAt", t.returnBeforePickup);
-    if (v.destination && samePlace(v.collection, v.destination)) issue("destination", t.samePlace);
+    // Home → Office → Home is fine. The place directly before this one cannot be the same, including a stop beside pickup or drop-off.
+    if (v.service !== "hourly" && hasConsecutivePlaces([v.collection, ...stops, v.destination ?? ""])) issue("destination", t.consecutivePlace);
     // Several cars are checked together: their seats and boots added up
     const fit = v.vehicles?.length ? carsCapacityProblem(cleanCars(v.vehicles), v.passengers ?? 1, v.luggage ?? null) : capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
     const fitText = fit.passengers && fit.luggage ? t.vehicleBoth : fit.passengers ? t.vehiclePassengers : fit.luggage ? t.vehicleLuggage : "";

@@ -79,7 +79,7 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   await expect(receipt).toContainText(en.booking.receiptRides);
   await expect(receipt).toContainText(`2 × ${en.addOns.champagne}`);
   await expect(receipt).toContainText(`1 × ${en.addOns.chocolates} (${en.addOns.chocolatesDairyFree})`);
-  await expect(receipt).toContainText(en.booking.receiptNet);
+
   await expect(receipt).toContainText(en.booking.priceVatHigh);
   await expect(receipt).toContainText(euro(4421));
   await receipt.getByRole("button", { name: "Close", exact: true }).last().click();

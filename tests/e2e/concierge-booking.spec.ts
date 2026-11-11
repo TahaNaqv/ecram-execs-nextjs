@@ -314,16 +314,17 @@ test("add-ons are asked once the ride and contact details are in, then itemised 
   const euro = (cents: number) => formatCents(cents, "en");
   const quote = booked.quote;
   expect(quote?.totalLabel).toBe(en.booking.priceTotal);
-  expect(quote?.lines.map((line) => line.label)).toEqual([
-    en.booking.receiptRides,
-    `1 × ${extraName(en.addOns, { key: "champagne" })} (${euro(EXTRAS.champagne.unit)})`,
-    `2 × ${extraName(en.addOns, { key: "chocolates", option: "dairy_free" })} (${euro(EXTRAS.chocolates.unit)})`,
-    `1 × ${extraName(en.addOns, { key: "flowers" })} (${euro(EXTRAS.flowers.unit)})`,
-    `1 × ${extraName(en.addOns, { key: "newspapers" })} (${euro(EXTRAS.newspapers.unit)})`,
-    en.booking.priceVat,
-    en.booking.priceServiceFee,
-    en.booking.priceVatHigh,
-  ]);
+  const labels = quote?.lines.map((line) => line.label) ?? [];
+  const extras = [
+    `1 × ${extraName(en.addOns, { key: "champagne" })}`,
+    `2 × ${extraName(en.addOns, { key: "chocolates", option: "dairy_free" })}`,
+    `1 × ${extraName(en.addOns, { key: "flowers" })}`,
+    `1 × ${extraName(en.addOns, { key: "newspapers" })}`,
+  ];
+  // Extra kilometres sit on their own line when the rate card adds them, in the same place as the website receipt
+  expect(labels[0]).toBe(en.booking.receiptRides);
+  const afterRides = labels[1] === en.booking.receiptKm ? labels.slice(2) : labels.slice(1);
+  expect(afterRides).toEqual([...extras, en.booking.priceServiceFee, en.booking.priceVat, en.booking.priceVatHigh]);
   expect(quote?.lines.find((line) => line.label === en.booking.priceServiceFee)?.amount).toBe(euro(1250));
   expect(quote?.lines.find((line) => line.label.startsWith("2 ×"))?.amount).toBe(euro(EXTRAS.chocolates.unit * 2));
 });

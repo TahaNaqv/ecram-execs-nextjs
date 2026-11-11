@@ -26,6 +26,17 @@ function lockedTotal(request: QuoteRequest): number | null {
   return Number.isFinite(amount) ? amount : null;
 }
 
+/** The car on the booking, or the car we would recommend when the visitor asked us to choose. */
+function vehicleName(request: { passengers?: number | null; luggage?: number | null; vehicle?: string | null; vehicles?: unknown }): string {
+  const titled = convoyTitle(request);
+  if (titled) return titled;
+  const picks = fleetPicks(request.vehicles);
+  if (picks.length === 1) return vehicleByKey(picks[0].key)?.name ?? picks[0].key;
+  if (request.vehicle && request.vehicle !== "advise") return vehicleByKey(request.vehicle)?.name ?? request.vehicle;
+  const suggested = suggestVehicle(FLEET, { pax: Math.max(1, request.passengers ?? 1), bags: request.luggage ?? 0 });
+  return suggested?.name ?? "—";
+}
+
 const euros = (cents: unknown) => {
   const amount = centsOf(cents);
   return amount == null ? 0 : amount / 100;
@@ -55,7 +66,8 @@ function fareRows(price: Price | null, copy: PricingCopy, names?: ExtraNames): {
 import { formatEuro, formatTimestamp, pickupParts } from "@/lib/admin/format";
 import { bookingTotalEuros, centsOf, hasHighRateExtras, vatByRate, type Price } from "@/lib/pricing/rates";
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
-import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
+import { convoyTitle, FLEET, fleetPicks, suggestVehicle, vehicleByKey } from "@/lib/fleet/vehicles";
+import { publishBookingStatus, useBookingStatus } from "./booking-status";
 import { 
   ShieldIcon,
   CheckIcon,
@@ -98,10 +110,17 @@ export function AutoPricingGateway({
   children?: React.ReactNode;
 }) {
   const router = useRouter();
+  const liveStatus = useBookingStatus(request.id, request.status);
   // Confirmed status stored from the request/backend
-  const [status, setStatus] = useState<StatusChoice>(asStatus(request.status));
+  const [status, setStatus] = useState<StatusChoice>(asStatus(liveStatus));
   // Temporary dropdown choice before confirmation button is clicked
-  const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(asStatus(request.status));
+  const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(asStatus(liveStatus));
+
+  useEffect(() => {
+    const next = asStatus(liveStatus);
+    setStatus(next);
+    setSelectedStatus(next);
+  }, [liveStatus]);
   
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -144,6 +163,7 @@ export function AutoPricingGateway({
       }
 
       setStatus(selectedStatus); // Commit status change
+      publishBookingStatus(request.id, selectedStatus);
       if (data.warning || data.error) {
         setToast(`Sent with note: Check terminal for Resend logs.`);
       } else {
@@ -160,7 +180,7 @@ export function AutoPricingGateway({
   }
 
   function printQuote() {
-    const vehicleName = convoyTitle(request) ?? (request.vehicle ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—");
+    const chosenVehicle = vehicleName(request);
     const when = [pickup?.date, pickup?.time].filter(Boolean).join(" · ") || "—";
     const issued = new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/Amsterdam",
@@ -208,7 +228,7 @@ export function AutoPricingGateway({
       <p class="k">${esc(copy.itinerary)}</p>
       <p class="v">${esc(collection)} → ${esc(destination)}</p>
       <p>${esc(when)}</p>
-      <p>${esc(vehicleName)}${request.passengers != null ? ` · ${esc(String(request.passengers))}` : ""}${request.luggage != null ? ` · ${esc(String(request.luggage))} large` : ""}${request.handLuggage ? ` · ${esc(String(request.handLuggage))} small` : ""}</p>
+      <p>${esc(chosenVehicle)}${request.passengers != null ? ` · ${esc(String(request.passengers))}` : ""}${request.luggage != null ? ` · ${esc(String(request.luggage))} large` : ""}${request.handLuggage ? ` · ${esc(String(request.handLuggage))} small` : ""}</p>
     </div>
   </div>
   <table>
@@ -577,7 +597,7 @@ export function AutoPricingGateway({
                   <BriefcaseIcon size={12} /> {copy.vehicle}
                 </p>
                 <p className="mt-0.5 font-semibold whitespace-normal text-zinc-900">
-                  {convoyTitle(request) ?? (request.vehicle && request.vehicle !== "advise" ? (vehicleByKey(request.vehicle)?.name ?? request.vehicle) : "—")}
+                  {vehicleName(request)}
                 </p>
                 {(request.vehicleCount ?? 1) > 1 && request.internalNotes?.trim() ? (
                   <p className="mt-0.5 text-xs font-medium whitespace-pre-wrap text-zinc-700">{request.internalNotes.trim()}</p>

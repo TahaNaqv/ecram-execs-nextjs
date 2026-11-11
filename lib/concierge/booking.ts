@@ -330,7 +330,12 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
   // not given yet is "missing", which the model asks for in its own way.
   const values: Record<string, unknown> = {};
   for (const [k, v] of form) values[k] = v;
-  const parsed = quoteSchema(messages).safeParse({ ...values, passengers: values.passengers || undefined, vehicle: values.vehicle || undefined, notes: values.notes || undefined });
+  const parsed = quoteSchema(messages, (draft.stops ?? []).map((stop) => stop.place)).safeParse({
+    ...values,
+    passengers: values.passengers || undefined,
+    vehicle: values.vehicle || undefined,
+    notes: values.notes || undefined,
+  });
   const errors: Partial<Record<DraftKey, string>> = {};
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
@@ -355,6 +360,16 @@ export function assess(draft: Draft, messages: QuoteMessages, locale: Locale, un
   const suggested = draft.vehicle === "advise" ? suggestVehicle(FLEET.filter((v) => !unavailable.has(v.key)), need) : undefined;
   const suggestionFits = Boolean(suggested && bagCapacity(suggested) >= need.bags && (suggested.specs?.passengers ?? 0) >= need.pax);
   const car = draft.vehicle && draft.vehicle !== "advise" ? (FLEET.find((v) => v.key === draft.vehicle)?.name ?? null) : suggestionFits && suggested ? suggested.name : null;
+  // "Advise me" still recommends one car. Store that car, so the booking and the admin review show its name.
+  if (suggestionFits && suggested) {
+    const encoded = JSON.stringify([{ key: suggested.key, count: 1 }]);
+    const vehicleAt = form.findIndex(([key]) => key === "vehicle");
+    if (vehicleAt >= 0) form[vehicleAt] = ["vehicle", suggested.key];
+    else form.push(["vehicle", suggested.key]);
+    const listAt = form.findIndex(([key]) => key === "vehicles");
+    if (listAt >= 0) form[listAt] = ["vehicles", encoded];
+    else form.push(["vehicles", encoded]);
+  }
   const national = (p: { country: string; number: string } | null, fallback: string) => (p ? `+${p.country || fallback} ${p.number}` : "");
   return {
     missing,
