@@ -103,10 +103,109 @@ export async function routeBlockMinutes(b: RoutedBooking): Promise<number | null
   return blockMinutesFor({ service: b.service, driveSeconds: found.seconds, waitMinutes });
 }
 
+/**
+ * Places the booking form offers by name. Their coordinates skip the geocoder, so a route between them still has a
+ * distance when Google is not configured.
+ */
+const KNOWN_PLACES: { name: string; lat: number; lon: number }[] = [
+  { name: "Amsterdam Airport Schiphol", lat: 52.310539, lon: 4.768274 },
+  { name: "Schiphol General Aviation Terminal", lat: 52.3186, lon: 4.7894 },
+  { name: "Rotterdam The Hague Airport", lat: 51.956944, lon: 4.437222 },
+  { name: "Eindhoven Airport", lat: 51.450139, lon: 5.374528 },
+  { name: "Groningen Airport Eelde", lat: 53.11972, lon: 6.57944 },
+  { name: "Maastricht Aachen Airport", lat: 50.911658, lon: 5.770144 },
+  { name: "Schiphol Airport station", lat: 52.3089, lon: 4.7614 },
+  { name: "Amsterdam Centraal", lat: 52.378901, lon: 4.900581 },
+  { name: "Den Haag Centraal", lat: 52.08095, lon: 4.325 },
+  { name: "Rotterdam Centraal", lat: 51.9225, lon: 4.4694 },
+  { name: "Utrecht Centraal", lat: 52.08944, lon: 5.10972 },
+];
+
+const foldPlace = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+const knownPlace = (address: string) => KNOWN_PLACES.find((place) => foldPlace(place.name) === foldPlace(address)) ?? null;
+
+let geocodeQueue: Promise<unknown> = Promise.resolve();
+let lastGeocodeAt = 0;
+
+/** One public geocode at a time, a second apart, which is what that service asks for. */
+function paced<T>(work: () => Promise<T>): Promise<T> {
+  const run = geocodeQueue.then(async () => {
+    const wait = lastGeocodeAt + 1100 - Date.now();
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    lastGeocodeAt = Date.now();
+    return work();
+  });
+  geocodeQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function pointFor(address: string): Promise<{ lat: number; lon: number } | null> {
+  const known = knownPlace(address);
+  if (known) return { lat: known.lat, lon: known.lon };
+  return paced(async () => {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("q", address);
+    // Prefer the Netherlands, where the bookings are, without refusing a place further away
+    url.searchParams.set("viewbox", "3.2,53.7,7.3,50.6");
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(5000),
+      headers: { Accept: "application/json", "User-Agent": "EcramExecs/1.0 (booking route estimate)" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { lat?: string; lon?: string }[];
+    const lat = Number(data[0]?.lat);
+    const lon = Number(data[0]?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (lat < 35 || lat > 72 || lon < -12 || lon > 32) return null;
+    return { lat, lon };
+  });
+}
+
+/**
+ * Driving distance when Google is not set up or cannot find the route. The places we know are used directly; anything
+ * else is found, then driven. Null when a place cannot be found, so the review says the route is not available.
+ */
+async function openDrive(b: RoutedBooking): Promise<{ meters: number; seconds: number } | null> {
+  const places = [b.collection, ...(b.destinations ?? []).filter(Boolean), b.destination].filter((place): place is string => Boolean(place?.trim()));
+  if (places.length < 2) return null;
+  try {
+    const points: { lat: number; lon: number }[] = [];
+    for (const place of places) {
+      const point = await pointFor(place.trim());
+      if (!point) return null;
+      points.push(point);
+    }
+    const path = points.map((point) => `${point.lon},${point.lat}`).join(";");
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${path}?overview=false`, {
+      signal: AbortSignal.timeout(8000),
+      headers: { Accept: "application/json", "User-Agent": "EcramExecs/1.0 (booking route estimate)" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { code?: string; routes?: { distance?: number; duration?: number }[] };
+    const route = data.code === "Ok" ? data.routes?.[0] : undefined;
+    const meters = route?.distance;
+    const seconds = route?.duration;
+    if (typeof meters !== "number" || typeof seconds !== "number" || meters <= 0 || seconds <= 0) return null;
+    if (seconds > MAX_PLAUSIBLE_DRIVE_SECONDS) return null;
+    return { meters: Math.round(meters), seconds: Math.round(seconds) };
+  } catch (error) {
+    console.error("[routes] could not measure the drive another way:", error);
+    return null;
+  }
+}
+
 /** How far and how long a trip drives without traffic, for the visitor's review of a booking; null when it cannot be told. */
 export async function routeEstimate(b: RoutedBooking): Promise<{ meters: number; seconds: number } | null> {
   const found = await lookup(b, false, false);
-  return found && found.meters !== null ? { meters: found.meters, seconds: found.seconds } : null;
+  if (found && found.meters !== null) return { meters: found.meters, seconds: found.seconds };
+  if (!ROUTED_SERVICES.has(b.service) || !b.collection || !b.destination) return null;
+  return openDrive(b);
 }
 
 /** The line a booking's route follows, as Google's encoded polyline; null when it cannot be told. */

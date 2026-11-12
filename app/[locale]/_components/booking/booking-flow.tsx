@@ -1341,7 +1341,7 @@ export function DownloadableReceiptCard({
         route,
         when: receipt?.when ?? "",
         pickup: receipt?.pickup,
-        stops: receipt?.stops,
+        stops: receipt?.stops.map((stop, index) => `${interpolate(t.stopLabel, { number: index + 1 })}: ${stop}`),
         dropoff: receipt?.dropoff,
         vehicle: receipt?.vehicle,
         passengers: receipt?.passengers,
@@ -1400,7 +1400,9 @@ export function DownloadableReceiptCard({
                   <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">Itinerary</span>
                   {receipt?.pickup && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{receipt.pickup}</strong>}
                   {receipt?.stops.map((stop, index) => (
-                    <span key={`${stop}-${index}`} className="break-words text-[12px] text-zinc-200">{stop}</span>
+                    <span key={`${stop}-${index}`} className="break-words text-[12px] text-zinc-200">
+                      {interpolate(t.stopLabel, { number: index + 1 })}: {stop}
+                    </span>
                   ))}
                   {receipt?.dropoff && <span className="break-words text-[13px] font-semibold text-[#ffffff]">{receipt.dropoff}</span>}
                   {!receipt?.pickup && !receipt?.dropoff && route && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{route}</strong>}

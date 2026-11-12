@@ -9,6 +9,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { extraName } from "@/lib/pricing/extras";
 import { bookingTotalEuros, formatCents } from "@/lib/pricing/rates";
+import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { getGuestBooking, guestMessages } from "@/lib/quotes/guest";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
@@ -41,9 +42,10 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
   }
   const messages = await guestMessages(booking.id);
 
+  const intermediates = stopsWithWaits(booking.destinations, booking.destinationWaits).filter((s) => s.place.trim());
   const route = [
     booking.collection,
-    ...stopsWithWaits(booking.destinations, booking.destinationWaits).map((s) => s.place),
+    ...intermediates.map((s, index) => `${interpolate(d.booking.stopLabel, { number: index + 1 })}: ${s.place}`),
     booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null),
   ].filter(Boolean);
   const cars = convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle);
@@ -71,16 +73,28 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
     dropoff: booking.destination ?? (hourly && booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : ""),
     when: booking.pickupAt ? formatPickup(booking.pickupAt, locale) : "",
     hourly,
-    stops: booking.destinations ?? [],
+    stops: intermediates.map((s) => s.place),
     price: booking.priceEstimate,
     extraNames: (booking.extras ?? []).map((pick) => extraName(d.addOns, pick)),
     vehicle: cars ?? "",
     passengers: party,
   };
+  const routeLine = await savedRouteLine(
+    booking,
+    {
+      reviewDistanceValue: d.booking.reviewDistanceValue,
+      reviewHoursMinutes: d.booking.reviewHoursMinutes,
+      reviewMinutes: d.booking.reviewMinutes,
+      unavailable: d.booking.reviewDistanceUnavailable,
+      hourly: d.booking.asDirected,
+    },
+    locale,
+  );
   const facts = [
     { label: t.labelReference, value: booking.reference },
     { label: t.labelWhen, value: [booking.pickupAt && formatPickup(booking.pickupAt, locale), booking.returnAt && `${d.booking.summaryReturn}: ${formatPickup(booking.returnAt, locale)}`].filter(Boolean).join(" · ") },
     { label: t.labelRoute, value: route.join(" → ") },
+    { label: d.booking.reviewDistance, value: routeLine },
     { label: t.labelCars, value: cars ?? "" },
     { label: t.labelPrice, value: price ?? "" },
   ].filter((f) => f.value);

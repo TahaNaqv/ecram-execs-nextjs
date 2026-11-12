@@ -13,6 +13,7 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { formatCents, priceNet } from "@/lib/pricing/rates";
+import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extrasLine } from "@/lib/pricing/extras";
 import { RouteMap } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
@@ -85,13 +86,30 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
   const waiting = booking.status === "quoted" && booking.quotedAmount !== null;
   const open = (MESSAGEABLE as readonly string[]).includes(booking.status);
   const bespoke = booking.service === "bespoke";
-  // In travelling order: where from, any stops on the way, where to
+  // In travelling order: where from, numbered stops on the way, where to
   const stops = [
-    { text: booking.collection, wait: 0 },
-    ...stopsWithWaits(booking.destinations, booking.destinationWaits).map((s) => ({ text: s.place, wait: s.wait })),
+    { text: booking.collection, wait: 0, label: d.quoteForm.labelCollection },
+    ...stopsWithWaits(booking.destinations, booking.destinationWaits)
+      .filter((s) => s.place.trim())
+      .map((s, index) => ({ text: s.place, wait: s.wait, label: interpolate(d.booking.stopLabel, { number: index + 1 }) })),
     // An hourly booking may end "as directed" instead of at a destination
-    { text: booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null), wait: 0 },
+    {
+      text: booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null),
+      wait: 0,
+      label: d.quoteForm.labelDestination,
+    },
   ].filter((s) => s.text);
+  const routeLine = await savedRouteLine(
+    booking,
+    {
+      reviewDistanceValue: d.booking.reviewDistanceValue,
+      reviewHoursMinutes: d.booking.reviewHoursMinutes,
+      reviewMinutes: d.booking.reviewMinutes,
+      unavailable: d.booking.reviewDistanceUnavailable,
+      hourly: d.booking.asDirected,
+    },
+    locale,
+  );
   const loginHref = localizedPath("/corporate-partner/login", locale);
   const routeMap = bespoke ? null : routeMapLinks(booking, browserMapKey());
 
@@ -139,6 +157,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
               </Fact>
               {booking.returnAt && <Fact label={d.booking.summaryReturn}>{formatPickup(booking.returnAt, locale)}</Fact>}
               {booking.flightNumber && <Fact label={d.booking.flight}>{booking.flightNumber}</Fact>}
+              <Fact label={d.booking.reviewDistance}>{routeLine}</Fact>
               {bespoke ? (
                 booking.itinerary && (
                   <div className="sm:col-span-2">
@@ -155,6 +174,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
                         <li key={i} className="flex min-w-0 gap-3">
                           <span className="grid size-5 shrink-0 place-items-center rounded-full border border-solid border-ink-225 text-[11px] font-semibold text-ink-700">{i + 1}</span>
                           <span className="min-w-0">
+                            <span className="block text-[12px] text-ink-600">{stop.label}</span>
                             {stop.text}
                             {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
                           </span>

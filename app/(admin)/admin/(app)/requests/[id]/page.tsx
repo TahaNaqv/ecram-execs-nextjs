@@ -39,6 +39,7 @@ import { localizedPath } from "@/lib/i18n/pathnames";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
+import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
 async function BackLink({ fromEnquiries }: { fromEnquiries: boolean }) {
@@ -119,6 +120,17 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
   // The embedded map needs a browser key (restricted to this site and to the Maps Embed API); without one only the link is shown
   const links = routeMapLinks(r, browserMapKey());
   const routeMap = links ? { ...links, openLabel: rd.routeOpen, noKey: rd.routeNoKey, frameTitle: rd.routeFrameTitle } : null;
+  const routeLine = await savedRouteLine(
+    r,
+    {
+      reviewDistanceValue: d.booking.reviewDistanceValue,
+      reviewHoursMinutes: d.booking.reviewHoursMinutes,
+      reviewMinutes: d.booking.reviewMinutes,
+      unavailable: d.booking.reviewDistanceUnavailable,
+      hourly: d.booking.asDirected,
+    },
+    r.locale,
+  );
 
   return (
     <div className="mt-4 animate-fade-in">
@@ -195,6 +207,8 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
           copy={d.admin.pricing}
           statuses={d.admin.statuses}
           routeMap={routeMap}
+          routeLabel={d.booking.reviewDistance}
+          routeLine={routeLine}
           addOns={extrasLine(d.addOns, r.extras)}
           addOnNames={d.addOns}
           bookingLink={

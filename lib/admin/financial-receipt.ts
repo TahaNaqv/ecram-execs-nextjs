@@ -37,22 +37,25 @@ export type ReceiptCopy = {
   vatHigh: string;
   words: ReceiptWords;
   extras: ExtraNames;
+  /** "Stop {number}" — intermediate stops are numbered in travelling order. */
+  stopLabel: string;
 };
 
-function routeOf(row: ReceiptBooking, hourly: string): { pickup?: string; stops: string[]; dropoff?: string; route: string } {
+function routeOf(row: ReceiptBooking, hourly: string, stopLabel: string): { pickup?: string; stops: string[]; dropoff?: string; route: string } {
   if (row.service === "bespoke") {
     const route = [row.entity, row.itinerary].map((part) => part?.trim()).filter(Boolean).join(" · ");
     return { stops: [], route: route || row.service };
   }
-  const stops = [row.collection, ...(row.destinations ?? [])].map((part) => part?.trim()).filter((part): part is string => Boolean(part));
+  const places = [row.collection, ...(row.destinations ?? [])].map((part) => part?.trim()).filter((part): part is string => Boolean(part));
   const dropoff = row.destination?.trim();
-  if (dropoff && dropoff !== stops[stops.length - 1]) stops.push(dropoff);
-  if (stops.length === 0 && row.durationHours) return { stops: [], route: interpolate(hourly, { hours: row.durationHours }) };
+  if (dropoff && dropoff !== places[places.length - 1]) places.push(dropoff);
+  if (places.length === 0 && row.durationHours) return { stops: [], route: interpolate(hourly, { hours: row.durationHours }) };
+  const stops = places.slice(1, -1).map((place, index) => `${interpolate(stopLabel, { number: index + 1 })}: ${place}`);
   return {
-    pickup: stops[0],
-    stops: stops.slice(1, -1),
-    dropoff: stops.length > 1 ? stops[stops.length - 1] : undefined,
-    route: stops.join(" - "),
+    pickup: places[0],
+    stops,
+    dropoff: places.length > 1 ? places[places.length - 1] : undefined,
+    route: [places[0], ...stops, places.length > 1 ? places[places.length - 1] : undefined].filter(Boolean).join(" - "),
   };
 }
 
@@ -84,7 +87,7 @@ function rateCardLines(price: Price, gross: number, words: ReceiptWords, names: 
 export function buildBookingReceipt(row: ReceiptBooking, copy: ReceiptCopy, locale: Locale): Uint8Array {
   const gross = grossEuros({ quotedAmount: row.quotedAmount, priceEstimate: asTotal(row.priceEstimate) });
   const price = asPrice(row.priceEstimate);
-  const journey = routeOf(row, copy.hourly);
+  const journey = routeOf(row, copy.hourly, copy.stopLabel);
   const card = price ? rateCardLines(price, gross, copy.words, copy.extras) : null;
   const vat = vatOf(gross, row.priceEstimate);
   const lines =

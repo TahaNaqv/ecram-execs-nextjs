@@ -167,6 +167,12 @@ export type Price = {
    * team is choosing the car (so the car we would suggest is counted). The flow then says "from".
    */
   exact: boolean;
+  /**
+   * The transfer's distance and drive, as Google reported them when the price was worked out.
+   * Missing on prices stored before this was kept, and on hourly bookings, whose distance is not known until the trip is done.
+   */
+  distanceMeters?: number;
+  driveSeconds?: number;
 };
 
 export type PriceInput = {
@@ -241,6 +247,9 @@ export function priceBooking(input: PriceInput): Price | null {
     total: rides + vat + fee + feeVat + extrasNet + extrasVat,
     // A timed transfer whose distance is not known may still owe kilometres: then it is a lower bound too
     exact: timed !== null && !input.suggested && (hourly || distance !== null),
+    // Kept so a later ride-details card can show the same distance and time the price was based on
+    ...(!hourly && input.distanceMeters && Number.isFinite(input.distanceMeters) && input.distanceMeters > 0 ? { distanceMeters: input.distanceMeters } : {}),
+    ...(!hourly && input.driveSeconds && Number.isFinite(input.driveSeconds) && input.driveSeconds > 0 ? { driveSeconds: input.driveSeconds } : {}),
   };
 }
 

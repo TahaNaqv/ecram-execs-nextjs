@@ -12,6 +12,7 @@ import type { AddOnsCopy, BookingCopy } from "./copy";
 import { extrasLine } from "@/lib/pricing/extras";
 import { guestsText, partyLine } from "./guests-picker";
 import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
+import { formatRouteSpan, spanFromPrice } from "@/lib/pricing/route-span";
 import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
 
 const ArrowLeft = () => (
@@ -30,7 +31,10 @@ function waypoints(trip: Trip, t: BookingCopy): { label: string; place: string }
   if (trip.mode === "hourly") return trip.from.text ? [{ label: t.reviewPickup, place: trip.from.text }] : [];
   return [
     { label: t.reviewPickup, place: trip.from.text },
-    ...trip.stops.filter((s) => s.place.trim()).map((s) => ({ label: t.reviewStop, place: s.wait ? `${s.place} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : s.place })),
+    ...trip.stops.filter((s) => s.place.trim()).map((s, index) => ({
+      label: interpolate(t.reviewStop, { number: index + 1 }),
+      place: s.wait ? `${s.place} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : s.place,
+    })),
     { label: t.reviewDropoff, place: trip.to.text },
   ].filter((w) => w.place.trim());
 }
@@ -156,8 +160,7 @@ function minutesText(minutes: number, t: BookingCopy) {
 }
 
 function distanceText(est: { meters: number; seconds: number }, t: BookingCopy, locale: Locale) {
-  const km = new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", { maximumFractionDigits: 1 }).format(est.meters / 1000);
-  return interpolate(t.reviewDistanceValue, { km, time: minutesText(est.seconds / 60, t) });
+  return formatRouteSpan(est, t, locale);
 }
 
 /**
@@ -242,7 +245,23 @@ export function ReviewStep({
   if (trip.at) ride.push([t.summaryWhen, pretty(trip.at, locale)]);
   ride.push([t.summaryParty, partyLine(t, trip.pax, trip.bags, trip.small)]);
   if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
-  if (routed && estimate) ride.push([t.reviewDistance, estimate === "pending" ? <span className="text-ink-500">{t.reviewDistancePending}</span> : distanceText(estimate, t, locale)]);
+  const segment = segmentOf(variant);
+  const drive = estimate && estimate !== "pending" ? estimate : null;
+  const price = tripPrice(trip, segment, drive?.seconds ?? null, drive?.meters ?? null);
+  const calculated = drive ?? (estimate === "pending" ? null : spanFromPrice(price));
+  if (routed || trip.mode === "hourly" || calculated) {
+    const distance =
+      estimate === "pending" ? (
+        <span className="text-ink-500">{t.reviewDistancePending}</span>
+      ) : trip.mode === "hourly" && trip.hours !== "" ? (
+        interpolate(t.asDirected, { hours: trip.hours })
+      ) : calculated ? (
+        distanceText(calculated, t, locale)
+      ) : (
+        <span className="text-ink-500">{t.reviewDistanceUnavailable}</span>
+      );
+    ride.push([t.reviewDistance, distance]);
+  }
   // The drive and the waits together: the time the price is worked out on
   const waits = tripWaitMinutes(trip);
   if (routed && estimate && estimate !== "pending" && waits > 0) {
@@ -267,8 +286,6 @@ export function ReviewStep({
   const photos = (lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
   const seats = label ? null : (lead?.specs?.passengers ?? null);
 
-  const segment = segmentOf(variant);
-  const price = tripPrice(trip, segment, estimate && estimate !== "pending" ? estimate.seconds : null, estimate && estimate !== "pending" ? estimate.meters : null);
 
   const card = (title: string, children: ReactNode) => (
     <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">

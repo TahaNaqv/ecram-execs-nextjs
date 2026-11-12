@@ -67,7 +67,7 @@ export default function DashboardPage() {
         <Suspense fallback={<PanelSkeleton rows={5} />}>
           <div className="flex h-full min-h-0 flex-col gap-4 xl:h-[420px]">
             <Incoming />
-            <Recent />
+            
           </div>
         </Suspense>
       </div>
@@ -302,47 +302,6 @@ async function Fleet() {
   );
 }
 
-async function Recent() {
-  const { admin: t, services, locale } = await dashboardCopy();
-  const d = t.dashboard;
-  const rows = await recentRequests();
-  return (
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader
-        title={d.recentTitle}
-        description={d.recentDescription}
-        icon={<InboxIcon size={16} />}
-        actions={
-          <Link href="/admin/requests" className="shrink-0 whitespace-nowrap text-xs font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-950">
-            {d.viewAll}
-          </Link>
-        }
-      />
-      {rows.length === 0 ? (
-        <EmptyState icon={<InboxIcon size={18} />} title={d.recentEmpty} />
-      ) : (
-        <ul className="m-0 flex max-h-[420px] min-h-0 flex-1 list-none flex-col divide-y divide-zinc-100 overflow-y-auto overscroll-contain p-0 px-5">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <Link href={`/admin/requests/${r.id}`} className="flex items-center gap-3 py-3 no-underline hover:bg-zinc-50 sm:-mx-2 sm:rounded-lg sm:px-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-zinc-950">
-                    <span className="mr-2 font-mono text-xs text-zinc-400">{r.reference}</span>
-                    {serviceLabel(r.service, services)}
-                  </span>
-                  <span className="block truncate text-xs text-zinc-500">
-                    {r.entity ?? r.name} · {formatRelative(r.createdAt, undefined, locale)}
-                  </span>
-                </span>
-                <StatusBadge status={r.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
 
 const HEALTH_TONE: Record<HealthState, "good" | "bad" | "muted"> = {
   operational: "good",

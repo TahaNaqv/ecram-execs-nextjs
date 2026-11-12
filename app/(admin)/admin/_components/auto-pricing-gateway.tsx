@@ -96,6 +96,8 @@ export function AutoPricingGateway({
   copy,
   statuses,
   routeMap,
+  routeLabel,
+  routeLine,
   addOns,
   addOnNames,
   activity = [],
@@ -106,6 +108,9 @@ export function AutoPricingGateway({
   copy: PricingCopy;
   statuses: StatusCopy;
   routeMap?: RouteMapProps | null;
+  /** "Distance, time" and its value, already formatted for this booking. */
+  routeLabel?: string;
+  routeLine?: string;
   /** The add-ons to have ready in the car, as one line ("1 × Luxury Floral Arrangement"), or nothing */
   addOns?: string | null;
   /** The add-ons' names, for the fare lines */
@@ -141,8 +146,10 @@ export function AutoPricingGateway({
   // Real data extracted from request
   const collection = request.collection ?? "—";
   const destination = request.destination ?? (request.durationHours ? interpolate(copy.hoursAsDirected, { hours: request.durationHours }) : "—");
-  const stopovers = Array.isArray(request.destinations) ? request.destinations : [];
   const stopWaits = Array.isArray(request.destinationWaits) ? request.destinationWaits : [];
+  const stopovers = (Array.isArray(request.destinations) ? request.destinations : [])
+    .map((place, index) => ({ place: place.trim(), wait: stopWaits[index] ?? 0 }))
+    .filter((stop) => stop.place);
   const pickup = typeof request.pickupAt === "string" && request.pickupAt ? pickupParts(request.pickupAt) : null;
 
   // Notify Client Button: Commits the selected status and dispatches email (including on cancel).
@@ -561,20 +568,24 @@ export function AutoPricingGateway({
               <label className="mb-2 block text-xs font-medium text-zinc-500">{copy.waypoints}</label>
               <div className="space-y-2">
                 <Waypoint place={collection} label={copy.collection} />
-                {stopovers.map((stop: string, idx: number) => {
-                  const waitMins = stopWaits[idx] ?? 0;
-                  return (
-                    <Waypoint
-                      key={`${stop}-${idx}`}
-                      place={stop}
-                      label={interpolate(copy.stop, { number: idx + 1 })}
-                      wait={waitMins > 0 ? interpolate(copy.waitTime, { minutes: waitMins }) : null}
-                    />
-                  );
-                })}
+                {stopovers.map((stop, idx) => (
+                  <Waypoint
+                    key={`${stop.place}-${idx}`}
+                    place={stop.place}
+                    label={interpolate(copy.stop, { number: idx + 1 })}
+                    wait={stop.wait > 0 ? interpolate(copy.waitTime, { minutes: stop.wait }) : null}
+                  />
+                ))}
                 <Waypoint place={destination} label={copy.destination} />
               </div>
             </div>
+
+            {routeLine ? (
+              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs shadow-2xs">
+                <p className="text-[10px] font-semibold uppercase text-zinc-400">{routeLabel}</p>
+                <p className="mt-0.5 font-semibold text-zinc-900">{routeLine}</p>
+              </div>
+            ) : null}
 
             <div className="grid shrink-0 grid-cols-2 gap-3 rounded-xl border border-zinc-200 bg-white p-4 text-xs shadow-2xs">
               <div>

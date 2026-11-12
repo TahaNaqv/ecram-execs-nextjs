@@ -35,6 +35,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/admin/finan
         priceFeeVat: dict.booking.priceFeeVat,
       },
       extras: dict.addOns,
+      stopLabel: dict.booking.stopLabel,
     },
     admin.locale,
   );

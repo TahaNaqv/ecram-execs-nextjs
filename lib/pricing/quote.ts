@@ -1,5 +1,5 @@
 import "server-only";
-import { cachedDriveEstimate, estimateEnabled } from "@/lib/fleet/estimate";
+import { cachedDriveEstimate } from "@/lib/fleet/estimate";
 import { carsToPrice } from "./booking";
 import { cleanExtras } from "./extras";
 import { priceBooking, type Price, type Segment } from "./rates";
@@ -36,7 +36,7 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
     const stops = (b.destinations ?? []).map(clean).filter(Boolean);
     let driveSeconds: number | null = null;
     let distanceMeters: number | null = null;
-    if (!hourly && b.collection && b.destination && estimateEnabled()) {
+    if (!hourly && b.collection && b.destination) {
       const found = await cachedDriveEstimate(clean(b.collection), clean(b.destination), stops).catch(() => null);
       driveSeconds = found?.seconds ?? null;
       distanceMeters = found?.meters ?? null;
