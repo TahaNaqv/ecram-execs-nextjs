@@ -18,6 +18,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { formatCurrency } from "@/lib/pricing/rates";
 import { isCorporateBooking } from "@/lib/quotes/audience";
 
 const q = schema.quoteRequests;
@@ -362,18 +363,14 @@ export async function getFinancialPage(query: FinancialQuery, locale: Locale, la
 
 const CSV_EXPORT_LIMIT = 10_000;
 
-function csvText(value: string): string {
+/** Every cell is quoted. A comma inside a Dutch amount or a date must not become a column. */
+function csvCell(value: string): string {
   const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
-  if (/[;"\n\r]/.test(safe)) return `"${safe.replaceAll('"', '""')}"`;
-  return safe;
+  return `"${safe.replaceAll('"', '""')}"`;
 }
 
 function csvMoney(value: number): string {
-  return new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-}
-
-function csvWhen(when: string): string {
-  return csvText(when);
+  return csvCell(formatCurrency(value).replaceAll("\u00a0", " ").replaceAll("\u202f", " "));
 }
 
 export type CsvLabels = {
@@ -383,24 +380,24 @@ export type CsvLabels = {
   public: string;
 };
 
-/** Semicolon-separated, UTF-8 with BOM, Dutch amounts. Excel (nl-NL) opens it as a spreadsheet. */
+/** Semicolon-separated, UTF-8 with BOM. Text, dates and euro amounts are quoted so Excel keeps each value in one cell. */
 export function toFinancialCsv(rows: PresentedFinancialRow[], labels: CsvLabels): string {
   const lines = [
-    labels.headers.map((header) => csvText(header)).join(";"),
+    labels.headers.map((header) => csvCell(header)).join(";"),
     ...rows.map((row) =>
       [
-        csvText(row.reference),
-        csvWhen(row.when),
-        csvText(row.clientSub ? `${row.client} — ${row.clientSub}` : row.client),
-        csvText(row.corporate ? labels.business : labels.public),
-        csvText(row.service),
-        csvText(row.route),
+        csvCell(row.reference),
+        csvCell(row.when),
+        csvCell(row.clientSub ? `${row.client} — ${row.clientSub}` : row.client),
+        csvCell(row.corporate ? labels.business : labels.public),
+        csvCell(row.service),
+        csvCell(row.route),
         csvMoney(row.gross),
         csvMoney(row.vatLow),
         csvMoney(row.vatHigh),
         csvMoney(row.vatLow + row.vatHigh),
-        csvText(labels.status[row.status]),
-        csvText(row.invoiceFile ?? ""),
+        csvCell(labels.status[row.status]),
+        csvCell(row.invoiceFile ?? ""),
       ].join(";"),
     ),
   ];

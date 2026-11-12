@@ -212,31 +212,30 @@ export function FinancialTable({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-4 py-3 text-[13px] text-zinc-500 sm:px-5">
         <p>{interpolate(copy.showing, { from, to, total })}</p>
-        {pages > 1 && (
-          <nav className="flex items-center gap-2" aria-label={paging.pagination}>
-            <PageLink disabled={page <= 1} href={financialHref({ ...query, page: page - 1 })} label={paging.previous}>
-              <ChevronLeftIcon />
-            </PageLink>
-            {pageWindow(page, pages).map((n, i) =>
-              n === null ? (
-                <span key={`gap-${i}`} aria-hidden="true" className="px-1">…</span>
-              ) : (
-                <Link
-                  key={n}
-                  href={financialHref({ ...query, page: n })}
-                  scroll={false}
-                  aria-current={n === page ? "page" : undefined}
-                  className={`${btn.base} size-8 px-0 tabular-nums ${n === page ? btn.primary : btn.secondary}`}
-                >
-                  {n}
-                </Link>
-              ),
-            )}
-            <PageLink disabled={page >= pages} href={financialHref({ ...query, page: page + 1 })} label={paging.next}>
-              <ChevronRightIcon />
-            </PageLink>
-          </nav>
-        )}
+        <nav className="flex flex-wrap items-center gap-2" aria-label={paging.pagination}>
+          <span className="px-1 font-medium text-zinc-700 tabular-nums">{interpolate(copy.pageOf, { page, pages })}</span>
+          <PageLink disabled={page <= 1} href={financialHref({ ...query, page: page - 1 })} label={paging.previous}>
+            <ChevronLeftIcon />
+          </PageLink>
+          {pageWindow(page, pages).map((n, i) =>
+            n === null ? (
+              <span key={`gap-${i}`} aria-hidden="true" className="px-1">…</span>
+            ) : (
+              <Link
+                key={n}
+                href={financialHref({ ...query, page: n })}
+                scroll={false}
+                aria-current={n === page ? "page" : undefined}
+                className={`${btn.base} size-8 px-0 tabular-nums ${n === page ? btn.primary : btn.secondary}`}
+              >
+                {n}
+              </Link>
+            ),
+          )}
+          <PageLink disabled={page >= pages} href={financialHref({ ...query, page: page + 1 })} label={paging.next}>
+            <ChevronRightIcon />
+          </PageLink>
+        </nav>
       </div>
     </>
   );

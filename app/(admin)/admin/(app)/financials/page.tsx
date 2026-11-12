@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { formatDate } from "@/lib/admin/format";
 import { getFinancialPage } from "@/lib/admin/financials";
-import { amsterdamToday, financialHref, isCanonicalFinancialUrl, parseFinancialQuery, type FinancialQuery } from "@/lib/admin/financials-shared";
+import { FINANCIAL_PAGE_SIZE, amsterdamToday, financialHref, isCanonicalFinancialUrl, parseFinancialQuery, type FinancialQuery } from "@/lib/admin/financials-shared";
 import { getAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { Card, PageBody, PageHeader, Skeleton, StatCardSkeleton } from "../../_components/ui";
@@ -43,6 +43,8 @@ async function Financials({ searchParams }: { searchParams: Promise<Search> }) {
     services: dict.services,
     hourly: dict.admin.requestDetail.durationValue,
   });
+  const pages = Math.max(1, Math.ceil(total / FINANCIAL_PAGE_SIZE));
+  if (query.page > pages) redirect(financialHref({ ...query, page: pages }));
   const today = amsterdamToday();
 
   return (

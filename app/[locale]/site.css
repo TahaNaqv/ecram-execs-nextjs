@@ -173,6 +173,20 @@
   --color-ink-975: #f6f7f9;
 }
 
+/* Inside this panel the token `white` is the panel navy, so a tab painted with it disappears.
+   Active and hovered marks stay real white. Other themes keep the ink foreground. */
+:root[data-theme="navy"] .light-surface .ee-mark {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+:root[data-theme="navy"] .light-surface .ee-mark-hover:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+:root[data-theme="navy"] .light-surface .ee-mark-bar {
+  background-color: #ffffff;
+}
+
 /* Business / Private sit on a navy card. The swapped white becomes that same navy, so an unselected button vanishes.
    These stay a pale outline, and the chosen one a white pill with dark type. */
 :root[data-theme="navy"] .light-surface .purpose-choice {

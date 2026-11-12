@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
-import { BookingDone, BookingFlow, claimRideReceipt, startsAtCar, type BookingStep, type OfferedVehicle } from "./booking-flow";
+import { BookingDone, BookingFlow, claimRideReceipt, clearBookingDraft, startsAtCar, type BookingStep, type OfferedVehicle } from "./booking-flow";
 import type { BookingCopy, TripMessages } from "./copy";
 import { markBookingSent, useResetAfterBooking } from "./sent";
 import { tripFromParams } from "./trip";
@@ -15,6 +15,8 @@ import type { AddOnsCopy } from "./copy";
 
 // One object for "no errors": the flow treats a new errors object as a new answer from the server
 const NO_ERRORS = {};
+/** The booking this page already opened. A later visit to the form must not open it again. */
+const OPENED_KEY = "ee-public-booking-opened";
 
 type Props = {
   locale: Locale;
@@ -64,21 +66,38 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
   // visitor goes to the booking's own page, where they follow the review by hand (the client, 8 Nov 2026)
   const href = state.status === "success" ? state.href : undefined;
   const sentReference = state.status === "success" ? state.reference : "";
-  useEffect(() => {
+  const followed = useRef<string | null>(null);
+  const [again, setAgain] = useState(false);
+  useLayoutEffect(() => {
     if (!sentReference) return;
+    clearBookingDraft();
+    if (followed.current === sentReference) return;
+    let seen = "";
+    try {
+      seen = sessionStorage.getItem(OPENED_KEY) ?? "";
+    } catch {
+      seen = "";
+    }
+    if (seen === sentReference) {
+      followed.current = sentReference;
+      setAgain(true);
+      return;
+    }
+    followed.current = sentReference;
+    try {
+      sessionStorage.setItem(OPENED_KEY, sentReference);
+    } catch {
+      // the booking page still opens; only a return to this form can repeat it
+    }
     markBookingSent();
     claimRideReceipt(sentReference);
     if (href) router.push(href);
   }, [sentReference, href, router]);
 
-  if (state.status === "success") {
+  if (state.status === "success" && !again) {
     // On its way to the booking's page: nothing to show for the moment it takes
     if (href) return <div className="min-h-[60svh]" aria-busy="true" />;
-    return <BookingDone copy={copy} locale={locale} name={state.name} reference={state.reference} map={state.map} price={state.price} onAgain={() => {
-          router.push(`/${locale}`); // Redirects back to the main home screen for the current locale
-          onAgain();
-        }}
-      />;
+    return <BookingDone copy={copy} locale={locale} name={state.name} reference={state.reference} map={state.map} price={state.price} onAgain={onAgain} />;
   }
 
   return (
@@ -94,6 +113,7 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
       vehicles={vehicles.filter((v) => !unavailable.has(normalizeVehicleKey(v.key) ?? v.key))}
       initialTrip={trip}
       initialStep={initialStep}
+      sealedHref={sentReference || null}
       result={{
         pending,
         message: state.status === "error" ? state.message : null,

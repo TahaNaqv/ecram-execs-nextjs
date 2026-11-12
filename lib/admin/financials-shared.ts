@@ -5,7 +5,7 @@
  * turns it into an exclusive bound when it asks the database.
  */
 
-export const FINANCIAL_PAGE_SIZE = 25;
+export const FINANCIAL_PAGE_SIZE = 10;
 /** Dutch B2B payment term (BW 6:119a): a confirmed corporate booking is overdue after this many days. */
 export const CORPORATE_TERM_DAYS = 30;
 export const FINANCIAL_KEYS = ["range", "from", "to", "status", "q", "sort", "dir", "page"] as const;

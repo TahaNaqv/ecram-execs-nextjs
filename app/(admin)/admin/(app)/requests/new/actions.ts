@@ -2,7 +2,6 @@
 
 import { and, eq, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
@@ -18,7 +17,7 @@ import { priceForRequest } from "@/lib/pricing/quote";
 import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
 
-export type NewBookingState = { error?: string; values?: Record<string, string> };
+export type NewBookingState = { error?: string; values?: Record<string, string>; createdId?: string };
 
 const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes", "locale", "notifyClient", "entity", "entityKvk"] as const;
 
@@ -168,5 +167,6 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   revalidatePath("/admin/corporate");
   revalidatePath("/admin");
   if (request.corporateContactId) revalidatePath(`/admin/corporate/${request.corporateContactId}`);
-  redirect(`/admin/requests/${request.id}`);
+  // The form opens this page once. redirect() here is replayed when New booking is opened again.
+  return { createdId: request.id };
 }

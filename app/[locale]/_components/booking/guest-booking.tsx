@@ -106,8 +106,8 @@ export function GuestBookingView({
   const reviewing = status === "new" || status === "quoted";
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 py-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div role="status" aria-live="polite" className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <BookingStatusBadge label={view.eyebrow} />
@@ -122,9 +122,9 @@ export function GuestBookingView({
       </div>
 
       {reviewing && (
-        <div className="flex items-start gap-4 rounded-[16px] border border-solid border-ink-150 bg-white p-5 text-ink-950">
-          <span aria-hidden="true" className="mt-0.5 size-6 shrink-0 animate-spin rounded-full border-[3px] border-solid border-ink-150 border-t-ink-950 motion-reduce:animate-none" />
-          <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-3 rounded-[16px] border border-solid border-ink-150 bg-white px-4 py-3.5 text-ink-950">
+          <span aria-hidden="true" className="size-5 shrink-0 animate-spin rounded-full border-[3px] border-solid border-ink-150 border-t-ink-950 motion-reduce:animate-none" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="m-0 text-[15px] font-semibold">{t.reviewChecking}</p>
             <p className="m-0 text-[14px] text-ink-700">{t.reviewKeepOpen}</p>
           </div>

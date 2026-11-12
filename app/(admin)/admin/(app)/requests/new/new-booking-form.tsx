@@ -1,7 +1,8 @@
 "use client";
 
 import { interpolate } from "@/lib/i18n/interpolate";
-import { useState, useActionState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useActionState, useEffect, useLayoutEffect, useRef } from "react";
 import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
@@ -49,10 +50,36 @@ function Text({ values, name, label, type = "text", inputMode, hint, min, max, c
   );
 }
 
+/** A booking this form already opened. Coming back to New booking must not open it again. */
+const OPENED_KEY = "ee-admin-booking-opened";
+
 /** The team's own booking form: for the phone and email bookings that should still show up in a partner's portal. */
 export function NewBookingForm({ partners, services, statuses, vehicles, copy, locale, dateTimeCopy }: { partners: Option[]; services: Option[]; statuses: Option[]; vehicles: Option[]; copy: Copy; locale: string; dateTimeCopy: DateTimeCopy }) {
+  const router = useRouter();
   const [state, action, pending] = useActionState<NewBookingState, FormData>(createBookingForPartner, {});
+  const opened = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  useLayoutEffect(() => {
+    const id = state.createdId;
+    if (!id || opened.current === id) return;
+    let seen = "";
+    try {
+      seen = sessionStorage.getItem(OPENED_KEY) ?? "";
+    } catch {
+      seen = "";
+    }
+    if (seen === id) {
+      opened.current = id;
+      return;
+    }
+    opened.current = id;
+    try {
+      sessionStorage.setItem(OPENED_KEY, id);
+    } catch {
+      // still open the booking; a later visit can only repeat it if this write failed
+    }
+    router.push(`/admin/requests/${id}`);
+  }, [state.createdId, router]);
   const [phoneCountry, setPhoneCountry] = useState("31");
   const [destinations, setDestinations] = useState<string[]>([""]);
   const [collection, setCollection] = useState("");

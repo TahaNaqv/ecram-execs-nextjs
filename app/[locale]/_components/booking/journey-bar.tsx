@@ -617,13 +617,11 @@ export function JourneyBar({
           {flightCell}
         </div>
         {errorLine}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {cancelHref ? (
+        <div className={`flex flex-wrap items-center gap-3 ${cancelHref ? "justify-between" : "justify-end"}`}>
+          {cancelHref && (
             <Link href={cancelHref} className="inline-flex h-11 items-center rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 no-underline hover:border-ink-950">
               {t.cancel}
             </Link>
-          ) : (
-            <span />
           )}
           <button type="submit" disabled={consecutive} aria-describedby={consecutive ? ids.error : undefined} className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">
             {t.chooseCar}

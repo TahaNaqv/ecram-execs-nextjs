@@ -32,6 +32,31 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
+function TripCard({ id, title, children, wide }: { id: string; title: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <section aria-labelledby={id} className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border border-solid border-ink-225 bg-white ${wide ? "lg:col-span-2" : ""}`}>
+      <h3 id={id} className="m-0 border-0 border-b border-solid border-ink-150 px-5 py-3.5 text-[11px] font-semibold leading-none text-ink-600 uppercase md:px-6">
+        <span className="-mr-[0.22em] inline-block tracking-[0.22em]">{title}</span>
+      </h3>
+      <div className="flex flex-col gap-5 p-5 md:p-6">{children}</div>
+    </section>
+  );
+}
+
+function Pill({ children, emphasis }: { children: React.ReactNode; emphasis?: boolean }) {
+  return (
+    <span
+      className={
+        emphasis
+          ? "inline-flex w-fit max-w-full items-center rounded-full border border-solid border-ink-225 bg-ink-950 px-4 py-2 font-serif text-[22px] leading-none text-ink-50"
+          : "inline-flex w-fit max-w-full items-center rounded-full border border-solid border-ink-225 bg-ink-100 px-3 py-1 text-[13px] font-semibold tracking-wide text-ink-950"
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
 /** One booking, and only if it is this partner's: anyone else's reference, or one that doesn't exist, is simply not found. */
 async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-partner/account/booking">, "searchParams">) {
   const { ref, created } = await searchParams;
@@ -71,7 +96,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
   const routeMap = bespoke ? null : routeMapLinks(booking, browserMapKey());
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <Link href={localizedPath("/corporate-partner/account", locale)} className="self-start text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4">
         ← {p.backToBookings}
       </Link>
@@ -80,11 +105,11 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
 
       {/* Every booking is reviewed by hand (the client, 8 Nov 2026): the page follows the review by itself */}
       {(booking.status === "new" || booking.status === "contacted") && (
-        <div role="status" className="flex items-start gap-4 border border-solid border-ink-225 bg-white p-5 text-ink-950">
+        <div role="status" className="flex items-center gap-3 border border-solid border-ink-225 bg-white px-4 py-3.5 text-ink-950">
           {booking.status === "new" && (
-            <span aria-hidden="true" className="mt-0.5 size-6 shrink-0 animate-spin rounded-full border-[3px] border-solid border-ink-150 border-t-ink-950 motion-reduce:animate-none" />
+            <span aria-hidden="true" className="size-5 shrink-0 animate-spin rounded-full border-[3px] border-solid border-ink-150 border-t-ink-950 motion-reduce:animate-none" />
           )}
-          <p className="m-0 text-[15px]">{booking.status === "new" ? p.reviewNew : p.reviewContacted}</p>
+          <p className="m-0 min-w-0 flex-1 text-[15px] leading-snug">{booking.status === "new" ? p.reviewNew : p.reviewContacted}</p>
           <ReviewRefresh />
         </div>
       )}
@@ -101,72 +126,107 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
         />
       )}
 
-      <section aria-labelledby="trip" className="flex flex-col gap-5">
-        <h3 id="trip" className="m-0 border-b border-ink-225 pb-2 text-[11px] font-semibold tracking-[0.24em] text-ink-950 uppercase">
+      <section aria-labelledby="trip" className="flex flex-col gap-4">
+        <h2 id="trip" className="m-0 font-serif text-[32px] leading-none font-normal text-ink-950">
           {p.sectionTrip}
-        </h3>
-        <dl className="m-0 grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
-          <Fact label={d.quoteForm.labelService}>{serviceLabel(booking.service, d.services)}</Fact>
-          <Fact label={d.quoteForm.labelDateTime}>
-            {booking.pickupAt ? formatPickup(booking.pickupAt, locale) : p.dateToBeAgreed}
-          </Fact>
-          {booking.returnAt && <Fact label={d.booking.summaryReturn}>{formatPickup(booking.returnAt, locale)}</Fact>}
-          {bespoke ? (
-            booking.itinerary && (
-              <div className="md:col-span-2">
-                <Fact label={d.bespokeSection.labelItinerary}>
-                  <span className="whitespace-pre-wrap">{booking.itinerary}</span>
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TripCard id="trip-route" title={p.sectionRoute} wide>
+            <dl className="m-0 grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+              <Fact label={d.quoteForm.labelService}>{serviceLabel(booking.service, d.services)}</Fact>
+              <Fact label={d.quoteForm.labelDateTime}>
+                {booking.pickupAt ? formatPickup(booking.pickupAt, locale) : p.dateToBeAgreed}
+              </Fact>
+              {booking.returnAt && <Fact label={d.booking.summaryReturn}>{formatPickup(booking.returnAt, locale)}</Fact>}
+              {booking.flightNumber && <Fact label={d.booking.flight}>{booking.flightNumber}</Fact>}
+              {bespoke ? (
+                booking.itinerary && (
+                  <div className="sm:col-span-2">
+                    <Fact label={d.bespokeSection.labelItinerary}>
+                      <span className="whitespace-pre-wrap">{booking.itinerary}</span>
+                    </Fact>
+                  </div>
+                )
+              ) : (
+                <div className="sm:col-span-2">
+                  <Fact label={`${d.quoteForm.labelCollection} → ${d.quoteForm.labelDestination}`}>
+                    <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+                      {stops.map((stop, i) => (
+                        <li key={i} className="flex min-w-0 gap-3">
+                          <span className="grid size-5 shrink-0 place-items-center rounded-full border border-solid border-ink-225 text-[11px] font-semibold text-ink-700">{i + 1}</span>
+                          <span className="min-w-0">
+                            {stop.text}
+                            {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </Fact>
+                </div>
+              )}
+              {booking.notes && (
+                <div className="sm:col-span-2">
+                  <Fact label={d.quoteForm.labelNotes}>
+                    <span className="block max-h-28 overflow-y-auto text-left break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{booking.notes}</span>
+                  </Fact>
+                </div>
+              )}
+            </dl>
+          </TripCard>
+
+          <TripCard id="trip-vehicle" title={p.sectionVehicle}>
+            <dl className="m-0 grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+              {booking.passengers !== null && <Fact label={d.quoteForm.labelPassengers}>{booking.passengers}</Fact>}
+              {booking.luggage !== null && <Fact label={d.booking.suitcases}>{booking.luggage}</Fact>}
+              {booking.handLuggage != null && <Fact label={d.booking.smallBags}>{booking.handLuggage}</Fact>}
+              {booking.passengerName && (
+                <Fact label={d.booking.passengerName}>
+                  {booking.passengerName}
+                  {booking.passengerPhone && <span className="text-ink-600"> · {booking.passengerPhone}</span>}
                 </Fact>
-              </div>
-            )
-          ) : (
-            <div className="md:col-span-2">
-              <Fact label={`${d.quoteForm.labelCollection} → ${d.quoteForm.labelDestination}`}>
-                <ol className="m-0 flex list-none flex-col gap-1 p-0">
-                  {stops.map((stop, i) => (
-                    <li key={i}>
-                      {i + 1}. {stop.text}
-                      {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
-                    </li>
-                  ))}
-                </ol>
-              </Fact>
-            </div>
-          )}
-          {booking.passengers !== null && <Fact label={d.quoteForm.labelPassengers}>{booking.passengers}</Fact>}
-          {booking.luggage !== null && <Fact label={d.booking.suitcases}>{booking.luggage}</Fact>}
-          {booking.handLuggage != null && <Fact label={d.booking.smallBags}>{booking.handLuggage}</Fact>}
-          {booking.flightNumber && <Fact label={d.booking.flight}>{booking.flightNumber}</Fact>}
-          {booking.passengerName && (
-            <Fact label={d.booking.passengerName}>
-              {booking.passengerName}
-              {booking.passengerPhone && <span className="text-ink-600"> · {booking.passengerPhone}</span>}
-            </Fact>
-          )}
-          {booking.vehicle && (
-            <Fact label={d.quoteForm.labelVehicle}>{convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Fact>
-          )}
-          {extrasLine(d.addOns, booking.extras) && <Fact label={d.booking.reviewExtras}>{extrasLine(d.addOns, booking.extras)}</Fact>}
-          {booking.quotedAmount && <Fact label={p.labelQuote}>{formatPartnerAmount(booking.quotedAmount, locale)}</Fact>}
-          {/* Until the team sends its quote, the rate card's price for the booking as it was made */}
-          {!booking.quotedAmount && booking.priceEstimate && (
-            <Fact label={d.booking.priceEstimateLabel}>
-              {interpolate(d.booking.priceEstimateValue, {
-                net: (booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `) + formatCents(priceNet(booking.priceEstimate), locale),
-                total: formatCents(booking.priceEstimate.total, locale),
-              })}
-            </Fact>
-          )}
-          <Fact label={p.labelReceived}>{formatStamp(booking.createdAt, locale)}</Fact>
-          {booking.notes && (
-            <div className="md:col-span-2">
-              <Fact label={d.quoteForm.labelNotes}>
-                <span className="block max-h-28 overflow-y-auto text-left break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{booking.notes}</span>
-              </Fact>
-            </div>
-          )}
-        </dl>
-        
+              )}
+              {booking.vehicle && (
+                <div className="sm:col-span-2">
+                  <Fact label={d.quoteForm.labelVehicle}>
+                    <Pill>{convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle)}</Pill>
+                  </Fact>
+                </div>
+              )}
+              {extrasLine(d.addOns, booking.extras) && (
+                <div className="sm:col-span-2">
+                  <Fact label={d.booking.reviewExtras}>{extrasLine(d.addOns, booking.extras)}</Fact>
+                </div>
+              )}
+            </dl>
+          </TripCard>
+
+          <TripCard id="trip-price" title={p.sectionPrice}>
+            <dl className="m-0 grid grid-cols-1 gap-x-8 gap-y-5">
+              {booking.quotedAmount && (
+                <Fact label={p.labelQuote}>
+                  <Pill >{formatPartnerAmount(booking.quotedAmount, locale)}</Pill>
+                </Fact>
+              )}
+              {!booking.quotedAmount && booking.priceEstimate && (
+                <Fact label={d.booking.priceEstimateLabel}>
+                  <span className="flex flex-col items-start gap-2">
+                    <Pill emphasis>
+                      {(booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `) + formatCents(booking.priceEstimate.total, locale)}
+                    </Pill>
+                    <span className="text-[13px] leading-snug text-ink-600">
+                      {interpolate(d.booking.priceEstimateValue, {
+                        net: (booking.priceEstimate.exact ? "" : `${d.booking.priceFromWord} `) + formatCents(priceNet(booking.priceEstimate), locale),
+                        total: formatCents(booking.priceEstimate.total, locale),
+                      })}
+                    </span>
+                  </span>
+                </Fact>
+              )}
+              <Fact label={p.labelReceived}>{formatStamp(booking.createdAt, locale)}</Fact>
+            </dl>
+          </TripCard>
+        </div>
+
         {/* The route on Google's map: only here, once the booking is in, never while it is being made */}
         {routeMap && <RouteMap map={routeMap} copy={d.booking} />}
         {!bespoke && (
@@ -197,7 +257,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
         </section>
       )}
 
-      <section aria-labelledby="activity" className="flex flex-col gap-6">
+      <section aria-labelledby="activity" className="flex flex-col gap-4">
         <h3 id="activity" className="m-0 border-b border-ink-225 pb-2 text-[11px] font-semibold tracking-[0.24em] text-ink-950 uppercase">
           {p.sectionActivity}
         </h3>

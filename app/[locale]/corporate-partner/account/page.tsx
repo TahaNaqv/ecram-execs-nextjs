@@ -34,8 +34,8 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
   const empty: Record<PortalTab, string> = { open: p.emptyOpen, past: p.emptyPast, cancelled: p.emptyCancelled };
 
   return (
-    <div className="flex flex-col gap-8">
-      <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 border-b border-[#ffffff]/20 p-0 sm:gap-x-8" aria-label={p.headingBookings}>
+    <div className="flex flex-col gap-6">
+      <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 border-b border-white/20 p-0" aria-label={p.headingBookings}>
         {PORTAL_TABS.map((key) => {
           const current = key === tab;
           return (
@@ -43,7 +43,7 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
               <Link
                 href={`${base}?tab=${key}`}
                 aria-current={current ? "page" : undefined}
-                className={`inline-block pb-3 text-[12px] tracking-[0.18em] uppercase no-underline sm:tracking-[0.2em] ${current ? "border-b-2 border-[#ffffff] font-bold text-[#ffffff]" : "font-semibold text-zinc-400 hover:text-[#ffffff]"}`}
+                className={`inline-block border-b-2 px-0.5 pb-3 text-[12px] tracking-[0.16em] uppercase no-underline sm:tracking-[0.18em] ${current ? "ee-mark -mb-px border-ink-950 font-bold text-ink-950" : "ee-mark-hover border-transparent font-semibold text-zinc-400 hover:border-ink-950 hover:text-ink-950"}`}
               >
                 {tabLabel[key]} <span className={current ? "text-[#ffffff]/70" : "text-zinc-500"}>({counts[key]})</span>
               </Link>

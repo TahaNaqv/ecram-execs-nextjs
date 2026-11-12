@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { startTransition, useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { mapFrameSrc, type RouteMapLinks } from "@/lib/fleet/map";
 import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
@@ -16,7 +15,7 @@ import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
 import { guestsText, luggageLine, partyLine } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { carsCapacityProblem, involvesAirport, isTripReady, MAX_PER_CAR, normalizeTrip, pickupAtAirport, shortPlace, tripFields, tripToParams, type Trip } from "./trip";
+import { carsCapacityProblem, involvesAirport, isTripReady, MAX_PER_CAR, normalizeTrip, pickupAtAirport, shortPlace, tripFields, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
 import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
@@ -62,6 +61,21 @@ type BookingDraft = { sent: number; step: BookingStep; trip: Trip; draft: Trip; 
 
 const draftKey = () => `ee-booking-draft:${window.location.pathname}${window.location.search}`;
 
+/** Drop the saved wizard for this page so a sent booking cannot be submitted again from the review step. */
+export function clearBookingDraft() {
+  try {
+    const prefix = `ee-booking-draft:${window.location.pathname}`;
+    const keys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(prefix)) keys.push(key);
+    }
+    for (const key of keys) sessionStorage.removeItem(key);
+  } catch {
+    // storage blocked: the in-memory reset still starts the wizard again
+  }
+}
+
 const isTrip = (value: unknown): value is Trip => {
   if (!value || typeof value !== "object") return false;
   const trip = value as Trip;
@@ -80,7 +94,10 @@ const readDraft = (): BookingDraft | null => {
       sessionStorage.removeItem(key);
       return null;
     }
-    if (data.sent !== bookingsSent()) return null;
+    if (data.sent !== bookingsSent()) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
     if (!DRAFT_STEPS.includes(data.step) || !isTrip(data.trip) || !isTrip(data.draft)) return null;
     const entered = data.entered;
     if (entered != null) {
@@ -135,6 +152,8 @@ export function BookingFlow({
   cancelHref,
   notice,
   lockedNotice,
+  /** Set once a booking has been sent. The wizard drops that trip and returns to Journey. */
+  sealedHref,
 }: {
   variant: "public" | "portal";
   locale: Locale;
@@ -157,6 +176,7 @@ export function BookingFlow({
   cancelHref?: string;
   notice?: string;
   lockedNotice?: ReactNode;
+  sealedHref?: string | null;
 }) {
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [draft, setDraft] = useState<Trip>(initialTrip);
@@ -164,7 +184,6 @@ export function BookingFlow({
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [entered, setEntered] = useState<DetailsEntry | null>(null);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
-  const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
   const focused = useRef<BookingStep>(initialStep);
 
@@ -176,7 +195,25 @@ export function BookingFlow({
   }, [step]);
 
   const [ready, setReady] = useState(false);
+  const seed = useRef(initialTrip);
+  const sealed = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!sealedHref || sealed.current === sealedHref) return;
+    sealed.current = sealedHref;
+    clearBookingDraft();
+    setTrip(seed.current);
+    setDraft(seed.current);
+    setEntered(null);
+    setStep("journey");
+    setJourneyEdit((n) => n + 1);
+    focused.current = "journey";
+  }, [sealedHref]);
   useEffect(() => {
+    if (sealedHref) {
+      clearBookingDraft();
+      setReady(true);
+      return;
+    }
     const saved = readDraft();
     if (saved) {
       setTrip(saved.trip);
@@ -187,14 +224,15 @@ export function BookingFlow({
       focused.current = saved.step;
     }
     setReady(true);
-  }, []);
+  }, [sealedHref]);
   useEffect(() => {
-    if (!ready) return;
+    // A send in flight, or one that has already gone, must not write the review step back. That saved step is what a second submit sends again.
+    if (!ready || sealedHref || result.pending) return;
     try {
       const saved: BookingDraft = { sent: bookingsSent(), step, trip, draft, entered };
       sessionStorage.setItem(draftKey(), JSON.stringify(saved));
     } catch {}
-  }, [ready, step, trip, draft, entered]);
+  }, [ready, sealedHref, result.pending, step, trip, draft, entered]);
   const go = setStep;
 
 
@@ -217,14 +255,7 @@ export function BookingFlow({
     setJourneyEdit((n) => n + 1);
     go("journey");
   };
-  const editJourney = () => {
-    if (variant === "public" && cancelHref) {
-      const q = tripToParams(trip).toString();
-      router.push(q ? `${cancelHref}?${q}#enquire` : `${cancelHref}#enquire`);
-      return;
-    }
-    showJourney();
-  };
+  const editJourney = () => showJourney();
 
   const tripLine = [
     trip.mode === "hourly"
@@ -240,14 +271,14 @@ export function BookingFlow({
     <div className="flex w-full flex-col gap-6">
       {notice && <p className="m-0 rounded-xl bg-ink-100 px-4 py-3 text-[14px] text-ink-800">{notice}</p>}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {step === "car" || step === "extras" || step === "details" ? (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        {(step === "car" || step === "extras" || step === "details") && (
           <button
             type="button"
             onClick={editJourney}
-            className="flex min-h-12 max-w-full cursor-pointer items-center gap-3 rounded-full border border-solid border-ink-225 bg-white py-1.5 pr-1.5 pl-5 text-left text-[14px] font-medium text-ink-950 hover:border-ink-950"
+            className="flex min-h-12 w-full min-w-0 cursor-pointer items-center gap-3 rounded-full border border-solid border-ink-225 bg-white py-1.5 pr-1.5 pl-4 text-left text-[14px] font-medium text-ink-950 hover:border-ink-950 sm:w-auto sm:max-w-[calc(100%-20rem)] sm:pl-5"
           >
-            <span className="min-w-0 truncate">{tripLine}</span>
+            <span className="min-w-0 flex-1 truncate">{tripLine}</span>
             <span className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-ink-100 px-3.5 text-[13px] font-semibold">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <path d="M4 20h4L19 9l-4-4L4 16z" />
@@ -255,14 +286,15 @@ export function BookingFlow({
               {t.edit}
             </span>
           </button>
-        ) : (
-          <span />
         )}
-        <ol aria-label={t.progress} className="m-0 flex list-none gap-3 p-0 text-[12px] text-ink-600">
+        <ol
+          aria-label={t.progress}
+          className={`m-0 grid list-none grid-cols-5 gap-2 p-0 text-[12px] text-ink-600 sm:gap-3 ${step === "car" || step === "extras" || step === "details" ? "w-full sm:ml-auto sm:w-[20rem] sm:shrink-0" : "w-full"}`}
+        >
           {steps.map(([s, label], i) => (
-            <li key={s} aria-current={s === step ? "step" : undefined} className={`flex min-w-[56px] flex-col gap-1.5 ${s === step ? "font-semibold text-ink-950" : ""}`}>
-              <span aria-hidden="true" className={`h-1 rounded-full ${i <= stepIndex ? "bg-ink-950" : "bg-ink-225"}`} />
-              <span className="max-sm:sr-only">{label}</span>
+            <li key={s} aria-current={s === step ? "step" : undefined} className={`flex min-w-0 flex-col gap-1.5 ${s === step ? "ee-mark font-semibold text-ink-950" : ""}`}>
+              <span aria-hidden="true" className={`h-1 rounded-full ${i <= stepIndex ? "ee-mark-bar bg-ink-950" : "bg-ink-225"}`} />
+              <span className="truncate max-sm:sr-only">{label}</span>
             </li>
           ))}
         </ol>
@@ -386,6 +418,7 @@ export function BookingFlow({
           gallery={galleryCopy(fleetDict)}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
           onSend={(quoted) => {
+            if (sealedHref && sealed.current !== sealedHref) return;
             rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, addOns, locale }));
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
@@ -1440,8 +1473,8 @@ export function BookingDone({ copy: t, locale, name, reference, map, price, onAg
     heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, []);
   return (
-    <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-6 py-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+    <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
          
           <div className="flex min-w-0 flex-col gap-3">
