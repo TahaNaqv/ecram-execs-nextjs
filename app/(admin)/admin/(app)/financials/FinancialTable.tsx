@@ -79,6 +79,18 @@ function Vat({ row, copy }: { row: PresentedFinancialRow; copy: Copy }) {
 function Actions({ row, copy }: { row: PresentedFinancialRow; copy: Copy }) {
   return (
     <div className="flex flex-wrap justify-end gap-1.5">
+      {row.moneybirdNumber && (
+        <a
+          href={row.moneybirdHref ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className={`${btn.base} ${btn.secondary} ${btn.sm}`}
+          title={(copy.moneybirdStates as Record<string, string>)[row.moneybirdState ?? ""] ?? row.moneybirdState ?? undefined}
+        >
+          {interpolate(copy.moneybirdInvoice, { number: row.moneybirdNumber })}
+          {row.moneybirdState && ` · ${(copy.moneybirdStates as Record<string, string>)[row.moneybirdState] ?? row.moneybirdState}`}
+        </a>
+      )}
       {row.invoiceId && (
         <a
           href={`/api/admin/invoices/${row.invoiceId}`}

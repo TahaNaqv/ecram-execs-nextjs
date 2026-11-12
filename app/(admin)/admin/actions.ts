@@ -16,9 +16,13 @@ import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { LOCALES } from "@/lib/i18n/config";
 import type { RequestEventChange } from "@/lib/admin/events";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
+import { syncAfter } from "@/lib/moneybird/after";
+import { invoiceBlocksDelete, invoiceBlocksStatus } from "@/lib/moneybird/sync";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
+
+const INVOICE_BLOCKS = "This booking's invoice has been sent from Moneybird. Cancel the booking to credit it instead.";
 
 export type LoginState = { error?: string; email?: string };
 
@@ -112,6 +116,7 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   if (!before) return { error: "Request not found." };
   const changedMeanwhile = { error: "This request changed while you had it open (a partner may have answered it). Reload the page to see the latest, then try again." };
   if (before.status !== seenStatus) return changedMeanwhile;
+  if (before.status !== status && (await invoiceBlocksStatus(id, status))) return { error: INVOICE_BLOCKS };
 
   // A blank amount does not clear or reprice the booking. The stored amount stays, or the rate-card total
   // saved at submit is written once. A different amount is kept only when the team typed one.
@@ -171,6 +176,9 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
     // Bookings the team keyed in (source "admin") are not mailed: the team spoke to them, and chose at the time whether to tell them.
     after(() => emailEnquiryStatus({ request: saved, kind: told }));
   }
+  if (before.status !== saved.status || before.quotedAmount !== saved.quotedAmount) {
+    syncAfter(saved.id, { deliver: notifiesPartner || notifiesGuest ? "Email" : "Manual" });
+  }
   revalidatePath("/admin/corporate");
   revalidatePath("/admin");
   if (saved.corporateContactId) revalidatePath(`/admin/corporate/${saved.corporateContactId}`);
@@ -193,6 +201,8 @@ export async function deleteRequest(formData: FormData) {
   await requireAdmin();
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) return;
+  // An invoice that is out and unpaid has to be credited first (the admin page hides the button then too)
+  if (await invoiceBlocksDelete(id.data)) redirect(`/admin/requests/${id.data}`);
   // The invoice rows go with the request (cascade); the files on disk are removed here, like an application's documents
   const invoices = await db.select({ path: schema.bookingInvoices.path }).from(schema.bookingInvoices).where(eq(schema.bookingInvoices.requestId, id.data));
   const [deleted] = await db

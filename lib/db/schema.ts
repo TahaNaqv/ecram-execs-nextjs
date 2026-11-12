@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -205,6 +206,59 @@ export const bookingInvoices = pgTable(
   ],
 );
 
+/**
+ * The booking's invoices in Moneybird (lib/moneybird/sync.ts). One row per invoice or credit invoice we made there.
+ * `request_id` is set null when the booking is deleted, so the record of an invoice outlives the booking; `reference` keeps
+ * the booking's reference for that case. `state` is ours while we work (`claimed`, `draft`, `failed`) and Moneybird's once
+ * it is sent (`open`, `late`, `reminded`, `pending_payment`, `paid`, `uncollectible`, …).
+ */
+export const moneybirdInvoices = pgTable(
+  "moneybird_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id").references(() => quoteRequests.id, { onDelete: "set null" }),
+    reference: text("reference").notNull(),
+    /** 1 for the booking's first invoice, 2 after it was credited and the booking confirmed again, … */
+    attempt: integer("attempt").notNull().default(1),
+    kind: text("kind", { enum: ["invoice", "credit"] }).notNull(),
+    creditOf: uuid("credit_of").references((): AnyPgColumn => moneybirdInvoices.id),
+    moneybirdId: text("moneybird_id"),
+    /** The invoice number, once Moneybird has sent it. */
+    number: text("number"),
+    state: text("state").notNull(),
+    /** "Email" or "Manual": how Moneybird delivers it. */
+    delivery: text("delivery"),
+    totalCents: integer("total_cents"),
+    unpaidCents: integer("unpaid_cents"),
+    /** On a credit invoice: the cancellation fee the team kept, in cents (0 for a full credit). */
+    feeCents: integer("fee_cents"),
+    url: text("url"),
+    paymentUrl: text("payment_url"),
+    lastError: text("last_error"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** Set on an invoice once its credit invoice has been made: it is no longer the booking's live invoice. */
+    creditedAt: timestamp("credited_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("moneybird_invoices_request_idx").on(t.requestId, t.createdAt),
+    // One live invoice per booking: a second confirm, or two people at once, cannot make another
+    uniqueIndex("moneybird_invoices_live_key").on(t.requestId).where(sql`${t.kind} = 'invoice' AND ${t.creditedAt} IS NULL`),
+    // One credit per invoice
+    uniqueIndex("moneybird_invoices_credit_key").on(t.creditOf).where(sql`${t.kind} = 'credit'`),
+    uniqueIndex("moneybird_invoices_moneybird_key").on(t.moneybirdId),
+    index("moneybird_invoices_state_idx").on(t.state),
+    check("moneybird_invoices_kind", sql`${t.kind} in ('invoice', 'credit')`),
+    check("moneybird_invoices_credit_link", sql`(${t.kind} = 'credit') = (${t.creditOf} IS NOT NULL)`),
+  ],
+);
+
 export const adminUsers = pgTable("admin_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
@@ -323,6 +377,17 @@ export const corporateContacts = pgTable(
     signatory: text("signatory"),
     pointOfCall: text("point_of_call"),
     phone: text("phone"), // <-- Added phone field to persist direct phone numbers
+    // Billing details for the partner's invoices (Moneybird, lib/moneybird). A Dutch invoice to a company carries its address,
+    // so a partner booking is invoiced only once street, postcode and city are filled in. The partner fills them in on the portal.
+    billingStreet: text("billing_street"),
+    billingPostcode: text("billing_postcode"),
+    billingCity: text("billing_city"),
+    billingCountry: text("billing_country").notNull().default("NL"),
+    vatNumber: text("vat_number"),
+    /** Where invoices go when it is not the partner's own login email. */
+    invoiceEmail: text("invoice_email"),
+    /** The partner's contact in Moneybird, once one has been made. */
+    moneybirdContactId: text("moneybird_contact_id"),
     locale: contentLocale("locale").notNull().default("en"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
@@ -468,6 +533,7 @@ export type Driver = typeof drivers.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;
 export type BookingMessage = typeof bookingMessages.$inferSelect;
+export type MoneybirdInvoice = typeof moneybirdInvoices.$inferSelect;
 export type BookingInvoice = typeof bookingInvoices.$inferSelect;
 export type ConciergeConversation = typeof conciergeConversations.$inferSelect;
 export type ConciergeMessage = typeof conciergeMessages.$inferSelect;

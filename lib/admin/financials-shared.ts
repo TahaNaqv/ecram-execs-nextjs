@@ -70,6 +70,10 @@ export type PresentedFinancialRow = {
   invoiceId: string | null;
   invoiceCount: number;
   invoiceFile: string | null;
+  /** The booking's Moneybird invoice, once it has a number (lib/moneybird): its number, Moneybird's state, and its page there. */
+  moneybirdNumber: string | null;
+  moneybirdState: string | null;
+  moneybirdHref: string | null;
 };
 
 const STATUSES: readonly StatusFilter[] = ["all", "paid", "pending", "overdue", "refunded"];

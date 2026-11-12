@@ -15,6 +15,13 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
  * is reported, so a genuinely untranslated string cannot slip through unnoticed.
  */
 const ALLOW_IDENTICAL = new Set([
+  // Moneybird invoices: "Open" and "Postcode" are Dutch too, and the error carries Moneybird's own (English) message
+  "admin.financials.moneybirdStates.open",
+  "admin.moneybird.error",
+  "admin.moneybird.billingPostcode",
+  "admin.moneybird.states.open",
+  "portal.invoiceStates.open",
+  "portal.billing.postcode",
   // Google's own attribution wording, required as they word it
   "booking.poweredByGoogle",
   // The booking's own page: "Route" is the Dutch word too, and the team signs as the brand

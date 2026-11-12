@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { verifyGuestKey } from "@/lib/quotes/guest-link";
 
@@ -74,9 +74,17 @@ export async function guestMessages(requestId: string): Promise<GuestMessage[]> 
 }
 
 /** What the open page polls: the status, and when the conversation last changed. Nothing else about the booking. */
-export async function guestState(reference: unknown, key: unknown): Promise<{ status: string; lastMessageAt: string | null } | null> {
+export async function guestState(
+  reference: unknown,
+  key: unknown,
+): Promise<{ status: string; lastMessageAt: string | null; invoice: string | null } | null> {
   const booking = await getGuestBooking(reference, key);
   if (!booking) return null;
-  const [last] = await db.select({ at: m.createdAt }).from(m).where(eq(m.requestId, booking.id)).orderBy(desc(m.createdAt)).limit(1);
-  return { status: booking.status, lastMessageAt: last?.at.toISOString() ?? null };
+  const mb = schema.moneybirdInvoices;
+  const [[last], [invoice]] = await Promise.all([
+    db.select({ at: m.createdAt }).from(m).where(eq(m.requestId, booking.id)).orderBy(desc(m.createdAt)).limit(1),
+    // The invoice Moneybird sent once the booking was approved: the open page shows it when it arrives
+    db.select({ number: mb.number }).from(mb).where(and(eq(mb.requestId, booking.id), isNotNull(mb.number))).orderBy(desc(mb.createdAt)).limit(1),
+  ]);
+  return { status: booking.status, lastMessageAt: last?.at.toISOString() ?? null, invoice: invoice?.number ?? null };
 }

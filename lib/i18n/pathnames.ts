@@ -19,6 +19,7 @@ export const PATHNAMES = {
   // The portal. A booking is opened with ?ref=EE-XXXXXX: the proxy matches exact slugs only, so there is no [reference] segment
   "/corporate-partner/account/booking": { en: "corporate-partner/account/booking", nl: "zakelijke-partner/account/boeking" },
   "/corporate-partner/account/new-booking": { en: "corporate-partner/account/new-booking", nl: "zakelijke-partner/account/nieuwe-boeking" },
+  "/corporate-partner/account/billing": { en: "corporate-partner/account/billing", nl: "zakelijke-partner/account/facturatie" },
   "/corporate-partner/account/introduction": { en: "corporate-partner/account/introduction", nl: "zakelijke-partner/account/kennismaking" },
   "/privacy": { en: "privacy", nl: "privacybeleid" },
   "/terms": { en: "terms", nl: "voorwaarden" },

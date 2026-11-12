@@ -41,6 +41,8 @@ export function GuestBookingView({
   copy: t,
   bookingCopy,
   savedReceipt,
+  invoice,
+  awaitingInvoice,
 }: {
   reference: string;
   linkKey: string;
@@ -57,6 +59,10 @@ export function GuestBookingView({
   bookingCopy: BookingCopy;
   /** Itinerary from the stored booking, used when this tab has no receipt of its own (chat bookings, email links). */
   savedReceipt: RideReceipt | null;
+  /** The booking's Moneybird invoice once it has been sent: its number, and its page (to pay it, while it is open). */
+  invoice: { number: string; href: string | null; pay: boolean; emailed: boolean } | null;
+  /** Approved, and Moneybird is making the invoice: the page keeps asking until it is there. */
+  awaitingInvoice: boolean;
 }) {
   const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -66,15 +72,17 @@ export function GuestBookingView({
 
   // Asks for the status and the conversation's last change; the page is fetched again only when one of them moved
   useEffect(() => {
-    if (!WAITING.has(status)) return;
+    if (!WAITING.has(status) && !awaitingInvoice) return;
     let stopped = false;
+    // Waiting for the invoice is short (it is made right after the approval): stop asking after five minutes
+    const until = WAITING.has(status) ? Infinity : Date.now() + 5 * 60_000;
     const ask = async () => {
-      if (document.visibilityState === "hidden") return;
+      if (document.visibilityState === "hidden" || Date.now() > until) return;
       try {
         const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
-        const now = (await res.json()) as { status: string; lastMessageAt: string | null };
-        if (now.status !== status || now.lastMessageAt !== lastMessageAt) router.refresh();
+        const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null };
+        if (now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null)) router.refresh();
       } catch {}
     };
     const timer = window.setInterval(ask, POLL_MS);
@@ -85,7 +93,7 @@ export function GuestBookingView({
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, [status, lastMessageAt, reference, linkKey, router]);
+  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number]);
 
   // A new status moves the focus to the new heading, so a screen reader reads the decision out
   const seen = useRef(status);
@@ -99,7 +107,11 @@ export function GuestBookingView({
     new: { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote },
     quoted: { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote },
     contacted: { eyebrow: t.discussEyebrow, heading: t.discussHeading, note: t.discussNote },
-    confirmed: { eyebrow: t.approvedEyebrow, heading: t.approvedHeading, note: `${t.approvedNote} ${t.paymentFollows}` },
+    confirmed: {
+      eyebrow: t.approvedEyebrow,
+      heading: t.approvedHeading,
+      note: `${t.approvedNote} ${invoice ? interpolate(invoice.emailed ? t.invoiceSent : t.invoiceReady, { number: invoice.number }) : t.paymentFollows}`,
+    },
     completed: { eyebrow: t.completedEyebrow, heading: t.completedHeading, note: "" },
     cancelled: { eyebrow: t.cancelledEyebrow, heading: t.cancelledHeading, note: t.cancelledNote },
   }[status] ?? { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote };
@@ -117,6 +129,16 @@ export function GuestBookingView({
             {view.heading}
           </h2>
           {view.note && <p className="m-0 text-[15px] text-ink-700">{view.note}</p>}
+          {invoice?.href && (status === "confirmed" || status === "completed") && (
+            <a
+              href={invoice.href}
+              target="_blank"
+              rel="noreferrer"
+              className="self-start rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800"
+            >
+              {invoice.pay ? t.invoicePay : t.invoiceView}
+            </a>
+          )}
         </div>
         <DownloadableReceiptCard copy={bookingCopy} locale={locale} reference={reference} status={view.eyebrow} name={name} receipt={receipt} price={price} />
       </div>

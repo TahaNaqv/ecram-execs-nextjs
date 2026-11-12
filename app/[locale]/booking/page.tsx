@@ -11,6 +11,8 @@ import { extraName } from "@/lib/pricing/extras";
 import { bookingTotalEuros, formatCents } from "@/lib/pricing/rates";
 import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { getGuestBooking, guestMessages } from "@/lib/quotes/guest";
+import { customerInvoices, payable } from "@/lib/moneybird/customer";
+import { moneybirdConfigured } from "@/lib/moneybird/config";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import type { RideReceipt } from "../_components/booking/booking-flow";
@@ -40,7 +42,11 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       </div>
     );
   }
-  const messages = await guestMessages(booking.id);
+  const [messages, invoices] = await Promise.all([guestMessages(booking.id), customerInvoices(booking.id)]);
+  const latest = invoices.find((inv) => inv.kind === "invoice") ?? null;
+  const invoice = latest
+    ? { number: latest.number, href: payable(latest) ? (latest.paymentUrl ?? latest.url) : latest.url, pay: payable(latest), emailed: latest.delivery !== "Manual" }
+    : null;
 
   const intermediates = stopsWithWaits(booking.destinations, booking.destinationWaits).filter((s) => s.place.trim());
   const route = [
@@ -115,6 +121,8 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       copy={t}
       bookingCopy={d.booking}
       savedReceipt={savedReceipt}
+      invoice={invoice}
+      awaitingInvoice={booking.status === "confirmed" && !invoice && moneybirdConfigured()}
     />
   );
 }

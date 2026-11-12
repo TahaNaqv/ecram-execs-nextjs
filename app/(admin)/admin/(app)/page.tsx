@@ -318,6 +318,7 @@ async function SystemHealthStatus() {
     cdt: d.svcCdt,
     googleMaps: d.svcAddress,
     mollie: d.svcMollie,
+    moneybird: d.svcMoneybird,
     whatsappBusiness: d.svcWhatsappBusiness,
   };
   const labels: Record<HealthState, string> = {

@@ -16,6 +16,7 @@ import { CarClashError, createQuoteRequest } from "@/lib/quotes/create";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
+import { syncAfter } from "@/lib/moneybird/after";
 
 export type NewBookingState = { error?: string; values?: Record<string, string>; createdId?: string };
 
@@ -164,6 +165,10 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
   const kind = request.status === "confirmed" ? "confirmed" : request.status === "quoted" && request.quotedAmount ? "quoted" : null;
   if (partner && kind) after(() => emailPartnerBooking({ request, to: partner, kind }));
   else if (values.notifyClient === "on") after(() => emailBookingRecorded(request));
+  // Saved straight as confirmed (or completed): its Moneybird invoice, emailed only when the customer is told of the booking
+  if (request.status === "confirmed" || request.status === "completed") {
+    syncAfter(request.id, { deliver: (partner && kind) || values.notifyClient === "on" ? "Email" : "Manual" });
+  }
   revalidatePath("/admin/corporate");
   revalidatePath("/admin");
   if (request.corporateContactId) revalidatePath(`/admin/corporate/${request.corporateContactId}`);

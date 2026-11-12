@@ -43,13 +43,14 @@ export type RemoveFiles = (paths: string[]) => Promise<void>;
 const nlNow = (sql: Db) => sql`(now() at time zone 'Europe/Amsterdam')`;
 
 /**
- * Part of the financial records: a completed booking, one with an invoice, or a confirmed one whose trip has passed (it was
+ * Part of the financial records: a completed booking, one with an invoice (uploaded, or numbered in Moneybird), or a confirmed one whose trip has passed (it was
  * driven and billed even if nobody marked it completed). Keeping too much is the safe error: a tax record is not recreated.
  * SQL for a quote_requests row aliased `r`.
  */
 const isFinancial = (sql: Db) => sql`(
   r.status = 'completed'
   or exists (select 1 from booking_invoices i where i.request_id = r.id)
+  or exists (select 1 from moneybird_invoices mb where mb.request_id = r.id and mb.number is not null)
   or (r.status = 'confirmed' and r.pickup_at is not null and r.pickup_at < ${nlNow(sql)})
 )`;
 
@@ -59,7 +60,8 @@ const lastContact = (sql: Db) => sql`greatest(
   r.created_at,
   (select max(m.created_at) from booking_messages m where m.request_id = r.id),
   (select max(e.created_at) from request_events e where e.request_id = r.id),
-  (select max(i.created_at) from booking_invoices i where i.request_id = r.id)
+  (select max(i.created_at) from booking_invoices i where i.request_id = r.id),
+  (select max(mb.updated_at) from moneybird_invoices mb where mb.request_id = r.id and mb.number is not null)
 )`;
 
 /** A trip that has not happened yet is never removed, whatever the age of its row (bespoke requests have no pick-up). */

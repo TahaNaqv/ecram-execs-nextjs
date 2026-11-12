@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { bookingTabCounts, isPortalTab, listBookings, PORTAL_PAGE_SIZE, PORTAL_TABS, type PortalTab } from "@/lib/corporate/bookings";
 import { formatPartnerAmount, formatPickup } from "@/lib/corporate/format";
 import { requirePartner } from "@/lib/corporate/portal";
+import { billingDetails } from "@/lib/corporate/billing";
 import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -18,8 +19,8 @@ import { PortalStatus } from "../../_components/portal-status";
  */
 async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-partner/account">, "searchParams">) {
   const { tab: rawTab, page: rawPage } = await searchParams;
-  const { locale } = await requirePartner("/corporate-partner/account");
-  const d = await getDict();
+  const { locale, contact } = await requirePartner("/corporate-partner/account");
+  const [d, billing] = await Promise.all([getDict(), billingDetails(contact.id)]);
   const p = d.portal;
 
   const counts = await bookingTabCounts();
@@ -35,6 +36,14 @@ async function Bookings({ searchParams }: Pick<PageProps<"/[locale]/corporate-pa
 
   return (
     <div className="flex flex-col gap-6">
+      {billing && !billing.complete && (
+        <p className="m-0 border border-solid border-ink-225 bg-white p-4 text-[14px] text-ink-800">
+          {p.billing.missingNotice}{" "}
+          <Link href={localizedPath("/corporate-partner/account/billing", locale)} className="text-ink-950 underline underline-offset-4">
+            {p.billing.missingLink}
+          </Link>
+        </p>
+      )}
       <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 border-b border-white/20 p-0" aria-label={p.headingBookings}>
         {PORTAL_TABS.map((key) => {
           const current = key === tab;

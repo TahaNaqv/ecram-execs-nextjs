@@ -36,6 +36,8 @@ export type RequestEventParams = {
   fileName?: string;
   /** `car_clash`: the reference of the confirmed booking that already held the car. */
   clashWith?: string;
+  /** `mb_invoice` / `mb_credit`: the Moneybird invoice number. */
+  number?: string;
 };
 
 export const REQUEST_EVENTS = [
@@ -49,6 +51,8 @@ export const REQUEST_EVENTS = [
   "invoice_added",
   "partner_erased",
   "car_clash",
+  "mb_invoice",
+  "mb_credit",
 ] as const;
 export type RequestEventKey = (typeof REQUEST_EVENTS)[number];
 
@@ -85,6 +89,10 @@ export type EventLabels = {
   carsChanged: string;
   /** Interpolates {reference}: a partner accepted a quote for a car that another confirmed booking already holds */
   carClash: string;
+  /** Interpolates {number}: the Moneybird invoice was sent */
+  mbInvoice: string;
+  /** Interpolates {number}: the Moneybird credit invoice was sent */
+  mbCredit: string;
   /** Shown for an absent amount */
   none: string;
   statuses: Record<RequestStatus, string>;
@@ -137,6 +145,8 @@ export function renderEvent(
   if (event === "invoice_added") return fill(labels.invoiceAdded, { file: params?.fileName ?? "" });
   if (event === "partner_erased") return labels.partnerErased;
   if (event === "car_clash") return fill(labels.carClash, { reference: params?.clashWith ?? "" });
+  if (event === "mb_invoice") return fill(labels.mbInvoice, { number: params?.number ?? "" });
+  if (event === "mb_credit") return fill(labels.mbCredit, { number: params?.number ?? "" });
 
   if (event === "changes") {
     const parts = (Array.isArray(params?.changes) ? params.changes : []).map((change) => {

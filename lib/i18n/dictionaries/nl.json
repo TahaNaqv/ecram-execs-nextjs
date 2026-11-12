@@ -938,7 +938,8 @@
       "rangeKm": "{km} km bereik",
       "telemetryConnected": "OBD-II en RDW-register gekoppeld",
       "telemetryLive": "100% BEV-telemetrie live",
-      "mapEmpty": "Vandaag geen bevestigde ritten met een route."
+      "mapEmpty": "Vandaag geen bevestigde ritten met een route.",
+      "svcMoneybird": "Moneybird (facturen)"
     },
     "login": {
       "heading": "Welkom terug",
@@ -1176,7 +1177,9 @@
       "createdByTeam": "Aangemaakt door het team",
       "vehicleChanged": "Auto: {from} → {to}",
       "carsChanged": "Auto's: {from} → {to}",
-      "carClash": "Partner heeft geaccepteerd, maar de auto is al geboekt op {reference}. Geef deze boeking een andere auto."
+      "carClash": "Partner heeft geaccepteerd, maar de auto is al geboekt op {reference}. Geef deze boeking een andere auto.",
+      "mbInvoice": "Factuur {number} verstuurd vanuit Moneybird",
+      "mbCredit": "Creditfactuur {number} verstuurd vanuit Moneybird"
     },
     "corporate": {
       "title": "Zakelijke contacten",
@@ -1554,7 +1557,18 @@
       "sortStatus": "Status",
       "sortReference": "Boekingsnummer",
       "sortToggle": "Sorteervolgorde omdraaien",
-      "receiptNet": "Bedrag excl. btw"
+      "receiptNet": "Bedrag excl. btw",
+      "moneybirdInvoice": "Factuur {number}",
+      "moneybirdStates": {
+        "open": "open",
+        "scheduled": "ingepland",
+        "pending_payment": "betaling in behandeling",
+        "reminded": "herinnerd",
+        "late": "te laat",
+        "paid": "betaald",
+        "uncollectible": "oninbaar",
+        "credited": "gecrediteerd"
+      }
     },
     "pricing": {
       "addOns": "Extra's",
@@ -1663,6 +1677,76 @@
       "mapTrips": "Ritten op de kaart",
       "mapOpen": "Openen",
       "mapShowAll": "Alles tonen"
+    },
+    "moneybird": {
+      "title": "Factuur (Moneybird)",
+      "description": "Wordt in Moneybird gemaakt zodra de boeking is goedgekeurd, en van daaruit gemaild.",
+      "notConnected": "Moneybird is niet gekoppeld. Eerder gemaakte facturen staan hier.",
+      "making": "De factuur wordt in Moneybird gemaakt. Dat duurt even; herlaad de pagina als hij niet verschijnt.",
+      "notSent": "Nog niet verstuurd",
+      "number": "Factuur {number}",
+      "total": "Totaal",
+      "open": "Nog te betalen",
+      "notEmailed": "Genummerd zonder e-mail aan de klant (die werd niet ingelicht). Verstuur hem zo nodig vanuit Moneybird.",
+      "openInMoneybird": "Openen in Moneybird",
+      "viewInvoice": "Weergave voor de klant",
+      "retry": "Opnieuw proberen",
+      "retrying": "Bezig…",
+      "billingMissing": "Het factuuradres van de partner ontbreekt, dus deze factuur kan nog niet worden gemaakt. Dat gebeurt vanzelf zodra het adres is ingevuld.",
+      "billingLink": "Factuurgegevens invullen",
+      "noAmount": "Deze boeking heeft nog geen prijs. Vul eerst het bedrag in en probeer het dan opnieuw.",
+      "totalMismatch": "Het totaal in Moneybird klopt niet met de boeking ({detail}). De factuur is niet verstuurd: controleer hem in Moneybird.",
+      "error": "Moneybird: {detail}",
+      "differs": "De factuur is voor {invoice}, maar de boeking kost nu {booking}. Corrigeer dit in Moneybird (crediteer en factureer opnieuw).",
+      "creditTitle": "Factuur crediteren",
+      "creditNote": "De boeking is geannuleerd. Kies hoe de factuur wordt gecrediteerd; er wordt niets gecrediteerd tot u kiest.",
+      "creditNotePaid": "De boeking is geannuleerd en de factuur van {total} is betaald. Betaal de klant na het crediteren zelf terug.",
+      "creditFull": "Volledig crediteren ({total})",
+      "creditFee": "Annuleringskosten inhouden",
+      "feeLabel": "Ingehouden annuleringskosten (€, incl. btw)",
+      "creditButton": "Creditfactuur maken",
+      "crediting": "Bezig met crediteren…",
+      "credit": "Creditfactuur {number}",
+      "creditNotSent": "Creditfactuur, nog niet verstuurd",
+      "creditAmount": "Gecrediteerd: {amount}",
+      "feeKept": "ingehouden: {amount}",
+      "refundOwed": "Betaal de klant {amount} zelf terug: de factuur was al betaald.",
+      "earlier": "Eerdere facturen",
+      "failed": "Dat is niet gelukt. Probeer het opnieuw.",
+      "busy": "Moneybird is al met deze factuur bezig. Probeer het over een paar minuten opnieuw.",
+      "feeInvalid": "Vul de kosten in euro's in, bijvoorbeeld 50,00.",
+      "notCancelled": "Alleen de factuur van een geannuleerde boeking kan worden gecrediteerd.",
+      "deleteBlocked": "Deze boeking kan niet worden verwijderd zolang de factuur in Moneybird openstaat. Annuleer de boeking en crediteer eerst de factuur.",
+      "billingTitle": "Factuurgegevens",
+      "billingNote": "Staan op de Moneybird-facturen van de partner. De partner kan ze ook zelf wijzigen in het portaal.",
+      "billingIncomplete": "Ontbreekt: de boekingen van de partner worden gefactureerd zodra straat, postcode en plaats zijn ingevuld.",
+      "billingStreet": "Straat en huisnummer",
+      "billingPostcode": "Postcode",
+      "billingCity": "Plaats",
+      "billingCountry": "Land (twee letters)",
+      "billingVat": "Btw-nummer (optioneel)",
+      "billingEmail": "Facturen naar (optioneel; anders het e-mailadres van de partner)",
+      "billingSave": "Factuurgegevens opslaan",
+      "billingSaving": "Opslaan…",
+      "billingSaved": "Opgeslagen",
+      "billingFailed": "De factuurgegevens konden niet worden opgeslagen.",
+      "billingInvalid": "Controleer de velden: straat, postcode en plaats zijn nodig, het land is twee letters en het e-mailadres moet geldig zijn.",
+      "states": {
+        "claimed": "Wordt gemaakt",
+        "draft": "Concept",
+        "failed": "Niet gemaakt",
+        "void": "Ingetrokken",
+        "open": "Open",
+        "scheduled": "Ingepland",
+        "pending_payment": "Betaling in behandeling",
+        "reminded": "Herinnering verstuurd",
+        "late": "Te laat",
+        "paid": "Betaald",
+        "uncollectible": "Oninbaar"
+      },
+      "notAutomatic": "Goedgekeurd voordat Moneybird gekoppeld was, dus niet vanzelf gefactureerd. Maak de factuur hier als die via Moneybird moet.",
+      "makeInvoice": "Factuur maken in Moneybird",
+      "feeTooHigh": "De kosten moeten lager zijn dan het totaal van de factuur. Wilt u alles inhouden, laat de factuur dan staan."
     }
   },
   "bespokeSection": {
@@ -2012,7 +2096,49 @@
     "cardVehicleHint": "Kies een voertuig of laat u door ons adviseren.",
     "cardNotes": "Aanvullende wensen",
     "cardNotesHint": "Vluchtnummer, bagage, ontmoetingspunt, protocol of toegankelijkheidswensen.",
-    "submitHint": "De prijs wordt voor de rit berekend. De status volgt u onder uw boekingen."
+    "submitHint": "De prijs wordt voor de rit berekend. De status volgt u onder uw boekingen.",
+    "navBilling": "Factuurgegevens",
+    "invoiceNumber": "Factuur {number}",
+    "invoiceCredit": "Creditfactuur {number}",
+    "invoicePay": "Bekijken en betalen",
+    "invoiceView": "Factuur bekijken",
+    "invoiceStates": {
+      "open": "open",
+      "scheduled": "ingepland",
+      "pending_payment": "betaling in behandeling",
+      "reminded": "herinnering verstuurd",
+      "late": "te laat",
+      "paid": "betaald",
+      "uncollectible": "gesloten"
+    },
+    "billing": {
+      "heading": "Factuurgegevens",
+      "metaTitle": "Factuurgegevens",
+      "intro": "Deze gegevens staan op uw facturen. Wijzigingen gelden voor facturen die vanaf nu worden gemaakt.",
+      "introMissing": "Vul het factuuradres van uw bedrijf in. Wij factureren uw boekingen zodra het hier staat.",
+      "street": "Straat en huisnummer",
+      "postcode": "Postcode",
+      "city": "Plaats",
+      "country": "Landcode (bijv. NL)",
+      "vatNumber": "Btw-nummer (optioneel)",
+      "invoiceEmail": "Facturen sturen naar (optioneel)",
+      "invoiceEmailNote": "Laat dit leeg om facturen te ontvangen op {email}.",
+      "save": "Factuurgegevens opslaan",
+      "saving": "Opslaan…",
+      "saved": "Uw factuurgegevens zijn opgeslagen.",
+      "failed": "Uw factuurgegevens konden niet worden opgeslagen. Probeer het opnieuw.",
+      "fixFields": "Controleer de gemarkeerde velden.",
+      "missingNotice": "Wij hebben het factuuradres van uw bedrijf nodig om uw boekingen te factureren.",
+      "missingLink": "Factuurgegevens invullen",
+      "errors": {
+        "street": "Vul de straat en het huisnummer in.",
+        "postcode": "Vul de postcode in.",
+        "city": "Vul de plaats in.",
+        "country": "Vul een landcode van twee letters in, zoals NL.",
+        "vatNumber": "Vul een geldig btw-nummer in, of laat het leeg.",
+        "invoiceEmail": "Vul een geldig e-mailadres in, of laat het leeg."
+      }
+    }
   },
   "addOns": {
     "champagne": "Moët & Chandon Brut Impérial (75cl)",
@@ -2305,6 +2431,10 @@
     "messageTooLong": "Dat bericht is te lang.",
     "messageRateLimited": "U heeft in korte tijd veel berichten gestuurd. Probeer het later opnieuw.",
     "messagesClosed": "Deze boeking is afgesloten, dus hier kunnen geen berichten meer worden verstuurd.",
-    "messageFailed": "Het bericht kon niet worden verstuurd. Probeer het opnieuw."
+    "messageFailed": "Het bericht kon niet worden verstuurd. Probeer het opnieuw.",
+    "invoiceSent": "Factuur {number} is naar u gemaild.",
+    "invoicePay": "Factuur bekijken en betalen",
+    "invoiceView": "Factuur bekijken",
+    "invoiceReady": "Uw factuurnummer is {number}."
   }
 }

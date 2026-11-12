@@ -22,6 +22,7 @@ import { quoteSchema, type QuoteField } from "@/lib/quotes/validation";
 import { getCorporateContact } from "./access";
 import { MESSAGEABLE, REF_RE, partnerOwns } from "./bookings";
 import type { PortalState } from "./portal-state";
+import { syncAfter } from "@/lib/moneybird/after";
 
 const q = schema.quoteRequests;
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
@@ -209,6 +210,8 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
       accept ? emailPartnerBooking({ request: done, to: { email: contact.email, name: contact.name, locale }, kind: "confirmed" }) : undefined,
     ]),
   );
+  // Accepting confirms the booking: its Moneybird invoice is made and emailed (a quote declined had none)
+  if (accept) syncAfter(done.id, { deliver: "Email" });
   refresh();
   return { status: "ok", notice: accept ? p.quoteAccepted : p.quoteDeclined };
 }

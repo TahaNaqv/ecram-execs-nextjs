@@ -6,7 +6,7 @@ import { localizedPath, type AppRoute } from "@/lib/i18n/pathnames";
 import { ghostClass } from "./corporate-styles";
 import { CorporateShell } from "./corporate-shell";
 
-export type PortalSection = "bookings" | "new";
+export type PortalSection = "bookings" | "new" | "billing";
 
 /**
  * The frame of every page behind the partner's sign-in: the Corporate Partner shell plus the portal's own navigation.
@@ -30,6 +30,7 @@ export async function PortalPage({
   const items: [PortalSection, string, string][] = [
     ["bookings", p.navBookings, localizedPath("/corporate-partner/account", locale)],
     ["new", p.navNew, localizedPath("/corporate-partner/account/new-booking", locale)],
+    ["billing", p.navBilling, localizedPath("/corporate-partner/account/billing", locale)],
   ];
   return (
     <CorporateShell route={route} heading={heading} intro={intro}>

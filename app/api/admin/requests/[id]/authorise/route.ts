@@ -11,6 +11,8 @@ import { after } from "next/server";
 import { emailPartnerBooking, emailEnquiryStatus, emailBookingRecorded } from "@/lib/email";
 import type { RequestEventChange } from "@/lib/admin/events";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
+import { syncAfter } from "@/lib/moneybird/after";
+import { invoiceBlocksStatus } from "@/lib/moneybird/sync";
 
 export async function POST(
   req: NextRequest,
@@ -35,6 +37,13 @@ export async function POST(
 
     if (!current) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+    // Once Moneybird has sent the invoice the booking stays confirmed, is completed, or is cancelled (and then credited)
+    if (current.status !== newStatus && (await invoiceBlocksStatus(id, newStatus))) {
+      return NextResponse.json(
+        { error: "This booking's invoice has been sent from Moneybird. Cancel the booking to credit it instead.", invoice: true },
+        { status: 409 },
+      );
     }
 
     // Confirming also fixes how long the car is held: the route's length, asked for here, before the fleet lock is taken
@@ -170,6 +179,9 @@ export async function POST(
     } else {
       console.log(`[AUTHORISE] Saved changes for request ${updated.reference} (Email dispatch skipped as sendMail is false).`);
     }
+
+    // Confirming makes the Moneybird invoice (emailed when the customer is told, else only numbered); leaving confirmed drops an unsent one
+    syncAfter(updated.id, { deliver: sendMail ? "Email" : "Manual" });
 
     revalidatePath("/admin/corporate");
     revalidatePath("/admin");

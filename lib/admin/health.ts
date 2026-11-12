@@ -2,8 +2,9 @@ import "server-only";
 import { db } from "@/lib/db";
 import { browserMapKey } from "@/lib/fleet/map";
 import { sql } from "drizzle-orm";
+import { moneybirdConfigured } from "@/lib/moneybird/config";
 
-export type HealthKey = "database" | "cdt" | "googleMaps" | "mollie" | "whatsappBusiness";
+export type HealthKey = "database" | "cdt" | "googleMaps" | "mollie" | "moneybird" | "whatsappBusiness";
 export type HealthState = "operational" | "down" | "notConnected";
 
 export interface SystemHealthItem {
@@ -35,6 +36,7 @@ export async function systemHealth(): Promise<SystemHealthItem[]> {
     { key: "cdt", state: hasCdt ? "operational" : "notConnected" },
     { key: "googleMaps", state: hasGoogleMaps ? "operational" : "notConnected" },
     { key: "mollie", state: hasMollie ? "operational" : "notConnected" },
+    { key: "moneybird", state: moneybirdConfigured() ? "operational" : "notConnected" },
     { key: "whatsappBusiness", state: hasWhatsapp ? "operational" : "notConnected" },
   ];
 }

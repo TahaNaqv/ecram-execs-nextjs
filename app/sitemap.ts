@@ -13,6 +13,7 @@ const SETTINGS: Record<AppRoute, Pick<MetadataRoute.Sitemap[number], "changeFreq
   "/corporate-partner/account": null,
   "/corporate-partner/account/booking": null,
   "/corporate-partner/account/new-booking": null,
+  "/corporate-partner/account/billing": null,
   "/corporate-partner/account/introduction": null,
   "/privacy": { changeFrequency: "yearly", priority: 0.2 },
   "/terms": { changeFrequency: "yearly", priority: 0.2 },

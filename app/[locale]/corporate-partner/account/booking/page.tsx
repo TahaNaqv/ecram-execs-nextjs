@@ -5,6 +5,7 @@ import { renderPartnerEvent } from "@/lib/admin/events";
 import { bookingInvoicesFor, bookingTimeline, getBooking, MESSAGEABLE } from "@/lib/corporate/bookings";
 import { formatBytes, formatPartnerAmount, formatPickup, formatStamp } from "@/lib/corporate/format";
 import { requirePartner } from "@/lib/corporate/portal";
+import { customerInvoices, payable } from "@/lib/moneybird/customer";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { convoyTitle, vehicleByKey } from "@/lib/fleet/vehicles";
 import { getDict } from "@/lib/i18n/get-dictionary";
@@ -79,7 +80,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
       </div>
     );
   }
-  const [timeline, invoices] = await Promise.all([bookingTimeline(booking.id), bookingInvoicesFor(booking.id)]);
+  const [timeline, invoices, issued] = await Promise.all([bookingTimeline(booking.id), bookingInvoicesFor(booking.id), customerInvoices(booking.id)]);
 
   const eventLabels = { ...p.events, statuses: p.statuses };
   const amount = (value: string | null) => (value === null ? p.events.none : formatPartnerAmount(value, locale));
@@ -256,12 +257,34 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
         )}
       </section>
 
-      {invoices.length > 0 && (
+      {(invoices.length > 0 || issued.length > 0) && (
         <section aria-labelledby="invoices" className="flex flex-col gap-4">
           <h3 id="invoices" className="m-0 border-b border-ink-225 pb-2 text-[11px] font-semibold tracking-[0.24em] text-ink-950 uppercase">
             {p.sectionInvoices}
           </h3>
           <ul className="m-0 flex list-none flex-col gap-px border border-ink-225 bg-ink-225 p-0">
+            {issued.map((inv) => {
+              const href = payable(inv) ? (inv.paymentUrl ?? inv.url) : inv.url;
+              return (
+              <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-3 text-[14px]">
+                <span className="min-w-0 wrap-break-word">
+                  {interpolate(inv.kind === "credit" ? p.invoiceCredit : p.invoiceNumber, { number: inv.number })}
+                  {inv.totalCents != null && <span className="text-ink-600"> · {formatPartnerAmount((inv.totalCents / 100).toFixed(2), locale)}</span>}
+                  <span className="text-ink-600"> · {(p.invoiceStates as Record<string, string>)[inv.state] ?? inv.state}</span>
+                </span>
+                {href && (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4"
+                  >
+                    {payable(inv) ? p.invoicePay : p.invoiceView}
+                  </a>
+                )}
+              </li>
+              );
+            })}
             {invoices.map((inv) => (
               <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-3 text-[14px]">
                 <span className="min-w-0 wrap-break-word">

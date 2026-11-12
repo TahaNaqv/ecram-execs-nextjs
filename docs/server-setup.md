@@ -262,6 +262,35 @@ cd /srv/ecram-execs && sudo -u ecram node --env-file=.env scripts/retention.mts
 
 (Written to add to the `ecram` user's crontab, not replace it, so the sweep above keeps running.) A partner account can also be deleted by hand from the admin's Corporate page.
 
+### Moneybird: invoices for approved bookings
+
+Approving a booking makes its invoice in Moneybird, and Moneybird emails it (with its pay link and reminders); cancelling
+lets the team credit it from the booking's page (`lib/moneybird`). It stays off until all four of these are in `.env`:
+
+```bash
+MONEYBIRD_TOKEN=…                 # a personal API token: moneybird.com/user/applications/new
+MONEYBIRD_ADMINISTRATION_ID=…     # the number in the Moneybird web address, moneybird.com/<this>/…
+MONEYBIRD_LEDGER_RIDES=…          # revenue account (ledger_account id) for the chauffeur service
+MONEYBIRD_LEDGER_EXTRAS=…         # revenue account for the add-ons and the service fee
+CRON_SECRET=…                     # openssl rand -hex 24; protects the sweep below
+# MONEYBIRD_SINCE=2026-12-01T00:00:00+01:00   # optional: invoice bookings confirmed from this moment on
+```
+
+Ledger ids: `curl -s -H "Authorization: Bearer $MONEYBIRD_TOKEN" https://moneybird.com/api/v2/$MONEYBIRD_ADMINISTRATION_ID/ledger_accounts.json`
+(pick revenue accounts whose `allowed_document_types` include `sales_invoice`). Moneybird needs active 9% and 21% sales tax
+rates. For customers to pay from the invoice, switch on Moneybird Payments in Moneybird itself.
+
+Only bookings made or confirmed after Moneybird is first used are invoiced by themselves; an older one gets a "Make the
+invoice in Moneybird" button on its page. If Moneybird is switched off for a while and on again, delete the
+`moneybird_since` row from `app_settings` (or set `MONEYBIRD_SINCE`), or bookings confirmed meanwhile are invoiced too.
+
+Every ten minutes a sweep finishes anything a click could not (Moneybird down, a restart) and reads paid / overdue states
+back from Moneybird:
+
+```bash
+(sudo crontab -u ecram -l 2>/dev/null; echo '*/10 * * * * cd /srv/ecram-execs && curl -fsS -X POST -H "Authorization: Bearer $(grep ^CRON_SECRET= .env | cut -d= -f2-)" http://127.0.0.1:3000/api/cron/moneybird >> /home/ecram/moneybird.log 2>&1') | sudo crontab -u ecram -
+```
+
 Nginx logs requests without query strings (`/var/log/nginx/ecram.access.log`), so the signed tokens in document links
 never land in a log. Backups keep a deleted document for up to 14 days; that is the retention to state in your privacy policy.
 

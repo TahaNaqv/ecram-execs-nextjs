@@ -21,6 +21,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { formatCurrency } from "@/lib/pricing/rates";
 import { isCorporateBooking } from "@/lib/quotes/audience";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
+import { moneybirdInvoiceLink } from "@/lib/moneybird/config";
 
 const q = schema.quoteRequests;
 const contacts = schema.corporateContacts;
@@ -287,6 +288,29 @@ async function attachInvoices(rows: LedgerRow[]): Promise<Map<string, { id: stri
   return map;
 }
 
+type MoneybirdRef = { number: string; state: string; moneybirdId: string | null };
+
+/** Each row's Moneybird invoice with a number (the live one, else the latest), shown beside the uploaded PDFs. */
+async function attachMoneybird(rows: LedgerRow[]): Promise<Map<string, MoneybirdRef>> {
+  const map = new Map<string, MoneybirdRef>();
+  if (rows.length === 0) return map;
+  const mb = schema.moneybirdInvoices;
+  const found = await db
+    .select({ requestId: mb.requestId, number: mb.number, state: mb.state, moneybirdId: mb.moneybirdId, creditedAt: mb.creditedAt })
+    .from(mb)
+    .where(and(inArray(mb.requestId, rows.map((row) => row.id)), eq(mb.kind, "invoice"), sql`${mb.number} is not null`))
+    .orderBy(desc(mb.createdAt))
+    .catch(() => []);
+  for (const inv of found) {
+    if (!inv.requestId || !inv.number) continue;
+    const existing = map.get(inv.requestId);
+    if (!existing || (!inv.creditedAt && existing.state === "credited")) {
+      map.set(inv.requestId, { number: inv.number, state: inv.creditedAt ? "credited" : inv.state, moneybirdId: inv.moneybirdId });
+    }
+  }
+  return map;
+}
+
 export type PresentLabels = {
   services: Record<string, string>;
   /** "{hours}" — how an hourly booking with no destination is described. */
@@ -305,7 +329,13 @@ function routeOf(row: LedgerRow, hourly: string): string {
   return "—";
 }
 
-export function presentLedger(rows: LedgerRow[], invoicesByRequest: Map<string, { id: string; fileName: string; count: number }>, locale: Locale, labels: PresentLabels): PresentedFinancialRow[] {
+export function presentLedger(
+  rows: LedgerRow[],
+  invoicesByRequest: Map<string, { id: string; fileName: string; count: number }>,
+  locale: Locale,
+  labels: PresentLabels,
+  moneybirdByRequest: Map<string, MoneybirdRef> = new Map(),
+): PresentedFinancialRow[] {
   return rows.map((row) => {
     const corporate = isCorporateBooking({
       corporateContactId: row.corporateContactId,
@@ -318,6 +348,7 @@ export function presentLedger(rows: LedgerRow[], invoicesByRequest: Map<string, 
     const vat = vatOf(gross, row.priceEstimate);
     const sign = row.settlement === "refunded" ? -1 : 1;
     const invoice = invoicesByRequest.get(row.id);
+    const mbInvoice = moneybirdByRequest.get(row.id);
     return {
       id: row.id,
       reference: row.reference,
@@ -340,6 +371,9 @@ export function presentLedger(rows: LedgerRow[], invoicesByRequest: Map<string, 
       invoiceId: invoice?.id ?? null,
       invoiceCount: invoice?.count ?? 0,
       invoiceFile: invoice?.fileName ?? null,
+      moneybirdNumber: mbInvoice?.number ?? null,
+      moneybirdState: mbInvoice?.state ?? null,
+      moneybirdHref: mbInvoice?.moneybirdId ? moneybirdInvoiceLink(mbInvoice.moneybirdId) : null,
     };
   });
 }
@@ -361,10 +395,10 @@ export async function getFinancialPage(query: FinancialQuery, locale: Locale, la
     getFinancialSummary(query),
     selectLedger(query, FINANCIAL_PAGE_SIZE, (query.page - 1) * FINANCIAL_PAGE_SIZE),
   ]);
-  const invoicesByRequest = await attachInvoices(ledger.rows);
+  const [invoicesByRequest, moneybirdByRequest] = await Promise.all([attachInvoices(ledger.rows), attachMoneybird(ledger.rows)]);
   return {
     summary,
-    rows: presentLedger(ledger.rows, invoicesByRequest, locale, labels),
+    rows: presentLedger(ledger.rows, invoicesByRequest, locale, labels, moneybirdByRequest),
     total: ledger.total,
   };
 }
@@ -405,7 +439,7 @@ export function toFinancialCsv(rows: PresentedFinancialRow[], labels: CsvLabels)
         csvMoney(row.vatHigh),
         csvMoney(row.vatLow + row.vatHigh),
         csvCell(labels.status[row.status]),
-        csvCell(row.invoiceFile ?? ""),
+        csvCell([row.moneybirdNumber, row.invoiceFile].filter(Boolean).join(" · ")),
       ].join(";"),
     ),
   ];
@@ -415,6 +449,6 @@ export function toFinancialCsv(rows: PresentedFinancialRow[], labels: CsvLabels)
 export async function exportFinancialCsv(query: FinancialQuery, locale: Locale, present: PresentLabels, labels: CsvLabels): Promise<string> {
   await requireAdmin();
   const ledger = await selectLedger({ ...query, page: 1 }, CSV_EXPORT_LIMIT, 0);
-  const invoicesByRequest = await attachInvoices(ledger.rows);
-  return toFinancialCsv(presentLedger(ledger.rows, invoicesByRequest, locale, present), labels);
+  const [invoicesByRequest, moneybirdByRequest] = await Promise.all([attachInvoices(ledger.rows), attachMoneybird(ledger.rows)]);
+  return toFinancialCsv(presentLedger(ledger.rows, invoicesByRequest, locale, present, moneybirdByRequest), labels);
 }

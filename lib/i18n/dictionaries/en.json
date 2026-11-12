@@ -938,7 +938,8 @@
       "rangeKm": "{km} km Range",
       "telemetryConnected": "OBD-II & RDW Registry Connected",
       "telemetryLive": "100% BEV Telemetry Live",
-      "mapEmpty": "No confirmed trips with a route today."
+      "mapEmpty": "No confirmed trips with a route today.",
+      "svcMoneybird": "Moneybird (invoices)"
     },
     "login": {
       "heading": "Welcome back",
@@ -1176,7 +1177,9 @@
       "createdByTeam": "Created by the team",
       "vehicleChanged": "Car: {from} → {to}",
       "carsChanged": "Cars: {from} → {to}",
-      "carClash": "Partner accepted, but the car is already booked on {reference}. Give this booking another car."
+      "carClash": "Partner accepted, but the car is already booked on {reference}. Give this booking another car.",
+      "mbInvoice": "Invoice {number} sent from Moneybird",
+      "mbCredit": "Credit invoice {number} sent from Moneybird"
     },
     "corporate": {
       "title": "Corporate contacts",
@@ -1554,7 +1557,18 @@
       "sortStatus": "Status",
       "sortReference": "Booking ID",
       "sortToggle": "Reverse sort order",
-      "receiptNet": "Amount excl. VAT"
+      "receiptNet": "Amount excl. VAT",
+      "moneybirdInvoice": "Invoice {number}",
+      "moneybirdStates": {
+        "open": "open",
+        "scheduled": "scheduled",
+        "pending_payment": "payment pending",
+        "reminded": "reminded",
+        "late": "overdue",
+        "paid": "paid",
+        "uncollectible": "uncollectible",
+        "credited": "credited"
+      }
     },
     "pricing": {
       "addOns": "Add-ons",
@@ -1662,6 +1676,76 @@
       "mapTrips": "Trips on the map",
       "mapOpen": "Open",
       "mapShowAll": "Show all"
+    },
+    "moneybird": {
+      "title": "Invoice (Moneybird)",
+      "description": "Made in Moneybird when the booking is approved, and emailed from there.",
+      "notConnected": "Moneybird is not connected. Invoices made earlier are shown here.",
+      "making": "The invoice is being made in Moneybird. This takes a moment; reload the page if it does not appear.",
+      "notSent": "Not sent yet",
+      "number": "Invoice {number}",
+      "total": "Total",
+      "open": "Still to pay",
+      "notEmailed": "Numbered without an email to the customer (they were not notified). Send it from Moneybird if needed.",
+      "openInMoneybird": "Open in Moneybird",
+      "viewInvoice": "Customer's view",
+      "retry": "Try again",
+      "retrying": "Trying…",
+      "billingMissing": "The partner's billing address is missing, so this invoice cannot be made yet. It is made by itself once the address is filled in.",
+      "billingLink": "Fill in the billing details",
+      "noAmount": "This booking has no price yet. Set the amount first, then try again.",
+      "totalMismatch": "Moneybird's total does not match the booking ({detail}). The invoice was not sent: check it in Moneybird.",
+      "error": "Moneybird: {detail}",
+      "differs": "The invoice is for {invoice}, but the booking now costs {booking}. Correct it in Moneybird (credit it and invoice again).",
+      "creditTitle": "Credit the invoice",
+      "creditNote": "The booking is cancelled. Choose how to credit its invoice; nothing is credited until you do.",
+      "creditNotePaid": "The booking is cancelled and its invoice of {total} has been paid. After crediting, refund the customer by hand.",
+      "creditFull": "Credit in full ({total})",
+      "creditFee": "Keep a cancellation fee",
+      "feeLabel": "Cancellation fee kept (€, VAT included)",
+      "creditButton": "Make the credit invoice",
+      "crediting": "Crediting…",
+      "credit": "Credit invoice {number}",
+      "creditNotSent": "Credit invoice, not sent yet",
+      "creditAmount": "Credited: {amount}",
+      "feeKept": "fee kept: {amount}",
+      "refundOwed": "Refund {amount} to the customer by hand: the invoice had been paid.",
+      "earlier": "Earlier invoices",
+      "failed": "That did not work. Please try again.",
+      "busy": "Moneybird is already working on this invoice. Try again in a few minutes.",
+      "feeInvalid": "Enter the fee in euros, for example 50,00.",
+      "notCancelled": "Only a cancelled booking's invoice can be credited.",
+      "deleteBlocked": "This booking cannot be deleted while its invoice is open in Moneybird. Cancel the booking and credit the invoice first.",
+      "billingTitle": "Billing details (invoices)",
+      "billingNote": "Printed on the partner's Moneybird invoices. The partner can change them on the portal too.",
+      "billingIncomplete": "Missing: the partner's bookings are invoiced once street, postcode and city are filled in.",
+      "billingStreet": "Street and number",
+      "billingPostcode": "Postcode",
+      "billingCity": "City",
+      "billingCountry": "Country (two letters)",
+      "billingVat": "VAT number (optional)",
+      "billingEmail": "Invoices to (optional; else the partner's email)",
+      "billingSave": "Save billing details",
+      "billingSaving": "Saving…",
+      "billingSaved": "Saved",
+      "billingFailed": "Could not save the billing details.",
+      "billingInvalid": "Check the fields: street, postcode and city are needed, the country is two letters, and the email must be valid.",
+      "states": {
+        "claimed": "Being made",
+        "draft": "Draft",
+        "failed": "Not made",
+        "void": "Withdrawn",
+        "open": "Open",
+        "scheduled": "Scheduled",
+        "pending_payment": "Payment pending",
+        "reminded": "Reminder sent",
+        "late": "Overdue",
+        "paid": "Paid",
+        "uncollectible": "Uncollectible"
+      },
+      "notAutomatic": "Approved before Moneybird was connected, so it is not invoiced by itself. Make the invoice here if it should go through Moneybird.",
+      "makeInvoice": "Make the invoice in Moneybird",
+      "feeTooHigh": "The fee must be less than the invoice's total. To keep everything, leave the invoice as it is."
     }
   },
   "bespokeSection": {
@@ -2011,7 +2095,49 @@
     "cardVehicleHint": "Choose a vehicle, or let us advise you.",
     "cardNotes": "Additional requirements",
     "cardNotesHint": "Flight number, luggage, meeting point, protocol or accessibility needs.",
-    "submitHint": "The price is calculated for the journey. You can follow its status in your bookings."
+    "submitHint": "The price is calculated for the journey. You can follow its status in your bookings.",
+    "navBilling": "Billing details",
+    "invoiceNumber": "Invoice {number}",
+    "invoiceCredit": "Credit invoice {number}",
+    "invoicePay": "View and pay",
+    "invoiceView": "View invoice",
+    "invoiceStates": {
+      "open": "open",
+      "scheduled": "scheduled",
+      "pending_payment": "payment pending",
+      "reminded": "reminder sent",
+      "late": "overdue",
+      "paid": "paid",
+      "uncollectible": "closed"
+    },
+    "billing": {
+      "heading": "Billing details",
+      "metaTitle": "Billing details",
+      "intro": "These details are printed on your invoices. Changes apply to invoices made from now on.",
+      "introMissing": "Please add your company's billing address. We invoice your bookings once it is here.",
+      "street": "Street and number",
+      "postcode": "Postcode",
+      "city": "City",
+      "country": "Country code (e.g. NL)",
+      "vatNumber": "VAT number (optional)",
+      "invoiceEmail": "Send invoices to (optional)",
+      "invoiceEmailNote": "Leave it empty to receive invoices at {email}.",
+      "save": "Save billing details",
+      "saving": "Saving…",
+      "saved": "Your billing details have been saved.",
+      "failed": "We could not save your billing details. Please try again.",
+      "fixFields": "Please check the highlighted fields.",
+      "missingNotice": "We need your company's billing address to invoice your bookings.",
+      "missingLink": "Add billing details",
+      "errors": {
+        "street": "Please enter the street and number.",
+        "postcode": "Please enter the postcode.",
+        "city": "Please enter the city.",
+        "country": "Please enter a two-letter country code, such as NL.",
+        "vatNumber": "Please enter a valid VAT number, or leave it empty.",
+        "invoiceEmail": "Please enter a valid email address, or leave it empty."
+      }
+    }
   },
   "addOns": {
     "champagne": "Moët & Chandon Brut Impérial (75cl)",
@@ -2304,6 +2430,10 @@
     "messageTooLong": "That message is too long.",
     "messageRateLimited": "You have sent a lot of messages in a short time. Please try again later.",
     "messagesClosed": "This booking is closed, so messages can no longer be sent here.",
-    "messageFailed": "The message could not be sent. Please try again."
+    "messageFailed": "The message could not be sent. Please try again.",
+    "invoiceSent": "Invoice {number} has been emailed to you.",
+    "invoicePay": "View and pay invoice",
+    "invoiceView": "View invoice",
+    "invoiceReady": "Your invoice is {number}."
   }
 }
