@@ -145,8 +145,9 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
         )}
 
         {credits.map((row) => {
-          const of = rows.find((other) => other.id === row.creditOf);
-          const paidBack = of?.state === "paid" ? (of.totalCents ?? 0) - (row.feeCents ?? 0) : 0;
+          // Money owed back: the credit is still open (negative), which happens only when the customer had already paid.
+          // An unpaid invoice is settled against its credit instead, which leaves both "paid" and nothing to refund.
+          const paidBack = row.unpaidCents != null && row.unpaidCents < 0 ? -row.unpaidCents : 0;
           return (
             <div key={row.id} className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
               <div className="flex items-center justify-between gap-3">
