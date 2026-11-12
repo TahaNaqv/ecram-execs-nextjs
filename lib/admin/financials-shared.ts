@@ -1,3 +1,5 @@
+import type { RequestStatus } from "@/lib/quotes/constants";
+
 /**
  * Filters for the financials ledger. No database access, so the filter bar can import it.
  *
@@ -61,7 +63,10 @@ export type PresentedFinancialRow = {
   vatLow: number;
   vatHigh: number;
   vatEstimated: boolean;
+  /** Payment settlement derived for the ledger. */
   status: PaymentStatus;
+  /** The booking's own status, as stored on the request. */
+  bookingStatus: RequestStatus;
   invoiceId: string | null;
   invoiceCount: number;
   invoiceFile: string | null;
@@ -153,10 +158,14 @@ export function monthWindow(now = new Date()): { from: string; to: string } {
   return resolveRange({ range: "month", status: "all", sort: "date", dir: "desc", page: 1 }, now);
 }
 
-/** 1 January through the end of today, Amsterdam. */
+/**
+ * 1 January through the end of the current calendar month, Amsterdam.
+ * The month total already counts confirmed rides later this month, so year-to-date
+ * uses that same end. Stopping at today left those rides out and made the year smaller than the month.
+ */
 export function yearWindow(now = new Date()): { from: string; to: string } {
   const today = amsterdamToday(now);
-  return { from: `${today.slice(0, 4)}-01-01`, to: addDays(today, 1) };
+  return { from: `${today.slice(0, 4)}-01-01`, to: monthWindow(now).to };
 }
 
 export function financialHref(query: FinancialQuery): string {

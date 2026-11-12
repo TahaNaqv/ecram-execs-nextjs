@@ -4,6 +4,7 @@ import { FINANCIAL_PAGE_SIZE, financialHref, type FinancialQuery, type PaymentSt
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, FileTextIcon, InboxIcon, SearchIcon } from "../../_components/icons";
+import { StatusBadge } from "../../_components/status-badge";
 import { btn, EmptyState } from "../../_components/ui";
 
 type Copy = Dictionary["admin"]["financials"];
@@ -144,6 +145,7 @@ export function FinancialTable({
                 {row.clientSub && <p className="truncate text-xs text-zinc-500">{row.clientSub}</p>}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <Audience corporate={row.corporate} copy={copy} />
+                  <StatusBadge status={row.bookingStatus} />
                   <Payment status={row.status} copy={copy} />
                 </div>
               </div>
@@ -177,6 +179,7 @@ export function FinancialTable({
               <SortHeader query={query} sort="amount" label={copy.colGross} align="right" />
               <th scope="col" className="px-3 py-2.5 text-right font-medium">{copy.colVat}</th>
               <SortHeader query={query} sort="status" label={copy.colStatus} />
+              <th scope="col" className="px-3 py-2.5 font-medium">{copy.colBookingStatus}</th>
               <th scope="col" className="py-2.5 pr-5 pl-3 text-right font-medium">{copy.colActions}</th>
             </tr>
           </thead>
@@ -203,6 +206,7 @@ export function FinancialTable({
                 <td className="px-3 py-3.5 text-right font-medium tabular-nums whitespace-nowrap text-zinc-950">{formatEuro(row.gross)}</td>
                 <td className="px-3 py-3.5 whitespace-nowrap"><Vat row={row} copy={copy} /></td>
                 <td className="px-3 py-3.5"><Payment status={row.status} copy={copy} /></td>
+                <td className="px-3 py-3.5"><StatusBadge status={row.bookingStatus} /></td>
                 <td className="py-3.5 pr-5 pl-3"><Actions row={row} copy={copy} /></td>
               </tr>
             ))}

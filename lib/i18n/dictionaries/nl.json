@@ -1529,6 +1529,7 @@
       "colGross": "Bruto",
       "colVat": "Btw",
       "colStatus": "Betaling",
+      "colBookingStatus": "Boekingsstatus",
       "colActions": "Documenten",
       "colAudience": "Soort",
       "colVatLow": "Btw 9% (EUR)",

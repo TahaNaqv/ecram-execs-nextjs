@@ -1529,6 +1529,7 @@
       "colGross": "Gross",
       "colVat": "VAT",
       "colStatus": "Payment",
+      "colBookingStatus": "Booking status",
       "colActions": "Documents",
       "colAudience": "Audience",
       "colVatLow": "VAT 9% (EUR)",

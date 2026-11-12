@@ -59,6 +59,7 @@ export function FinancialSummaryCards({
   const corporatePct = percent(summary.corporateRevenue, whole);
   const publicPct = percent(summary.publicRevenue, whole);
   const corporateShare = whole > 0 ? (summary.corporateRevenue / whole) * 100 : 0;
+  const publicShare = whole > 0 ? (summary.publicRevenue / whole) * 100 : 0;
 
   const settlement = [
     { label: copy.paid, amount: summary.paid, count: summary.paidCount },
@@ -100,20 +101,47 @@ export function FinancialSummaryCards({
         </Card>
 
         <Card label={copy.splitTitle} icon={<BriefcaseIcon />}>
-          <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-zinc-950">{corporatePct ?? "—"}</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            {copy.splitCorporate}
-            {whole > 0 ? ` · ${formatEuro(summary.corporateRevenue)}` : ""}
-          </p>
           {whole > 0 ? (
-            <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
-              <span className="bg-zinc-950" style={{ width: `${corporateShare}%` }} />
-              <span className="bg-zinc-300" style={{ width: `${100 - corporateShare}%` }} />
-            </div>
-          ) : null}
-          <p className="mt-auto pt-2 text-xs text-zinc-500">
-            {publicPct ? `${copy.splitPublic} ${publicPct} · ${formatEuro(summary.publicRevenue)}` : copy.splitEmpty}
-          </p>
+            <>
+              <dl className="mt-3 space-y-2">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <dt className="inline-flex items-center gap-1.5 text-zinc-500">
+                    <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-950" />
+                    {copy.splitCorporate}
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-zinc-950">
+                    {corporatePct}
+                    <span className="ml-1.5 font-normal text-zinc-500">{formatEuro(summary.corporateRevenue)}</span>
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <dt className="inline-flex items-center gap-1.5 text-zinc-500">
+                    <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-300" />
+                    {copy.splitPublic}
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-zinc-950">
+                    {publicPct}
+                    <span className="ml-1.5 font-normal text-zinc-500">{formatEuro(summary.publicRevenue)}</span>
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-auto pt-3">
+                <div
+                  className="grid h-1.5 overflow-hidden rounded-full"
+                  style={{ gridTemplateColumns: `${corporateShare}% ${publicShare}%` }}
+                  role="img"
+                  aria-label={`${copy.splitCorporate} ${corporatePct}, ${copy.splitPublic} ${publicPct}`}
+                >
+               
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-zinc-950">—</p>
+              <p className="mt-auto pt-2 text-xs text-zinc-500">{copy.splitEmpty}</p>
+            </>
+          )}
         </Card>
       </div>
       <p className="mt-3 max-w-4xl text-xs leading-5 text-zinc-500">{interpolate(copy.settlementNote, { days: CORPORATE_TERM_DAYS })}</p>

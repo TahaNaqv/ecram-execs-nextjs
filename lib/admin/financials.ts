@@ -20,6 +20,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { formatCurrency } from "@/lib/pricing/rates";
 import { isCorporateBooking } from "@/lib/quotes/audience";
+import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 
 const q = schema.quoteRequests;
 const contacts = schema.corporateContacts;
@@ -130,6 +131,10 @@ function asStatus(value: string): PaymentStatus {
   return (PAYMENT_STATUSES as readonly string[]).includes(value) ? (value as PaymentStatus) : "pending";
 }
 
+function asBookingStatus(value: string): RequestStatus {
+  return (REQUEST_STATUSES as readonly string[]).includes(value) ? (value as RequestStatus) : "confirmed";
+}
+
 function num(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -211,6 +216,7 @@ type LedgerRow = {
   corporateContactId: string | null;
   source: string;
   companyName: string | null;
+  bookingStatus: string;
   settlement: string;
 };
 
@@ -247,6 +253,7 @@ async function selectLedger(query: FinancialQuery, limit: number, offset: number
         corporateContactId: q.corporateContactId,
         source: q.source,
         companyName: contacts.companyName,
+        bookingStatus: q.status,
         settlement: sql<string>`${settlementSql()}`,
       })
       .from(q)
@@ -329,6 +336,7 @@ export function presentLedger(rows: LedgerRow[], invoicesByRequest: Map<string, 
       vatHigh: sign * vat.high,
       vatEstimated: vat.estimated,
       status: asStatus(row.settlement),
+      bookingStatus: asBookingStatus(row.bookingStatus),
       invoiceId: invoice?.id ?? null,
       invoiceCount: invoice?.count ?? 0,
       invoiceFile: invoice?.fileName ?? null,
