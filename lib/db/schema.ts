@@ -77,8 +77,11 @@ export const quoteRequests = pgTable(
     notes: text("notes"),
     locale: contentLocale("locale").notNull().default("en"),
     quotedAmount: numeric("quoted_amount", { precision: 10, scale: 2 }),
-    // The rate-card price worked out when the request came in (lib/pricing/rates.ts), with its breakdown. A guide for the team,
-    // who still send the quote (quotedAmount); null for a request the card cannot price, or one made before prices existed.
+    // Immutable rate-card snapshot from the moment the request was priced (lib/pricing/rates.ts): the rides, 9% VAT,
+    // the 21% service fee and the add-ons. quotedAmount, when the team sets one, is the amount actually charged.
+    // Settlement, the VAT split and the euro total are derived from these two when the ledger is read. They are not
+    // stored again, and this snapshot is not a foreign key to a live rate card: a later change to the card must not
+    // rewrite a booking that has already been made. Null when the card cannot price the request.
     priceEstimate: jsonb("price_estimate").$type<Price>(),
     internalNotes: text("internal_notes"),
     source: text("source").notNull().default("website"),
@@ -94,6 +97,17 @@ export const quoteRequests = pgTable(
     index("quote_requests_status_created_idx").on(t.status, t.createdAt),
     index("quote_requests_ip_created_idx").on(t.ipHash, t.createdAt),
     index("quote_requests_contact_created_idx").on(t.corporateContactId, t.createdAt),
+    // Dispatch list: confirmed rides ordered by pick-up. The partial predicate matches that filter.
+    index("quote_requests_confirmed_pickup_idx").on(t.pickupAt).where(sql`${t.status} = 'confirmed'`),
+    // /admin/financials filters and sorts on this exact expression (pick-up wall time, else created in Amsterdam).
+    index("quote_requests_activity_idx").on(sql`coalesce(${t.pickupAt}::timestamp, (${t.createdAt} at time zone 'Europe/Amsterdam'))`),
+    // The ledger search is a leading-wildcard ILIKE, which a btree cannot serve.
+    index("quote_requests_reference_trgm").using("gin", sql`${t.reference} gin_trgm_ops`),
+    index("quote_requests_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
+    index("quote_requests_email_trgm").using("gin", sql`${t.email} gin_trgm_ops`),
+    index("quote_requests_entity_trgm").using("gin", sql`${t.entity} gin_trgm_ops`),
+    check("quote_requests_vehicle_count_positive", sql`${t.vehicleCount} >= 1`),
+    check("quote_requests_quoted_nonneg", sql`${t.quotedAmount} is null or ${t.quotedAmount} >= 0`),
     check(
       "quote_requests_journey_required",
       sql`${t.service} = 'bespoke' OR (${t.collection} IS NOT NULL AND ${t.pickupAt} IS NOT NULL AND (${t.destination} IS NOT NULL OR (${t.service} = 'hourly' AND ${t.durationHours} IS NOT NULL)))`,
@@ -118,7 +132,10 @@ export const vehicles = pgTable("vehicles", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (t) => [
+  check("vehicles_battery_range", sql`${t.batterySoC} between 0 and 100`),
+  check("vehicles_status_known", sql`${t.status} in ('available', 'unavailable', 'maintenance')`),
+]);
 
 export const requestEvents = pgTable(
   "request_events",
@@ -132,7 +149,10 @@ export const requestEvents = pgTable(
     params: jsonb("params").$type<RequestEventParams>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("request_events_request_idx").on(t.requestId, t.createdAt)],
+  (t) => [
+    index("request_events_request_idx").on(t.requestId, t.createdAt),
+    index("request_events_admin_idx").on(t.adminId),
+  ],
 );
 
 export const bookingMessages = pgTable(
@@ -153,6 +173,8 @@ export const bookingMessages = pgTable(
   },
   (t) => [
     index("booking_messages_request_idx").on(t.requestId, t.createdAt),
+    index("booking_messages_contact_idx").on(t.contactId),
+    index("booking_messages_admin_idx").on(t.adminId),
     index("booking_messages_unseen_idx")
       .on(t.requestId)
       .where(sql`${t.authorKind} IN ('partner', 'guest') AND ${t.seenByTeamAt} IS NULL`),
@@ -175,8 +197,11 @@ export const bookingInvoices = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("booking_invoices_request_idx").on(t.requestId),
+    index("booking_invoices_request_idx").on(t.requestId, t.createdAt),
+    index("booking_invoices_uploader_idx").on(t.uploadedBy),
+    index("booking_invoices_filename_trgm").using("gin", sql`${t.fileName} gin_trgm_ops`),
     uniqueIndex("booking_invoices_path_key").on(t.path),
+    check("booking_invoices_size_nonneg", sql`${t.size} >= 0`),
   ],
 );
 
@@ -192,14 +217,18 @@ export const adminUsers = pgTable("admin_users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const adminSessions = pgTable("admin_sessions", {
-  id: text("id").primaryKey(),
-  adminId: uuid("admin_id")
-    .notNull()
-    .references(() => adminUsers.id, { onDelete: "cascade" }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    id: text("id").primaryKey(),
+    adminId: uuid("admin_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("admin_sessions_admin_idx").on(t.adminId)],
+);
 
 export const drivers = pgTable("drivers", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -229,6 +258,8 @@ export const driverShifts = pgTable(
   (t) => [
     uniqueIndex("driver_shifts_one_open_idx").on(t.driverId).where(isNull(t.endedAt)),
     index("driver_shifts_driver_started_idx").on(t.driverId, t.startedAt),
+    index("driver_shifts_started_by_idx").on(t.startedBy),
+    index("driver_shifts_ended_by_idx").on(t.endedBy),
   ],
 );
 
@@ -273,6 +304,9 @@ export const driverApplications = pgTable(
     index("driver_applications_status_created_idx").on(t.status, t.createdAt),
     index("driver_applications_ip_created_idx").on(t.ipHash, t.createdAt),
     index("driver_applications_plate_idx").on(t.plate),
+    index("driver_applications_driver_idx").on(t.driverId),
+    index("driver_applications_reviewer_idx").on(t.reviewedBy),
+    index("driver_applications_email_trgm").using("gin", sql`${t.email} gin_trgm_ops`),
   ],
 );
 
@@ -309,7 +343,12 @@ export const corporateContacts = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("corporate_contacts_created_idx").on(t.createdAt), index("corporate_contacts_domain_idx").on(t.emailDomain)],
+  (t) => [
+    index("corporate_contacts_created_idx").on(t.createdAt),
+    index("corporate_contacts_domain_idx").on(t.emailDomain),
+    index("corporate_contacts_company_trgm").using("gin", sql`${t.companyName} gin_trgm_ops`),
+    index("corporate_contacts_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
+  ],
 );
 
 export const corporateChallenges = pgTable(
@@ -333,17 +372,22 @@ export const corporateChallenges = pgTable(
   (t) => [
     index("corporate_challenges_contact_created_idx").on(t.contactId, t.createdAt),
     index("corporate_challenges_ip_created_idx").on(t.ipHash, t.createdAt),
+    check("corporate_challenges_purpose", sql`${t.purpose} in ('signup', 'reset')`),
   ],
 );
 
-export const corporateAccess = pgTable("corporate_access", {
-  id: text("id").primaryKey(),
-  contactId: uuid("contact_id")
-    .notNull()
-    .references(() => corporateContacts.id, { onDelete: "cascade" }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const corporateAccess = pgTable(
+  "corporate_access",
+  {
+    id: text("id").primaryKey(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => corporateContacts.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("corporate_access_contact_idx").on(t.contactId)],
+);
 
 /**
  * What the website's AI concierge and a visitor said to each other, kept for RETENTION.chatDays days (lib/retention.ts).
@@ -406,12 +450,16 @@ export const conciergeMessages = pgTable(
 );
 
 /** Settings the team changes in the admin, one row per key (the fleet's base: lib/fleet/base.ts). */
-export const appSettings = pgTable("app_settings", {
-  key: text("key").primaryKey(),
-  value: jsonb("value").notNull(),
-  updatedBy: uuid("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const appSettings = pgTable(
+  "app_settings",
+  {
+    key: text("key").primaryKey(),
+    value: jsonb("value").notNull(),
+    updatedBy: uuid("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("app_settings_updated_by_idx").on(t.updatedBy)],
+);
 
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
