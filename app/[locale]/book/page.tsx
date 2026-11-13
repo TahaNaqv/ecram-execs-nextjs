@@ -2,8 +2,8 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { bookableFleet } from "@/lib/fleet/catalog";
-import { LOCALES } from "@/lib/i18n/config";
-import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
+import { LOCALES, type Locale } from "@/lib/i18n/config";
+import { currentLocale, getDict, type Dictionary } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { PublicBooking } from "../_components/booking/public-booking";
 import { LanguageSwitcher } from "../_components/language-switcher";
@@ -22,13 +22,32 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** The fleet comes from the database, so it renders with the flow, behind the shell's Suspense boundary. */
+async function BookingOffer({ locale, d }: { locale: Locale; d: Dictionary }) {
+  const vehicles = await bookableFleet();
+  return (
+    <PublicBooking
+      locale={locale}
+      copy={d.booking}
+      addOns={d.addOns}
+      dateTimeCopy={d.dateTimePicker}
+      messages={d.forms}
+      fleetDict={d.fleetSection}
+      vehicleAdvise={d.quoteForm.vehicleAdvise}
+      vehicles={vehicles}
+      bookPath={localizedPath("/book", locale)}
+      privacyHref={localizedPath("/privacy", locale)}
+      homeHref={localizedPath("/", locale)}
+    />
+  );
+}
+
 /**
  * The booking flow after the hero's bar: choose a car, then who is travelling, then send. The trip comes in the query
  * string, so the page's shell is static and the flow renders once the URL is known.
  */
 export default async function BookPage() {
-  const [locale, d, vehicles] = await Promise.all([currentLocale(), getDict(), bookableFleet()]);
-  const t = d.booking;
+  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   return (
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.6] text-ink-150">
       <a className="skip-link" href="#main">
@@ -46,19 +65,7 @@ export default async function BookPage() {
       <main id="main" className="light-surface bg-ink-50 text-ink-950">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 pt-8 pb-16 sm:px-6 md:px-8 md:pt-10 2xl:max-w-[1440px]">
           <Suspense fallback={<div className="min-h-[60svh]" aria-busy="true" />}>
-            <PublicBooking
-              locale={locale}
-              copy={t}
-              addOns={d.addOns}
-              dateTimeCopy={d.dateTimePicker}
-              messages={d.forms}
-              fleetDict={d.fleetSection}
-              vehicleAdvise={d.quoteForm.vehicleAdvise}
-              vehicles={vehicles}
-              bookPath={localizedPath("/book", locale)}
-              privacyHref={localizedPath("/privacy", locale)}
-              homeHref={localizedPath("/", locale)}
-            />
+            <BookingOffer locale={locale} d={d} />
           </Suspense>
         </div>
       </main>
