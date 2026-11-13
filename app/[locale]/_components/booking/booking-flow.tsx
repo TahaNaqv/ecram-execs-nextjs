@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { mapFrameSrc, type RouteMapLinks } from "@/lib/fleet/map";
-import { FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type OfferedVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
@@ -15,7 +15,7 @@ import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
 import { guestsText, luggageLine, partyLine } from "./guests-picker";
 import { JourneyBar } from "./journey-bar";
-import { carsCapacityProblem, involvesAirport, isTripReady, MAX_PER_CAR, normalizeTrip, pickupAtAirport, shortPlace, tripFields, type Trip } from "./trip";
+import { carsCapacityProblem, involvesAirport, isTripReady, MAX_PER_CAR, normalizeTrip, pickupAtAirport, tripFields, type Trip } from "./trip";
 import { Check, pretty, SeatIcon } from "./parts";
 import { dayLabel, segmentOf } from "./price";
 import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, selectionLabel } from "./review-step";
@@ -24,13 +24,40 @@ import { bookingsSent } from "./sent";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 import { ExtrasStep } from "./extras-step";
 
+/** Pickup, each stop, then drop-off, as "Stop 1: …", "Stop 2: …". An hourly trip is the pickup and the hours. */
+function numberedStops(trip: Trip, t: BookingCopy, shorten = false): string[] {
+  const label = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return "";
+    return shorten ? trimmed.split(",")[0].trim() : trimmed;
+  };
+  if (trip.mode === "hourly") {
+    const from = label(trip.from.text);
+    return [
+      from ? `${interpolate(t.stopLabel, { number: 1 })}: ${from}` : "",
+      trip.hours === "" ? "" : interpolate(t.asDirected, { hours: trip.hours }),
+    ].filter(Boolean);
+  }
+  const places = [
+    label(trip.from.text),
+    ...trip.stops
+      .filter((s) => s.place.trim())
+      .map((s) => {
+        const name = label(s.place);
+        return s.wait ? `${name} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : name;
+      }),
+    label(trip.to.text),
+  ].filter(Boolean);
+  return places.map((place, index) => `${interpolate(t.stopLabel, { number: index + 1 })}: ${place}`);
+}
+
 export type BookingStep = "journey" | "car" | "extras" | "details" | "review";
 export type BookingResult = {
   pending: boolean;
   message: string | null;
   fieldErrors: Partial<Record<string, string>>;
 };
-export type OfferedVehicle = { key: string; name: string };
+export type { OfferedVehicle };
 export type DetailDefaults = {
   notes?: string;
   passengerName?: string;
@@ -258,9 +285,7 @@ export function BookingFlow({
   const editJourney = () => showJourney();
 
   const tripLine = [
-    trip.mode === "hourly"
-      ? `${shortPlace(trip.from)} · ${interpolate(t.asDirected, { hours: trip.hours })}`
-      : [shortPlace(trip.from), ...trip.stops.filter((s) => s.place).map(() => "…"), shortPlace(trip.to)].join(" → "),
+    numberedStops(trip, t, true).join(" · "),
     trip.at ? pretty(trip.at, locale) : "",
     partyLine(t, trip.pax, trip.bags, trip.small),
   ].filter(Boolean).join("  ·  ");
@@ -392,6 +417,7 @@ export function BookingFlow({
           entered={entered}
           messages={messages}
           gallery={galleryCopy(fleetDict)}
+          vehicles={vehicles}
           onDraft={setEntered}
           onBack={() => go("extras")}
           onReview={(entry) => {
@@ -416,6 +442,7 @@ export function BookingFlow({
           booker={booker}
           lockedNotice={lockedNotice}
           gallery={galleryCopy(fleetDict)}
+          vehicles={vehicles}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
           onSend={(quoted) => {
             if (sealedHref && sealed.current !== sealedHref) return;
@@ -447,7 +474,7 @@ function galleryCopy(t: FleetDictionary): GalleryCopy {
 }
 
 /** The trip with this many of one car, the other cars kept. Choosing a car is choosing yourself, so "let us choose" goes. */
-function withCarCount(trip: Trip, key: VehicleKey, count: number): Trip {
+function withCarCount(trip: Trip, key: string, count: number): Trip {
   const others = trip.cars.filter((c) => c.key !== key);
   const cars = count > 0 ? [...others, { key, count: Math.min(MAX_PER_CAR, count) }] : others;
   return normalizeTrip({ ...trip, cars, vehicle: cars.length > 0 ? cars[0].key : "" });
@@ -462,15 +489,47 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   copy: BookingCopy;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
-  onCars: (key: VehicleKey, count: number) => void;
+  onCars: (key: string, count: number) => void;
   onAdvise: () => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const cars = vehicles
-    .map((v) => FLEET.find((f) => f.key === normalizeVehicleKey(v.key)))
-    .filter((v): v is FleetVehicle => Boolean(v))
-    .map((v) => ({ vehicle: v, seats: v.specs?.passengers ?? null }));
+  const cars = vehicles.flatMap((offer) => {
+    const known = FLEET.find((vehicle) => vehicle.key === normalizeVehicleKey(offer.key));
+    if (known) {
+      return [{
+        vehicle: { ...known, images: offer.images?.length ? offer.images : known.images },
+        seats: offer.seats ?? known.specs?.passengers ?? null,
+        bags: offer.bags ?? bagCapacity(known),
+        rates: null as OfferedVehicle["rates"],
+      }];
+    }
+    if (!offer.name) return [];
+    const seats = offer.seats ?? null;
+    return [{
+      vehicle: {
+        key: offer.key,
+        name: offer.name,
+        images: offer.images ?? [],
+        drivetrain: "bev" as const,
+        specs: seats
+          ? {
+              passengers: seats,
+              rangeKm: 0,
+              rangeStandard: "WLTP" as const,
+              luggage: offer.bags
+                ? { en: `Up to ${offer.bags} large suitcases.`, nl: `Tot ${offer.bags} grote koffers.` }
+                : undefined,
+              amenities: [],
+              verified: { status: "draft" as const, source: "Fleet register", url: "", checkedOn: "", by: "admin" },
+            }
+          : undefined,
+      },
+      seats,
+      bags: offer.bags ?? seats ?? 1,
+      rates: offer.rates ?? null,
+    }];
+  });
   const party = guestsText(t, trip.pax);
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
@@ -481,13 +540,27 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   const split = days.length > 1;
   const rateOf = (key: string) =>
     days.flatMap((day) => {
-      const rate = hourlyRate(key, segment, day);
+      const custom = cars.find((car) => car.vehicle.key === key)?.rates;
+      const rate = custom ? custom[day] : hourlyRate(key, segment, day);
       if (rate === null) return [];
       const price = formatCents(rate, locale);
       return [split ? interpolate(t.carRateDay, { price, day: dayLabel(t, day) }) : interpolate(t.carRate, { price })];
     });
   // Several cars may be chosen (the client, 7 Nov 2026): together they have to seat the party and take its suitcases
-  const fit = carsCapacityProblem(trip.cars, trip.pax, trip.bags);
+  const fit = (() => {
+    let seats = 0;
+    let boots = 0;
+    let any = false;
+    for (const pick of trip.cars) {
+      const card = cars.find((car) => car.vehicle.key === pick.key);
+      if (!card || !Number.isInteger(pick.count) || pick.count < 1) continue;
+      any = true;
+      seats += (card.seats ?? 99) * pick.count;
+      boots += (card.bags ?? 99) * pick.count;
+    }
+    if (!any) return carsCapacityProblem(trip.cars, trip.pax, trip.bags);
+    return { passengers: trip.pax > seats, luggage: trip.bags > boots };
+  })();
   const blockedSelection = fit.passengers || fit.luggage;
   const luggage = luggageLine(t, trip.bags, trip.small);
   const fitMessage = fit.passengers && fit.luggage
@@ -523,8 +596,12 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
             onClick={() => onCars(c.vehicle.key, selected ? 0 : 1)}
             className="flex w-full flex-1 cursor-pointer flex-col border-0 bg-transparent p-0 text-left text-inherit"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
+            {c.vehicle.images[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={c.vehicle.images[0]} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover" />
+            ) : (
+              <span className="block aspect-[16/9.5] w-full rounded-[11px] bg-ink-100" />
+            )}
             <span className="flex min-w-0 items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
               <span className="min-w-0 text-[15px] font-semibold">{c.vehicle.name}</span>
               {c.seats !== null && (
@@ -539,8 +616,8 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
                 {rate}
               </span>
             ))}
-            {kmPerHour(c.vehicle.key) !== null && (
-              <span className="px-1.5 pb-1 text-[12px] text-ink-600">{interpolate(t.carKmIncluded, { km: kmPerHour(c.vehicle.key)! })}</span>
+            {(c.rates ? 40 : kmPerHour(c.vehicle.key)) !== null && (
+              <span className="px-1.5 pb-1 text-[12px] text-ink-600">{interpolate(t.carKmIncluded, { km: c.rates ? 40 : kmPerHour(c.vehicle.key)! })}</span>
             )}
             {recommended && <span className="px-1.5 pt-0.5 pb-1 text-[13px] font-semibold text-emerald-600">{interpolate(t.recommendedBasis, { party, bags: luggage })}</span>}
             {/* At the foot of every card, so the buttons of a row line up; once chosen it makes room for the counter beside it, so nothing moves */}
@@ -747,7 +824,7 @@ function CountryCode({ name, label, country, onChange }: { name: string; label: 
   );
 }
 
-function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, gallery, onDraft, onBack, onReview }: {
+function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehicleAdvise, result, booker, defaultPhone, defaults, privacyHref, entered, messages, gallery, vehicles, onDraft, onBack, onReview }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
   trip: Trip;
@@ -763,6 +840,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   entered: DetailsEntry | null;
   messages: TripMessages;
   gallery: GalleryCopy;
+  vehicles: OfferedVehicle[];
   onDraft: (entry: DetailsEntry) => void;
   onBack: () => void;
   onReview: (entry: DetailsEntry) => void;
@@ -997,21 +1075,18 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           </p>
         </form>
 
-        <Summary trip={trip} copy={t} locale={locale} chosen={chosen} vehicleAdvise={vehicleAdvise} portal={portal} gallery={gallery} />
+        <Summary trip={trip} copy={t} locale={locale} chosen={chosen} vehicleAdvise={vehicleAdvise} portal={portal} gallery={gallery} vehicles={vehicles} />
         <div className="lg:hidden">{actionButtons()}</div>
       </div>
     </section>
   );
 }
 
-function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery }: { trip: Trip; copy: BookingCopy; locale: Locale; chosen: FleetVehicle | undefined; vehicleAdvise: string; portal: boolean; gallery: GalleryCopy }) {
-  const route =
-    trip.mode === "hourly"
-      ? [trip.from.text, interpolate(t.asDirected, { hours: trip.hours })]
-      : [trip.from.text, ...trip.stops.filter((s) => s.place).map((s) => (s.wait ? `${s.place} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : s.place)), trip.to.text];
-  
+function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery, vehicles }: { trip: Trip; copy: BookingCopy; locale: Locale; chosen: FleetVehicle | undefined; vehicleAdvise: string; portal: boolean; gallery: GalleryCopy; vehicles: OfferedVehicle[] }) {
+  const route = numberedStops(trip, t);
+
   const rows: [string, ReactNode][] = [
-    [t.summaryRoute, route.map((r, i) => <span key={i} className="block">{i > 0 ? `→ ${r}` : r}</span>)],
+    [t.summaryRoute, route.map((line, i) => <span key={i} className="block">{line}</span>)],
     [t.summaryWhen, trip.at ? pretty(trip.at, locale) : ""],
   ];
   rows.push([t.summaryParty, partyLine(t, trip.pax, trip.bags, trip.small)]);
@@ -1025,11 +1100,12 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
   if (listed) rows.push([t.reviewVehicle, listed]);
   else if (convoy) rows.push([t.reviewVehicle, convoy]);
   const label = selectionLabel(t, trip);
-  const mix = previewCars(trip);
+  const mix = previewCars(trip, vehicles);
   const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
   const shown = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen ?? advised;
-  const displayName = advised?.name || label || shown?.name || vehicleAdvise;
-  const galleryImages = mix.length > 0 ? [] : (shown?.images ?? []);
+  const extra = picks[0] ? vehicles.find((item) => item.key === picks[0].key) : undefined;
+  const displayName = advised?.name || label || shown?.name || extra?.name || vehicleAdvise;
+  const galleryImages = mix.length > 0 ? [] : (extra?.images?.length ? extra.images : shown?.images ?? []);
   const seats = label ? null : (shown?.specs?.passengers ?? null);
 
   return (

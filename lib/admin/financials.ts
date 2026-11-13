@@ -18,7 +18,6 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { formatCurrency } from "@/lib/pricing/rates";
 import { isCorporateBooking } from "@/lib/quotes/audience";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { moneybirdInvoiceLink } from "@/lib/moneybird/config";
@@ -405,14 +404,21 @@ export async function getFinancialPage(query: FinancialQuery, locale: Locale, la
 
 const CSV_EXPORT_LIMIT = 10_000;
 
-/** Every cell is quoted. A comma inside a Dutch amount or a date must not become a column. */
+/**
+ * One spreadsheet cell. Quotes only when the value contains a comma, a quote, or a line break, and doubles
+ * any quote inside. A leading = + - or @ is prefixed so a spreadsheet does not treat the cell as a formula.
+ */
 function csvCell(value: string): string {
-  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
-  return `"${safe.replaceAll('"', '""')}"`;
+  const flat = value.replace(/[\r\n]+/g, " ").replace(/[ \t\u00a0\u202f]+/g, " ").trim();
+  const safe = /^[=+\-@]/.test(flat) ? `'${flat}` : flat;
+  if (/[",\r\n]/.test(safe)) return `"${safe.replaceAll('"', '""')}"`;
+  return safe;
 }
 
+/** Plain decimal euros, so "1.234,56" cannot become two columns. */
 function csvMoney(value: number): string {
-  return csvCell(formatCurrency(value).replaceAll("\u00a0", " ").replaceAll("\u202f", " "));
+  const amount = Number.isFinite(value) ? value : 0;
+  return amount.toFixed(2);
 }
 
 export type CsvLabels = {
@@ -422,10 +428,10 @@ export type CsvLabels = {
   public: string;
 };
 
-/** Semicolon-separated, UTF-8 with BOM. Text, dates and euro amounts are quoted so Excel keeps each value in one cell. */
+/** Comma-separated, UTF-8 with BOM. Amounts are plain decimals; text that contains a comma is quoted. */
 export function toFinancialCsv(rows: PresentedFinancialRow[], labels: CsvLabels): string {
   const lines = [
-    labels.headers.map((header) => csvCell(header)).join(";"),
+    labels.headers.map((header) => csvCell(header)).join(","),
     ...rows.map((row) =>
       [
         csvCell(row.reference),
@@ -440,7 +446,7 @@ export function toFinancialCsv(rows: PresentedFinancialRow[], labels: CsvLabels)
         csvMoney(row.vatLow + row.vatHigh),
         csvCell(labels.status[row.status]),
         csvCell([row.moneybirdNumber, row.invoiceFile].filter(Boolean).join(" · ")),
-      ].join(";"),
+      ].join(","),
     ),
   ];
   return `\uFEFF${lines.join("\r\n")}\r\n`;

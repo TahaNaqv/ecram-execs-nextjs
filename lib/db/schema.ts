@@ -129,6 +129,17 @@ export const vehicles = pgTable("vehicles", {
   apkExpiry: date("apk_expiry"),
   insuranceExpiry: date("insurance_expiry"),
   iltPermitStatus: text("ilt_permit_status").notNull().default("Valid"),
+  /** Public photograph paths, first is the cover. Empty for a car that is only on the operations list. */
+  images: jsonb("images").$type<string[]>().notNull().default([]),
+  seats: integer("seats"),
+  /** Large suitcases the boot takes with the seats in place. */
+  luggage: integer("luggage"),
+  /** Public hourly rate in euro cents. Saturday and Sunday fall back to the weekday rate when unset. */
+  rateWeekday: integer("rate_weekday"),
+  rateSaturday: integer("rate_saturday"),
+  rateSunday: integer("rate_sunday"),
+  /** Shown on the booking form. Operations-only cars stay off the public fleet. */
+  listed: boolean("listed").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()

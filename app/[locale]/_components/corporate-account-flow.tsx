@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, type RefObject } from "react";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 import { abandonSignupChallenge, completeCode, verifyCode } from "@/lib/corporate/account-actions";
 import { requestCode, requestReset, resendCode } from "@/lib/corporate/actions";
 import type { CorporateState } from "@/lib/corporate/state";
@@ -10,26 +11,13 @@ import { normalizePassword, PASSWORD_MIN } from "@/lib/corporate/validation";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
-import { cleanPhoneInput } from "@/lib/phone";
 import { control, Field } from "./form-field";
+import { PhoneDialField } from "./phone-dial-field";
 
 type Step = "request" | "code" | "password";
 type Mode = "signup" | "reset";
 
 const STEP_RANK: Record<Step, number> = { request: 0, code: 1, password: 2 };
-
-const COUNTRY_CODES = [
-  { code: "+31", iso: "NL", label: "NL +31", maxLength: 9, placeholder: "6 1234 5678" },
-  { code: "+32", iso: "BE", label: "BE +32", maxLength: 9, placeholder: "412 34 56 78" },
-  { code: "+44", iso: "UK", label: "UK +44", maxLength: 10, placeholder: "7123 456789" },
-  { code: "+49", iso: "DE", label: "DE +49", maxLength: 11, placeholder: "151 23456789" },
-  { code: "+33", iso: "FR", label: "FR +33", maxLength: 9, placeholder: "6 12 34 56 78" },
-  { code: "+34", iso: "ES", label: "ES +34", maxLength: 9, placeholder: "612 34 56 78" },
-  { code: "+39", iso: "IT", label: "IT +39", maxLength: 10, placeholder: "312 345 6789" },
-  { code: "+41", iso: "CH", label: "CH +41", maxLength: 9, placeholder: "79 123 45 67" },
-  { code: "+92", iso: "PK", label: "PK +92", maxLength: 10, placeholder: "300 1234567" },
-  { code: "+1", iso: "US", label: "US +1", maxLength: 10, placeholder: "415 555 2671" },
-];
 
 type HeadingRef = {
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -39,6 +27,8 @@ export type AccountFlowCopy = Record<
   | "stepRequest" | "stepCode" | "stepPassword" | "resetStepRequest" | "resetStepCode" | "resetStepPassword" | "progressLabel"
   | "labelEmail" | "phEmail" | "labelName" | "phName" | "labelPosition" | "phPosition"
   | "labelSignatory" | "phSignatory" | "labelPointOfCall" | "phPointOfCall"
+  | "labelBillingStreet" | "phBillingStreet" | "labelBillingPostcode" | "phBillingPostcode" | "labelBillingCity" | "phBillingCity"
+  | "labelPhone" | "labelPhoneCountry" | "phBookerPhone" | "labelBillingVat" | "phBillingVat" | "labelBillingEmail" | "phBillingEmail"
   | "consentLabel" | "privacyNote" | "privacyLink"
   | "sendCode" | "sendResetCode" | "sending" | "verifyHeading" | "verifyIntro" | "resetVerifyHeading" | "resetVerifyIntro" | "verifyCta" | "verifying"
   | "passwordHeading" | "passwordIntro" | "resetPasswordHeading" | "resetPasswordIntro"
@@ -138,7 +128,7 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
     setStep("request");
     setFlowKey((n) => n + 1);
     if (mode === "signup") void abandonSignupChallenge();
-    router.refresh();
+    refreshOnce(router);
   };
 
   const steps: [Step, string][] = [
@@ -148,7 +138,7 @@ export function AccountFlow({ mode, locale, initial, staleChallengeId = "", copy
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col items-center gap-5 text-center">
       {/* Strictly inline, single-line high contrast step headings */}
       <ol className="mx-auto flex w-full max-w-full list-none flex-wrap items-center justify-center gap-x-3 gap-y-1.5 p-0 text-center text-[10px] leading-tight tracking-[0.1em] uppercase sm:flex-nowrap sm:gap-x-6 sm:text-[12px] sm:tracking-[0.18em]" aria-label={t.progressLabel}>
         {steps.map(([key, label], i) => {
@@ -229,25 +219,6 @@ function RequestForm({
   onSent,
 }: HeadingRef & { mode: Mode; locale: Locale; copy: AccountFlowCopy; banner?: string; privacyHref: string; onSent: (email: string) => void }) {
   const [attempt, setAttempt] = useState(0);
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
-  const [countryOpen, setCountryOpen] = useState(false);
-  const countryRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!countryOpen) return;
-    const onPointer = (event: MouseEvent) => {
-      if (!countryRef.current?.contains(event.target as Node)) setCountryOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCountryOpen(false);
-    };
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [countryOpen]);
 
   const send = mode === "signup" ? requestCode : requestReset;
   const [state, action, pending] = useActionState<CorporateState, FormData>(async (prev, formData) => {
@@ -261,7 +232,7 @@ function RequestForm({
   const fieldInput = `${control} text-[16px] text-[#ffffff] caret-[#ffffff] placeholder:text-[14px] placeholder:text-zinc-400`;
 
   return (
-    <form key={attempt} action={action} noValidate autoComplete={mode === "signup" ? "off" : undefined} className="corp-fields flex flex-col gap-4 [&_label]:text-zinc-200 [&_label]:font-semibold">
+    <form key={attempt} action={action} noValidate autoComplete={mode === "signup" ? "off" : undefined} className="corp-fields flex w-full flex-col gap-4 text-left [&_label]:text-zinc-200 [&_label]:font-semibold">
       <h2 ref={headingRef} tabIndex={-1} className="sr-only">
         {mode === "signup" ? t.stepRequest : t.resetStepRequest}
       </h2>
@@ -313,65 +284,38 @@ function RequestForm({
               <input id="c-pointOfCall" name="pointOfCall" type="text" required maxLength={120} autoComplete="off" placeholder={t.phPointOfCall}
                 defaultValue={v.pointOfCall} aria-invalid={!!err.pointOfCall} aria-describedby={err.pointOfCall ? "c-pointOfCall-error" : undefined} className={fieldInput} />
             </Field>
-            <Field idPrefix="c" label="Direct Phone" name="phone" error={err.phone} className={`md:col-span-2 ${countryOpen ? "relative z-30" : ""}`}>
-              <div ref={countryRef} className="relative flex w-full min-w-0 items-center bg-transparent">
-                <input type="hidden" name="phoneCountryCode" value={selectedCountry.code} />
-                {/* Fully visible, high-contrast white text country code selector button */}
-                <button
-                  type="button"
-                  aria-label="Country Code"
-                  aria-expanded={countryOpen}
-                  aria-haspopup="listbox"
-                  onClick={() => setCountryOpen((open) => !open)}
-                  className="shrink-0 cursor-pointer border-0 border-r border-solid border-[#ffffff]/20 bg-[#ffffff]/10 px-2.5 py-2 font-sans text-[15px] font-semibold text-[#ffffff] hover:bg-[#ffffff]/20 focus:outline-none sm:px-4 sm:py-3 sm:text-[16px]"
-                >
-                  {selectedCountry.iso} {selectedCountry.code}
-                </button>
-                {countryOpen && (
-                  <ul
-                    role="listbox"
-                    aria-label="Country Code"
-                    className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-44 list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400"
-                  >
-                    {COUNTRY_CODES.map((c) => {
-                      const selected = c.code === selectedCountry.code;
-                      return (
-                        <li key={c.code} role="option" aria-selected={selected}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedCountry(c);
-                              const typed = document.getElementById("c-phone");
-                              if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, c.code);
-                              setCountryOpen(false);
-                            }}
-                            className={`m-0 w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left font-sans text-[14px] text-[#10224f] ${selected ? "bg-[#e7edff] font-semibold" : "bg-transparent hover:bg-[#f2f5ff]"}`}
-                          >
-                            {c.label}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                <input 
-                  id="c-phone" 
-                  name="phone" 
-                  type="text" 
-                  required 
-                  maxLength={selectedCountry.maxLength} 
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete="off" 
-                  placeholder={selectedCountry.placeholder}
-                  defaultValue={v.phone}
-                  onInput={(e) => {
-                    e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, selectedCountry.code);
-                  }}
-                  aria-invalid={!!err.phone} 
-                  className={`${fieldInput} min-w-0 flex-1 rounded-none border-0 px-3 sm:px-4`} 
-                />
-              </div>
+            <Field idPrefix="c" label={t.labelBillingStreet} name="billingStreet" error={err.billingStreet} className="md:col-span-2">
+              <input id="c-billingStreet" name="billingStreet" type="text" required maxLength={200} autoComplete="off" placeholder={t.phBillingStreet}
+                defaultValue={v.billingStreet} aria-invalid={!!err.billingStreet} aria-describedby={err.billingStreet ? "c-billingStreet-error" : undefined} className={fieldInput} />
+            </Field>
+            <Field idPrefix="c" label={t.labelBillingPostcode} name="billingPostcode" error={err.billingPostcode}>
+              <input id="c-billingPostcode" name="billingPostcode" type="text" required maxLength={20} autoComplete="off" placeholder={t.phBillingPostcode}
+                defaultValue={v.billingPostcode} aria-invalid={!!err.billingPostcode} aria-describedby={err.billingPostcode ? "c-billingPostcode-error" : undefined} className={fieldInput} />
+            </Field>
+            <Field idPrefix="c" label={t.labelBillingCity} name="billingCity" error={err.billingCity}>
+              <input id="c-billingCity" name="billingCity" type="text" required maxLength={100} autoComplete="off" placeholder={t.phBillingCity}
+                defaultValue={v.billingCity} aria-invalid={!!err.billingCity} aria-describedby={err.billingCity ? "c-billingCity-error" : undefined} className={fieldInput} />
+            </Field>
+            <Field idPrefix="c" label={t.labelPhone} name="phone" error={err.phone} className="relative z-30 md:col-span-2">
+              <PhoneDialField
+                id="c-phone"
+                countryName="phoneCountryCode"
+                countryLabel={t.labelPhoneCountry}
+                placeholder={t.phBookerPhone}
+                defaultCountry={v.phoneCountryCode || "31"}
+                defaultNumber={v.phone}
+                required
+                invalid={!!err.phone}
+                describedBy={err.phone ? "c-phone-error" : undefined}
+              />
+            </Field>
+            <Field idPrefix="c" label={t.labelBillingVat} name="billingVat" error={err.billingVat} className="md:col-span-2">
+              <input id="c-billingVat" name="billingVat" type="text" maxLength={30} autoComplete="off" placeholder={t.phBillingVat}
+                defaultValue={v.billingVat} aria-invalid={!!err.billingVat} aria-describedby={err.billingVat ? "c-billingVat-error" : undefined} className={fieldInput} />
+            </Field>
+            <Field idPrefix="c" label={t.labelBillingEmail} name="billingEmail" error={err.billingEmail} className="md:col-span-2">
+              <input id="c-billingEmail" name="billingEmail" type="text" inputMode="email" maxLength={254} autoComplete="off" placeholder={t.phBillingEmail}
+                defaultValue={v.billingEmail} aria-invalid={!!err.billingEmail} aria-describedby={err.billingEmail ? "c-billingEmail-error" : undefined} className={fieldInput} />
             </Field>
           </>
         )}
@@ -382,6 +326,7 @@ function RequestForm({
           <span>{t.consentLabel}</span>
         </label>
       )}
+      {mode === "signup" && <input type="hidden" name="billingCountry" value="NL" />}
       <input type="hidden" name="locale" value={locale} />
       <Honeypot />
       <div className="flex flex-col items-center gap-3">

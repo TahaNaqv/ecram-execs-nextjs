@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HOURLY_DURATIONS, SERVICES } from "@/lib/quotes/constants";
 import { capacityProblem, carsCapacityProblem, cleanCars, hasConsecutivePlaces, MAX_GROUP, MAX_GROUP_BAGS, MAX_PER_CAR, MAX_SMALL_BAGS } from "@/app/[locale]/_components/booking/trip";
-import { FLEET, VEHICLE_CHOICES, VEHICLE_KEYS, normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import { cleanExtras } from "@/lib/pricing/extras";
@@ -107,8 +107,12 @@ export const quoteSchema = (t: QuoteMessages, stops: readonly string[] = []) =>
     vehicle: z
       .string()
       .optional()
-      .transform((v) => (v ? (normalizeVehicleKey(v) ?? v) : undefined))
-      .pipe(z.enum(VEHICLE_CHOICES).optional()),
+      .transform((v) => {
+        if (!v) return undefined;
+        if (v === "advise") return v;
+        return normalizeVehicleKey(v) ?? v.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      })
+      .pipe(z.string().regex(/^(advise|[a-z0-9_]{1,64})$/).optional()),
     // JSON from the car step: [{ "key": "audi", "count": 2 }, { "key": "cadillac_escalade", "count": 1 }]. Empty when the
     // visitor asks us to choose. Several models, each up to MAX_PER_CAR.
     vehicles: z.preprocess((v) => {
@@ -125,9 +129,9 @@ export const quoteSchema = (t: QuoteMessages, stops: readonly string[] = []) =>
       }
       return v;
     }, z.array(z.object({
-      key: z.string().transform((k) => normalizeVehicleKey(k) ?? k).pipe(z.enum(VEHICLE_KEYS)),
+      key: z.string().transform((k) => normalizeVehicleKey(k) ?? k.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")).pipe(z.string().regex(/^[a-z0-9_]{1,64}$/)),
       count: z.coerce.number().int().min(1).max(MAX_PER_CAR),
-    })).max(FLEET.length).optional()),
+    })).max(16).optional()),
     // JSON from the add-ons step: [{ "key": "chocolates", "option": "classic", "count": 1 }]. Anything not on the list is left out.
     extras: z.preprocess((v) => {
       if (typeof v !== "string" || v === "") return undefined;

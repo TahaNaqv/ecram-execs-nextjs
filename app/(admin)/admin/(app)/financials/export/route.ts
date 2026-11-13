@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
   return new Response(csv, {
     headers: {
-      "Content-Type": "text/csv;charset=utf-8;",
+      "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="ecram-financials-${amsterdamToday()}.csv"`,
       "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex",

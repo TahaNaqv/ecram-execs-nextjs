@@ -51,5 +51,8 @@ next-env.d.ts
 # source footage for scripts/build-brand-film.mts, too large to commit or deploy
 /media-src/
 
+# Vehicle photographs uploaded from the admin fleet form
+/data/
+
 # Local preview config (machine-specific)
 .claude/launch.json

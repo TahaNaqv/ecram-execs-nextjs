@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useBoundaryRecovery } from "@/lib/errors/boundary";
 
 /**
  * An error boundary is a Client Component, so it cannot read `next/root-params`, and the error
@@ -14,10 +14,17 @@ const COPY = {
   retry: "Try again · Opnieuw",
 };
 
-export default function SiteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+export default function SiteError({
+  error,
+  retry,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  retry?: () => void;
+  reset?: () => void;
+}) {
+  const recover = retry ?? reset ?? (() => undefined);
+  useBoundaryRecovery("site", error, recover);
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-ink-950 px-5 py-12 text-center font-sans text-ink-150">
@@ -26,7 +33,7 @@ export default function SiteError({ error, reset }: { error: Error & { digest?: 
         {COPY.body}
       </p>
       <button
-        onClick={() => reset()}
+        onClick={() => recover()}
         className="btn-fill min-h-[52px] cursor-pointer border-none bg-ink-50 px-[34px] text-[12px] font-semibold tracking-[0.24em] text-ink-950 uppercase"
       >
         {COPY.retry}

@@ -11,7 +11,9 @@ import {
 } from "@/lib/admin/financials-shared";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { ChevronDownIcon, DownloadIcon, SearchIcon } from "../../_components/icons";
+import { AdminDateField, type AdminDateCopy } from "../../_components/admin-fields";
 import { btn, field } from "../../_components/ui";
+import type { Locale } from "@/lib/i18n/config";
 
 type Copy = Dictionary["admin"]["financials"];
 
@@ -21,10 +23,14 @@ export function FinancialFilters({
   query,
   copy,
   defaults,
+  locale,
+  dateCopy,
 }: {
   query: FinancialQuery;
   copy: Copy;
   defaults: { from: string; to: string };
+  locale: Locale;
+  dateCopy: AdminDateCopy;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -156,13 +162,13 @@ export function FinancialFilters({
 
       {customOpen && (
         <form onSubmit={applyCustom} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <label className="flex flex-col gap-1 text-[13px] font-medium text-zinc-700">
+          <label className="flex min-w-0 flex-col gap-1 text-[13px] font-medium text-zinc-700 sm:w-44">
             {copy.from}
-            <input key={`from-${defaults.from}`} className={`${field} h-9 sm:w-44`} type="date" name="from" defaultValue={defaults.from} required />
+            <AdminDateField key={`from-${defaults.from}`} name="from" defaultValue={defaults.from} locale={locale} copy={dateCopy} compact />
           </label>
-          <label className="flex flex-col gap-1 text-[13px] font-medium text-zinc-700">
+          <label className="flex min-w-0 flex-col gap-1 text-[13px] font-medium text-zinc-700 sm:w-44">
             {copy.to}
-            <input key={`to-${defaults.to}`} className={`${field} h-9 sm:w-44`} type="date" name="to" defaultValue={defaults.to} required />
+            <AdminDateField key={`to-${defaults.to}`} name="to" defaultValue={defaults.to} locale={locale} copy={dateCopy} compact />
           </label>
           <button type="submit" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             {copy.apply}

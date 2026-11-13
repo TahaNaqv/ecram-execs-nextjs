@@ -107,6 +107,13 @@ const ALLOW_IDENTICAL = new Set([
   "fleetSection.qaFeaturesA",
   "corporatePartner.phCode",
   "corporatePartner.phBookerPhone",
+  // Example billing address: a real Amsterdam street, postcode and VAT shape, the same in both languages
+  "corporatePartner.phBillingStreet",
+  "corporatePartner.phBillingPostcode",
+  "corporatePartner.phBillingCity",
+  "corporatePartner.phBillingCountry",
+  "corporatePartner.phBillingVat",
+  "admin.corporate.hub.billingPostcode",
   "corporatePartner.contact_whatsapp",
   "whoWeServe.valueDetail",
 ]);

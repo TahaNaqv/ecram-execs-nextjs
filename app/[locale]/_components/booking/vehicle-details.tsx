@@ -21,7 +21,7 @@ export function questionsFor(vehicle: FleetVehicle, t: FleetDictionary, locale: 
   const { specs } = vehicle;
   const items: [string, string][] = [];
   if (specs) items.push([t.qaPassengersQ, interpolate(t.qaPassengersA, { count: specs.passengers })]);
-  if (specs && vehicle.drivetrain !== "ice") {
+  if (specs && vehicle.drivetrain !== "ice" && specs.rangeKm > 0) {
     items.push([t.qaRangeQ, interpolate(t.qaRangeA, { km: specs.rangeKm, standard: specs.rangeStandard })]);
   }
   items.push([t.qaDurationQ, t.qaDurationA]);

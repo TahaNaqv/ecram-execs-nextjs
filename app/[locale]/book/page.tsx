@@ -1,7 +1,7 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FLEET } from "@/lib/fleet/vehicles";
+import { bookableFleet } from "@/lib/fleet/catalog";
 import { LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
@@ -22,15 +22,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/** Every car is offered here; the flow itself asks which ones the team has switched off (see the comment in PublicBooking). */
-const FLEET_OFFER = FLEET.map(({ key, name }) => ({ key, name }));
-
 /**
  * The booking flow after the hero's bar: choose a car, then who is travelling, then send. The trip comes in the query
  * string, so the page's shell is static and the flow renders once the URL is known.
  */
 export default async function BookPage() {
-  const [locale, d] = await Promise.all([currentLocale(), getDict()]);
+  const [locale, d, vehicles] = await Promise.all([currentLocale(), getDict(), bookableFleet()]);
   const t = d.booking;
   return (
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.6] text-ink-150">
@@ -57,7 +54,7 @@ export default async function BookPage() {
               messages={d.forms}
               fleetDict={d.fleetSection}
               vehicleAdvise={d.quoteForm.vehicleAdvise}
-              vehicles={FLEET_OFFER}
+              vehicles={vehicles}
               bookPath={localizedPath("/book", locale)}
               privacyHref={localizedPath("/privacy", locale)}
               homeHref={localizedPath("/", locale)}

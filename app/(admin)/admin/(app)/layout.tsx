@@ -11,6 +11,7 @@ import { LogOutIcon } from "../_components/icons";
 import { Avatar } from "../_components/ui";
 import { AdminLang } from "../_components/admin-lang";
 import { AutoRefresh } from "../_components/auto-refresh";
+import { logServerError, rethrowControlFlow } from "@/lib/errors/report";
 
 /** Shell shared by every signed-in admin page: sidebar navigation plus the page content. */
 export default function AdminAppLayout({ children }: { children: React.ReactNode }) {
@@ -68,7 +69,14 @@ function ChromeFallback() {
 
 /** Enquiries from the website still waiting for a first answer: the number beside Enquiries in the menu. */
 async function WaitingEnquiriesBadge() {
-  const waiting = await waitingEnquiries();
+  let waiting = 0;
+  try {
+    waiting = await waitingEnquiries();
+  } catch (error) {
+    rethrowControlFlow(error);
+    logServerError("admin", error, { surface: "enquiries-badge" });
+    return null;
+  }
   if (!waiting) return null;
   return (
     <span className="rounded-full bg-white px-1.5 py-px text-[11px] font-semibold tabular-nums text-zinc-950" title={`${waiting} new`}>
@@ -78,7 +86,14 @@ async function WaitingEnquiriesBadge() {
 }
 
 async function NewApplicationsBadge() {
-  const counts = await applicationCounts();
+  let counts: Awaited<ReturnType<typeof applicationCounts>>;
+  try {
+    counts = await applicationCounts();
+  } catch (error) {
+    rethrowControlFlow(error);
+    logServerError("admin", error, { surface: "applications-badge" });
+    return null;
+  }
   if (!counts.new) return null;
   return (
     <span
@@ -91,6 +106,16 @@ async function NewApplicationsBadge() {
 }
 
 async function Account() {
+  try {
+    return await AccountMenu();
+  } catch (error) {
+    rethrowControlFlow(error);
+    logServerError("admin", error, { surface: "account-menu" });
+    return <AccountFallback />;
+  }
+}
+
+async function AccountMenu() {
   const { admin: t } = await adminDictionary();
   const admin = await requireAdmin();
   return (

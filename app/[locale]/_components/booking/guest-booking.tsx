@@ -6,6 +6,7 @@ import type { RouteMapLinks } from "@/lib/fleet/map";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-actions";
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
@@ -82,7 +83,7 @@ export function GuestBookingView({
         const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
         const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null };
-        if (now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null)) router.refresh();
+        if (now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null)) refreshOnce(router);
       } catch {}
     };
     const timer = window.setInterval(ask, POLL_MS);
@@ -183,7 +184,7 @@ export function GuestBookingView({
           {facts.map((f) => (
             <div key={f.label} className="flex min-w-0 flex-col gap-0.5">
               <dt className="text-[10px] tracking-[0.22em] text-ink-600 uppercase">{f.label}</dt>
-              <dd className="m-0 wrap-break-word text-[15px]">{f.value}</dd>
+              <dd className="m-0 wrap-break-word whitespace-pre-line text-[15px]">{f.value}</dd>
             </div>
           ))}
         </dl>

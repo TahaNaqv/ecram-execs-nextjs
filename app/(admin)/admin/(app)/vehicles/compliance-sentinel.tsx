@@ -1,16 +1,103 @@
 "use client";
 
-import { useTransition, useState, useEffect } from "react";
+import { useTransition, useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AdminDateField, AdminSelect, type AdminDateCopy } from "../../_components/admin-fields";
 import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
 import type { VehicleRow } from "@/lib/admin/live-queries";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { amsterdamToday } from "@/lib/admin/financials-shared";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
+
+const labelClass = "mb-1.5 block text-[13px] font-medium leading-5 text-zinc-700";
+const fieldClass =
+  "box-border h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-950 shadow-sm transition placeholder:text-zinc-400 focus:border-zinc-950 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950/10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+const ghostButton =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50";
+const solidButton =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50";
+
+function PhotographField({
+  label,
+  hint,
+  choose,
+  drop,
+  existing,
+}: {
+  label: string;
+  hint: string;
+  choose: string;
+  drop: string;
+  existing: string[];
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [names, setNames] = useState<string[]>([]);
+  const [over, setOver] = useState(false);
+
+  const take = (list: FileList | null) => {
+    const files = Array.from(list ?? []).filter((file) => file.size > 0).slice(0, 8);
+    const transfer = new DataTransfer();
+    for (const file of files) transfer.items.add(file);
+    if (inputRef.current) inputRef.current.files = transfer.files;
+    setNames(files.map((file) => file.name));
+  };
+
+  return (
+    <div className="min-w-0">
+      <span className={labelClass}>{label}</span>
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setOver(false);
+          take(event.dataTransfer.files);
+        }}
+        className={`rounded-xl border border-dashed px-4 py-4 transition ${over ? "border-zinc-950 bg-zinc-100" : "border-zinc-300 bg-zinc-50"}`}
+      >
+        <input
+          ref={inputRef}
+          id="vehicle-images"
+          name="images"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="sr-only"
+          onChange={(event) => take(event.target.files)}
+        />
+        <button type="button" onClick={() => inputRef.current?.click()} className="flex w-full cursor-pointer items-center gap-3 text-left">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+              <circle cx="12" cy="13" r="3" />
+            </svg>
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-zinc-950">{choose}</span>
+            <span className="mt-0.5 block text-[12px] leading-5 text-zinc-500">{names.length > 0 ? names.join(", ") : drop}</span>
+          </span>
+        </button>
+      </div>
+      <p className="m-0 mt-2 text-[12px] leading-5 text-zinc-500">{hint}</p>
+      {existing.length > 0 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto">
+          {existing.map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={src} src={src} alt="" className="h-16 w-24 shrink-0 rounded-xl object-cover ring-1 ring-zinc-200" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const dateTag = (locale: Locale) => (locale === "nl" ? "nl-NL" : "en-GB");
 
@@ -38,6 +125,9 @@ export function FleetComplianceSentinel({
   const [vehicleList, setVehicleList] = useState<VehicleRow[]>(vehicles);
   const [activeTab, setActiveTab] = useState<"snapshot" | "reminders">("snapshot");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editor, setEditor] = useState<VehicleRow | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   
@@ -69,7 +159,11 @@ export function FleetComplianceSentinel({
     { value: "Expired", label: copy.permitExpired },
   ];
   const permitLabel = (status: string) => permitOptions.find((option) => option.value === status)?.label ?? status;
-  const [serviceDate, setServiceDate] = useState(() => new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0] ?? "");
+  const [serviceDate, setServiceDate] = useState("");
+  // Today's Dutch calendar day, read after mount so a prerendered page does not lock in a stale or UTC day.
+  useLayoutEffect(() => {
+    setServiceDate(amsterdamToday());
+  }, []);
 
   useEffect(() => {
     setVehicleList(vehicles);
@@ -93,23 +187,45 @@ export function FleetComplianceSentinel({
 
     startTransition(async () => {
       await toggleVehicleStatus(formData);
-      router.refresh();
+      refreshOnce(router);
     });
   };
 
   const handleDelete = (vehId: string, name: string) => {
-    if (!confirm(interpolate(copy.removeConfirm, { name }))) return;
-    setVehicleList((prev) => prev.filter((v) => v.id !== vehId));
+    setPendingDelete({ id: vehId, name });
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const { id } = pendingDelete;
+    setPendingDelete(null);
+    setVehicleList((prev) => prev.filter((v) => v.id !== id));
     const formData = new FormData();
-    formData.append("id", vehId);
+    formData.append("id", id);
     startTransition(async () => {
       await deleteVehicle(formData);
-      router.refresh();
+      refreshOnce(router);
     });
   };
 
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPendingDelete(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pendingDelete]);
+
+  const openEditor = (veh: VehicleRow | null) => {
+    setEditor(veh);
+    setFormError(null);
+    setIsAddModalOpen(true);
+  };
+
   const handleStartEdit = (veh: VehicleRow) => {
-    setEditingId(veh.id);
+    openEditor(veh);
+    setEditingId(null);
     setEditForm({
       name: veh.name ?? "",
       licensePlate: veh.licensePlate ?? "",
@@ -138,7 +254,7 @@ export function FleetComplianceSentinel({
     formData.append("iltPermitStatus", editForm.iltPermitStatus);
 
     startTransition(async () => {
-      router.refresh();
+      refreshOnce(router);
     });
   };
 
@@ -457,7 +573,7 @@ export function FleetComplianceSentinel({
             <div className="space-y-2 text-xs">
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={() => openEditor(null)}
                 className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white transition hover:bg-black"
               >
                 <span>{copy.addVehicleAction}</span>
@@ -465,7 +581,10 @@ export function FleetComplianceSentinel({
               </button>
               <button
                 type="button"
-                onClick={() => setIsServiceModalOpen(true)}
+                onClick={() => {
+                  setServiceDate(amsterdamToday());
+                  setIsServiceModalOpen(true);
+                }}
                 className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-100 px-4 py-2.5 font-semibold text-zinc-900 transition hover:bg-zinc-200"
               >
                 <span>{copy.scheduleService}</span>
@@ -503,83 +622,135 @@ export function FleetComplianceSentinel({
       {/* Add Vehicle Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="relative box-border w-full min-w-0 max-w-md overflow-visible rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
+          <div className="relative box-border max-h-[min(92svh,44rem)] w-full min-w-0 max-w-lg overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
             >
               <XIcon size={18} />
             </button>
-            <h3 className="text-base font-semibold text-zinc-950 mb-1">{copy.registerTitle}</h3>
+            <h3 className="text-base font-semibold text-zinc-950 mb-1">{editor ? copy.editTitle : copy.registerTitle}</h3>
             <p className="text-xs text-zinc-500 mb-4">{copy.registerNote}</p>
             <form
+              key={editor?.id ?? "new"}
               onSubmit={(e) => {
                 e.preventDefault();
                 const data = new FormData(e.currentTarget);
                 startTransition(async () => {
                   const result = await addVehicle(data);
-                  if (result.ok) setIsAddModalOpen(false);
+                  if (result.ok) {
+                    setFormError(null);
+                    setIsAddModalOpen(false);
+                    refreshOnce(router);
+                  } else {
+                    const message = result.error === "type" ? copy.imageType
+                      : result.error === "too-large" ? copy.imageSize
+                      : result.error === "rate" ? copy.rateInvalid
+                      : result.error === "seats" || result.error === "luggage" ? copy.seatsInvalid
+                      : copy.formError;
+                    setFormError(message);
+                  }
                 });
               }}
-              className="min-w-0 space-y-3 text-xs"
+              className="min-w-0 space-y-4"
             >
+              {editor ? <input type="hidden" name="id" value={editor.id} /> : null}
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">{copy.labelModel}</label>
+                <label className={labelClass} htmlFor="vehicle-name">{copy.labelModel}</label>
                 <input
+                  id="vehicle-name"
                   type="text"
                   name="name"
                   required
                   placeholder={copy.modelPlaceholder}
-                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  defaultValue={editor?.name ?? ""}
+                  className={fieldClass}
                 />
               </div>
               <div className="min-w-0">
-                <label className="block font-medium text-zinc-700 mb-1">{copy.labelPlate}</label>
+                <label className={labelClass} htmlFor="vehicle-plate">{copy.labelPlate}</label>
                 <input
+                  id="vehicle-plate"
                   type="text"
                   name="licensePlate"
                   required
                   placeholder={copy.platePlaceholder}
-                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 font-mono text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  defaultValue={editor?.licensePlate ?? ""}
+                  className={`${fieldClass} font-mono`}
                 />
               </div>
               <div className="min-w-0">
-                <label className="block font-medium text-zinc-700 mb-1">{copy.labelColor}</label>
+                <label className={labelClass} htmlFor="vehicle-color">{copy.labelColor}</label>
                 <input
+                  id="vehicle-color"
                   type="text"
                   name="color"
                   placeholder={copy.colorPlaceholder}
-                  className="box-border w-full min-w-0 max-w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                  defaultValue={editor?.color ?? ""}
+                  className={fieldClass}
                 />
               </div>
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0">
-                  <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-apk-expiry">
+                  <label className={labelClass} htmlFor="vehicle-apk-expiry">
                     {copy.colApk}
                   </label>
-                  <AdminDateField id="vehicle-apk-expiry" name="apkExpiry" placement="above" locale={locale} copy={dateCopy} />
+                  <AdminDateField id="vehicle-apk-expiry" name="apkExpiry" placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.apkExpiry ?? ""} />
                 </div>
                 <div className="min-w-0">
-                  <label className="block font-medium text-zinc-700 mb-1" htmlFor="vehicle-insurance-expiry">
+                  <label className={labelClass} htmlFor="vehicle-insurance-expiry">
                     {copy.colInsurance}
                   </label>
-                  <AdminDateField id="vehicle-insurance-expiry" name="insuranceExpiry" placement="above" locale={locale} copy={dateCopy} />
+                  <AdminDateField id="vehicle-insurance-expiry" name="insuranceExpiry" placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.insuranceExpiry ?? ""} />
                 </div>
               </div>
-              <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">
+              <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="vehicle-seats">{copy.labelSeats}</label>
+                  <input id="vehicle-seats" name="seats" type="number" min={1} max={14} defaultValue={editor?.seats ?? ""} className={fieldClass} />
+                </div>
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="vehicle-luggage">{copy.labelLuggage}</label>
+                  <input id="vehicle-luggage" name="luggage" type="number" min={0} max={30} defaultValue={editor?.luggage ?? ""} className={fieldClass} />
+                </div>
+              </div>
+              <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-3">
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="vehicle-rate-weekday">{copy.labelRateWeekday}</label>
+                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" defaultValue={editor?.rateWeekday == null ? "" : editor.rateWeekday / 100} className={fieldClass} />
+                </div>
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="vehicle-rate-saturday">{copy.labelRateSaturday}</label>
+                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" defaultValue={editor?.rateSaturday == null ? "" : editor.rateSaturday / 100} className={fieldClass} />
+                </div>
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="vehicle-rate-sunday">{copy.labelRateSunday}</label>
+                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" defaultValue={editor?.rateSunday == null ? "" : editor.rateSunday / 100} className={fieldClass} />
+                </div>
+              </div>
+              <p className="-mt-2 m-0 text-[12px] leading-5 text-zinc-500">{copy.rateHint}</p>
+              <PhotographField
+                label={copy.labelImages}
+                hint={copy.imagesHint}
+                choose={copy.photosChoose}
+                drop={copy.photosDrop}
+                existing={editor?.images ?? []}
+              />
+              {formError ? <p className="m-0 text-[12px] text-rose-700">{formError}</p> : null}
+              <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold px-4 py-2 rounded-xl cursor-pointer"
+                  className={ghostButton}
                 >
                   {copy.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="bg-black hover:bg-zinc-800 text-white font-semibold px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50"
+                  className={solidButton}
                 >
-                  {isPending ? copy.saving : copy.registerCta}
+                  {isPending ? copy.saving : editor ? copy.saveChanges : copy.registerCta}
                 </button>
               </div>
             </form>
@@ -628,6 +799,47 @@ export function FleetComplianceSentinel({
                   {copy.confirmBooking}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label={copy.cancel}
+            className="absolute inset-0 bg-[#081b62]/55 backdrop-blur-sm"
+            onClick={() => setPendingDelete(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-vehicle-title"
+            className="relative w-full max-w-md rounded-2xl bg-[#081b62] p-6 text-white shadow-2xl"
+          >
+            <h3 id="delete-vehicle-title" className="font-display text-lg tracking-wide">
+              {copy.deleteTitle}
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-white/80">
+              {interpolate(copy.deleteNote, { name: pendingDelete.name })}
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                {copy.cancel}
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={confirmDelete}
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-rose-500 px-5 text-sm font-semibold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {copy.deleteCta}
+              </button>
             </div>
           </div>
         </div>

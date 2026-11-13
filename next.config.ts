@@ -70,6 +70,10 @@ const nextConfig: NextConfig = {
   experimental: {
     // Two root layouts (site + admin) need a global 404 for unmatched URLs
     globalNotFound: true,
+    serverActions: {
+      // A vehicle can carry up to eight photographs
+      bodySizeLimit: "32mb",
+    },
   },
   turbopack: {
     rules: {

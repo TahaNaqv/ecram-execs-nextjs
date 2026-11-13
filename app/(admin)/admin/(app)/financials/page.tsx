@@ -56,7 +56,13 @@ async function Financials({ searchParams }: { searchParams: Promise<Search> }) {
         copy={copy}
       />
       <Card className="mt-6 overflow-hidden">
-        <FinancialFilters query={query} copy={copy} defaults={{ from: query.from ?? today, to: query.to ?? today }} />
+        <FinancialFilters
+          query={query}
+          copy={copy}
+          defaults={{ from: query.from ?? today, to: query.to ?? today }}
+          locale={locale === "nl" ? "nl" : "en"}
+          dateCopy={{ chooseDate: dict.admin.common.chooseDate, previousMonth: dict.admin.common.previousMonth, nextMonth: dict.admin.common.nextMonth }}
+        />
         <FinancialTable
           query={query}
           rows={rows}

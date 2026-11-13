@@ -1,9 +1,8 @@
 import { Suspense } from "react";
-import { db, schema } from "@/lib/db";
-import { eq } from "drizzle-orm";
 import { getBooking, latestPhone } from "@/lib/corporate/bookings";
 import { requirePartner } from "@/lib/corporate/portal";
-import { FLEET, fleetPicks, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
+import { bookableFleet } from "@/lib/fleet/catalog";
+import { fleetPicks, normalizeVehicleKey, VEHICLE_CHOICES, type VehicleChoice } from "@/lib/fleet/vehicles";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { getDict } from "@/lib/i18n/get-dictionary";
@@ -45,14 +44,10 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
   const { repeat } = await searchParams;
   const { locale, contact } = await requirePartner("/corporate-partner/account/new-booking");
   const d = await getDict();
-  const [phone, earlier, dbVehicles] = await Promise.all([
+  const [phone, earlier, vehicles] = await Promise.all([
     latestPhone(),
     typeof repeat === "string" ? getBooking(repeat) : null,
-    db
-      .select({ key: schema.vehicles.id, name: schema.vehicles.name })
-      .from(schema.vehicles)
-      .where(eq(schema.vehicles.status, "available"))
-      .catch(() => []),
+    bookableFleet(),
   ]);
 
   // Only the partner's own bookings can be repeated (getBooking finds nothing else); the date is never copied, and
@@ -95,7 +90,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
         messages={d.forms}
         fleetDict={d.fleetSection}
         vehicleAdvise={d.quoteForm.vehicleAdvise}
-        vehicles={dbVehicles && dbVehicles.length > 0 ? dbVehicles : FLEET.map(({ key, name }) => ({ key, name }))}
+        vehicles={vehicles}
         booker={{ name: contact.name, email: contact.email, companyName: contact.companyName }}
         defaultPhone={phone ?? undefined}
         initialTrip={trip}

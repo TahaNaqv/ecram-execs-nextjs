@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, suggestVehicle, vehicleByKey, type ConvoyPlan, type FleetVehicle } from "@/lib/fleet/vehicles";
+import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, suggestVehicle, vehicleByKey, type ConvoyPlan, type FleetVehicle, type OfferedVehicle } from "@/lib/fleet/vehicles";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -97,12 +97,15 @@ const lineFor = (t: BookingCopy, picks: { key: string; count: number }[]) =>
   picks.map((p) => interpolate(t.convoyCars, { count: p.count, car: vehicleByKey(p.key)?.name ?? p.key })).join(", ");
 
 /** Cars to draw when more than one is in play: the visitor's mix, or the tight fit we suggest. Empty for a single car. */
-export function previewCars(trip: Pick<Trip, "pax" | "cars">, offered: readonly { key: string }[] = FLEET): { key: string; name: string; images: string[]; count: number }[] {
+export function previewCars(trip: Pick<Trip, "pax" | "cars">, offered: readonly OfferedVehicle[] = FLEET): { key: string; name: string; images: string[]; count: number }[] {
   const manual = chosenPicks(trip);
   const source = manual.length > 1 || (manual[0]?.count ?? 0) > 1 ? manual : manual.length === 0 ? (fitConvoy(offered, trip.pax) ?? []) : [];
   return source.flatMap((pick) => {
     const vehicle = vehicleByKey(pick.key);
-    return vehicle ? [{ key: vehicle.key, name: vehicle.name, images: vehicle.images.slice(0, MAX_GALLERY_IMAGES), count: pick.count }] : [];
+    const extra = offered.find((item) => item.key === pick.key);
+    const images = (extra?.images?.length ? extra.images : vehicle?.images) ?? [];
+    const name = vehicle?.name ?? extra?.name;
+    return name ? [{ key: pick.key, name, images: images.slice(0, MAX_GALLERY_IMAGES), count: pick.count }] : [];
   });
 }
 
@@ -152,7 +155,6 @@ export function convoyPlan(trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered
   return { count: plan[0].count, vehicle: lead };
 }
 
-/** "121.5 km · 1 h 25 m" from Google's answer, in the visitor's language. */
 /** "1 h 25 m" or "45 m" in the visitor's language. */
 function minutesText(minutes: number, t: BookingCopy) {
   const total = Math.max(1, Math.round(minutes));
@@ -181,6 +183,7 @@ export function ReviewStep({
   booker,
   lockedNotice,
   gallery,
+  vehicles = FLEET,
   onEdit,
   onSend,
 }: {
@@ -197,6 +200,7 @@ export function ReviewStep({
   booker?: { name: string; email: string; companyName?: string | null };
   lockedNotice?: ReactNode;
   gallery: GalleryCopy;
+  vehicles?: readonly OfferedVehicle[];
   onEdit: (step: BookingStep) => void;
   onSend: (quoted: ReturnType<typeof tripPrice>) => void;
 }) {
@@ -279,13 +283,13 @@ export function ReviewStep({
   const extras = extrasLine(addOns, trip.extras);
   if (extras) ride.push([t.reviewExtras, extras]);
   const label = selectionLabel(t, trip);
-  const mix = previewCars(trip);
+  const mix = previewCars(trip, vehicles);
   const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
   const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? chosen ?? advised;
-  const name = advised?.name || label || lead?.name || vehicleAdvise;
-  const photos = (lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
+  const extra = picks[0] ? vehicles.find((item) => item.key === picks[0].key) : undefined;
+  const name = advised?.name || label || lead?.name || extra?.name || vehicleAdvise;
+  const photos = (extra?.images?.length ? extra.images : lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
   const seats = label ? null : (lead?.specs?.passengers ?? null);
-
 
   const card = (title: string, children: ReactNode) => (
     <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
@@ -431,8 +435,6 @@ export function ReviewStep({
               </button>
             )}
           </div>
-          {/* Nothing is paid yet: every booking is reviewed by hand first (the client, 8 Nov 2026) */}
-          <p className="m-0 w-full text-right text-[13px] text-ink-600">{t.submitNote}</p>
         </div>
       </div>
     </section>

@@ -19,7 +19,14 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
 
   // Check if data exists for conditional drawer triggers
   const hasBookings = partner.recentBookings && partner.recentBookings.length > 0;
-  const hasBillingData = partner.totalSpend > 0 || partner.kvkNumber;
+  const billing = partner.billing ?? { street: "", postcode: "", city: "", country: "", vatNumber: "", invoiceEmail: "" };
+  const hasBillingData = Boolean(
+    partner.totalSpend > 0 ||
+    (partner.kvkNumber && partner.kvkNumber !== "—") ||
+    billing.street ||
+    billing.vatNumber ||
+    billing.invoiceEmail,
+  );
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -146,9 +153,24 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
           </div>
 
           <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
-            <p className="text-xs"><strong className="text-zinc-950">{copy.kvkNumber}:</strong> {partner.kvkNumber}</p>
-            <p className="text-xs"><strong className="text-zinc-950">{copy.kvrNumber}:</strong> {partner.kvrNumber}</p>
-            <p className="text-xs"><strong className="text-zinc-950">{copy.ytdSpend}:</strong> € {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
+            {!(billing.street || billing.postcode || billing.city || billing.vatNumber || billing.invoiceEmail) && (
+              <p className="text-xs text-zinc-500">{copy.billingEmpty}</p>
+            )}
+            {[
+              [copy.billingStreet, billing.street],
+              [copy.billingPostcode, billing.postcode],
+              [copy.billingCity, billing.city],
+              [copy.billingCountry, billing.street ? billing.country : ""],
+              [copy.billingVatNumber, billing.vatNumber],
+              [copy.billingEmail, billing.invoiceEmail],
+              [copy.kvkNumber, partner.kvkNumber],
+              [copy.kvrNumber, partner.kvrNumber],
+              [copy.ytdSpend, `€ ${partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}`],
+            ]
+              .filter(([, value]) => value && value !== "—")
+              .map(([label, value]) => (
+                <p key={label} className="text-xs"><strong className="text-zinc-950">{label}:</strong> {value}</p>
+              ))}
           </div>
         </div>
       </AdminDrawer>

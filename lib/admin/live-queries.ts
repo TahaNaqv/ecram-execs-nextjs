@@ -222,6 +222,12 @@ export type VehicleRow = {
   apkExpiry: string | null;
   insuranceExpiry: string | null;
   iltPermitStatus: string;
+  images: string[];
+  seats: number | null;
+  luggage: number | null;
+  rateWeekday: number | null;
+  rateSaturday: number | null;
+  rateSunday: number | null;
   updatedAt: Date;
 };
 
@@ -251,6 +257,12 @@ export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
       apkExpiry: v.apkExpiry,
       insuranceExpiry: v.insuranceExpiry,
       iltPermitStatus: v.iltPermitStatus,
+      images: v.images,
+      seats: v.seats,
+      luggage: v.luggage,
+      rateWeekday: v.rateWeekday,
+      rateSaturday: v.rateSaturday,
+      rateSunday: v.rateSunday,
       updatedAt: v.updatedAt,
     })
     .from(v)
@@ -258,6 +270,7 @@ export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
 
   return rows.map((row) => ({
     ...row,
+    images: row.images ?? [],
     apkExpiry: asCalendarDate(row.apkExpiry),
     insuranceExpiry: asCalendarDate(row.insuranceExpiry),
   }));
@@ -275,6 +288,15 @@ export type PartnerBookingSummary = {
   passengerName: string;
 };
 
+export type PartnerBilling = {
+  street: string;
+  postcode: string;
+  city: string;
+  country: string;
+  vatNumber: string;
+  invoiceEmail: string;
+};
+
 export type CorporatePartnerRow = {
   id: string;
   companyName: string;
@@ -289,7 +311,26 @@ export type CorporatePartnerRow = {
   activeBookings: number;
   partnershipSince: string;
   bookings: PartnerBookingSummary[];
+  billing: PartnerBilling;
 };
+
+function billingOf(contact: {
+  billingStreet: string | null;
+  billingPostcode: string | null;
+  billingCity: string | null;
+  billingCountry: string | null;
+  vatNumber: string | null;
+  invoiceEmail: string | null;
+}): PartnerBilling {
+  return {
+    street: contact.billingStreet ?? "",
+    postcode: contact.billingPostcode ?? "",
+    city: contact.billingCity ?? "",
+    country: contact.billingCountry || "",
+    vatNumber: contact.vatNumber ?? "",
+    invoiceEmail: contact.invoiceEmail ?? "",
+  };
+}
 
 const OPEN_BOOKING = ["new", "contacted", "quoted", "confirmed"];
 
@@ -395,6 +436,7 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
       activeBookings,
       partnershipSince: contact.createdAt.getFullYear().toString(),
       bookings,
+      billing: billingOf(contact),
     };
   });
 });
@@ -439,6 +481,7 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
     activeBookings: activeCount,
     partnershipSince: contact.createdAt.getFullYear().toString(),
     bookings: bookings.map((b) => asBookingSummary(b)),
+    billing: billingOf(contact),
   };
 
   return { partner, contact, bookings, totalSpend, activeCount, completedCount };

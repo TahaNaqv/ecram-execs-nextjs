@@ -26,7 +26,7 @@ const UNASSIGNED_COLOUR = "#52525b";
 const clock = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
 /** The day's confirmed trips on a map, each as the line its route follows. Google is asked once per trip and the answer is kept. */
-export async function DayMap({ trips, locale, copy, framed = true }: { trips: DayTrip[]; locale: "en" | "nl"; copy: Copy; framed?: boolean }) {
+export async function DayMap({ trips, locale, copy, framed = true, layout = "page" }: { trips: DayTrip[]; locale: "en" | "nl"; copy: Copy; framed?: boolean; layout?: "page" | "dashboard" }) {
   if (trips.length === 0) return null;
   // On a page that already has a card around it (the dashboard), the map goes inside that one
   const frame = (children: React.ReactNode) =>
@@ -72,7 +72,7 @@ export async function DayMap({ trips, locale, copy, framed = true }: { trips: Da
   return frame(
     <>
       {routes.length > 0 ? (
-        <DayMapView apiKey={key} routes={routes} locale={locale} copy={{ frame: copy.mapFrame, trips: copy.mapTrips, open: copy.mapOpen, showAll: copy.mapShowAll }} />
+        <DayMapView apiKey={key} routes={routes} locale={locale} layout={layout} copy={{ frame: copy.mapFrame, trips: copy.mapTrips, open: copy.mapOpen, showAll: copy.mapShowAll }} />
       ) : (
         <p className="px-5 py-4 text-sm text-zinc-500">{copy.mapNoRoutes}</p>
       )}

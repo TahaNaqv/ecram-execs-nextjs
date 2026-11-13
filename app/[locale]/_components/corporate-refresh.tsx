@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 
 /**
  * The Corporate Partner pages show who is signed in, so a page the visitor comes back to must not show what was true when
@@ -18,10 +19,10 @@ export function CorporateRefresh() {
     // The cleanup below ran when the page was hidden, so this run is the page being shown again
     if (wasHidden.current) {
       wasHidden.current = false;
-      router.refresh();
+      refreshOnce(router);
     }
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) router.refresh();
+      if (event.persisted) refreshOnce(router);
     };
     window.addEventListener("pageshow", onPageShow);
     return () => {

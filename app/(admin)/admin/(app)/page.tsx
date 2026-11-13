@@ -165,7 +165,7 @@ async function ScheduleMap() {
   const today = await daySchedule(amsterdamToday());
 
   return (
-    <Card className="flex h-full max-h-[420px] min-h-[16rem] flex-col overflow-hidden">
+    <Card className="flex h-full min-h-[16rem] flex-col overflow-hidden">
       <CardHeader
         title={d.mapLiveTitle}
         description={d.mapLiveDescription}
@@ -176,12 +176,12 @@ async function ScheduleMap() {
           </Link>
         }
       />
-      <div className="min-h-0 max-h-[420px] flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {today.trips.length === 0 ? (
           <p className="px-5 py-6 text-sm text-zinc-500">{d.mapEmpty}</p>
         ) : (
-          <Suspense fallback={<Skeleton className="h-80 w-full" />}>
-            <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} />
+          <Suspense fallback={<Skeleton className="h-44 w-full" />}>
+            <DayMap trips={today.trips} locale={locale === "nl" ? "nl" : "en"} copy={t.schedule} framed={false} layout="dashboard" />
           </Suspense>
         )}
       </div>

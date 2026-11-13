@@ -12,11 +12,12 @@ async function Billing() {
   const [d, details] = await Promise.all([getDict(), billingDetails(contact.id)]);
   const t = d.portal.billing;
   return (
-    <div className="flex flex-col gap-6">
-      <p className="m-0 max-w-[640px] text-[15px] text-ink-700">{details?.complete ? t.intro : t.introMissing}</p>
+    <div className="mx-auto flex w-full max-w-[640px] flex-col items-center gap-6 text-center">
+      <p className="m-0 text-[15px] text-ink-700">{details?.complete ? t.intro : t.introMissing}</p>
       <BillingForm
         locale={locale}
         initial={details ?? { street: "", postcode: "", city: "", country: "NL", vatNumber: "", invoiceEmail: "", complete: false }}
+        phone={contact.phone}
         loginEmail={contact.email}
         copy={t}
       />
@@ -27,7 +28,7 @@ async function Billing() {
 export default async function BillingPage() {
   const p = (await getDict()).portal;
   return (
-    <PortalPage route="/corporate-partner/account/billing" current="billing" heading={p.billing.heading}>
+    <PortalPage route="/corporate-partner/account/billing" current="billing" heading={p.billing.heading} centered>
       <Suspense fallback={<PanelSkeleton />}>
         <Billing />
       </Suspense>

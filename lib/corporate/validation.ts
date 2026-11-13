@@ -55,6 +55,12 @@ type CorporateMessages = Pick<
   | "companyNumberInvalid"
   | "signatoryRequired"
   | "pointOfCallRequired"
+  | "billingStreetRequired"
+  | "billingPostcodeRequired"
+  | "billingCityRequired"
+  | "billingCountryInvalid"
+  | "billingVatInvalid"
+  | "billingEmailInvalid"
   | "collectionRequired"
   | "destinationRequired"
   | "luggageInvalid"
@@ -75,6 +81,26 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
     kvkNumber: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9 .\-/]{2,24}$/, c.companyNumberInvalid),
     signatory: z.string().trim().min(1, c.signatoryRequired).max(120, c.fieldTooLong),
     pointOfCall: z.string().trim().min(1, c.pointOfCallRequired).max(120, c.fieldTooLong),
+    billingStreet: z.string().trim().min(2, c.billingStreetRequired).max(200, c.fieldTooLong),
+    billingPostcode: z.string().trim().min(2, c.billingPostcodeRequired).max(20, c.fieldTooLong),
+    billingCity: z.string().trim().min(1, c.billingCityRequired).max(100, c.fieldTooLong),
+    billingCountry: z
+      .string()
+      .trim()
+      .transform((v) => (v || "NL").toUpperCase())
+      .pipe(z.string().regex(/^[A-Z]{2}$/, c.billingCountryInvalid)),
+    billingVat: z
+      .string()
+      .trim()
+      .max(30, c.fieldTooLong)
+      .regex(/^[A-Za-z0-9 .-]*$/, c.billingVatInvalid)
+      .transform((v) => (v ? v.replace(/[\s.-]/g, "").toUpperCase() : null)),
+    billingEmail: z
+      .string()
+      .trim()
+      .max(254, c.fieldTooLong)
+      .refine((v) => v === "" || z.email().safeParse(v).success, { error: c.billingEmailInvalid })
+      .transform((v) => (v ? v.toLowerCase() : null)),
     phoneCountryCode: z.string().trim().min(1).default("+31"),
     phone: z.string().trim(),
     marketingConsent: z.preprocess((v) => v === "on", z.boolean()),

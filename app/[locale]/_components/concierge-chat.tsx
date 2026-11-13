@@ -688,9 +688,17 @@ function BookingRows({ summary: b, c }: { summary: Summary; c: CardCopy }) {
   const guests = b.passengers === 1 ? c.guestOne : interpolate(c.guestMany, { count: b.passengers });
   const all = total === 1 ? c.bagOne : interpolate(c.bagMany, { count: total });
   const party = `${guests} · ${all} ${interpolate(c.bagSplit, { large: b.bags, small })}`;
-  const stops = b.stops.map((s, i) => `${interpolate(c.stopLabel, { number: i + 1 })}: ${s.place}${s.wait ? ` (${interpolate(c.waitMinutes, { minutes: s.wait })})` : ""}`);
+  const stopLine = (place: string, index: number) => `${interpolate(c.stopLabel, { number: index + 1 })}: ${place}`;
+  const route =
+    b.mode === "hourly"
+      ? [b.from.trim() ? stopLine(b.from, 0) : "", b.hours ? interpolate(c.asDirected, { hours: b.hours }) : ""].filter(Boolean).join("\n")
+      : [b.from, ...b.stops.map((s) => `${s.place}${s.wait ? ` (${interpolate(c.waitMinutes, { minutes: s.wait })})` : ""}`), b.to]
+          .map((place) => place.trim())
+          .filter(Boolean)
+          .map(stopLine)
+          .join("\n");
   const rows: [string, string][] = [
-    [c.summaryRoute, b.mode === "hourly" ? `${b.from} · ${interpolate(c.asDirected, { hours: b.hours ?? "" })}` : [`${b.from} → ${b.to}`, ...stops].join("\n")],
+    [c.summaryRoute, route],
     [c.summaryWhen, b.when],
   ];
   if (b.returning) rows.push([c.summaryReturn, b.returning]);

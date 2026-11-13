@@ -14,7 +14,8 @@ import { getCorporateContact } from "./access";
  */
 const q = schema.quoteRequests;
 
-export const PORTAL_PAGE_SIZE = 20;
+/** Open, past and cancelled each show this many bookings, then a next page. */
+export const PORTAL_PAGE_SIZE = 5;
 export type PortalTab = "open" | "past" | "cancelled";
 export const PORTAL_TABS: readonly PortalTab[] = ["open", "past", "cancelled"];
 export const isPortalTab = (value: unknown): value is PortalTab => PORTAL_TABS.includes(value as PortalTab);
@@ -53,6 +54,8 @@ const bookingColumns = {
   entity: q.entity,
   itinerary: q.itinerary,
   notes: q.notes,
+  name: q.name,
+  email: q.email,
   phone: q.phone,
   quotedAmount: q.quotedAmount,
   source: q.source,

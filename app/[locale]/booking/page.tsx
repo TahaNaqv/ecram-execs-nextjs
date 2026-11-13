@@ -49,11 +49,12 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
     : null;
 
   const intermediates = stopsWithWaits(booking.destinations, booking.destinationWaits).filter((s) => s.place.trim());
-  const route = [
+  const routePlaces = [
     booking.collection,
-    ...intermediates.map((s, index) => `${interpolate(d.booking.stopLabel, { number: index + 1 })}: ${s.place}`),
+    ...intermediates.map((s) => (s.wait ? `${s.place} (${interpolate(d.booking.waitMinutes, { minutes: s.wait })})` : s.place)),
     booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null),
-  ].filter(Boolean);
+  ].filter((place): place is string => Boolean(place?.trim()));
+  const route = routePlaces.map((place, index) => `${interpolate(d.booking.stopLabel, { number: index + 1 })}: ${place}`);
   const cars = convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle);
   // The amount the booking manager set wins over the rate card's, as in the emails (bookingTotalEuros)
   const total = bookingTotalEuros(booking);
@@ -99,7 +100,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
   const facts = [
     { label: t.labelReference, value: booking.reference },
     { label: t.labelWhen, value: [booking.pickupAt && formatPickup(booking.pickupAt, locale), booking.returnAt && `${d.booking.summaryReturn}: ${formatPickup(booking.returnAt, locale)}`].filter(Boolean).join(" · ") },
-    { label: t.labelRoute, value: route.join(" → ") },
+    { label: t.labelRoute, value: route.join("\n") },
     { label: d.booking.reviewDistance, value: routeLine },
     { label: t.labelCars, value: cars ?? "" },
     { label: t.labelPrice, value: price ?? "" },

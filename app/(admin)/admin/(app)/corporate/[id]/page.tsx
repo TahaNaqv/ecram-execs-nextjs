@@ -55,6 +55,7 @@ export default async function CorporatePartnerProfilePage({
     avgTripValue,
     totalSpend,
     topVehicle: p.preferredVehicle,
+    billing: p.billing,
     recentBookings: bookings.slice(0, 10).map((b) => ({
       id: b.id,
       reference: b.reference,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useBoundaryRecovery } from "@/lib/errors/boundary";
 import { AlertIcon, RefreshIcon } from "./_components/icons";
 import { btn } from "./_components/ui";
 
@@ -17,10 +17,17 @@ const COPY = {
   back: "All requests · Alle aanvragen",
 };
 
-export default function AdminError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+export default function AdminError({
+  error,
+  retry,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  retry?: () => void;
+  reset?: () => void;
+}) {
+  const recover = retry ?? reset ?? (() => undefined);
+  useBoundaryRecovery("admin", error, recover);
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-6">
@@ -34,7 +41,7 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
         </p>
         {error.digest && <p className="mt-3 font-mono text-xs text-zinc-400">Ref: {error.digest}</p>}
         <div className="mt-6 flex justify-center gap-2">
-          <button onClick={() => reset()} className={`${btn.base} ${btn.primary} ${btn.md}`}>
+          <button onClick={() => recover()} className={`${btn.base} ${btn.primary} ${btn.md}`}>
             <RefreshIcon /> {COPY.retry}
           </button>
           <Link href="/admin/requests" className={`${btn.base} ${btn.secondary} ${btn.md}`}>

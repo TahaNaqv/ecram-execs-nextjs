@@ -67,25 +67,30 @@ export function DayMapView({
   routes,
   locale,
   copy,
+  layout = "page",
 }: {
   apiKey: string;
   locale: "en" | "nl";
   routes: MapRoute[];
   copy: { frame: string; trips: string; open: string; showAll: string };
+  /** Dashboard keeps the map short and scrolls extra route cards sideways, so the list stays in view. */
+  layout?: "page" | "dashboard";
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const drawn = useMemo<Drawn[]>(() => routes.map((r) => ({ ...r, points: decodePolyline(r.path) })).filter((r) => r.points.length > 1), [routes]);
+  const dashboard = layout === "dashboard";
+  const sideways = dashboard && drawn.length > 2;
 
   return (
-    <div>
-      <div role="region" aria-label={copy.frame} className="h-72 w-full bg-zinc-100 sm:h-96">
+    <div className={dashboard ? "flex h-full min-h-0 flex-col" : undefined}>
+      <div role="region" aria-label={copy.frame} className={dashboard ? "h-44 w-full shrink-0 bg-zinc-100" : "h-72 w-full bg-zinc-100 sm:h-96"}>
         <APIProvider apiKey={apiKey} language={locale} region="NL">
           <Map defaultCenter={NETHERLANDS} defaultZoom={7} gestureHandling="cooperative" mapTypeControl={false} streetViewControl={false} className="h-full w-full">
             <Lines routes={drawn} selected={selected} onSelect={setSelected} />
           </Map>
         </APIProvider>
       </div>
-      <div className="border-t border-zinc-100 px-5 py-4">
+      <div className={`border-t border-zinc-100 px-5 py-4 ${dashboard ? "min-h-0 min-w-0 flex-1 overflow-hidden" : ""}`}>
         <div className="mb-2 flex items-center justify-between gap-3">
           <h3 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">{copy.trips}</h3>
           {selected && (
@@ -94,9 +99,9 @@ export function DayMapView({
             </button>
           )}
         </div>
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className={sideways ? "m-0 flex list-none gap-2 overflow-x-auto p-0 pb-1 [scrollbar-width:thin]" : "grid gap-2 sm:grid-cols-2"}>
           {drawn.map((r) => (
-            <li key={r.id}>
+            <li key={r.id} className={sideways ? "w-64 shrink-0" : undefined}>
               <div className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-xs ${selected === r.id ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 bg-white"}`}>
                 <span aria-hidden="true" className="mt-1 size-3 shrink-0 rounded-full" style={{ backgroundColor: r.colour }} />
                 <button type="button" aria-pressed={selected === r.id} onClick={() => setSelected(selected === r.id ? null : r.id)} className="min-w-0 flex-1 text-left">

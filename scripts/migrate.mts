@@ -50,6 +50,10 @@ console.log(APPLY ? "Mode:   apply\n" : "Mode:   dry run (pass --apply to write)
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 
 try {
+  // ── Ensure required PostgreSQL extensions exist
+  await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`;
+  console.log("✓ database extension: pg_trgm checked/enabled");
+
   // ── Pre-flight: values the migrations are not able to map
   const tables = await sql<{ table_name: string }[]>`
     select table_name from information_schema.tables where table_schema = 'public'`;

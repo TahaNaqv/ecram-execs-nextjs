@@ -1,6 +1,6 @@
 import { HOURLY_DURATIONS, type Service } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
-import { bagCapacity, FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES, type VehicleChoice, type VehicleKey } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
 import { cleanExtras, type ExtraPick } from "@/lib/pricing/extras";
@@ -31,9 +31,9 @@ export type Trip = {
   guestsSet: boolean;
   flight: string;
   /** A fleet key, "advise" for no preference, or "" when not chosen yet. */
-  vehicle: VehicleChoice | "";
+  vehicle: string;
   /** The cars the visitor chose, with how many of each. Empty when they have not chosen, or when they ask us to choose. */
-  cars: { key: VehicleKey; count: number }[];
+  cars: { key: string; count: number }[];
   /** The add-ons chosen on the step after the car (lib/pricing/extras.ts) */
   extras: ExtraPick[];
 };
@@ -155,14 +155,19 @@ export function carsCapacityProblem(cars: readonly { key: string; count: number 
 
 /** The cars chosen, each model once with its count (1 to MAX_PER_CAR), in fleet order. */
 export function cleanCars(cars: readonly { key: string; count: number }[]): Trip["cars"] {
-  const counts = new Map<VehicleKey, number>();
+  const counts = new Map<string, number>();
   for (const pick of cars) {
-    const key = normalizeVehicleKey(pick.key);
+    const raw = pick.key.trim();
+    const key = normalizeVehicleKey(raw) ?? raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
     const n = Number(pick.count);
-    if (!key || !Number.isInteger(n) || n < 1) continue;
+    if (!/^[a-z0-9_]{1,64}$/.test(key) || !Number.isInteger(n) || n < 1) continue;
     counts.set(key, Math.min(MAX_PER_CAR, (counts.get(key) ?? 0) + n));
   }
-  return FLEET.filter((v) => counts.has(v.key)).map((v) => ({ key: v.key, count: counts.get(v.key)! }));
+  const extras = [...counts.keys()].filter((key) => !FLEET.some((vehicle) => vehicle.key === key));
+  return [
+    ...FLEET.filter((vehicle) => counts.has(vehicle.key)).map((vehicle) => ({ key: vehicle.key, count: counts.get(vehicle.key)! })),
+    ...extras.map((key) => ({ key, count: counts.get(key)! })),
+  ];
 }
 
 const bounded = (n: number, min: number, max: number) => {
@@ -253,8 +258,9 @@ export function tripFromParams(params: URLSearchParams): Trip {
   if (Number.isInteger(small)) trip.small = small;
   trip.guestsSet = params.has("pax");
   trip.flight = text(params.get("flight"), 12);
-  const vehicle = normalizeVehicleKey(params.get("vehicle")) ?? params.get("vehicle");
-  trip.vehicle = (VEHICLE_CHOICES as readonly string[]).includes(vehicle ?? "") ? (vehicle as VehicleChoice) : "";
+  const vehicle = normalizeVehicleKey(params.get("vehicle")) ?? params.get("vehicle") ?? "";
+  const vehicleSlug = vehicle.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  trip.vehicle = (VEHICLE_CHOICES as readonly string[]).includes(vehicle) || /^[a-z0-9_]{1,64}$/.test(vehicleSlug) ? (normalizeVehicleKey(vehicle) ?? vehicleSlug) : "";
   trip.cars = carsFromParam(params.get("cars"));
   // "champagne:1|chocolates.dairy_free:2": the add-ons, kept when the visitor goes back to the bar to change the journey
   trip.extras = cleanExtras(
@@ -265,8 +271,8 @@ export function tripFromParams(params: URLSearchParams): Trip {
     }),
   );
   if (trip.cars.length === 0 && trip.vehicle && trip.vehicle !== "advise") {
-    const key = normalizeVehicleKey(trip.vehicle);
-    if (key) trip.cars = [{ key, count: 1 }];
+    const key = normalizeVehicleKey(trip.vehicle) ?? trip.vehicle;
+    if (/^[a-z0-9_]{1,64}$/.test(key)) trip.cars = [{ key, count: 1 }];
   }
   return normalizeTrip(trip);
 }

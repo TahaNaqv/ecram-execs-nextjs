@@ -20,11 +20,14 @@ export async function CorporateShell({
   route,
   heading,
   intro,
+  centered = false,
   children,
 }: {
   route: AppRoute;
   heading: string;
   intro?: string;
+  /** A primary form: the panel sits in the middle of the page, the same width as the other account forms. */
+  centered?: boolean;
   children: ReactNode;
 }) {
   const [locale, dict] = await Promise.all([currentLocale(), getDict()]);
@@ -55,7 +58,7 @@ export async function CorporateShell({
               </h1>
               {intro && <p className="m-0 text-[15px] font-light text-ink-400 md:text-base">{intro}</p>}
             </div>
-            <div className="light-surface box-border w-full min-w-0 max-w-full bg-ink-50 p-3 text-ink-950 sm:p-5 md:p-6">{children}</div>
+            <div className={`light-surface box-border min-w-0 bg-ink-50 p-3 text-ink-950 sm:p-5 md:p-6 ${centered ? "mx-auto w-full max-w-[760px]" : "w-full max-w-full"}`}>{children}</div>
             <Link href={localizedPath("/", locale)} className="text-[12px] tracking-[0.24em] uppercase">
               {t.back}
             </Link>

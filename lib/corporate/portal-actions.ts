@@ -8,6 +8,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { confirmToClient, emailPartnerBooking, notifyNewQuote, notifyTeamPartnerActivity } from "@/lib/email";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { unknownFleetKeys } from "@/lib/fleet/catalog";
 import { allocationFor } from "@/lib/fleet/vehicles";
 import { routeHold } from "@/lib/fleet/route";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
@@ -62,6 +63,10 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
     vehicle: values.vehicle || undefined,
     notes: values.notes || undefined,
   });
+  if (parsed.success) {
+    const chosen = [parsed.data.vehicle, ...(parsed.data.vehicles ?? []).map((car) => car.key)].filter((key): key is string => Boolean(key));
+    if ((await unknownFleetKeys(chosen)).length > 0) return fail(f.checkHighlighted);
+  }
   if (!parsed.success) {
     const fieldErrors: Partial<Record<QuoteField, string>> = {};
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as QuoteField] ??= issue.message;

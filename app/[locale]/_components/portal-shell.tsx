@@ -17,12 +17,14 @@ export async function PortalPage({
   current,
   heading,
   intro,
+  centered = false,
   children,
 }: {
   route: AppRoute;
   current: PortalSection;
   heading: string;
   intro?: string;
+  centered?: boolean;
   children: ReactNode;
 }) {
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
@@ -33,7 +35,7 @@ export async function PortalPage({
     ["billing", p.navBilling, localizedPath("/corporate-partner/account/billing", locale)],
   ];
   return (
-    <CorporateShell route={route} heading={heading} intro={intro}>
+    <CorporateShell route={route} heading={heading} intro={intro} centered={centered}>
       <nav aria-label={p.navLabel} className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-white/20">
         <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 p-0">
           {items.map(([key, label, href]) => (

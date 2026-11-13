@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { linkChatToRequest, SESSION_ID } from "@/lib/concierge/store";
 import { confirmToClient, notifyNewQuote } from "@/lib/email";
+import { unknownFleetKeys } from "@/lib/fleet/catalog";
 import { allocationFor } from "@/lib/fleet/vehicles";
 import { browserMapKey, routeMapLinks, type RouteMapLinks } from "@/lib/fleet/map";
 import { visitor } from "@/lib/request-meta";
@@ -82,6 +83,11 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     entityKvk: tripPurpose === "private" ? undefined : values.entityKvk || undefined,
     service: tripPurpose === "private" && values.service === "business_travel" ? "private_occasion" : values.service,
   });
+  if (parsed.success) {
+    const chosen = [parsed.data.vehicle, ...(parsed.data.vehicles ?? []).map((car) => car.key)].filter((key): key is string => Boolean(key));
+    if ((await unknownFleetKeys(chosen)).length > 0) return fail(t.checkHighlighted);
+  }
+
   if (!parsed.success) {
     const fieldErrors: Partial<Record<QuoteField, string>> = {};
     for (const issue of parsed.error.issues) {

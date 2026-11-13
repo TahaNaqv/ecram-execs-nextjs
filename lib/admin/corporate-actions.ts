@@ -36,6 +36,19 @@ export async function addCorporatePartner(formData: FormData) {
   if (!parsedPhone) return { ok: false, error: phoneError };
 
   const phone = `+${parsedPhone.code} ${parsedPhone.national}`;
+  const billingStreet = (formData.get("billingStreet") as string)?.trim() ?? "";
+  const billingPostcode = (formData.get("billingPostcode") as string)?.trim() ?? "";
+  const billingCity = (formData.get("billingCity") as string)?.trim() ?? "";
+  const billingCountry = ((formData.get("billingCountry") as string)?.trim() || "NL").toUpperCase();
+  const vatRaw = (formData.get("vatNumber") as string)?.trim() ?? "";
+  const invoiceEmail = ((formData.get("invoiceEmail") as string)?.trim() ?? "").toLowerCase();
+  if (billingStreet.length < 2 || billingPostcode.length < 2 || !billingCity) {
+    return { ok: false, error: "Street, postcode and city are required for billing." };
+  }
+  if (!/^[A-Z]{2}$/.test(billingCountry)) return { ok: false, error: "Country must be a two-letter code, such as NL." };
+  if (vatRaw && !/^[A-Za-z0-9 .-]+$/.test(vatRaw)) return { ok: false, error: "Enter a valid VAT number, or leave it empty." };
+  if (invoiceEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invoiceEmail)) return { ok: false, error: "Enter a valid invoice email, or leave it empty." };
+  const vatNumber = vatRaw ? vatRaw.replace(/[\s.-]/g, "").toUpperCase() : null;
   const emailDomain = email.split("@")[1] || "corporate.nl";
   const duplicateEmail = "An account with this email address already exists. Please use a unique email.";
 
@@ -57,6 +70,12 @@ export async function addCorporatePartner(formData: FormData) {
         emailDomain,
         position,
         phone,
+        billingStreet,
+        billingPostcode: billingPostcode.toUpperCase(),
+        billingCity,
+        billingCountry,
+        vatNumber,
+        invoiceEmail: invoiceEmail || null,
         verifiedAt: new Date(),
         source: "admin",
       })

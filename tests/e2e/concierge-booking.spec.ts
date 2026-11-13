@@ -389,7 +389,8 @@ test("the chat takes a booking from start to finish: the card shows it, Send mak
   await expect(log).toContainText("Please check the card below", { timeout: 15_000 });
   const card = page.getByRole("group", { name: en.conciergeSection.bookTitle });
   await expect(card).toBeVisible();
-  await expect(card).toContainText("Rotterdam The Hague Airport → Amstel Hotel, Amsterdam");
+  await expect(card).toContainText("Stop 1: Rotterdam The Hague Airport");
+  await expect(card).toContainText("Stop 2: Amstel Hotel, Amsterdam");
   await expect(card).toContainText("09:00");
   await expect(card).toContainText(`2 ${en.booking.guestMany.replace("{count} ", "")}`);
   await expect(card).toContainText(email);

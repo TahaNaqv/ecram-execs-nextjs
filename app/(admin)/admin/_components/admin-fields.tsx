@@ -3,7 +3,14 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { amsterdamToday } from "@/lib/admin/financials-shared";
 import type { Locale } from "@/lib/i18n/config";
+
+/** Today's calendar day in Europe/Amsterdam, as a local Date whose year, month and day are that Dutch day. */
+function amsterdamDate(): Date {
+  const [y, m, d] = amsterdamToday().split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 const fieldButton =
   "flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white text-left text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10";
@@ -176,7 +183,7 @@ export function AdminDateField({
   const anchor = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const selected = parseIso(current ?? "");
-  const [cursor, setCursor] = useState(() => selected ?? new Date());
+  const [cursor, setCursor] = useState(() => selected ?? amsterdamDate());
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const labelId = useId();
   const weekdays = useMemo(() => weekdayLabels(locale), [locale]);
@@ -249,6 +256,7 @@ export function AdminDateField({
   const lead = (new Date(year, month, 1).getDay() + 6) % 7;
   const days = new Date(year, month + 1, 0).getDate();
   const cells: (Date | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, index) => new Date(year, month, index + 1))];
+  const todayIso = iso(amsterdamDate());
 
   return (
     <div ref={root} className="relative min-w-0">
@@ -260,7 +268,7 @@ export function AdminDateField({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => {
-          setCursor(parseIso(current ?? "") ?? new Date());
+          setCursor(parseIso(current ?? "") ?? amsterdamDate());
           setPos(null);
           setOpen((shown) => !shown);
         }}
@@ -278,30 +286,36 @@ export function AdminDateField({
           role="dialog"
           aria-label={copy.chooseDate}
           style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, visibility: pos ? "visible" : "hidden" }}
-          className="fixed z-[80] w-[16.5rem] rounded-xl border border-zinc-200 bg-white p-3 text-zinc-900 shadow-lg"
+          className="fixed z-[80] w-[14.75rem] rounded-xl border border-solid border-zinc-200 bg-white px-2.5 py-2 text-zinc-950 shadow-lg"
         >
-          <div className="mb-2 flex items-center justify-between">
-            <button type="button" className="grid size-8 cursor-pointer place-items-center rounded-lg text-lg hover:bg-zinc-100" aria-label={copy.previousMonth} onClick={() => setCursor(new Date(year, month - 1, 1))}>
+          <div className="mb-1 flex items-center justify-between">
+            <button type="button" className="grid size-6 cursor-pointer place-items-center rounded-md text-base text-zinc-900 hover:bg-zinc-100" aria-label={copy.previousMonth} onClick={() => setCursor(new Date(year, month - 1, 1))}>
               ‹
             </button>
-            <span className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat(dateTag(locale), { month: "long", year: "numeric" }).format(cursor)}</span>
-            <button type="button" className="grid size-8 cursor-pointer place-items-center rounded-lg text-lg hover:bg-zinc-100" aria-label={copy.nextMonth} onClick={() => setCursor(new Date(year, month + 1, 1))}>
+            <span className="text-xs font-semibold">{new Intl.DateTimeFormat(dateTag(locale), { month: "long", year: "numeric" }).format(cursor)}</span>
+            <button type="button" className="grid size-6 cursor-pointer place-items-center rounded-md text-base text-zinc-900 hover:bg-zinc-100" aria-label={copy.nextMonth} onClick={() => setCursor(new Date(year, month + 1, 1))}>
               ›
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">
+          <div className="grid grid-cols-7 text-center text-[10px] font-medium text-zinc-400">
             {weekdays.map((day) => (
               <span key={day}>{day}</span>
             ))}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
+          <div className="mt-0.5 grid grid-cols-7">
             {cells.map((date, index) =>
               date ? (
                 <button
                   key={iso(date)}
                   type="button"
                   onClick={() => choose(iso(date))}
-                  className={`grid h-8 cursor-pointer place-items-center rounded-lg text-sm ${iso(date) === current ? "bg-zinc-950 text-white" : "text-zinc-900 hover:bg-zinc-100"}`}
+                  className={`grid size-7 cursor-pointer place-items-center rounded-md text-[12px] tabular-nums ${
+                    iso(date) === current
+                      ? "bg-zinc-950 font-semibold text-white"
+                      : iso(date) === todayIso
+                        ? "text-zinc-950 ring-1 ring-inset ring-zinc-950 hover:bg-zinc-100"
+                        : "text-zinc-900 hover:bg-zinc-100"
+                  }`}
                 >
                   {date.getDate()}
                 </button>

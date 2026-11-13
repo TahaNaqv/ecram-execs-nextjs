@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SearchIcon, PlusIcon, XIcon, BriefcaseIcon } from "../../_components/icons";
 import type { CorporatePartnerRow } from "@/lib/admin/live-queries";
 import { addCorporatePartner, deleteCorporatePartner, updateCorporatePartner } from "@/lib/admin/corporate-actions";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 import { cleanPhoneInput, phoneLengthOk } from "@/lib/phone";
 import { formatEuro, formatPickup, STATUS_STYLE } from "@/lib/admin/format";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
@@ -55,6 +56,36 @@ const COUNTRY_CODES = [
   { code: "+966", label: "SA +966" },
 ];
 
+function BillingPanel({ partner, copy }: { partner: CorporatePartnerRow; copy: HubCopy }) {
+  const billing = partner.billing;
+  const filled = Boolean(billing.street || billing.postcode || billing.city || billing.vatNumber || billing.invoiceEmail);
+  const lines: [string, string][] = filled
+    ? [
+        [copy.billingStreet, billing.street],
+        [copy.billingPostcode, billing.postcode],
+        [copy.billingCity, billing.city],
+        [copy.billingCountry, billing.country],
+        [copy.billingVatNumber, billing.vatNumber],
+        [copy.billingEmail, billing.invoiceEmail],
+        [copy.kvkNumber, partner.kvk],
+      ]
+    : [[copy.kvkNumber, partner.kvk]];
+  return (
+    <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+      <h4 className="text-xs font-semibold text-zinc-900">{copy.billingLedger}</h4>
+      {!filled && <p className="text-[11px] text-zinc-500">{copy.billingEmpty}</p>}
+      <dl className="m-0 space-y-2">
+        {lines.filter(([, value]) => value && value !== "—").map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-[11px] font-semibold text-zinc-950">{label}</dt>
+            <dd className="m-0 text-[11px] text-zinc-600">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export function CorporateDirectoryHub({
   initialPartners = [],
   copy,
@@ -90,7 +121,7 @@ export function CorporateDirectoryHub({
   }, [initialPartners]);
 
   useEffect(() => {
-    router.refresh();
+    refreshOnce(router);
   }, [router]);
 
   const filteredPartners = partners.filter((p) => {
@@ -134,7 +165,7 @@ export function CorporateDirectoryHub({
         return;
       }
       setIsAddModalOpen(false);
-      router.refresh();
+      refreshOnce(router);
     });
   };
 
@@ -148,7 +179,7 @@ export function CorporateDirectoryHub({
       setPartners((prev) => prev.filter((p) => p.id !== id));
       setSelectedPartner(null);
       setPartnerToDelete(null);
-      router.refresh();
+      refreshOnce(router);
     });
   };
 
@@ -167,7 +198,7 @@ export function CorporateDirectoryHub({
     startTransition(async () => {
       const res = await updateCorporatePartner(formData);
       if (res && !res.ok) return;
-      router.refresh();
+      refreshOnce(router);
     });
   };
 
@@ -429,10 +460,7 @@ export function CorporateDirectoryHub({
                   )}
                 </div>
               ) : activeTabDrawer === "billing" ? (
-                <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2 animate-in fade-in">
-                  <h4 className="font-semibold text-xs text-zinc-900">{copy.billingLedger}</h4>
-                  <p className="text-[11px] text-zinc-500">{copy.kvkNumber}: {selectedPartner.kvk}</p>
-                </div>
+                <BillingPanel partner={selectedPartner} copy={copy} />
               ) : activeTabDrawer === "edit" ? (
                 <form key={selectedPartner.id} onSubmit={handleUpdatePartner} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-xs">
                   <h4 className="mb-4 text-sm font-bold text-zinc-950">{copy.editDetails}</h4>
@@ -648,7 +676,7 @@ export function CorporateDirectoryHub({
       {/* Add New Partner Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white border border-zinc-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+          <div className="bg-white border border-zinc-200 rounded-2xl max-w-lg w-full max-h-[min(90vh,840px)] overflow-y-auto p-6 shadow-2xl relative">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 p-1 cursor-pointer"
@@ -748,6 +776,33 @@ export function CorporateDirectoryHub({
                     placeholder="3349440201"
                     className={phoneField}
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 border-t border-zinc-100 pt-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="block font-medium text-zinc-700 mb-1">{copy.billingStreet}</label>
+                  <input name="billingStreet" type="text" required maxLength={200} className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5" />
+                </div>
+                <div>
+                  <label className="block font-medium text-zinc-700 mb-1">{copy.billingPostcode}</label>
+                  <input name="billingPostcode" type="text" required maxLength={20} className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5" />
+                </div>
+                <div>
+                  <label className="block font-medium text-zinc-700 mb-1">{copy.billingCity}</label>
+                  <input name="billingCity" type="text" required maxLength={100} className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5" />
+                </div>
+                <div>
+                  <label className="block font-medium text-zinc-700 mb-1">{copy.billingCountry}</label>
+                  <input name="billingCountry" type="text" required maxLength={2} defaultValue="NL" className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 uppercase text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5" />
+                </div>
+                <div>
+                  <label className="block font-medium text-zinc-700 mb-1">{copy.billingVatNumber}</label>
+                  <input name="vatNumber" type="text" maxLength={30} className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block font-medium text-zinc-700 mb-1">{copy.billingEmail}</label>
+                  <input name="invoiceEmail" type="text" inputMode="email" maxLength={254} className={`${emailField} rounded-xl border border-zinc-200 px-3.5 py-2.5`} />
                 </div>
               </div>
 

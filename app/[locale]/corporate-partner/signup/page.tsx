@@ -34,7 +34,7 @@ async function Flow() {
 export default async function SignupPage() {
   const t = (await getDict()).corporatePartner;
   return (
-    <CorporateShell route="/corporate-partner/signup" heading={t.signupHeading} >
+    <CorporateShell route="/corporate-partner/signup" heading={t.signupHeading} centered>
       <Suspense fallback={<PanelSkeleton />}>
         <Flow />
       </Suspense>

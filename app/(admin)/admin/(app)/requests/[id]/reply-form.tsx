@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 import { markMessagesSeen, replyToCustomer, type ReplyState } from "./portal-actions";
 
 /** The team's reply to the customer: a partner, or a website visitor through their booking's page. */
@@ -15,7 +16,7 @@ export function ReplyForm({ requestId, copy }: { requestId: string; copy: { labe
   useEffect(() => {
     if (!state.ok) return;
     form.current?.reset();
-    router.refresh();
+    refreshOnce(router);
   }, [state.ok, router]);
 
   return (

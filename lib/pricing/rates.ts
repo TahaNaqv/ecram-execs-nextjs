@@ -127,12 +127,12 @@ export function billedHours(leg: { hours?: number | null; driveSeconds?: number 
  * weekend has a line per car per rate. Missing on prices stored before 7 Nov 2026, when the whole leg had one rate:
  * read them as the leg's own day and hours.
  */
-export type PriceLine = { key: VehicleKey; count: number; rate: number; amount: number; day?: DayKind; hours?: number };
+export type PriceLine = { key: string; count: number; rate: number; amount: number; day?: DayKind; hours?: number };
 /**
  * The kilometres beyond one car's allowance on a leg (the 2027 card): `included` is hours × the car's kilometres per hour,
  * `extra` what the leg drives beyond it, per car; `amount` is extra × rate × count, before VAT.
  */
-export type KmLine = { key: VehicleKey; count: number; included: number; extra: number; rate: number; amount: number };
+export type KmLine = { key: string; count: number; included: number; extra: number; rate: number; amount: number };
 /**
  * `day` is the pick-up's day; the lines carry the rate of each day the leg runs into. `km` is the leg's distance and, per car
  * that drives beyond its allowance, a line; missing on prices stored before 8 Nov 2026, on hourly bookings (their distance
@@ -191,6 +191,8 @@ export type PriceInput = {
   distanceMeters?: number | null;
   /** The cars, with how many of each */
   cars: { key: string; count: number }[];
+  /** Hourly cents for a vehicle added in the admin, keyed by its id. Printed-card cars ignore this. */
+  customRates?: Record<string, Partial<Record<DayKind, number>>>;
   /** The cars are our suggestion, not the visitor's choice */
   suggested?: boolean;
   /** The add-ons chosen */
@@ -206,7 +208,7 @@ export function priceBooking(input: PriceInput): Price | null {
   // return journey drives it again. An hourly booking's distance is only known once it is done.
   const hourly = Boolean(input.hours && input.hours > 0);
   const distance = !hourly && input.distanceMeters && Number.isFinite(input.distanceMeters) && input.distanceMeters > 0 ? Math.round(input.distanceMeters / 1000) : null;
-  const km = distance === null ? null : { distance, lines: kmLines(input.cars, hours, distance, input.segment) };
+    const km = distance === null ? null : { distance, lines: kmLines(input.cars, hours, distance, input.segment, input.customRates) };
   const legs: PriceLeg[] = [];
   for (const [leg, at] of [["outward", input.pickupAt], ["return", input.returnAt]] as const) {
     if (!at) continue;
@@ -215,11 +217,13 @@ export function priceBooking(input: PriceInput): Price | null {
     const parts = hoursByDay(at, hours);
     const lines: PriceLine[] = [];
     for (const car of input.cars) {
-      const key = normalizeVehicleKey(car.key);
+      const known = normalizeVehicleKey(car.key);
+      const custom = input.customRates?.[car.key];
+      const key = known ?? (custom ? car.key : null);
       if (!key || !Number.isInteger(car.count) || car.count < 1) continue;
       for (const part of parts) {
-        const rate = hourlyRate(key, input.segment, part.day);
-        if (rate === null) continue;
+        const rate = known ? hourlyRate(known, input.segment, part.day) : custom?.[part.day] ?? null;
+        if (rate == null) continue;
         lines.push({ key, count: car.count, rate, amount: rate * part.hours * car.count, day: part.day, hours: part.hours });
       }
     }
@@ -254,11 +258,12 @@ export function priceBooking(input: PriceInput): Price | null {
 }
 
 /** Per car that drives beyond its allowance on one leg: the kilometres included, the extra, and what they cost. */
-function kmLines(cars: PriceInput["cars"], hours: number, distance: number, segment: Segment): KmLine[] {
+function kmLines(cars: PriceInput["cars"], hours: number, distance: number, segment: Segment, customRates?: PriceInput["customRates"]): KmLine[] {
   const lines: KmLine[] = [];
   for (const car of cars) {
-    const key = normalizeVehicleKey(car.key);
-    const perHour = key ? KM_PER_HOUR[key] : null;
+    const known = normalizeVehicleKey(car.key);
+    const key = known ?? (customRates?.[car.key] ? car.key : null);
+    const perHour = known ? KM_PER_HOUR[known] : key ? 40 : null;
     if (!key || perHour == null || !Number.isInteger(car.count) || car.count < 1) continue;
     const included = hours * perHour;
     const extra = Math.max(0, distance - included);

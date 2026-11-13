@@ -36,8 +36,19 @@ export type VehicleSpecs = {
   };
 };
 
+/** A car the booking form can show. Extra fields are filled for vehicles added in the admin. */
+export type OfferedVehicle = {
+  key: string;
+  name: string;
+  images?: string[];
+  seats?: number | null;
+  bags?: number | null;
+  /** Public hourly rate in euro cents. Absent for a car on the printed rate card. */
+  rates?: { weekday: number; saturday: number; sunday: number } | null;
+};
+
 export type FleetVehicle = {
-  key: VehicleKey;
+  key: string;
   name: string;
   /**
    * Up to eight photographs, first is the cover. Files live in /public. While only one exists the
@@ -381,7 +392,7 @@ export function convoyFor(offered: readonly { key: string }[], pax: number, _pre
 /** Most seats any one car in the fleet has. A larger party needs more than one car. */
 export const LARGEST_CAR_SEATS = Math.max(...FLEET.map((v) => v.specs?.passengers ?? 0));
 
-export type FleetPick = { key: VehicleKey; count: number };
+export type FleetPick = { key: string; count: number };
 
 /** Cars a form or a stored quote named, with a quantity of at least one. Each model is kept up to `MAX_CARS`; a mix of models is kept. */
 export function fleetPicks(raw: unknown): FleetPick[] {
@@ -389,7 +400,9 @@ export function fleetPicks(raw: unknown): FleetPick[] {
   const picks: FleetPick[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
-    const key = normalizeVehicleKey("key" in item ? String((item as { key: unknown }).key) : "");
+    const rawKey = "key" in item ? String((item as { key: unknown }).key) : "";
+    const key = normalizeVehicleKey(rawKey) ?? rawKey.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    if (!/^[a-z0-9_]{1,64}$/.test(key)) continue;
     const count = Number("count" in item ? (item as { count: unknown }).count : 0);
     if (!key || !Number.isInteger(count) || count < 1) continue;
     const n = Math.min(MAX_CARS, count);

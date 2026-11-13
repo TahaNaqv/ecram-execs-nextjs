@@ -13,10 +13,11 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
-import { formatCents, priceNet } from "@/lib/pricing/rates";
+import { extraName } from "@/lib/pricing/extras";
+import { bookingTotalEuros, formatCents, priceNet } from "@/lib/pricing/rates";
 import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extrasLine } from "@/lib/pricing/extras";
-import { RouteMap } from "../../../_components/booking/booking-flow";
+import { DownloadableReceiptCard, RouteMap, type RideReceipt } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
 import { outlineButton } from "../../../_components/corporate-styles";
 import { MessageForm } from "../../../_components/portal-message-form";
@@ -87,19 +88,43 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
   const waiting = booking.status === "quoted" && booking.quotedAmount !== null;
   const open = (MESSAGEABLE as readonly string[]).includes(booking.status);
   const bespoke = booking.service === "bespoke";
-  // In travelling order: where from, numbered stops on the way, where to
+  const hourly = booking.service === "hourly";
+  const intermediates = stopsWithWaits(booking.destinations, booking.destinationWaits).filter((s) => s.place.trim());
+  // In travelling order: where from, each stop on the way, where to. Every place is Stop 1, Stop 2, …
   const stops = [
-    { text: booking.collection, wait: 0, label: d.quoteForm.labelCollection },
-    ...stopsWithWaits(booking.destinations, booking.destinationWaits)
-      .filter((s) => s.place.trim())
-      .map((s, index) => ({ text: s.place, wait: s.wait, label: interpolate(d.booking.stopLabel, { number: index + 1 }) })),
-    // An hourly booking may end "as directed" instead of at a destination
+    { text: booking.collection, wait: 0 },
+    ...intermediates.map((s) => ({ text: s.place, wait: s.wait })),
     {
       text: booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null),
       wait: 0,
-      label: d.quoteForm.labelDestination,
     },
   ].filter((s) => s.text);
+  const cars = convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle);
+  const party = [
+    booking.passengers == null ? "" : booking.passengers === 1 ? d.booking.passengerOne : interpolate(d.booking.passengerMany, { count: booking.passengers }),
+    booking.luggage == null || booking.luggage === 0 ? "" : booking.luggage === 1 ? d.booking.largeOne : interpolate(d.booking.largeMany, { count: booking.luggage }),
+    booking.handLuggage == null || booking.handLuggage === 0 ? "" : booking.handLuggage === 1 ? d.booking.smallOne : interpolate(d.booking.smallMany, { count: booking.handLuggage }),
+  ].filter(Boolean).join(", ");
+  const euros = bookingTotalEuros(booking);
+  const receiptPrice = euros ? { total: Math.round(Number(euros) * 100), exact: booking.priceEstimate?.exact ?? true } : null;
+  const savedReceipt: RideReceipt = {
+    passengerName: booking.name,
+    passengerEmail: booking.email,
+    passengerPhone: booking.phone,
+    leadPassenger: booking.passengerName
+      ? [booking.passengerName, booking.passengerPhone].filter(Boolean).join(" · ")
+      : d.booking.reviewSameAsBooker,
+    pickup: booking.collection ?? "",
+    dropoff: booking.destination ?? (hourly && booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : ""),
+    when: booking.pickupAt ? formatPickup(booking.pickupAt, locale) : "",
+    hourly,
+    stops: intermediates.map((s) => s.place),
+    price: booking.priceEstimate,
+    extraNames: (booking.extras ?? []).map((pick) => extraName(d.addOns, pick)),
+    vehicle: cars ?? "",
+    passengers: party,
+  };
+  const statusLabel = p.statuses[booking.status as keyof typeof p.statuses] ?? booking.status;
   const routeLine = await savedRouteLine(
     booking,
     {
@@ -116,9 +141,20 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href={localizedPath("/corporate-partner/account", locale)} className="self-start text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4">
-        ← {p.backToBookings}
-      </Link>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Link href={localizedPath("/corporate-partner/account", locale)} className="self-start text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4">
+          ← {p.backToBookings}
+        </Link>
+        <DownloadableReceiptCard
+          copy={d.booking}
+          locale={locale}
+          reference={booking.reference}
+          status={statusLabel}
+          name={booking.name}
+          receipt={savedReceipt}
+          price={receiptPrice}
+        />
+      </div>
 
       {created === "1" && <p className="m-0 border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-[15px] text-ink-950">{p.createdNotice}</p>}
 
@@ -169,16 +205,12 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
                 )
               ) : (
                 <div className="sm:col-span-2">
-                  <Fact label={`${d.quoteForm.labelCollection} → ${d.quoteForm.labelDestination}`}>
+                  <Fact label={d.booking.summaryRoute}>
                     <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
                       {stops.map((stop, i) => (
-                        <li key={i} className="flex min-w-0 gap-3">
-                          <span className="grid size-5 shrink-0 place-items-center rounded-full border border-solid border-ink-225 text-[11px] font-semibold text-ink-700">{i + 1}</span>
-                          <span className="min-w-0">
-                            <span className="block text-[12px] text-ink-600">{stop.label}</span>
-                            {stop.text}
-                            {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
-                          </span>
+                        <li key={i} className="min-w-0">
+                          {interpolate(d.booking.stopLabel, { number: i + 1 })}: {stop.text}
+                          {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
                         </li>
                       ))}
                     </ol>

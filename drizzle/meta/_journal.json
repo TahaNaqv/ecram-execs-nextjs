@@ -204,6 +204,13 @@
       "when": 1794512002948,
       "tag": "0028_moneybird",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794600000000,
+      "tag": "0029_vehicle_catalog",
+      "breakpoints": true
     }
   ]
 }

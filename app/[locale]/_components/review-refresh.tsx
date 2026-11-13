@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { refreshOnce } from "@/lib/nav/refresh-once";
 
 /**
  * A partner's booking page while the booking manager reviews it (the client, 8 Nov 2026): asks the server for the page
@@ -11,7 +12,7 @@ export function ReviewRefresh({ seconds = 15 }: { seconds?: number }) {
   const router = useRouter();
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible") refreshOnce(router);
     };
     const timer = window.setInterval(refresh, seconds * 1000);
     document.addEventListener("visibilitychange", refresh);

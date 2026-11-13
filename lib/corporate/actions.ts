@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq, gt, isNotNull } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull, isNull } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
@@ -29,7 +29,7 @@ import {
 export async function requestCode(_prev: CorporateState, formData: FormData): Promise<CorporateState> {
   const { forms: f, corporatePartner: c } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(
-    ["email", "name", "position", "companyName", "kvkNumber", "signatory", "pointOfCall", "phoneCountryCode", "phone", "marketingConsent", "locale"].map((k) => [
+    ["email", "name", "position", "companyName", "kvkNumber", "signatory", "pointOfCall", "billingStreet", "billingPostcode", "billingCity", "billingCountry", "billingVat", "billingEmail", "phoneCountryCode", "phone", "marketingConsent", "locale"].map((k) => [
       k,
       String(formData.get(k) ?? ""),
     ])
@@ -46,7 +46,8 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as RequestField] ??= issue.message;
     return fail(f.checkHighlighted, fieldErrors);
   }
-  const { email, name, position, companyName, kvkNumber, signatory, pointOfCall, phone, marketingConsent, locale } = parsed.data;
+  const { email, name, position, companyName, kvkNumber, signatory, pointOfCall, billingStreet, billingPostcode, billingCity, billingCountry, billingVat, billingEmail, phoneCountryCode, phone, marketingConsent, locale } = parsed.data;
+  const storedPhone = `+${phoneCountryCode.replace(/^\+/, "")} ${phone.replace(/\D/g, "")}`;
 
   try {
     // Check if a corporate contact with this email already has a completed account registration
@@ -80,13 +81,36 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
         kvkNumber: kvkNumber || null,
         signatory,
         pointOfCall,
-        phone: phone || null,
+        phone: storedPhone,
+        billingStreet,
+        billingPostcode: billingPostcode.toUpperCase(),
+        billingCity,
+        billingCountry,
+        vatNumber: billingVat,
+        invoiceEmail: billingEmail,
         locale,
         ipHash,
         userAgent,
       })
       .onConflictDoNothing({ target: schema.corporateContacts.email });
     const [contact] = await db.select(contactColumns).from(schema.corporateContacts).where(eq(schema.corporateContacts.email, email)).limit(1);
+    // An unfinished sign-up can be started again. Keep the billing details from this attempt. A finished account was refused above;
+    // the password check here covers one that was completed between the two reads.
+    if (contact) {
+      await db
+        .update(schema.corporateContacts)
+        .set({
+          billingStreet,
+          billingPostcode: billingPostcode.toUpperCase(),
+          billingCity,
+          billingCountry,
+          vatNumber: billingVat,
+          invoiceEmail: billingEmail,
+          phone: storedPhone,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(schema.corporateContacts.id, contact.id), isNull(schema.corporateContacts.passwordHash)));
+    }
 
     const result = await issueCode(contact, ipHash, { name, position, consent: marketingConsent }, "signup");
     if (result === "rate") return fail(c.rateLimited);

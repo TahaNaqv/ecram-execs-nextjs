@@ -127,6 +127,19 @@ export function DateTimeField({
   // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
   useLayoutEffect(() => () => setOpen(false), []);
 
+  // The month the calendar opens on is today's date in the Netherlands, not the visitor's zone and not a UTC day.
+  // "Now" is read after mount: the page is prerendered, so it is not known during the first render.
+  useLayoutEffect(() => {
+    const now = nowInNetherlands();
+    setToday(now.day);
+    setClock(now.time);
+    const start = day && !before(day, now.day) ? day : now.day;
+    setView({ y: start.y, m: start.m });
+    if (!timeChosen.current && !day) setTime(now.time);
+    // The chosen day on this first paint is the one to measure. Later edits go through openPicker.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const parsed = parseDateTime(defaultValue ?? "");
     if (!parsed) {
@@ -331,11 +344,11 @@ export function DateTimeField({
     setActive(now.day);
   };
 
-  const navBtn = "grid size-7 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#e8eaed] hover:bg-[#3c4043] disabled:cursor-default disabled:opacity-20";
+  const navBtn = "grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#f4f4f5] hover:bg-white/10 disabled:cursor-default disabled:opacity-25";
   const column = "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const optionCls = (selected: boolean) =>
-    `block w-full max-w-full min-h-6 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:text-[#5f6368] disabled:hover:bg-transparent ${
-      selected ? "bg-[#a8c7fa] text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
+    `block w-full max-w-full min-h-5 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:text-[#616fa7] disabled:hover:bg-transparent ${
+      selected ? "bg-[#f4f4f5] text-[#081b62]" : "bg-transparent text-[#f4f4f5] hover:bg-white/10"
     }`;
 
   return (
@@ -416,12 +429,12 @@ export function DateTimeField({
             transform: fit.nudge ? `translateX(${fit.nudge}px)` : undefined,
             maxHeight: fit.maxH ? `${fit.maxH}px` : undefined,
           }}
-          className="absolute top-full left-0 z-50 mt-2 box-border max-h-[min(24rem,calc(100svh-1rem))] w-[min(360px,calc(100vw-1rem))] max-w-[360px] overflow-x-hidden overflow-y-auto rounded-lg border border-solid border-[#3c4043] bg-[#292a2d] p-3 text-left text-[#e8eaed] normal-case shadow-[0_16px_40px_rgba(0,0,0,0.45)] tracking-normal [color-scheme:light] [scrollbar-color:#5f6368_transparent] [scrollbar-width:thin]"
+          className="absolute top-full left-0 z-50 mt-1.5 box-border max-h-[min(20rem,calc(100svh-1rem))] w-[min(17.5rem,calc(100vw-1rem))] max-w-[17.5rem] overflow-x-hidden overflow-y-auto rounded-xl border border-solid border-[#3f5192] bg-[#081b62] px-2.5 py-2 text-left text-[13px] text-[#f4f4f5] normal-case shadow-lg tracking-normal [color-scheme:dark] [scrollbar-color:#3f5192_transparent] [scrollbar-width:thin]"
         >
-          <div className="flex min-w-0 items-start gap-1.5">
+          <div className="flex min-w-0 items-start gap-2">
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="flex items-center justify-between gap-1 pb-1">
-                <span aria-live="polite" className="min-w-0 truncate text-xs font-medium text-[#e8eaed]">
+                <span aria-live="polite" className="min-w-0 truncate text-xs font-semibold text-[#f4f4f5]">
                   {months.format(new Date(Date.UTC(view.y, view.m - 1, 1)))}
                 </span>
                 <span className="flex shrink-0 items-center">
@@ -437,7 +450,7 @@ export function DateTimeField({
                 <thead>
                   <tr>
                     {weekdays.map((w, index) => (
-                      <th key={index} scope="col" className="pb-px text-[10px] font-medium text-[#9aa0a6]">
+                      <th key={index} scope="col" className="pb-0.5 text-[10px] font-medium text-[#aab2cf]">
                         {w}
                       </th>
                     ))}
@@ -452,7 +465,7 @@ export function DateTimeField({
                         const past = !!today && before(cell, today);
                         const chosen = sameDay(cell, day);
                         return (
-                          <td key={j} className="p-px">
+                          <td key={j} className="p-0">
                             <button
                               type="button"
                               data-day={dayKey(cell)}
@@ -470,9 +483,9 @@ export function DateTimeField({
                                 if (next.h !== time.h || next.min !== time.min) timeChosen.current = true;
                                 commit(cell, next);
                               }}
-                              className={`mx-auto grid h-6 w-6 max-w-full cursor-pointer place-items-center rounded border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#5f6368] ${
-                                chosen ? "bg-[#a8c7fa] font-semibold text-[#202124]" : "bg-transparent text-[#e8eaed] hover:bg-[#3c4043]"
-                              } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-[#8ab4f8]" : ""}`}
+                              className={`mx-auto grid size-6 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#616fa7] ${
+                                chosen ? "bg-[#f4f4f5] font-semibold text-[#081b62]" : "bg-transparent text-[#f4f4f5] hover:bg-white/10"
+                              } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-[#d4d4d8]" : ""}`}
                             >
                               {n}
                             </button>
@@ -484,7 +497,7 @@ export function DateTimeField({
                 </tbody>
               </table>
             </div>
-            <div className="grid h-[156px] w-[5rem] shrink-0 grid-cols-3 gap-px overflow-hidden border-0 border-l border-solid border-[#3c4043] pl-1.5">
+            <div className="grid h-[8.75rem] w-[4.6rem] shrink-0 grid-cols-3 gap-px overflow-hidden border-0 border-l border-solid border-[#3f5192] pl-1.5">
               <div role="listbox" aria-label={copy.hour} className={column}>
                 {Array.from({ length: 12 }, (_, i) => {
                   const h12 = i + 1;
@@ -536,7 +549,7 @@ export function DateTimeField({
               </div>
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between border-0 border-t border-solid border-[#3c4043] pt-1.5">
+          <div className="mt-1.5 flex items-center justify-between border-0 border-t border-solid border-[#3f5192] pt-1.5">
             <button
               type="button"
               onClick={() => {
@@ -544,18 +557,18 @@ export function DateTimeField({
                 commit(null, nowInNetherlands().time);
                 setActive(today);
               }}
-              className="cursor-pointer border-0 bg-transparent px-1 py-1 text-xs font-medium text-[#8ab4f8] hover:underline"
+              className="cursor-pointer border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium text-[#aab2cf] hover:text-[#f4f4f5]"
             >
               {copy.clear}
             </button>
-            <button type="button" onClick={applyToday} className="cursor-pointer border-0 bg-transparent px-1 py-1 text-xs font-medium text-[#8ab4f8] hover:underline">
+            <button type="button" onClick={applyToday} className="cursor-pointer border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium text-[#aab2cf] hover:text-[#f4f4f5]">
               {copy.today}
             </button>
           </div>
           <button
             type="button"
             onClick={() => closePicker(true)}
-            className="mt-1.5 h-8 w-full cursor-pointer rounded-md border-0 bg-[#a8c7fa] text-xs font-semibold text-[#202124] hover:bg-[#8ab4f8]"
+            className="mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-[#f4f4f5] text-[13px] font-semibold text-[#081b62] hover:bg-white"
           >
             {copy.done}
           </button>

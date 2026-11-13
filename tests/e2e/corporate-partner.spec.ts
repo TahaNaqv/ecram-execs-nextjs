@@ -91,6 +91,9 @@ test("the sign-up request step validates its fields", async ({ page }) => {
   await expect(page.locator("#c-position-error")).toHaveText(t.positionRequired);
   await expect(page.locator("#c-signatory-error")).toHaveText(t.signatoryRequired);
   await expect(page.locator("#c-pointOfCall-error")).toHaveText(t.pointOfCallRequired);
+  await expect(page.locator("#c-billingStreet-error")).toHaveText(t.billingStreetRequired);
+  await expect(page.locator("#c-billingPostcode-error")).toHaveText(t.billingPostcodeRequired);
+  await expect(page.locator("#c-billingCity-error")).toHaveText(t.billingCityRequired);
 });
 
 test("signing in says the same thing for every failure, and a paused account stays shut until the password is reset", async ({ page, context }) => {
