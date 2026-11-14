@@ -66,7 +66,7 @@ export function PriceBreakdown({
   const row = (key: string, label: ReactNode, value: ReactNode, strong = false, divider = false) => (
     <div
       key={key}
-      className={`flex justify-between gap-4 py-2 text-[14px] ${strong ? "border-0 border-t border-solid border-ink-150 pt-3 text-[16px] font-semibold" : divider ? "mt-1 border-0 border-t border-solid border-ink-150 pt-3" : ""}`}
+      className={`flex justify-between gap-4 py-1 text-[14px] ${strong ? "border-0 border-t border-solid border-ink-150 pt-2 text-[16px] font-semibold" : divider ? "mt-1 border-0 border-t border-solid border-ink-150 pt-2" : ""}`}
     >
       <dt className={`min-w-0 ${strong ? "" : "text-ink-600"}`}>{label}</dt>
       <dd className="m-0 shrink-0 text-right tabular-nums">{value}</dd>
