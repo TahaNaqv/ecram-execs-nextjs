@@ -47,7 +47,9 @@ export async function listRequests({ status, search, page = 1, queue }: ListFilt
       .select()
       .from(q)
       .where(filter)
-      .orderBy(desc(q.createdAt))
+      // In ride order, the latest ride first (the client, 15 Nov 2026: the list read as out of order when it was sorted by
+      // when each booking came in). A request with no date yet (a bespoke programme) comes last, newest first.
+      .orderBy(sql`${q.pickupAt} desc nulls last`, desc(q.createdAt))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(q).where(filter),
