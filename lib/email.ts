@@ -14,6 +14,7 @@ import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 import { bookingTotalEuros, formatCents, formatCurrency, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
 import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
+import { mollieConfigured } from "@/lib/mollie/config";
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -353,6 +354,58 @@ export async function notifyTeamGuestMessage({ request: q, body }: { request: Qu
   });
 }
 
+/** Tells the team a booking was paid online (Mollie). */
+export async function notifyTeamPaid(q: QuoteRequest, cents: number, method: string | null) {
+  const site = process.env.SITE_URL ?? "";
+  const rows: [string, string | number | null][] = [
+    ["Reference", q.reference],
+    ["Customer", q.name],
+    ["Amount", formatCurrency(cents / 100)],
+    ["Method", method],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+  ];
+  await send("quote", q.reference, "team alert (paid)", {
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
+    subject: `[Paid] ${q.reference} — ${formatCurrency(cents / 100)} — ${q.name}`,
+    html: teamAlert(`Paid online: <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`),
+  });
+}
+
+/** Tells the team the customer's bank took an online payment back (a chargeback): the booking is no longer paid. */
+export async function notifyTeamChargeback(q: QuoteRequest, cents: number) {
+  const site = process.env.SITE_URL ?? "";
+  const rows: [string, string | number | null][] = [
+    ["Reference", q.reference],
+    ["Customer", q.name],
+    ["Charged back", formatCurrency(cents / 100)],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+  ];
+  await send("quote", q.reference, "team alert (chargeback)", {
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
+    subject: `[Chargeback] ${q.reference} — ${formatCurrency(cents / 100)} — ${q.name}`,
+    html: teamAlert(`Charged back: <strong>${esc(q.reference)}</strong>`, rows, site && `${site}/admin/requests/${q.id}`),
+  });
+}
+
+/** Thanks the customer for their online payment, with the amount and a link to their booking. Mollie sends no receipt of its own. */
+export async function emailPaymentReceived(q: QuoteRequest, cents: number) {
+  if (!q.email) return false;
+  const { email: t } = await getDictionary(q.locale);
+  const values = { reference: q.reference, amount: formatCurrency(cents / 100) };
+  const link = customerLink(q);
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
+      <p>${esc(interpolate(t.paymentReceivedIntro, values))}</p>
+      ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("quote", q.reference, "payment received", { from: mailFrom(), to: [q.email], subject: interpolate(t.paymentReceivedSubject, values), html });
+}
+
 export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
 
 const euro = (amount: string | null, locale: QuoteRequest["locale"]) => {
@@ -383,7 +436,7 @@ export async function emailPartnerBooking({
   const copy: Record<PartnerEmailKind, [string, string]> = {
     contacted: [t.bookingSubjectContacted, message ? t.bookingIntroContacted : t.bookingIntroContactedPlain],
     quoted: [t.bookingSubjectQuoted, t.bookingIntroQuoted],
-    confirmed: [t.bookingSubjectConfirmed, t.bookingIntroConfirmed],
+    confirmed: [t.bookingSubjectConfirmed, mollieConfigured() ? t.bookingIntroConfirmedPay : t.bookingIntroConfirmed],
     completed: [t.bookingSubjectCompleted, t.bookingIntroCompleted],
     cancelled: [t.bookingSubjectCancelled, t.bookingIntroCancelled],
     reply: [t.bookingSubjectReply, t.bookingIntroReply],
@@ -421,7 +474,8 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
     // Set from the status menu there is no message to quote: then the plain intro
     contacted: [t.bookingSubjectContacted, message ? t.enquiryIntroContacted : t.enquiryIntroContactedPlain],
     quoted: [t.bookingSubjectQuoted, t.enquiryIntroQuoted],
-    confirmed: [t.bookingSubjectConfirmed, t.enquiryIntroConfirmed],
+    // With online payment on, the approval says where to pay (the booking's page, linked below)
+    confirmed: [t.bookingSubjectConfirmed, mollieConfigured() ? t.enquiryIntroConfirmedPay : t.enquiryIntroConfirmed],
     completed: [t.bookingSubjectCompleted, t.enquiryIntroCompleted],
     cancelled: [t.bookingSubjectCancelled, t.enquiryIntroCancelled],
     reply: [t.bookingSubjectReply, t.enquiryIntroReply],

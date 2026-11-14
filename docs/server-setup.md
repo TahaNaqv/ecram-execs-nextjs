@@ -291,6 +291,27 @@ back from Moneybird:
 (sudo crontab -u ecram -l 2>/dev/null; echo '*/10 * * * * cd /srv/ecram-execs && curl -fsS -X POST -H "Authorization: Bearer $(grep ^CRON_SECRET= .env | cut -d= -f2-)" http://127.0.0.1:3000/api/cron/moneybird >> /home/ecram/moneybird.log 2>&1') | sudo crontab -u ecram -
 ```
 
+### Mollie: paying online after approval
+
+Once a booking is approved, the customer (guest or partner) pays on its booking page through Mollie's payment page; the
+payment is recorded on the booking's Moneybird invoice, and the team can refund a cancelled booking from its page
+(`lib/mollie`). Off until `.env` has:
+
+```bash
+MOLLIE_API_KEY=live_…             # Mollie dashboard → Developers → API keys. A test_ key is refused on the live site.
+# MOLLIE_MONEYBIRD_RECORD=off     # only if the accountant connects Mollie in Moneybird (Moneybird then matches payments itself)
+```
+
+`SITE_URL` must be the site's https address (Mollie sends the customer back there, and calls `/api/mollie/webhook`).
+Payments are recorded in Moneybird as "payment without proof": check with the accountant that this suits the books.
+
+Every ten minutes a sweep follows payments still under way (a bank transfer takes days), records paid ones in Moneybird
+and follows refunds:
+
+```bash
+(sudo crontab -u ecram -l 2>/dev/null; echo '*/10 * * * * cd /srv/ecram-execs && curl -fsS -X POST -H "Authorization: Bearer $(grep ^CRON_SECRET= .env | cut -d= -f2-)" http://127.0.0.1:3000/api/cron/payments >> /home/ecram/payments.log 2>&1') | sudo crontab -u ecram -
+```
+
 Nginx logs requests without query strings (`/var/log/nginx/ecram.access.log`), so the signed tokens in document links
 never land in a log. Backups keep a deleted document for up to 14 days; that is the retention to state in your privacy policy.
 

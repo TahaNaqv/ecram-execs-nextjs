@@ -104,7 +104,11 @@
     "fieldStops": "Tussenstops",
     "stopLabel": "Tussenstop {number}",
     "stopWait": "{minutes} minuten",
-    "fieldPassengers": "Passagiers"
+    "fieldPassengers": "Passagiers",
+    "enquiryIntroConfirmedPay": "Uw boeking {reference} is goedgekeurd en klaar voor betaling. U kunt {amount} veilig betalen op uw boekingspagina; de boeking staat hieronder.",
+    "bookingIntroConfirmedPay": "Uw boeking {reference} is bevestigd. U kunt {amount} veilig betalen op uw boekingspagina.",
+    "paymentReceivedSubject": "Betaling ontvangen voor uw boeking {reference}",
+    "paymentReceivedIntro": "Dank u wel: wij hebben uw betaling van {amount} voor boeking {reference} ontvangen."
   },
   "criteria": {
     "or": "of",
@@ -1179,7 +1183,10 @@
       "carsChanged": "Auto's: {from} → {to}",
       "carClash": "Partner heeft geaccepteerd, maar de auto is al geboekt op {reference}. Geef deze boeking een andere auto.",
       "mbInvoice": "Factuur {number} verstuurd vanuit Moneybird",
-      "mbCredit": "Creditfactuur {number} verstuurd vanuit Moneybird"
+      "mbCredit": "Creditfactuur {number} verstuurd vanuit Moneybird",
+      "paid": "Online betaald: {amount} ({method})",
+      "refunded": "Terugbetaling via Mollie gestart: {amount}",
+      "chargedBack": "Teruggeboekt door de bank van de klant: {amount}"
     },
     "corporate": {
       "title": "Zakelijke contacten",
@@ -1773,7 +1780,58 @@
       },
       "notAutomatic": "Goedgekeurd voordat Moneybird gekoppeld was, dus niet vanzelf gefactureerd. Maak de factuur hier als die via Moneybird moet.",
       "makeInvoice": "Factuur maken in Moneybird",
-      "feeTooHigh": "De kosten moeten lager zijn dan het totaal van de factuur. Wilt u alles inhouden, laat de factuur dan staan."
+      "feeTooHigh": "De kosten moeten lager zijn dan het totaal van de factuur. Wilt u alles inhouden, laat de factuur dan staan.",
+      "paymentNotRecorded": "Een online betaling staat nog niet in Moneybird. Probeer het over een minuut opnieuw.",
+      "refundOwedMollie": "{amount} moet aan de klant worden terugbetaald: doe dat in het betaalblok hieronder (betaald met kaart of iDEAL), of zelf."
+    },
+    "payments": {
+      "title": "Betaling (Mollie)",
+      "description": "De klant betaalt online op de boekingspagina zodra de boeking is goedgekeurd.",
+      "descriptionTest": "Testmodus: betalingen gebruiken geen echt geld.",
+      "notConnected": "Mollie is niet gekoppeld. Eerdere betalingen staan hier.",
+      "none": "Nog niet betaald. De klant betaalt op de boekingspagina.",
+      "testMode": "test",
+      "paidAt": "Betaald",
+      "startedAt": "Gestart",
+      "refunded": "Terugbetaald",
+      "chargedBack": "Teruggeboekt",
+      "notRecorded": "Nog niet in Moneybird geboekt; dat gebeurt vanzelf.",
+      "refundLine": "Terugbetaling {amount}: {status}",
+      "openInMollie": "Openen in Mollie",
+      "check": "Opnieuw controleren",
+      "checking": "Bezig…",
+      "refundLabel": "Terug te betalen bedrag (€, maximaal {max})",
+      "refundButton": "Terugbetalen via Mollie",
+      "refunding": "Bezig met terugbetalen…",
+      "refundStarted": "Terugbetaling gestart. Mollie voert die uit; de status volgt hier.",
+      "refundInvalid": "Vul een bedrag in euro's in, bijvoorbeeld 50,00.",
+      "refundTooMuch": "Dat is meer dan er nog terug te betalen is.",
+      "refundNotCancelled": "Alleen de betaling van een geannuleerde boeking kan hier worden terugbetaald.",
+      "refundMollie": "Mollie weigerde de terugbetaling",
+      "busy": "Bezig met deze betaling. Probeer het over een minuut opnieuw.",
+      "failed": "Dat is niet gelukt. Probeer het opnieuw.",
+      "paidAfterCancel": "Online betaald en de boeking is geannuleerd. Crediteer de factuur hierboven en betaal de klant hier terug.",
+      "deleteBlocked": "Deze boeking kan niet worden verwijderd zolang online betaald geld niet is terugbetaald.",
+      "states": {
+        "creating": "Wordt gestart",
+        "open": "Open",
+        "pending": "In behandeling",
+        "authorized": "Geautoriseerd",
+        "paid": "Betaald",
+        "canceled": "Geannuleerd",
+        "expired": "Verlopen",
+        "failed": "Mislukt"
+      },
+      "refundStates": {
+        "creating": "wordt gestart",
+        "queued": "in de wachtrij",
+        "pending": "in behandeling",
+        "processing": "wordt verwerkt",
+        "refunded": "terugbetaald",
+        "failed": "mislukt",
+        "canceled": "geannuleerd"
+      },
+      "paidAfterCancelNoInvoice": "Online betaald en de boeking is geannuleerd: betaal de klant hier terug."
     }
   },
   "bespokeSection": {
@@ -2484,6 +2542,15 @@
     "invoiceSent": "Factuur {number} is naar u gemaild.",
     "invoicePay": "Factuur bekijken en betalen",
     "invoiceView": "Factuur bekijken",
-    "invoiceReady": "Uw factuurnummer is {number}."
+    "invoiceReady": "Uw factuurnummer is {number}.",
+    "payNow": "Betaal nu {amount}",
+    "payOpening": "De betaalpagina wordt geopend…",
+    "payInProgress": "Uw betaling wordt verwerkt. Deze pagina werkt zichzelf bij.",
+    "payNotCompleted": "De betaling is niet gelukt. U kunt het opnieuw proberen.",
+    "paidOn": "Betaald op {date}. Dank u wel.",
+    "paidThanks": "Betaald. Dank u wel.",
+    "payNothingDue": "Er staat niets meer open.",
+    "payFailed": "De betaalpagina kon niet worden geopend. Probeer het zo opnieuw.",
+    "payTooMany": "Te veel pogingen. Wacht een paar minuten en probeer het opnieuw."
   }
 }

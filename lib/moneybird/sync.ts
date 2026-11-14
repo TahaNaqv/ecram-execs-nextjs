@@ -18,6 +18,7 @@ import {
   splitName,
 } from "./invoice";
 import { INVOICE_WORDS } from "./words";
+import { hasOnlinePayment, hasUnrecordedPayment, recordingOn } from "./recording";
 
 /**
  * Keeps a booking's Moneybird invoice in step with the booking (the client's choice, 13 Nov 2026):
@@ -120,7 +121,7 @@ export async function invoiceEligible(requestId: string): Promise<boolean> {
 }
 
 /** Takes the row's lease (free, or left by a run that stopped): the row as it now is, or null when someone holds it. */
-async function lease(id: string): Promise<Row | null> {
+export async function lease(id: string): Promise<Row | null> {
   const [row] = await db
     .update(t)
     .set({ claimedAt: new Date() })
@@ -130,9 +131,9 @@ async function lease(id: string): Promise<Row | null> {
 }
 
 const save = (id: string, patch: Partial<Row>) => db.update(t).set({ ...patch, updatedAt: new Date() }).where(eq(t.id, id));
-const release = (id: string, patch: Partial<Row> = {}) => save(id, { ...patch, claimedAt: null });
+export const release = (id: string, patch: Partial<Row> = {}) => save(id, { ...patch, claimedAt: null });
 
-function fromInvoice(inv: MoneybirdSalesInvoice): Partial<Row> {
+export function fromInvoice(inv: MoneybirdSalesInvoice): Partial<Row> {
   const state = String(inv.state);
   return {
     moneybirdId: String(inv.id),
@@ -168,7 +169,7 @@ async function bookingStatus(requestId: string): Promise<string | null> {
 
 const invoiceable = (status: string | null) => status === "confirmed" || status === "completed";
 
-async function liveInvoice(requestId: string): Promise<Row | null> {
+export async function liveInvoice(requestId: string): Promise<Row | null> {
   const [row] = await db
     .select()
     .from(t)
@@ -271,7 +272,7 @@ async function findByReference(reference: string): Promise<MoneybirdSalesInvoice
   }
 }
 
-async function getInvoice(id: string): Promise<MoneybirdSalesInvoice | null> {
+export async function getInvoice(id: string): Promise<MoneybirdSalesInvoice | null> {
   try {
     return await moneybird<MoneybirdSalesInvoice>("GET", `sales_invoices/${id}.json`);
   } catch (err) {
@@ -509,6 +510,11 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
   if ((await bookingStatus(requestId)) !== "cancelled") return { status: "failed", error: "not_cancelled" };
   const live = await liveInvoice(requestId);
   if (!live || !isSent(live) || !live.moneybirdId) return { status: "failed", error: "nothing_to_credit" };
+  // A payment taken online but not yet recorded on the invoice: record it first (lib/mollie), or the credit would
+  // settle an invoice the customer had already paid
+  if (recordingOn() && (await hasUnrecordedPayment(requestId))) return { status: "failed", error: "payment_not_recorded" };
+  // Not recorded by this site at all (Moneybird matches Mollie itself): never settle against an invoice paid online
+  const paidOnlineElsewhere = !recordingOn() && (await hasOnlinePayment(requestId));
   const total = live.totalCents ?? 0;
   const fee = Math.max(0, Math.round(feeCents));
   if (!(await lease(live.id))) return { status: "busy" };
@@ -602,7 +608,7 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
     // Settle an unpaid invoice with its credit so the reminders stop (what stays open is the fee). Safe to repeat:
     // once settled, the credit has nothing left open.
     let original = await getInvoice(originalId);
-    if (cr && original && original.state !== "paid" && centsFromMoney(original.total_unpaid) > 0 && centsFromMoney(cr.total_unpaid) !== 0) {
+    if (cr && original && !paidOnlineElsewhere && original.state !== "paid" && centsFromMoney(original.total_unpaid) > 0 && centsFromMoney(cr.total_unpaid) !== 0) {
       cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}/register_payment_creditinvoice.json`, {});
       original = (await getInvoice(originalId)) ?? original;
     }

@@ -104,7 +104,11 @@
     "fieldStops": "Stops",
     "stopLabel": "Stop {number}",
     "stopWait": "{minutes} min",
-    "fieldPassengers": "Passengers"
+    "fieldPassengers": "Passengers",
+    "enquiryIntroConfirmedPay": "Your booking {reference} is approved and ready for payment. You can pay {amount} securely on your booking page; the booking is below.",
+    "bookingIntroConfirmedPay": "Your booking {reference} is confirmed. You can pay {amount} securely on your booking page.",
+    "paymentReceivedSubject": "Payment received for your booking {reference}",
+    "paymentReceivedIntro": "Thank you: we have received your payment of {amount} for booking {reference}."
   },
   "criteria": {
     "or": "or",
@@ -1179,7 +1183,10 @@
       "carsChanged": "Cars: {from} → {to}",
       "carClash": "Partner accepted, but the car is already booked on {reference}. Give this booking another car.",
       "mbInvoice": "Invoice {number} sent from Moneybird",
-      "mbCredit": "Credit invoice {number} sent from Moneybird"
+      "mbCredit": "Credit invoice {number} sent from Moneybird",
+      "paid": "Paid online: {amount} ({method})",
+      "refunded": "Refund via Mollie started: {amount}",
+      "chargedBack": "Charged back by the customer's bank: {amount}"
     },
     "corporate": {
       "title": "Corporate contacts",
@@ -1772,7 +1779,58 @@
       },
       "notAutomatic": "Approved before Moneybird was connected, so it is not invoiced by itself. Make the invoice here if it should go through Moneybird.",
       "makeInvoice": "Make the invoice in Moneybird",
-      "feeTooHigh": "The fee must be less than the invoice's total. To keep everything, leave the invoice as it is."
+      "feeTooHigh": "The fee must be less than the invoice's total. To keep everything, leave the invoice as it is.",
+      "paymentNotRecorded": "A payment made online is not yet recorded in Moneybird. Try again in a minute.",
+      "refundOwedMollie": "{amount} is owed back to the customer: refund it in the Payment card below (paid by card or iDEAL), or by hand."
+    },
+    "payments": {
+      "title": "Payment (Mollie)",
+      "description": "The customer pays online on their booking page once it is approved.",
+      "descriptionTest": "Test mode: payments use no real money.",
+      "notConnected": "Mollie is not connected. Earlier payments are shown here.",
+      "none": "Not paid yet. The customer pays on their booking page.",
+      "testMode": "test",
+      "paidAt": "Paid",
+      "startedAt": "Started",
+      "refunded": "Refunded",
+      "chargedBack": "Charged back",
+      "notRecorded": "Not yet recorded in Moneybird; this happens by itself.",
+      "refundLine": "Refund {amount}: {status}",
+      "openInMollie": "Open in Mollie",
+      "check": "Check again",
+      "checking": "Checking…",
+      "refundLabel": "Amount to refund (€, at most {max})",
+      "refundButton": "Refund via Mollie",
+      "refunding": "Refunding…",
+      "refundStarted": "Refund started. Mollie carries it out; its status follows here.",
+      "refundInvalid": "Enter an amount in euros, for example 50,00.",
+      "refundTooMuch": "That is more than is left to refund.",
+      "refundNotCancelled": "Only the payment of a cancelled booking can be refunded here.",
+      "refundMollie": "Mollie refused the refund",
+      "busy": "Busy with this payment. Try again in a minute.",
+      "failed": "That did not work. Please try again.",
+      "paidAfterCancel": "Paid online, and the booking is cancelled. Credit its invoice above, then refund the customer here.",
+      "deleteBlocked": "This booking cannot be deleted while money paid online has not been refunded.",
+      "states": {
+        "creating": "Starting",
+        "open": "Open",
+        "pending": "Pending",
+        "authorized": "Authorised",
+        "paid": "Paid",
+        "canceled": "Cancelled",
+        "expired": "Expired",
+        "failed": "Failed"
+      },
+      "refundStates": {
+        "creating": "starting",
+        "queued": "queued",
+        "pending": "pending",
+        "processing": "processing",
+        "refunded": "refunded",
+        "failed": "failed",
+        "canceled": "cancelled"
+      },
+      "paidAfterCancelNoInvoice": "Paid online, and the booking is cancelled: refund the customer here."
     }
   },
   "bespokeSection": {
@@ -2483,6 +2541,15 @@
     "invoiceSent": "Invoice {number} has been emailed to you.",
     "invoicePay": "View and pay invoice",
     "invoiceView": "View invoice",
-    "invoiceReady": "Your invoice is {number}."
+    "invoiceReady": "Your invoice is {number}.",
+    "payNow": "Pay {amount} now",
+    "payOpening": "Opening the payment page…",
+    "payInProgress": "Your payment is being processed. This page updates by itself.",
+    "payNotCompleted": "The payment did not go through. You can try again.",
+    "paidOn": "Paid on {date}. Thank you.",
+    "paidThanks": "Paid. Thank you.",
+    "payNothingDue": "There is nothing left to pay.",
+    "payFailed": "The payment page could not be opened. Please try again in a moment.",
+    "payTooMany": "Too many attempts. Please wait a few minutes and try again."
   }
 }

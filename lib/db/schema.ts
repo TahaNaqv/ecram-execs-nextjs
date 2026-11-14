@@ -270,6 +270,78 @@ export const moneybirdInvoices = pgTable(
   ],
 );
 
+/**
+ * Online payments through Mollie (lib/mollie): one row per Mollie payment we started for a booking. Our row is made first
+ * and its id is Mollie's Idempotency-Key, so a retry never opens a second payment. `request_id` is set null when the
+ * booking is deleted; the record of money taken stays. `mode` is the key's (test or live): rows of the other mode are
+ * never counted or swept. One payment at a time per booking (the partial unique index): a customer cannot open two.
+ */
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id").references(() => quoteRequests.id, { onDelete: "set null" }),
+    reference: text("reference").notNull(),
+    mollieId: text("mollie_id"),
+    mode: text("mode", { enum: ["test", "live"] }).notNull(),
+    /** Ours while the payment is being made ("creating"), then Mollie's: open, pending, authorized, paid, canceled, expired, failed. */
+    status: text("status").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    refundedCents: integer("refunded_cents").notNull().default(0),
+    chargedBackCents: integer("charged_back_cents").notNull().default(0),
+    method: text("method"),
+    checkoutUrl: text("checkout_url"),
+    dashboardUrl: text("dashboard_url"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** When the payment was recorded on the booking's Moneybird invoice (never twice). */
+    moneybirdRegisteredAt: timestamp("moneybird_registered_at", { withTimezone: true }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("payments_request_idx").on(t.requestId, t.createdAt),
+    uniqueIndex("payments_mollie_key").on(t.mollieId),
+    uniqueIndex("payments_one_open").on(t.requestId, t.mode).where(sql`${t.status} in ('creating', 'open', 'pending', 'authorized')`),
+    index("payments_status_idx").on(t.status),
+    check("payments_mode", sql`${t.mode} in ('test', 'live')`),
+    check("payments_amount_positive", sql`${t.amountCents} > 0`),
+  ],
+);
+
+/** Refunds of a Mollie payment, made by the team from the booking page. Mollie works them out over time (queued → refunded). */
+export const refunds = pgTable(
+  "refunds",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paymentId: uuid("payment_id")
+      .notNull()
+      .references(() => payments.id, { onDelete: "cascade" }),
+    mollieRefundId: text("mollie_refund_id"),
+    amountCents: integer("amount_cents").notNull(),
+    /** Ours while it is being made ("creating"), then Mollie's: queued, pending, processing, refunded, failed, canceled. */
+    status: text("status").notNull(),
+    moneybirdRegisteredAt: timestamp("moneybird_registered_at", { withTimezone: true }),
+    adminId: uuid("admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("refunds_payment_idx").on(t.paymentId),
+    uniqueIndex("refunds_mollie_key").on(t.mollieRefundId),
+    index("refunds_admin_idx").on(t.adminId),
+    check("refunds_amount_positive", sql`${t.amountCents} > 0`),
+  ],
+);
+
 export const adminUsers = pgTable("admin_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
@@ -545,6 +617,8 @@ export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;
 export type BookingMessage = typeof bookingMessages.$inferSelect;
 export type MoneybirdInvoice = typeof moneybirdInvoices.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type Refund = typeof refunds.$inferSelect;
 export type BookingInvoice = typeof bookingInvoices.$inferSelect;
 export type ConciergeConversation = typeof conciergeConversations.$inferSelect;
 export type ConciergeMessage = typeof conciergeMessages.$inferSelect;

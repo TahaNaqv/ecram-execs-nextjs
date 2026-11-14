@@ -6,6 +6,7 @@ import { formatEuro } from "@/lib/admin/format";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { moneybirdConfigured, moneybirdInvoiceLink } from "@/lib/moneybird/config";
+import { mollieConfigured } from "@/lib/mollie/config";
 import { invoiceCents } from "@/lib/moneybird/invoice";
 import { billingComplete, invoiceEligible, invoicesFor, isSent } from "@/lib/moneybird/sync";
 import { AlertIcon, EuroIcon } from "../../../_components/icons";
@@ -158,7 +159,11 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
                 {interpolate(t.creditAmount, { amount: euros(row.totalCents == null ? null : -row.totalCents) })}
                 {row.feeCents ? ` · ${interpolate(t.feeKept, { amount: euros(row.feeCents) })}` : ""}
               </p>
-              {paidBack > 0 && <p className="m-0 text-[13px] font-medium text-amber-800">{interpolate(t.refundOwed, { amount: euros(paidBack) })}</p>}
+              {paidBack > 0 && (
+                <p className="m-0 text-[13px] font-medium text-amber-800">
+                  {interpolate(mollieConfigured() ? t.refundOwedMollie : t.refundOwed, { amount: euros(paidBack) })}
+                </p>
+              )}
               {row.lastError && <p className="m-0 text-[13px] text-red-700">{interpolate(t.error, { detail: row.lastError.replace(/^rejected:\s*/, "") })}</p>}
               {links(row)}
             </div>

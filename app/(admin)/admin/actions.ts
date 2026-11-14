@@ -18,6 +18,7 @@ import type { RequestEventChange } from "@/lib/admin/events";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
 import { syncAfter } from "@/lib/moneybird/after";
 import { invoiceBlocksDelete, invoiceBlocksStatus } from "@/lib/moneybird/sync";
+import { paymentBlocksDelete } from "@/lib/mollie/pay";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -202,7 +203,7 @@ export async function deleteRequest(formData: FormData) {
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) return;
   // An invoice that is out and unpaid has to be credited first (the admin page hides the button then too)
-  if (await invoiceBlocksDelete(id.data)) redirect(`/admin/requests/${id.data}`);
+  if ((await invoiceBlocksDelete(id.data)) || (await paymentBlocksDelete(id.data))) redirect(`/admin/requests/${id.data}`);
   // The invoice rows go with the request (cascade); the files on disk are removed here, like an application's documents
   const invoices = await db.select({ path: schema.bookingInvoices.path }).from(schema.bookingInvoices).where(eq(schema.bookingInvoices.requestId, id.data));
   const [deleted] = await db

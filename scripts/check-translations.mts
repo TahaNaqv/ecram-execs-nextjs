@@ -22,6 +22,9 @@ const ALLOW_IDENTICAL = new Set([
   "admin.moneybird.states.open",
   "portal.invoiceStates.open",
   "portal.billing.postcode",
+  // Mollie: "Open" is Dutch too, and "test" is Mollie's own word for its test mode
+  "admin.payments.states.open",
+  "admin.payments.testMode",
   // Google's own attribution wording, required as they word it
   "booking.poweredByGoogle",
   // The booking's own page: "Route" is the Dutch word too, and the team signs as the brand

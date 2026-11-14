@@ -211,6 +211,13 @@
       "when": 1794600000000,
       "tag": "0029_vehicle_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1794624663019,
+      "tag": "0030_mollie_payments",
+      "breakpoints": true
     }
   ]
 }

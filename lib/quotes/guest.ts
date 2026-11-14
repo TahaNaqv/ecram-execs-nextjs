@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { verifyGuestKey } from "@/lib/quotes/guest-link";
+import { mollieConfig } from "@/lib/mollie/config";
 
 /**
  * A website visitor's view of their own booking, found by its reference and the private key in their link
@@ -77,14 +78,17 @@ export async function guestMessages(requestId: string): Promise<GuestMessage[]> 
 export async function guestState(
   reference: unknown,
   key: unknown,
-): Promise<{ status: string; lastMessageAt: string | null; invoice: string | null } | null> {
+): Promise<{ status: string; lastMessageAt: string | null; invoice: string | null; payment: string | null } | null> {
   const booking = await getGuestBooking(reference, key);
   if (!booking) return null;
   const mb = schema.moneybirdInvoices;
-  const [[last], [invoice]] = await Promise.all([
+  const pay = schema.payments;
+  const [[last], [invoice], [payment]] = await Promise.all([
     db.select({ at: m.createdAt }).from(m).where(eq(m.requestId, booking.id)).orderBy(desc(m.createdAt)).limit(1),
     // The invoice Moneybird sent once the booking was approved: the open page shows it when it arrives
     db.select({ number: mb.number }).from(mb).where(and(eq(mb.requestId, booking.id), isNotNull(mb.number))).orderBy(desc(mb.createdAt)).limit(1),
+    // The latest online payment's status: the open page moves on when it is paid or ends
+    db.select({ status: pay.status }).from(pay).where(and(eq(pay.requestId, booking.id), eq(pay.mode, mollieConfig()?.mode ?? "live"))).orderBy(desc(pay.createdAt)).limit(1),
   ]);
-  return { status: booking.status, lastMessageAt: last?.at.toISOString() ?? null, invoice: invoice?.number ?? null };
+  return { status: booking.status, lastMessageAt: last?.at.toISOString() ?? null, invoice: invoice?.number ?? null, payment: payment?.status ?? null };
 }

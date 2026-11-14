@@ -38,6 +38,8 @@ export type RequestEventParams = {
   clashWith?: string;
   /** `mb_invoice` / `mb_credit`: the Moneybird invoice number. */
   number?: string;
+  /** `paid`: how the customer paid online (Mollie's method: ideal, creditcard, …). */
+  method?: string;
 };
 
 export const REQUEST_EVENTS = [
@@ -53,6 +55,9 @@ export const REQUEST_EVENTS = [
   "car_clash",
   "mb_invoice",
   "mb_credit",
+  "paid",
+  "refunded",
+  "charged_back",
 ] as const;
 export type RequestEventKey = (typeof REQUEST_EVENTS)[number];
 
@@ -93,6 +98,12 @@ export type EventLabels = {
   mbInvoice: string;
   /** Interpolates {number}: the Moneybird credit invoice was sent */
   mbCredit: string;
+  /** Interpolates {amount} and {method}: paid online (Mollie) */
+  paid: string;
+  /** Interpolates {amount}: the team refunded through Mollie */
+  refunded: string;
+  /** Interpolates {amount}: the customer's bank took a payment back */
+  chargedBack: string;
   /** Shown for an absent amount */
   none: string;
   statuses: Record<RequestStatus, string>;
@@ -147,6 +158,9 @@ export function renderEvent(
   if (event === "car_clash") return fill(labels.carClash, { reference: params?.clashWith ?? "" });
   if (event === "mb_invoice") return fill(labels.mbInvoice, { number: params?.number ?? "" });
   if (event === "mb_credit") return fill(labels.mbCredit, { number: params?.number ?? "" });
+  if (event === "paid") return fill(labels.paid, { amount: formatAmount(params?.amount ?? null), method: params?.method ?? "" });
+  if (event === "refunded") return fill(labels.refunded, { amount: formatAmount(params?.amount ?? null) });
+  if (event === "charged_back") return fill(labels.chargedBack, { amount: formatAmount(params?.amount ?? null) });
 
   if (event === "changes") {
     const parts = (Array.isArray(params?.changes) ? params.changes : []).map((change) => {

@@ -10,6 +10,7 @@ import { refreshOnce } from "@/lib/nav/refresh-once";
 import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-actions";
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
+import { PayButton } from "../pay-button";
 
 type Copy = Dictionary["guestBooking"];
 type Message = { id: string; by: "guest" | "team"; body: string; at: string };
@@ -44,6 +45,7 @@ export function GuestBookingView({
   savedReceipt,
   invoice,
   awaitingInvoice,
+  payment,
 }: {
   reference: string;
   linkKey: string;
@@ -64,6 +66,11 @@ export function GuestBookingView({
   invoice: { number: string; href: string | null; pay: boolean; emailed: boolean } | null;
   /** Approved, and Moneybird is making the invoice: the page keeps asking until it is there. */
   awaitingInvoice: boolean;
+  /**
+   * Paying online (Mollie), once approved; null when online payment is off. `due` is what is still to pay (formatted in
+   * `dueLabel`); `state` is the latest payment's: in progress, paid (on `paidOn`), or ended without paying.
+   */
+  payment: { due: number; dueLabel: string; state: "none" | "progress" | "paid" | "failed"; paidOn: string | null } | null;
 }) {
   const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -73,17 +80,21 @@ export function GuestBookingView({
 
   // Asks for the status and the conversation's last change; the page is fetched again only when one of them moved
   useEffect(() => {
-    if (!WAITING.has(status) && !awaitingInvoice) return;
+    const paying = payment?.state === "progress";
+    if (!WAITING.has(status) && !awaitingInvoice && !paying) return;
     let stopped = false;
-    // Waiting for the invoice is short (it is made right after the approval): stop asking after five minutes
-    const until = WAITING.has(status) ? Infinity : Date.now() + 5 * 60_000;
+    // Waiting for the invoice or a payment is short: stop asking after a while (the page shows the answer on a reload)
+    const until = WAITING.has(status) ? Infinity : Date.now() + (paying ? 15 : 5) * 60_000;
     const ask = async () => {
       if (document.visibilityState === "hidden" || Date.now() > until) return;
       try {
         const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
-        const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null };
-        if (now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null)) refreshOnce(router);
+        const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null; payment: string | null };
+        const moved = now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null);
+        if (moved || (paying && now.payment !== null && now.payment !== "open" && now.payment !== "pending" && now.payment !== "authorized" && now.payment !== "creating")) {
+          refreshOnce(router);
+        }
       } catch {}
     };
     const timer = window.setInterval(ask, POLL_MS);
@@ -94,7 +105,7 @@ export function GuestBookingView({
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number]);
+  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment?.state]);
 
   // A new status moves the focus to the new heading, so a screen reader reads the decision out
   const seen = useRef(status);
@@ -111,7 +122,7 @@ export function GuestBookingView({
     confirmed: {
       eyebrow: t.approvedEyebrow,
       heading: t.approvedHeading,
-      note: `${t.approvedNote} ${invoice ? interpolate(invoice.emailed ? t.invoiceSent : t.invoiceReady, { number: invoice.number }) : t.paymentFollows}`,
+      note: `${t.approvedNote} ${invoice ? interpolate(invoice.emailed ? t.invoiceSent : t.invoiceReady, { number: invoice.number }) : payment ? "" : t.paymentFollows}`.trim(),
     },
     completed: { eyebrow: t.completedEyebrow, heading: t.completedHeading, note: "" },
     cancelled: { eyebrow: t.cancelledEyebrow, heading: t.cancelledHeading, note: t.cancelledNote },
@@ -130,14 +141,38 @@ export function GuestBookingView({
             {view.heading}
           </h2>
           {view.note && <p className="m-0 text-[15px] text-ink-700">{view.note}</p>}
+          {payment && (status === "confirmed" || status === "completed") && (
+            <div className="flex flex-col gap-2">
+              {payment.state === "paid" && payment.due === 0 && (
+                <p className="m-0 text-[15px] font-semibold text-ink-950">{payment.paidOn ? interpolate(t.paidOn, { date: payment.paidOn }) : t.paidThanks}</p>
+              )}
+              {payment.state === "progress" && <p className="m-0 text-[15px] text-ink-700">{t.payInProgress}</p>}
+              {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.payNotCompleted}</p>}
+              {payment.due > 0 && payment.state !== "progress" && (
+                <PayButton
+                  who="guest"
+                  reference={reference}
+                  linkKey={linkKey}
+                  locale={locale}
+                  label={interpolate(t.payNow, { amount: payment.dueLabel })}
+                  pendingLabel={t.payOpening}
+                  className="self-start cursor-pointer rounded-full border-none bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70"
+                />
+              )}
+            </div>
+          )}
           {invoice?.href && (status === "confirmed" || status === "completed") && (
             <a
               href={invoice.href}
               target="_blank"
               rel="noreferrer"
-              className="self-start rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800"
+              className={
+                payment
+                  ? "self-start text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4"
+                  : "self-start rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800"
+              }
             >
-              {invoice.pay ? t.invoicePay : t.invoiceView}
+              {invoice.pay && !payment ? t.invoicePay : t.invoiceView}
             </a>
           )}
         </div>

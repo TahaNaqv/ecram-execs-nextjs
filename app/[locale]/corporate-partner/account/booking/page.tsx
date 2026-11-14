@@ -19,12 +19,14 @@ import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extrasLine } from "@/lib/pricing/extras";
 import { DownloadableReceiptCard, RouteMap, type RideReceipt } from "../../../_components/booking/booking-flow";
 import { corporateMetadata, PanelSkeleton } from "../../../_components/corporate-shell";
-import { outlineButton } from "../../../_components/corporate-styles";
+import { outlineButton, submitClass } from "../../../_components/corporate-styles";
 import { MessageForm } from "../../../_components/portal-message-form";
 import { QuoteResponse } from "../../../_components/portal-quote-response";
 import { PortalPage } from "../../../_components/portal-shell";
 import { PortalStatus } from "../../../_components/portal-status";
 import { ReviewRefresh } from "../../../_components/review-refresh";
+import { paymentView } from "@/lib/mollie/pay";
+import { PayButton } from "../../../_components/pay-button";
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -81,7 +83,13 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
       </div>
     );
   }
-  const [timeline, invoices, issued] = await Promise.all([bookingTimeline(booking.id), bookingInvoicesFor(booking.id), customerInvoices(booking.id)]);
+  const [timeline, invoices, issued, payment] = await Promise.all([
+    bookingTimeline(booking.id),
+    bookingInvoicesFor(booking.id),
+    customerInvoices(booking.id),
+    paymentView(booking.id, locale),
+  ]);
+  const g = d.guestBooking;
 
   const eventLabels = { ...p.events, statuses: p.statuses };
   const amount = (value: string | null) => (value === null ? p.events.none : formatPartnerAmount(value, locale));
@@ -169,6 +177,27 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
         </div>
       )}
 
+
+      {/* Approved: paid online through Mollie (the client, 8 Nov 2026) */}
+      {payment && (booking.status === "confirmed" || booking.status === "completed") && (payment.due > 0 || payment.state !== "none") && (
+        <div role="status" className="flex flex-col gap-3 border border-solid border-ink-225 bg-white px-4 py-3.5 text-ink-950">
+          {payment.state === "paid" && payment.due === 0 && (
+            <p className="m-0 text-[15px] font-semibold">{payment.paidOn ? interpolate(g.paidOn, { date: payment.paidOn }) : g.paidThanks}</p>
+          )}
+          {payment.state === "progress" && <p className="m-0 text-[15px]">{g.payInProgress}</p>}
+          {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px]">{g.payNotCompleted}</p>}
+          {payment.due > 0 && payment.state !== "progress" && (
+            <PayButton
+              who="partner"
+              reference={booking.reference}
+              locale={locale}
+              label={interpolate(g.payNow, { amount: payment.dueLabel })}
+              pendingLabel={g.payOpening}
+              className={`${submitClass} max-w-[320px]`}
+            />
+          )}
+        </div>
+      )}
 
       {waiting && (
         <QuoteResponse

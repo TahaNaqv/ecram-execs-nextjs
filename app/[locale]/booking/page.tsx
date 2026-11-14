@@ -13,6 +13,7 @@ import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { getGuestBooking, guestMessages } from "@/lib/quotes/guest";
 import { customerInvoices, payable } from "@/lib/moneybird/customer";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
+import { paymentView } from "@/lib/mollie/pay";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import type { RideReceipt } from "../_components/booking/booking-flow";
@@ -42,7 +43,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       </div>
     );
   }
-  const [messages, invoices] = await Promise.all([guestMessages(booking.id), customerInvoices(booking.id)]);
+  const [messages, invoices, payment] = await Promise.all([guestMessages(booking.id), customerInvoices(booking.id), paymentView(booking.id, locale)]);
   const latest = invoices.find((inv) => inv.kind === "invoice") ?? null;
   const invoice = latest
     ? { number: latest.number, href: payable(latest) ? (latest.paymentUrl ?? latest.url) : latest.url, pay: payable(latest), emailed: latest.delivery !== "Manual" }
@@ -124,6 +125,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       savedReceipt={savedReceipt}
       invoice={invoice}
       awaitingInvoice={booking.status === "confirmed" && !invoice && moneybirdConfigured()}
+      payment={payment}
     />
   );
 }

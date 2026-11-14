@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { creditBooking, syncBooking } from "@/lib/moneybird/sync";
+import { flushPayments } from "@/lib/mollie/pay";
 
 export type MoneybirdState = { ok?: boolean; error?: string };
 
@@ -43,11 +44,13 @@ export async function creditInvoice(_prev: MoneybirdState, formData: FormData): 
     if (!Number.isFinite(euros) || euros <= 0) return { error: t.feeInvalid };
     feeCents = Math.round(euros * 100);
   }
+  // An online payment not yet in the books goes in first, so the credit does not settle an invoice that was paid
+  await flushPayments(input.data.requestId).catch(() => null);
   const result = await creditBooking(input.data.requestId, feeCents, admin.id);
   refresh();
   if (result.status === "busy") return { error: t.busy };
   if (result.status === "failed") {
-    return { error: result.error === "not_cancelled" ? t.notCancelled : result.error === "fee_too_high" ? t.feeTooHigh : t.failed };
+    return { error: result.error === "not_cancelled" ? t.notCancelled : result.error === "fee_too_high" ? t.feeTooHigh : result.error === "payment_not_recorded" ? t.paymentNotRecorded : t.failed };
   }
   return { ok: true };
 }

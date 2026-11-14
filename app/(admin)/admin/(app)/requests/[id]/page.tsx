@@ -35,6 +35,8 @@ import { ReviewCard } from "./review-card";
 import { CarsEditor } from "./cars-editor";
 import { MoneybirdCard } from "./moneybird-card";
 import { invoiceBlocksDelete } from "@/lib/moneybird/sync";
+import { paymentBlocksDelete } from "@/lib/mollie/pay";
+import { PaymentCard } from "./payment-card";
 import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
 import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -108,7 +110,8 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
     events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
   };
   const d = await adminDictionary();
-  const [chatId, deleteBlocked] = await Promise.all([chatForRequest(r.id), invoiceBlocksDelete(r.id)]);
+  const [chatId, invoiceOpen, paidOnline] = await Promise.all([chatForRequest(r.id), invoiceBlocksDelete(r.id), paymentBlocksDelete(r.id)]);
+  const deleteBlocked = invoiceOpen || paidOnline;
   const phone = typeof r.phone === "string" ? r.phone : "";
   const email = typeof r.email === "string" ? r.email : "";
   const guestName = typeof r.name === "string" && r.name.trim() ? r.name : "—";
@@ -291,8 +294,10 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
 
           <MoneybirdCard r={r} />
 
+          <PaymentCard r={r} />
+
           {deleteBlocked ? (
-            <p className="m-0 rounded-xl border border-zinc-200/80 bg-white p-5 text-xs text-zinc-500 shadow-card">{d.admin.moneybird.deleteBlocked}</p>
+            <p className="m-0 rounded-xl border border-zinc-200/80 bg-white p-5 text-xs text-zinc-500 shadow-card">{paidOnline && !invoiceOpen ? d.admin.payments.deleteBlocked : d.admin.moneybird.deleteBlocked}</p>
           ) : (
           <DeleteRecord
             id={r.id}
