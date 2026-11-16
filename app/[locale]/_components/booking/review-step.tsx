@@ -14,6 +14,8 @@ import { guestsText, partyLine } from "./guests-picker";
 import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
 import { formatRouteSpan, spanFromPrice } from "@/lib/pricing/route-span";
 import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
+import { amsterdamDay, balanceDueOn, planFor, upfrontCents } from "@/lib/payments/schedule";
+import { formatCents } from "@/lib/pricing/rates";
 
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -186,7 +188,10 @@ export function ReviewStep({
   vehicles = FLEET,
   onEdit,
   onSend,
+  payOnline = false,
 }: {
+  /** Paid at booking (the client's rules of 15 Nov 2026): the button pays, and the schedule is spelled out */
+  payOnline?: boolean;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   variant: "public" | "portal";
   trip: Trip;
@@ -202,7 +207,8 @@ export function ReviewStep({
   gallery: GalleryCopy;
   vehicles?: readonly OfferedVehicle[];
   onEdit: (step: BookingStep) => void;
-  onSend: (quoted: ReturnType<typeof tripPrice>) => void;
+  /** `shown`: the payment plan and total the customer agreed to on this screen (checked again by the server) */
+  onSend: (quoted: ReturnType<typeof tripPrice>, shown: { plan: string; totalCents: number } | null) => void;
 }) {
   const uid = useId();
   const portal = variant === "portal";
@@ -252,6 +258,14 @@ export function ReviewStep({
   const segment = segmentOf(variant);
   const drive = estimate && estimate !== "pending" ? estimate : null;
   const price = tripPrice(trip, segment, drive?.seconds ?? null, drive?.meters ?? null);
+  // When it is paid (lib/payments/schedule.ts; the server works it out again): the fee now and the rest 30 days before
+  // the ride, or everything now when the ride is within 30 days. Approved by itself 6 months or more ahead.
+  const payPlan = payOnline && price && price.total > 0 ? planFor(trip.at, amsterdamDay()) : null;
+  const upfront = payPlan && price ? upfrontCents(payPlan, price.total, price) : null;
+  const restCents = payPlan && price && upfront != null ? price.total - upfront : 0;
+  const restOn = balanceDueOn(payPlan, trip.at);
+  const longDate = (iso: string) =>
+    new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
   const calculated = drive ?? (estimate === "pending" ? null : spanFromPrice(price));
   if (routed || trip.mode === "hourly" || calculated) {
     const distance =
@@ -396,8 +410,19 @@ export function ReviewStep({
                     {t.termsLink}
                   </a>
                   {t.termsAfter}
+                  {payPlan && payPlan !== "C" ? ` ${t.payConsent}` : ""}
                 </span>
               </label>
+              {payPlan && upfront != null && (
+                <div className="mt-2 flex flex-col gap-1 pl-[26px] text-[12.5px] leading-snug text-ink-700">
+                  <p className="m-0">
+                    {payPlan === "C"
+                      ? interpolate(t.payNowFull, { amount: formatCents(upfront, locale) })
+                      : interpolate(t.payNowFee, { amount: formatCents(upfront, locale), rest: formatCents(restCents, locale), date: restOn ? longDate(restOn) : "" })}
+                  </p>
+                  <p className="m-0">{payPlan === "A" ? t.payAutoApproved : t.payReviewed}</p>
+                </div>
+              )}
               {mustAgree && (
                 <span id={`${uid}-agree-error`} className="mt-1 block pl-[26px] text-[12px] text-error">
                   {t.reviewAgreeRequired}
@@ -426,11 +451,11 @@ export function ReviewStep({
                     document.getElementById(`${uid}-agree`)?.focus();
                     return;
                   }
-                  onSend(price);
+                  onSend(price, payPlan && price ? { plan: payPlan, totalCents: price.total } : null);
                 }}
                 className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
               >
-                {result.pending ? t.sending : t.submit}
+                {result.pending ? t.sending : payPlan && upfront != null ? interpolate(t.submitPay, { amount: formatCents(upfront, locale) }) : t.submit}
                 {!result.pending && <ArrowRight />}
               </button>
             )}

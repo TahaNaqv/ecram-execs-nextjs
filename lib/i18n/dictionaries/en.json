@@ -36,7 +36,7 @@
     "greeting": "Dear {name},",
     "signoff": "Kind regards,",
     "quoteSubject": "Your Ecram Execs request {reference}",
-    "quoteIntro": "Thank you for your booking. Our booking manager checks every booking by hand before payment, usually within the hour. We'll email you when it's approved, or if we'd like to discuss it. You can follow it on your booking's page.",
+    "quoteIntro": "Thank you for your booking. Our booking manager checks every booking by hand, usually within the hour. We'll email you when it's approved, or if we'd like to discuss it. You can follow it on your booking's page.",
     "quoteReply": "If anything changes, simply reply to this email.",
     "quoteReplyPhone": "If anything changes, simply reply to this email or call us on {phone}.",
     "applicationSubject": "Your Ecram Execs driver application {reference}",
@@ -108,7 +108,16 @@
     "enquiryIntroConfirmedPay": "Your booking {reference} is approved and ready for payment. You can pay {amount} securely on your booking page; the booking is below.",
     "bookingIntroConfirmedPay": "Your booking {reference} is confirmed. You can pay {amount} securely on your booking page.",
     "paymentReceivedSubject": "Payment received for your booking {reference}",
-    "paymentReceivedIntro": "Thank you: we have received your payment of {amount} for booking {reference}."
+    "paymentReceivedIntro": "Thank you: we have received your payment of {amount} for booking {reference}.",
+    "balanceNoticeSubject": "Your booking {reference}: card payment on {date}",
+    "balanceNoticeIntro": "A reminder about your booking {reference}: on {date} we will charge the remaining {amount} to the card you paid with at booking{card}.",
+    "balanceFailedSubject": "Your booking {reference}: please pay the balance",
+    "balanceFailedIntro": "We could not charge the remaining {amount} for your booking {reference} to your card. Please pay it on your booking's page.",
+    "cardExpiresSubject": "Your booking {reference}: your card expires before the payment",
+    "cardExpiresIntro": "The card you paid with for your booking {reference} expires before {date}, when the remaining amount is due. If it cannot be charged then, we will email you, and you can pay on your booking's page.",
+    "declinedSubject": "Your booking {reference}",
+    "declinedIntro": "We are sorry: we cannot take your booking {reference}. It has been cancelled.",
+    "declinedIntroRefund": "We are sorry: we cannot take your booking {reference}. It has been cancelled, and the {amount} you paid, service fee included, is being refunded to your card. It can take a few days to show."
   },
   "criteria": {
     "or": "or",
@@ -523,7 +532,7 @@
     "bookChangeHint": "What should I change?",
     "bookPress": "The booking card is below. Press “Send my request” to send it. Tell me here if you would like to change anything.",
     "bookNeed": "I still need a few details before that card can be sent: {fields}.",
-    "bookSent": "Thank you, {name}. Your booking {reference} has been sent. Our booking manager checks every booking by hand before payment, usually within the hour, and you'll receive an email with a link to follow it.",
+    "bookSent": "Thank you, {name}. Your booking {reference} has been sent. Our booking manager checks every booking by hand, usually within the hour. Follow it on its own page (the link below); you'll also receive an email with that link.",
     "bookFollow": "Follow your booking",
     "bookFailed": "I could not send your request. {reason} You can also use the Plan Your Journey bar above, or write to our team on WhatsApp.",
     "carChoose": "Choose this car",
@@ -994,7 +1003,9 @@
       "streamLabel": "Booking Stream:",
       "streamAll": "All Bookings",
       "streamStandard": "Plan Your Journey",
-      "streamCorporate": "Corporate Bookings"
+      "streamCorporate": "Corporate Bookings",
+      "notPaid": "Not paid",
+      "notPaidNote": "To be paid at booking, and nothing has been paid yet"
     },
     "requestDetail": {
       "rateCardTitle": "Rate-card price",
@@ -1186,7 +1197,14 @@
       "mbCredit": "Credit invoice {number} sent from Moneybird",
       "paid": "Paid online: {amount} ({method})",
       "refunded": "Refund via Mollie started: {amount}",
-      "chargedBack": "Charged back by the customer's bank: {amount}"
+      "chargedBack": "Charged back by the customer's bank: {amount}",
+      "balanceCharged": "Balance charged to the saved card: {amount}",
+      "balanceFailed": "Balance charge failed: {amount}",
+      "noticeSent": "Customer told of the card charge on {date}",
+      "cardExpires": "The saved card expires on {date}, before the balance date",
+      "autoApproved": "Approved automatically (booked 6 months or more ahead)",
+      "autoApproveStopped": "Not approved automatically: a car is already booked then ({reference})",
+      "declined": "Declined by the team, {amount} refunded"
     },
     "corporate": {
       "title": "Corporate contacts",
@@ -1373,7 +1391,16 @@
       "carsLocked": "An approved booking keeps its cars: change its car in the card below.",
       "carsFewer": "One fewer {car}",
       "carsMore": "One more {car}",
-      "carsCount": "Number of {car}"
+      "carsCount": "Number of {car}",
+      "payUnpaid": "Not paid yet. The customer pays the amount due at booking by card, on their booking's page.",
+      "payFee": "Service fee paid ({amount}). The remaining {rest} is charged to the saved card on {date}.",
+      "payFull": "Paid in full ({amount}).",
+      "decline": "Decline",
+      "declineRefund": "Decline and refund",
+      "declineConfirm": "Decline this booking? It is cancelled and the customer is emailed.",
+      "declineConfirmRefund": "Decline this booking? It is cancelled, the {amount} paid is refunded in full (the service fee too), the saved card is removed, and the customer is emailed.",
+      "declining": "Declining…",
+      "declined": "Declined. The customer has been emailed."
     },
     "invoices": {
       "title": "Invoices",
@@ -1781,7 +1808,9 @@
       "makeInvoice": "Make the invoice in Moneybird",
       "feeTooHigh": "The fee must be less than the invoice's total. To keep everything, leave the invoice as it is.",
       "paymentNotRecorded": "A payment made online is not yet recorded in Moneybird. Try again in a minute.",
-      "refundOwedMollie": "{amount} is owed back to the customer: refund it in the Payment card below (paid by card or iDEAL), or by hand."
+      "refundOwedMollie": "{amount} is owed back to the customer: refund it in the Payment card below (paid by card or iDEAL), or by hand.",
+      "creditServiceFee": "Keep the service fee ({fee}) and credit the rest",
+      "noFeeLine": "This invoice has no separate service fee line (an agreed price), so the fee cannot be kept on its own. Credit it in full, or keep a cancellation fee instead."
     },
     "payments": {
       "title": "Payment (Mollie)",
@@ -2382,7 +2411,7 @@
     "privacyNote": "No account needed. We use your details only to arrange your booking.",
     "privacyLink": "Privacy policy",
     "submit": "Send for review",
-    "submitNote": "Our booking manager checks every booking by hand before payment, usually within the hour.",
+    "submitNote": "Our booking manager checks every booking by hand, usually within the hour.",
     "sending": "Sending…",
     "summaryLabel": "Your ride",
     "summaryAnyCar": "Car chosen for you",
@@ -2497,14 +2526,20 @@
     "doneMapOpen": "Open in Google Maps",
     "doneMapFrame": "Map of your route",
     "termsLink": "Ecram Execs Terms and Conditions",
-    "termsAfter": "."
+    "termsAfter": ".",
+    "payConsent": "I also agree that the service fee is not refundable, and that the rest of the price is charged to the same card 30 days before the ride.",
+    "payNowFull": "You pay {amount} now, by card.",
+    "payNowFee": "You pay the {amount} service fee now, by card (not refundable). The remaining {rest} is charged to the same card on {date}.",
+    "payAutoApproved": "Booked this far ahead, your booking is confirmed as soon as the service fee is paid.",
+    "payReviewed": "Our booking manager then checks the cars and confirms your booking. If we cannot take it, everything you paid is refunded.",
+    "submitPay": "Book and pay {amount}"
   },
   "guestBooking": {
     "metaTitle": "Your booking",
     "notFound": "This link does not open a booking. Please use the link in your email, or contact us.",
     "reviewEyebrow": "Being reviewed",
     "reviewHeading": "Thank you, {name}. Your booking is being reviewed.",
-    "reviewNote": "Our booking manager checks every booking by hand before payment, usually within the hour.",
+    "reviewNote": "Our booking manager checks every booking by hand, usually within the hour.",
     "reviewKeepOpen": "Please don't close this page: it moves on by itself as soon as there is news. We'll also email you a link back here.",
     "reviewChecking": "Waiting for our booking manager…",
     "discussEyebrow": "In discussion",
@@ -2550,6 +2585,12 @@
     "paidThanks": "Paid. Thank you.",
     "payNothingDue": "There is nothing left to pay.",
     "payFailed": "The payment page could not be opened. Please try again in a moment.",
-    "payTooMany": "Too many attempts. Please wait a few minutes and try again."
+    "payTooMany": "Too many attempts. Please wait a few minutes and try again.",
+    "paySecure": "Pay {amount} to secure your booking",
+    "paySecureNote": "Your booking is held once the payment at booking is in. Pay by card below.",
+    "payConsentRest": "I agree to the Terms and Conditions. The service fee is not refundable, and the remaining {amount} will be charged to this card on {date}.",
+    "payConsentFull": "I agree to the Terms and Conditions. The service fee included in this amount is not refundable.",
+    "payConsentNeeded": "Please tick the box first to agree.",
+    "payRestOn": "Service fee paid. The remaining {amount} will be charged to your card on {date}."
   }
 }

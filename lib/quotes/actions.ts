@@ -13,6 +13,7 @@ import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { createQuoteRequest } from "./create";
+import { consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
 import { guestPath } from "./guest-link";
 
 import { readStops } from "./stops";
@@ -45,6 +46,8 @@ export type QuoteFormState =
       price?: { total: number; exact: boolean } | null;
       /** The booking's private page, where the visitor follows the review (the client, 8 Nov 2026) */
       href?: string;
+      /** Mollie's page for the payment at booking (the client's rules of 15 Nov 2026): the browser goes there first */
+      payUrl?: string;
     };
 
 const FIELDS = [
@@ -120,6 +123,8 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
       ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
       ...stops,
       priceEstimate,
+      // When it is paid: the fee now and the rest 30 days before, or everything now (lib/payments/schedule.ts)
+      ...planForNewBooking(parsed.data.pickupAt, priceEstimate),
       vehicleCount: fleet.vehicleCount,
       vehicles: fleet.vehicles,
       internalNotes: fleet.internalNotes,
@@ -143,18 +148,34 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     pickupAt: request.pickupAt,
     email: request.email,
   });
-  console.info(`[booking] ${request.reference} dispatching team alert and client confirmation`);
+  // The terms tick came with the form (the website's review step; a chat booking has none and pays on its page)
+  const payUrl = await payAtBooking(request, {
+    consent: consentFromForm(formData, request),
+    ipHash,
+    locale: request.locale,
+    who: "guest",
+  });
+
+  // A booking paid at booking is announced once its payment is in (lib/mollie/schedule.ts): an abandoned checkout does
+  // not page the team. Without a plan (online payment off, no price yet), or when no checkout was opened (a chat booking,
+  // which pays on its page; Mollie down), it is announced now, as before, and not again once paid.
+  const announceNow = !request.paymentPlan || !payUrl;
+  if (announceNow && request.paymentPlan) await markAnnounced(request.id);
+  console.info(`[booking] ${request.reference} ${announceNow ? "dispatching team alert and client confirmation" : "waiting for the payment at booking"}`);
   after(async () => {
-    const tasks: Promise<unknown>[] = [
-      notifyNewQuote(request).then(
-        () => console.info(`[booking] ${request.reference} team alert dispatch finished`),
-        (err) => console.error(`[booking] ${request.reference} team alert dispatch failed`, err),
-      ),
-      confirmToClient(request).then(
-        () => console.info(`[booking] ${request.reference} client confirmation dispatch finished`),
-        (err) => console.error(`[booking] ${request.reference} client confirmation dispatch failed`, err),
-      ),
-    ];
+    const tasks: Promise<unknown>[] = [];
+    if (announceNow) {
+      tasks.push(
+        notifyNewQuote(request).then(
+          () => console.info(`[booking] ${request.reference} team alert dispatch finished`),
+          (err) => console.error(`[booking] ${request.reference} team alert dispatch failed`, err),
+        ),
+        confirmToClient(request).then(
+          () => console.info(`[booking] ${request.reference} client confirmation dispatch finished`),
+          (err) => console.error(`[booking] ${request.reference} client confirmation dispatch failed`, err),
+        ),
+      );
+    }
     if (SESSION_ID.test(chat)) tasks.push(linkChatToRequest(chat, request.id));
     await Promise.all(tasks);
   });
@@ -166,6 +187,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     name: request.name.split(" ")[0],
     map: routeMapLinks(request, browserMapKey()),
     href: safeGuestPath(request),
+    payUrl,
     price: request.priceEstimate ? { total: request.priceEstimate.total, exact: request.priceEstimate.exact } : null,
   };
 }

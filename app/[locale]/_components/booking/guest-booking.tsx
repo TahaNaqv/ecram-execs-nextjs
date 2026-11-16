@@ -11,6 +11,8 @@ import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-act
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
 import { PayButton } from "../pay-button";
+import type { PaymentView } from "@/lib/mollie/pay";
+import { consentText } from "@/lib/mollie/consent-text";
 
 type Copy = Dictionary["guestBooking"];
 type Message = { id: string; by: "guest" | "team"; body: string; at: string };
@@ -70,7 +72,7 @@ export function GuestBookingView({
    * Paying online (Mollie), once approved; null when online payment is off. `due` is what is still to pay (formatted in
    * `dueLabel`); `state` is the latest payment's: in progress, paid (on `paidOn`), or ended without paying.
    */
-  payment: { due: number; dueLabel: string; state: "none" | "progress" | "paid" | "failed"; paidOn: string | null } | null;
+  payment: PaymentView | null;
 }) {
   const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -141,10 +143,17 @@ export function GuestBookingView({
             {view.heading}
           </h2>
           {view.note && <p className="m-0 text-[15px] text-ink-700">{view.note}</p>}
-          {payment && (status === "confirmed" || status === "completed") && (
+          {payment && status !== "cancelled" && (status === "confirmed" || status === "completed" || payment.first || payment.rest) && (
             <div className="flex flex-col gap-2">
+              {payment.first && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.paySecureNote}</p>}
               {payment.state === "paid" && payment.due === 0 && (
-                <p className="m-0 text-[15px] font-semibold text-ink-950">{payment.paidOn ? interpolate(t.paidOn, { date: payment.paidOn }) : t.paidThanks}</p>
+                <p className="m-0 text-[15px] font-semibold text-ink-950">
+                  {payment.rest
+                    ? interpolate(t.payRestOn, { amount: payment.rest.label, date: payment.rest.on })
+                    : payment.paidOn
+                      ? interpolate(t.paidOn, { date: payment.paidOn })
+                      : t.paidThanks}
+                </p>
               )}
               {payment.state === "progress" && <p className="m-0 text-[15px] text-ink-700">{t.payInProgress}</p>}
               {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.payNotCompleted}</p>}
@@ -154,8 +163,9 @@ export function GuestBookingView({
                   reference={reference}
                   linkKey={linkKey}
                   locale={locale}
-                  label={interpolate(t.payNow, { amount: payment.dueLabel })}
+                  label={interpolate(payment.first ? t.paySecure : t.payNow, { amount: payment.dueLabel })}
                   pendingLabel={t.payOpening}
+                  consent={payment.first ? consentText(t, payment) : undefined}
                   className="self-start cursor-pointer rounded-full border-none bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70"
                 />
               )}

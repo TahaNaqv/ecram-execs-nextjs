@@ -50,7 +50,10 @@ export function PortalBooking({
   notice,
   loginHref,
   loginLabel,
+  payOnline = false,
 }: {
+  /** Online payment is on: the booking is paid at booking */
+  payOnline?: boolean;
   locale: Locale;
   copy: BookingCopy;
   addOns: AddOnsCopy;
@@ -115,7 +118,9 @@ export function PortalBooking({
     } catch {
       // the redirect still happens; only a later return to this tab can repeat it
     }
-    router.push(href);
+    // Mollie's page for the payment at booking is another site: a full navigation
+    if (/^https?:\/\//.test(href)) window.location.assign(href);
+    else router.push(href);
   }, [state, router]);
   const sent = state.status === "sent" && !stale;
   const send = (data: FormData) => {
@@ -152,6 +157,7 @@ export function PortalBooking({
         defaults={defaults}
         notice={notice}
         sealedHref={state.status === "sent" ? state.href : null}
+        payOnline={payOnline}
         lockedNotice={
           locked ? (
             <Link href={loginHref} className="flex h-[52px] flex-1 items-center justify-center rounded-xl bg-ink-950 px-7 text-[14px] font-semibold text-white no-underline hover:bg-ink-800 sm:flex-none">

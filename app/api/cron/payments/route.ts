@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { mollieConfigured } from "@/lib/mollie/config";
 import { sweepPayments } from "@/lib/mollie/pay";
+import { runPaymentSteps } from "@/lib/mollie/schedule";
 
 /**
  * Run by the server's crontab every ten minutes (docs/server-setup.md):
@@ -20,7 +21,10 @@ export async function POST(req: NextRequest) {
   if (!authorised(req)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   if (!mollieConfigured()) return NextResponse.json({ ok: true, off: true });
   try {
-    return NextResponse.json({ ok: true, ...(await sweepPayments()) });
+    const result = await sweepPayments();
+    // Then the booking steps: automatic approval, announcements, notices, the balance charge, refunds after a decline
+    await runPaymentSteps();
+    return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("[mollie] sweep failed", err);
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });

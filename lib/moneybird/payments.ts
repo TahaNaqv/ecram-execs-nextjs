@@ -32,7 +32,7 @@ export async function invoiceOpenCents(requestId: string): Promise<number | null
   return inv ? centsFromMoney(inv.total_unpaid) : null;
 }
 
-async function recordOn(rowId: string, moneybirdId: string, cents: number, at: Date, transactionId: string): Promise<Outcome> {
+async function recordOn(rowId: string, moneybirdId: string, cents: number, at: Date, transactionId: string, capAtOpen = false): Promise<Outcome> {
   try {
     const inv = await getInvoice(moneybirdId);
     if (!inv) {
@@ -40,7 +40,9 @@ async function recordOn(rowId: string, moneybirdId: string, cents: number, at: D
       return "no_invoice";
     }
     const known = ((inv as unknown as { payments?: MbPayment[] }).payments ?? []).some((p) => p.transaction_identifier === transactionId);
-    if (!known) {
+    // A kept service fee's own invoice takes only the fee, whatever was paid (plan C paid everything; the rest is refunded)
+    if (capAtOpen && cents > 0) cents = Math.min(cents, Math.max(0, centsFromMoney(inv.total_unpaid)));
+    if (!known && cents !== 0) {
       await moneybird("POST", `sales_invoices/${moneybirdId}/payments.json`, {
         payment: {
           payment_date: amsterdamDate(at),
@@ -66,7 +68,7 @@ export async function recordPayment(requestId: string, cents: number, paidAt: Da
   const live = await liveInvoice(requestId);
   if (!live || !isSent(live) || !live.moneybirdId) return "no_invoice";
   if (!(await lease(live.id))) return "busy";
-  return recordOn(live.id, live.moneybirdId, cents, paidAt, transactionId);
+  return recordOn(live.id, live.moneybirdId, cents, paidAt, transactionId, live.reference.endsWith("-FEE"));
 }
 
 /** Records a refund on the credit invoice that gave the money back (a negative payment settles it). */

@@ -18,6 +18,7 @@ import {
   splitName,
 } from "./invoice";
 import { INVOICE_WORDS } from "./words";
+import { balanceDueOn, daysBetween, feeWithVatCents } from "@/lib/payments/schedule";
 import { hasOnlinePayment, hasUnrecordedPayment, recordingOn } from "./recording";
 
 /**
@@ -72,6 +73,22 @@ const lastingSql = () =>
     sql` or `,
   );
 const leaseFreeSql = () => sql`(${t.claimedAt} is null or ${t.claimedAt} < now() - make_interval(mins => ${LEASE_MINUTES}))`;
+
+/** A kept service fee's invoice (the customer cancelled a booking paid at booking): reference EE-XXXXXX-FEE. */
+const FEE_SUFFIX = "-FEE";
+const isFeeRow = (row: Pick<Row, "reference">) => row.reference.endsWith(FEE_SUFFIX);
+
+/** Cancelled before approval (not declined by the team), paid at booking, and never invoiced: the kept fee is invoiced. */
+async function feeInvoiceDue(requestId: string): Promise<boolean> {
+  const [r] = await db.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
+  if (!r || r.status !== "cancelled" || !r.paymentPlan || r.declinedAt) return false;
+  if (!(await hasOnlinePayment(requestId))) return false;
+  const [invoiced] = await db.select({ id: t.id }).from(t).where(and(eq(t.requestId, requestId), isNotNull(t.number))).limit(1);
+  return !invoiced;
+}
+
+const longDay = (iso: string, locale: Locale) =>
+  new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
 
 /**
  * When Moneybird went live: MONEYBIRD_SINCE when the server sets it, else the moment this code first ran with Moneybird
@@ -292,7 +309,11 @@ async function deleteDraft(id: string): Promise<void> {
 async function createDraft(r: Booking, partner: Partner | null, row: Row, cents: number): Promise<MoneybirdSalesInvoice> {
   const config = moneybirdConfig()!;
   const [contactId, rates, dict] = await Promise.all([ensureContact(r, partner), salesTaxRates(), getDictionary(r.locale as Locale)]);
-  const lines = invoiceLines(
+  const words = INVOICE_WORDS[(r.locale as Locale) ?? "en"];
+  // The customer cancelled a booking paid at booking: the service fee is not refunded, so it is invoiced on its own
+  const lines = isFeeRow(row)
+    ? [{ description: `${r.reference} · ${words.feeKept}`, cents, rate: "high" as const, ledger: "extras" as const }]
+    : invoiceLines(
     {
       reference: row.reference,
       service: r.service,
@@ -312,13 +333,19 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
     cents,
   );
   const corporate = Boolean(partner) || isCorporateBooking(r);
+  // Paid at booking (the client's rules of 15 Nov 2026): the rest is due when it is charged to the card, 30 days before the
+  // ride, and the invoice says so; everything paid already (plan C, a kept fee) is due at once
+  const balanceOn = isFeeRow(row) ? null : balanceDueOn(r.paymentPlan, r.pickupAt);
+  const today = amsterdamToday();
+  const firstDue = r.paymentPlan ? (balanceOn ? Math.max(0, daysBetween(today, balanceOn)) : 0) : dueInDays(corporate, r.pickupAt, today, CORPORATE_TERM_DAYS);
   return moneybird<MoneybirdSalesInvoice>("POST", "sales_invoices.json", {
     sales_invoice: {
       contact_id: contactId,
       reference: row.reference,
       currency: "EUR",
       prices_are_incl_tax: true,
-      first_due_interval: dueInDays(corporate, r.pickupAt, amsterdamToday(), CORPORATE_TERM_DAYS),
+      first_due_interval: firstDue,
+      ...(balanceOn ? { payment_conditions: words.balanceByCard(longDay(balanceOn, (r.locale as Locale) ?? "en")) } : {}),
       details_attributes: lines.map((line) => ({
         description: line.description,
         price: moneyFromCents(line.cents),
@@ -345,7 +372,7 @@ async function rowHasId(id: string): Promise<boolean> {
 
 /** Makes (or finishes) the booking's invoice on a leased row. */
 async function issue(row: Row, r: Booking, partner: Partner | null): Promise<SyncResult> {
-  const cents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null });
+  const cents = isFeeRow(row) ? feeWithVatCents(r.priceEstimate) : invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null });
   if (cents == null) {
     await release(row.id, { state: row.moneybirdId ? row.state : "failed", lastError: "no_amount" });
     return { status: "failed", error: "no_amount" };
@@ -377,8 +404,9 @@ async function issue(row: Row, r: Booking, partner: Partner | null): Promise<Syn
       await release(row.id, { state: "failed", lastError: error });
       return { status: "failed", error };
     }
-    // The booking may have been cancelled while the invoice was being made: then it is not sent
-    if (!invoiceable(await bookingStatus(r.id))) {
+    // The booking may have been cancelled while the invoice was being made: then it is not sent (a kept fee's invoice is
+    // for a cancelled booking, so it is)
+    if (!isFeeRow(row) && !invoiceable(await bookingStatus(r.id))) {
       await deleteDraft(String(inv.id));
       await release(row.id, { state: "void", creditedAt: new Date(), lastError: null });
       return { status: "done" };
@@ -462,8 +490,19 @@ export async function syncBooking(requestId: string, opts: { deliver?: Delivery;
         .returning();
       if (!row) return { status: "busy" };
     }
+  } else if (!live) {
+    // Cancelled by the customer before it was approved, with the service fee paid at booking: the fee is kept, and invoiced
+    if (!(await feeInvoiceDue(requestId))) return { status: "done" };
+    const [booking] = await db.select({ reference: schema.quoteRequests.reference }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
+    if (!booking) return { status: "missing" };
+    [row] = await db
+      .insert(t)
+      .values({ requestId, reference: `${booking.reference}${FEE_SUFFIX}`, attempt: 1, kind: "invoice", state: "claimed", delivery: opts.deliver ?? "Email", claimedAt: new Date() })
+      .onConflictDoNothing()
+      .returning();
+    if (!row) return { status: "busy" };
   } else {
-    if (!live || isSent(live)) return { status: live ? "waiting" : "done" };
+    if (isSent(live)) return { status: "waiting" };
     row = await lease(live.id);
     if (!row) return { status: "busy" };
   }
@@ -482,6 +521,7 @@ export async function syncBooking(requestId: string, opts: { deliver?: Delivery;
     return { status: "missing" };
   }
   if (!invoiceable(loaded.r.status)) {
+    if (isFeeRow(leased)) return issue(leased, loaded.r, loaded.partner);
     if (!isSent(leased)) return voidUnsent(leased);
     await release(leased.id);
     return { status: "waiting" };
@@ -497,7 +537,8 @@ export async function syncBookings(requestIds: string[]): Promise<void> {
   }
 }
 
-type CreditDetail = { id: string; price?: string; amount?: string; tax_rate_id?: string; ledger_account_id?: string };
+type CreditDetail = { id: string; description?: string; price?: string; amount?: string; tax_rate_id?: string; ledger_account_id?: string };
+const FEE_WORDS = new Set([INVOICE_WORDS.en.fee, INVOICE_WORDS.nl.fee]);
 
 /**
  * Credits the sent invoice of a cancelled booking: all of it (`feeCents` 0), or all but the cancellation fee the team keeps.
@@ -505,7 +546,7 @@ type CreditDetail = { id: string; price?: string; amount?: string; tax_rate_id?:
  * Moneybird stops sending reminders (only the fee, if any, stays open). When it was paid, the money is refunded by hand.
  * Until the credit has gone out, the team may change their mind about the fee: the unsent credit is made again.
  */
-export async function creditBooking(requestId: string, feeCents: number, adminId: string | null): Promise<SyncResult> {
+export async function creditBooking(requestId: string, feeCents: number, adminId: string | null, opts: { keepFeeLine?: boolean } = {}): Promise<SyncResult> {
   if (!moneybirdConfig()) return { status: "off" };
   if ((await bookingStatus(requestId)) !== "cancelled") return { status: "failed", error: "not_cancelled" };
   const live = await liveInvoice(requestId);
@@ -517,6 +558,12 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
   const paidOnlineElsewhere = !recordingOn() && (await hasOnlinePayment(requestId));
   const total = live.totalCents ?? 0;
   const fee = Math.max(0, Math.round(feeCents));
+  if (opts.keepFeeLine) {
+    // Only with the service fee on a line of its own (an agreed price folds it into another line): never a guessed split
+    const original = await getInvoice(live.moneybirdId);
+    const feeLines = ((original?.details ?? []) as CreditDetail[]).filter((d) => d.description && FEE_WORDS.has(d.description.trim()));
+    if (feeLines.length !== 1) return { status: "failed", error: "no_fee_line" };
+  }
   if (!(await lease(live.id))) return { status: "busy" };
   const originalId = live.moneybirdId;
 
@@ -531,18 +578,19 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
       if (!credit) {
         [credit] = await db
           .insert(t)
-          .values({ requestId, reference: live.reference, attempt: live.attempt, kind: "credit", creditOf: live.id, state: "claimed", delivery: live.delivery, feeCents: fee, claimedAt: new Date() })
+          .values({ requestId, reference: live.reference, attempt: live.attempt, kind: "credit", creditOf: live.id, state: "claimed", delivery: live.delivery, feeCents: fee, keepFeeLine: Boolean(opts.keepFeeLine), claimedAt: new Date() })
           .onConflictDoNothing()
           .returning();
         if (!credit) {
           await release(live.id);
           return { status: "busy" };
         }
-      } else if ((credit.feeCents ?? 0) !== fee) {
+      } else if ((credit.feeCents ?? 0) !== fee || credit.keepFeeLine !== Boolean(opts.keepFeeLine)) {
         // Another choice before it went out: the unsent credit is made again with the new fee
         if (credit.moneybirdId) await deleteDraft(credit.moneybirdId);
-        await save(credit.id, { moneybirdId: null, state: "claimed", feeCents: fee, lastError: null });
-        credit = { ...credit, moneybirdId: null, state: "claimed", feeCents: fee };
+        const keepFeeLine = Boolean(opts.keepFeeLine);
+        await save(credit.id, { moneybirdId: null, state: "claimed", feeCents: fee, keepFeeLine, lastError: null });
+        credit = { ...credit, moneybirdId: null, state: "claimed", feeCents: fee, keepFeeLine };
       }
     }
   } catch (err) {
@@ -560,6 +608,14 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
       if (!cr) {
         cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${originalId}/duplicate_creditinvoice.json`, {});
         await save(creditRow.id, { moneybirdId: String(cr.id), state: "draft" });
+      }
+      const feeLines = creditRow.keepFeeLine ? ((cr.details ?? []) as CreditDetail[]).filter((d) => d.description && FEE_WORDS.has(d.description.trim())) : [];
+      if (!invoiceSent(cr) && feeLines.length === 1 && centsFromMoney(cr.total_price_incl_tax) !== expected) {
+        // Keep the service fee (non-refundable, the client's rules of 15 Nov 2026): the credit is everything but the fee's
+        // own line, so the VAT given back is exactly that of the rest
+        cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}.json`, {
+          sales_invoice: { details_attributes: [{ id: feeLines[0].id, _destroy: true }] },
+        });
       }
       if (!invoiceSent(cr) && keep > 0 && centsFromMoney(cr.total_price_incl_tax) !== expected) {
         // Keep the fee: the credit's lines become what is given back per VAT rate and ledger account, the fee taken
@@ -713,8 +769,11 @@ export async function invoicesFor(requestId: string): Promise<Row[]> {
  * stay confirmed, be completed, or be cancelled (and then credited), but not go back to being an open request.
  */
 export async function invoiceBlocksStatus(requestId: string, to: string): Promise<boolean> {
-  if (to === "confirmed" || to === "completed" || to === "cancelled") return false;
   const live = await liveInvoice(requestId);
+  // A kept service fee's own invoice (cancelled before approval) stands for the booking: it cannot come back to life
+  // with only the fee invoiced. It is credited first (in Moneybird), or the booking is made again.
+  if (live && isFeeRow(live) && isSent(live)) return to !== "cancelled";
+  if (to === "confirmed" || to === "completed" || to === "cancelled") return false;
   return Boolean(live && isSent(live));
 }
 

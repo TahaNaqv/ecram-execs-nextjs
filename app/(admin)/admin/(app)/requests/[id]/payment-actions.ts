@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { mollieConfig } from "@/lib/mollie/config";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { refreshPayment, refundPayment } from "@/lib/mollie/pay";
+import { declineBooking } from "@/lib/mollie/decline";
 
 export type PaymentActionState = { ok?: boolean; error?: string };
 
@@ -52,4 +53,16 @@ export async function refundAction(_prev: PaymentActionState, formData: FormData
     mollie: t.refundMollie,
   };
   return { error: result.error === "mollie" && result.detail ? `${t.refundMollie} (${result.detail})` : (messages[result.error] ?? t.failed) };
+}
+
+/** "Decline and refund": the team cannot take a booking it has not approved, so everything paid goes back (lib/mollie/decline.ts). */
+export async function declineAction(_prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
+  const admin = await requireAdmin();
+  const t = (await adminDictionary()).admin.review;
+  const id = z.uuid().safeParse(formData.get("requestId"));
+  if (!id.success) return { error: t.failed };
+  const result = await declineBooking(id.data, admin.id);
+  refresh();
+  if (result.status === "done") return { ok: true };
+  return { error: result.error === "not_open" ? t.stale : t.failed };
 }

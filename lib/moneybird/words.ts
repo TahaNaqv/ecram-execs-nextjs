@@ -14,6 +14,10 @@ export type InvoiceWords = {
   returnJourney: string;
   credit: (number: string) => string;
   cancellationFee: string;
+  /** The kept service fee, invoiced on its own when the customer cancels before approval */
+  feeKept: string;
+  /** On a booking paid at booking: when the rest is charged to the card */
+  balanceByCard: (date: string) => string;
 };
 
 export const INVOICE_WORDS: Record<Locale, InvoiceWords> = {
@@ -27,6 +31,8 @@ export const INVOICE_WORDS: Record<Locale, InvoiceWords> = {
     returnJourney: "return journey",
     credit: (number) => `Credit for invoice ${number}`,
     cancellationFee: "cancellation fee kept",
+    feeKept: "Service fee (non-refundable, booking cancelled)",
+    balanceByCard: (date) => `The service fee was paid at booking. The balance is charged to the card used then on ${date}.`,
   },
   nl: {
     rides: "Chauffeursdienst",
@@ -38,5 +44,7 @@ export const INVOICE_WORDS: Record<Locale, InvoiceWords> = {
     returnJourney: "retourrit",
     credit: (number) => `Creditering van factuur ${number}`,
     cancellationFee: "annuleringskosten ingehouden",
+    feeKept: "Servicekosten (niet restitueerbaar, boeking geannuleerd)",
+    balanceByCard: (date) => `De servicekosten zijn bij het boeken betaald. Het resterende bedrag wordt op ${date} van dezelfde kaart afgeschreven.`,
   },
 };

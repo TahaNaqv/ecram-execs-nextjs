@@ -40,6 +40,8 @@ export type RequestEventParams = {
   number?: string;
   /** `paid`: how the customer paid online (Mollie's method: ideal, creditcard, …). */
   method?: string;
+  /** `notice_sent` / `card_expires`: the day concerned ("YYYY-MM-DD"). */
+  date?: string;
 };
 
 export const REQUEST_EVENTS = [
@@ -58,6 +60,13 @@ export const REQUEST_EVENTS = [
   "paid",
   "refunded",
   "charged_back",
+  "balance_charged",
+  "balance_failed",
+  "notice_sent",
+  "card_expires",
+  "auto_approved",
+  "auto_approve_stopped",
+  "declined",
 ] as const;
 export type RequestEventKey = (typeof REQUEST_EVENTS)[number];
 
@@ -104,6 +113,20 @@ export type EventLabels = {
   refunded: string;
   /** Interpolates {amount}: the customer's bank took a payment back */
   chargedBack: string;
+  /** Interpolates {amount}: the balance was charged to the saved card */
+  balanceCharged: string;
+  /** Interpolates {amount}: the balance could not be charged */
+  balanceFailed: string;
+  /** Interpolates {date}: the customer was told the balance is charged on that day */
+  noticeSent: string;
+  /** Interpolates {date}: the saved card expires before the balance date */
+  cardExpires: string;
+  /** Approved by itself: booked 6 months or more ahead, fee paid */
+  autoApproved: string;
+  /** Interpolates {reference}: not approved by itself, the car is booked on that booking */
+  autoApproveStopped: string;
+  /** Interpolates {amount}: declined by the team, that much refunded */
+  declined: string;
   /** Shown for an absent amount */
   none: string;
   statuses: Record<RequestStatus, string>;
@@ -161,6 +184,13 @@ export function renderEvent(
   if (event === "paid") return fill(labels.paid, { amount: formatAmount(params?.amount ?? null), method: params?.method ?? "" });
   if (event === "refunded") return fill(labels.refunded, { amount: formatAmount(params?.amount ?? null) });
   if (event === "charged_back") return fill(labels.chargedBack, { amount: formatAmount(params?.amount ?? null) });
+  if (event === "balance_charged") return fill(labels.balanceCharged, { amount: formatAmount(params?.amount ?? null) });
+  if (event === "balance_failed") return fill(labels.balanceFailed, { amount: formatAmount(params?.amount ?? null) });
+  if (event === "notice_sent") return fill(labels.noticeSent, { date: params?.date ?? "" });
+  if (event === "card_expires") return fill(labels.cardExpires, { date: params?.date ?? "" });
+  if (event === "auto_approved") return labels.autoApproved;
+  if (event === "auto_approve_stopped") return fill(labels.autoApproveStopped, { reference: params?.clashWith ?? "" });
+  if (event === "declined") return fill(labels.declined, { amount: formatAmount(params?.amount ?? null) });
 
   if (event === "changes") {
     const parts = (Array.isArray(params?.changes) ? params.changes : []).map((change) => {

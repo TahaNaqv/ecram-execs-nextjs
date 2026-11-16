@@ -15,6 +15,7 @@ export function PayButton({
   label,
   pendingLabel,
   className,
+  consent,
 }: {
   who: "guest" | "partner";
   reference: string;
@@ -23,6 +24,8 @@ export function PayButton({
   label: string;
   pendingLabel: string;
   className: string;
+  /** The payment at booking saves the card: the customer ticks this first (the terms, the fee, the later charge) */
+  consent?: React.ReactNode;
 }) {
   const [state, action, pending] = useActionState<PayState, FormData>(who === "guest" ? payBooking : payPartnerBooking, {});
   return (
@@ -30,6 +33,12 @@ export function PayButton({
       <input type="hidden" name={who === "guest" ? "ref" : "reference"} value={reference} />
       {linkKey && <input type="hidden" name="k" value={linkKey} />}
       <input type="hidden" name="locale" value={locale} />
+      {consent && (
+        <label className="flex max-w-[520px] items-start gap-2.5 text-[14px] leading-snug text-ink-800">
+          <input type="checkbox" name="consent" value="1" required className="mt-0.5 size-4 shrink-0 accent-ink-950" />
+          <span>{consent}</span>
+        </label>
+      )}
       <button type="submit" disabled={pending} className={className}>
         {pending ? pendingLabel : label}
       </button>

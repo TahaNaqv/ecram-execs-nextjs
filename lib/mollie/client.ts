@@ -26,7 +26,19 @@ export type MolliePayment = {
   isCancelable?: boolean;
   paidAt?: string | null;
   metadata?: { requestId?: string } | null;
+  sequenceType?: "oneoff" | "first" | "recurring";
+  customerId?: string | null;
+  /** The card mandate a paid first payment made (or a recurring payment used). */
+  mandateId?: string | null;
+  details?: { failureReason?: string; failureMessage?: string } | null;
   _links?: { checkout?: { href: string } | null; dashboard?: { href: string } | null };
+};
+export type MollieCustomer = { id: string; mode: "test" | "live" };
+export type MollieMandate = {
+  id: string;
+  status: "valid" | "pending" | "invalid";
+  method: string;
+  details?: { cardHolder?: string; cardNumber?: string; cardLabel?: string; cardExpiryDate?: string } | null;
 };
 export type MollieRefund = { id: string; status: string; amount: Amount; paymentId?: string };
 

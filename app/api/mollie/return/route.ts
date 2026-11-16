@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { runPaymentSteps } from "@/lib/mollie/schedule";
 import { getCorporateContact } from "@/lib/corporate/access";
 import { partnerOwns, REF_RE } from "@/lib/corporate/bookings";
 import { db, schema } from "@/lib/db";
@@ -30,12 +31,19 @@ export async function GET(req: NextRequest) {
     if (!contact) return NextResponse.redirect(target, 303);
     const q = schema.quoteRequests;
     const [booking] = await db.select({ id: q.id }).from(q).where(and(eq(q.reference, ref), partnerOwns(contact.id))).limit(1);
-    if (booking && withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) await refreshOnReturn(booking.id);
+    if (booking && withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) {
+      await refreshOnReturn(booking.id);
+      after(() => runPaymentSteps(booking.id));
+    }
     return NextResponse.redirect(target, 303);
   }
 
   const booking = await getGuestBooking(ref, params.get("k"));
   if (!booking) return home;
-  if (withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) await refreshOnReturn(booking.id);
+  if (withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) {
+    await refreshOnReturn(booking.id);
+    // Approved by itself (6 months or more ahead) and announced: after the customer is on their way to the page
+    after(() => runPaymentSteps(booking.id));
+  }
   return NextResponse.redirect(`${origin}${guestPath(booking, locale)}`, 303);
 }

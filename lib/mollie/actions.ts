@@ -11,7 +11,7 @@ import { getGuestBooking } from "@/lib/quotes/guest";
 import { withinLimit } from "@/lib/rate-limit";
 import { visitor } from "@/lib/request-meta";
 import { siteOrigin } from "./config";
-import { startPayment } from "./pay";
+import { recordConsent, startPayment } from "./pay";
 
 export type PayState = { error?: string; notice?: string };
 
@@ -29,7 +29,10 @@ const bookingLimited = (bookingId: string) => !withinLimit(`pay:booking:${bookin
 
 async function go(requestId: string, returnUrl: string, formData: FormData): Promise<PayState> {
   const t = (await dictionaryFromForm(formData)).guestBooking;
+  // The tick beside a payment at booking (it saves the card): recorded before the payment, with the total shown then
+  if (formData.get("consent") === "1") await recordConsent(requestId, (await visitor()).ipHash);
   const result = await startPayment(requestId, returnUrl);
+  if (result.status === "needs_consent") return { error: t.payConsentNeeded };
   if (result.status === "redirect") redirect(result.url);
   if (result.status === "in_progress") return { notice: t.payInProgress };
   if (result.status === "nothing_due") return { notice: t.payNothingDue };

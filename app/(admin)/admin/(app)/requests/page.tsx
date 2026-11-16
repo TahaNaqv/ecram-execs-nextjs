@@ -21,6 +21,9 @@ import {
   XIcon,
 } from "../../_components/icons";
 import { StatusBadge, UrgentBadge } from "../../_components/status-badge";
+import { and, eq, inArray } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { mollieConfig } from "@/lib/mollie/config";
 import { ClickableRow } from "./clickable-row";
 import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../../_components/ui";
@@ -151,6 +154,19 @@ function StatsSkeleton() {
   );
 }
 
+/** The listed bookings that are to be paid at booking and have nothing paid yet (in the current Mollie mode). */
+async function unpaidAtBooking(rows: QuoteRequest[]): Promise<Set<string>> {
+  const mode = mollieConfig()?.mode;
+  const planned = rows.filter((r) => r.paymentPlan && (r.status === "new" || r.status === "contacted" || r.status === "confirmed")).map((r) => r.id);
+  if (!mode || planned.length === 0) return new Set();
+  const paid = await db
+    .selectDistinct({ id: schema.payments.requestId })
+    .from(schema.payments)
+    .where(and(inArray(schema.payments.requestId, planned), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")));
+  const done = new Set(paid.map((p) => p.id));
+  return new Set(planned.filter((id) => !done.has(id)));
+}
+
 async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const { status, q, page: pageParam, queue } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
@@ -164,6 +180,14 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   // Requests on this page where a partner/guest has written and nobody on the team has opened it yet
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
+  // Paid at booking, but the payment never came in (the checkout was left, or the booking came by chat or phone)
+  const unpaid = await unpaidAtBooking(rows as QuoteRequest[]);
+  const unpaidBadge = (id: string) =>
+    unpaid.has(id) ? (
+      <span title={t.requests.notPaidNote} className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
+        {t.requests.notPaid}
+      </span>
+    ) : null;
   const partnerBadge = (id: string) => {
     const n = unseen.get(id) ?? 0;
     if (!n) return null;
@@ -316,6 +340,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <span className="flex flex-col items-end gap-1">
                           <StatusBadge status={r.status} />
                           <UrgentBadge request={r} />
+                          {unpaidBadge(r.id)}
                         </span>
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm text-zinc-700">
@@ -453,6 +478,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <span className="flex flex-col items-start gap-1">
                           <StatusBadge status={r.status} />
                           <UrgentBadge request={r} />
+                          {unpaidBadge(r.id)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap py-3.5 pl-3 pr-5 text-right">

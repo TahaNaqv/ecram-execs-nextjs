@@ -26,6 +26,7 @@ import { PortalPage } from "../../../_components/portal-shell";
 import { PortalStatus } from "../../../_components/portal-status";
 import { ReviewRefresh } from "../../../_components/review-refresh";
 import { paymentView } from "@/lib/mollie/pay";
+import { consentText } from "@/lib/mollie/consent-text";
 import { PayButton } from "../../../_components/pay-button";
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -179,10 +180,20 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
 
 
       {/* Approved: paid online through Mollie (the client, 8 Nov 2026) */}
-      {payment && (booking.status === "confirmed" || booking.status === "completed") && (payment.due > 0 || payment.state !== "none") && (
+      {payment &&
+        booking.status !== "cancelled" &&
+        (booking.status === "confirmed" || booking.status === "completed" || payment.first || payment.rest) &&
+        (payment.due > 0 || payment.state !== "none") && (
         <div role="status" className="flex flex-col gap-3 border border-solid border-ink-225 bg-white px-4 py-3.5 text-ink-950">
+          {payment.first && payment.due > 0 && <p className="m-0 text-[15px]">{g.paySecureNote}</p>}
           {payment.state === "paid" && payment.due === 0 && (
-            <p className="m-0 text-[15px] font-semibold">{payment.paidOn ? interpolate(g.paidOn, { date: payment.paidOn }) : g.paidThanks}</p>
+            <p className="m-0 text-[15px] font-semibold">
+              {payment.rest
+                ? interpolate(g.payRestOn, { amount: payment.rest.label, date: payment.rest.on })
+                : payment.paidOn
+                  ? interpolate(g.paidOn, { date: payment.paidOn })
+                  : g.paidThanks}
+            </p>
           )}
           {payment.state === "progress" && <p className="m-0 text-[15px]">{g.payInProgress}</p>}
           {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px]">{g.payNotCompleted}</p>}
@@ -191,8 +202,9 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
               who="partner"
               reference={booking.reference}
               locale={locale}
-              label={interpolate(g.payNow, { amount: payment.dueLabel })}
+              label={interpolate(payment.first ? g.paySecure : g.payNow, { amount: payment.dueLabel })}
               pendingLabel={g.payOpening}
+              consent={payment.first ? consentText(g, payment) : undefined}
               className={`${submitClass} max-w-[320px]`}
             />
           )}

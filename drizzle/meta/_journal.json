@@ -218,6 +218,13 @@
       "when": 1794624663019,
       "tag": "0030_mollie_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794763018024,
+      "tag": "0031_pay_at_booking",
+      "breakpoints": true
     }
   ]
 }

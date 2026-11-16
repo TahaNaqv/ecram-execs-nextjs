@@ -1,7 +1,9 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { bookableFleet } from "@/lib/fleet/catalog";
+import { mollieConfigured } from "@/lib/mollie/config";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict, type Dictionary } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
@@ -24,6 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The fleet comes from the database, so it renders with the flow, behind the shell's Suspense boundary. */
 async function BookingOffer({ locale, d }: { locale: Locale; d: Dictionary }) {
+  // Read when the page is asked for, not when it is built: online payment is switched on by the server's settings
+  await connection();
   const vehicles = await bookableFleet();
   return (
     <PublicBooking
@@ -38,6 +42,7 @@ async function BookingOffer({ locale, d }: { locale: Locale; d: Dictionary }) {
       bookPath={localizedPath("/book", locale)}
       privacyHref={localizedPath("/privacy", locale)}
       homeHref={localizedPath("/", locale)}
+      payOnline={mollieConfigured()}
     />
   );
 }

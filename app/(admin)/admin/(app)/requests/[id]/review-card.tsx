@@ -9,6 +9,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, Card, CardHeader, field, fieldLabel } from "../../../_components/ui";
 import { discussBooking, type DiscussState } from "./portal-actions";
+import { declineAction, type PaymentActionState } from "./payment-actions";
 
 type Copy = Dictionary["admin"]["review"];
 
@@ -17,13 +18,22 @@ type Copy = Dictionary["admin"]["review"];
  * menu (the fleet lock and the clash check, an email to the customer); "Discuss further" writes to the customer and puts
  * the booking in discussion. The customer's open page moves on by itself either way.
  */
-export function ReviewCard({ requestId, status, copy: t }: { requestId: string; status: string; copy: Copy }) {
+/** What the customer has paid online so far, on a booking paid at booking (null: not paid at booking). */
+export type PayState = { kind: "unpaid" | "fee" | "full"; paid: string; rest?: string; restOn?: string } | null;
+
+export function ReviewCard({ requestId, status, copy: t, pay }: { requestId: string; status: string; copy: Copy; pay?: PayState }) {
   const router = useRouter();
   const [approving, setApproving] = useState(false);
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discussing, setDiscussing] = useState(false);
   const [state, action, pending] = useActionState<DiscussState, FormData>(discussBooking, {});
+  const [declining, setDeclining] = useState(false);
+  const [declined, declineFormAction, declinePending] = useActionState<PaymentActionState, FormData>(declineAction, {});
+
+  useEffect(() => {
+    if (declined.ok) publishBookingStatus(requestId, "cancelled");
+  }, [declined.ok, requestId]);
 
   useEffect(() => {
     if (state.ok) publishBookingStatus(requestId, "contacted");
@@ -60,6 +70,15 @@ export function ReviewCard({ requestId, status, copy: t }: { requestId: string; 
     <Card>
       <CardHeader title={t.title} description={t.note} />
       <div className="flex flex-col gap-4 p-5">
+        {pay && (
+          <p className={`m-0 rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${pay.kind === "unpaid" ? "bg-amber-50 text-amber-900 ring-amber-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200"}`}>
+            {pay.kind === "unpaid"
+              ? t.payUnpaid
+              : pay.kind === "full"
+                ? interpolate(t.payFull, { amount: pay.paid })
+                : interpolate(t.payFee, { amount: pay.paid, rest: pay.rest ?? "", date: pay.restOn ?? "" })}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={approve} disabled={approving || approved} className={`${btn.base} ${btn.md} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60`}>
             <CheckIcon size={14} /> {approving ? t.approving : t.approve}
@@ -69,7 +88,13 @@ export function ReviewCard({ requestId, status, copy: t }: { requestId: string; 
               {t.discuss}
             </button>
           )}
+          {!declining && !approved && !declined.ok && (
+            <button type="button" onClick={() => setDeclining(true)} className={`${btn.base} ${btn.ghost} ${btn.md} text-red-700`}>
+              {pay && pay.kind !== "unpaid" ? t.declineRefund : t.decline}
+            </button>
+          )}
           <span aria-live="polite" className="text-[13px]">
+            {declined.ok && <span className="text-zinc-700">{t.declined}</span>}
             {approved && (
               <span className="inline-flex items-center gap-1.5 text-emerald-700">
                 <CheckIcon size={14} /> {t.approved}
@@ -82,6 +107,25 @@ export function ReviewCard({ requestId, status, copy: t }: { requestId: string; 
             <AlertIcon className="mt-0.5 shrink-0" />
             {error}
           </p>
+        )}
+        {declining && !declined.ok && (
+          <form action={declineFormAction} className="flex flex-col gap-3 rounded-lg bg-red-50/60 p-4 ring-1 ring-inset ring-red-200">
+            <input type="hidden" name="requestId" value={requestId} />
+            <p className="m-0 text-sm text-red-900">{pay && pay.kind !== "unpaid" ? interpolate(t.declineConfirmRefund, { amount: pay.paid }) : t.declineConfirm}</p>
+            {declined.error && (
+              <p role="alert" className="m-0 text-sm text-red-800">
+                {declined.error}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <button disabled={declinePending} className={`${btn.base} ${btn.md} bg-red-600 text-white shadow-sm hover:bg-red-700 disabled:opacity-60`}>
+                {declinePending ? t.declining : pay && pay.kind !== "unpaid" ? t.declineRefund : t.decline}
+              </button>
+              <button type="button" onClick={() => setDeclining(false)} className={`${btn.base} ${btn.ghost} ${btn.md}`}>
+                {t.cancel}
+              </button>
+            </div>
+          </form>
         )}
         {discussing && !approved && (
           <form action={action} className="flex flex-col gap-3">

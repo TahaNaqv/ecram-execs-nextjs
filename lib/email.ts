@@ -372,6 +372,79 @@ export async function notifyTeamPaid(q: QuoteRequest, cents: number, method: str
   });
 }
 
+/** A short email to the customer about their booking's payment, with a link to the booking's page. */
+async function customerNote(q: QuoteRequest, kind: string, subjectKey: string, introKey: string, values: Record<string, string>) {
+  if (!q.email) return false;
+  const { email: t } = await getDictionary(q.locale);
+  const copy = t as unknown as Record<string, string>;
+  const all = { reference: q.reference, ...values };
+  const link = customerLink(q);
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
+      <p>${esc(interpolate(copy[introKey], all))}</p>
+      ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("quote", q.reference, kind, { from: mailFrom(), to: [q.email], subject: interpolate(copy[subjectKey], all), html });
+}
+
+const longDate = (iso: string, locale: QuoteRequest["locale"]) =>
+  new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
+
+/** Five days before the balance is charged: how much, to which card, on which day (a charge that is expected is not disputed). */
+export const emailBalanceNotice = (q: QuoteRequest, cents: number, dueOn: string, card: string | null) =>
+  customerNote(q, "balance notice", "balanceNoticeSubject", "balanceNoticeIntro", {
+    amount: formatCurrency(cents / 100),
+    date: longDate(dueOn, q.locale),
+    card: card ? ` (${card})` : "",
+  });
+
+/** The balance could not be charged to the saved card: pay it on the booking's page. */
+export const emailBalanceFailed = (q: QuoteRequest, cents: number) =>
+  customerNote(q, "balance failed", "balanceFailedSubject", "balanceFailedIntro", { amount: formatCurrency(cents / 100) });
+
+/** The saved card runs out before the balance date: the customer can pay the rest on the booking's page before then. */
+export const emailCardExpires = (q: QuoteRequest, dueOn: string) =>
+  customerNote(q, "card expires", "cardExpiresSubject", "cardExpiresIntro", { date: longDate(dueOn, q.locale) });
+
+/** The team could not take the booking: everything paid is refunded. */
+export const emailDeclined = (q: QuoteRequest, refundedCents: number) =>
+  customerNote(q, "declined", "declinedSubject", refundedCents > 0 ? "declinedIntroRefund" : "declinedIntro", { amount: formatCurrency(refundedCents / 100) });
+
+async function teamNote(q: QuoteRequest, kind: string, subject: string, heading: string, rows: [string, string | number | null][]) {
+  const site = process.env.SITE_URL ?? "";
+  await send("quote", q.reference, kind, {
+    from: mailFrom(),
+    to: mailList(process.env.NOTIFY_EMAIL_TO, "(NOTIFY_EMAIL_TO not set)"),
+    subject,
+    html: teamAlert(heading, [["Reference", q.reference], ["Customer", q.name], ...rows], site && `${site}/admin/requests/${q.id}`),
+  });
+}
+
+/** The balance charge failed: the team follows it up. */
+export const notifyTeamBalanceFailed = (q: QuoteRequest, cents: number, reason: string | null) =>
+  teamNote(q, "team alert (balance failed)", `[Balance failed] ${q.reference} — ${formatCurrency(cents / 100)} — ${q.name}`, `Balance charge failed: <strong>${esc(q.reference)}</strong>`, [
+    ["Amount", formatCurrency(cents / 100)],
+    ["Reason", reason],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+  ]);
+
+/** A booking made 6 months or more ahead could not be approved by itself (its car is booked then): the team decides. */
+export const notifyTeamAutoApproveStopped = (q: QuoteRequest, clashWith: string) =>
+  teamNote(q, "team alert (auto approval stopped)", `[Review] ${q.reference} — car already booked (${clashWith})`, `Automatic approval stopped: <strong>${esc(q.reference)}</strong>`, [
+    ["Car already booked on", clashWith],
+    ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
+  ]);
+
+/** The saved card expires before the balance date. */
+export const notifyTeamCardExpires = (q: QuoteRequest, expiresOn: string, dueOn: string) =>
+  teamNote(q, "team alert (card expires)", `[Card] ${q.reference} — card expires before the balance date`, `Card expires before the balance: <strong>${esc(q.reference)}</strong>`, [
+    ["Card expires", expiresOn],
+    ["Balance date", dueOn],
+  ]);
+
 /** Tells the team the customer's bank took an online payment back (a chargeback): the booking is no longer paid. */
 export async function notifyTeamChargeback(q: QuoteRequest, cents: number) {
   const site = process.env.SITE_URL ?? "";

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { runPaymentSteps } from "@/lib/mollie/schedule";
 import { paymentByMollieId, refreshPayment } from "@/lib/mollie/pay";
 
 /**
@@ -15,6 +16,11 @@ export async function POST(req: NextRequest) {
   try {
     // Busy with this payment right now (the customer's return, the sweep): Mollie is asked to call again shortly
     const done = await refreshPayment(row.id);
+    // The booking's own steps follow at once (approved by itself, announced), after the answer to Mollie
+    if (done && row.requestId) {
+      const requestId = row.requestId;
+      after(() => runPaymentSteps(requestId));
+    }
     return new NextResponse(null, { status: done === null ? 503 : 200 });
   } catch (err) {
     console.error("[mollie] webhook failed", err instanceof Error ? err.message : err);

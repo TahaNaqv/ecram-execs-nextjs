@@ -14,6 +14,7 @@ export type Invoice = {
   invoice_id: string | null;
   prices_are_incl_tax: boolean;
   first_due_interval: number;
+  payment_conditions?: string;
   details: Detail[];
   total_price_incl_tax: string;
   total_unpaid: string;
@@ -106,6 +107,7 @@ export async function startFakeMoneybird(port: number): Promise<() => Promise<vo
         invoice_id: null,
         prices_are_incl_tax: s.prices_are_incl_tax,
         first_due_interval: s.first_due_interval,
+        payment_conditions: s.payment_conditions,
         details: s.details_attributes.map((d: Omit<Detail, "id">) => ({ ...d, id: String(nextId++) })),
         total_price_incl_tax: "0",
         total_unpaid: "0",

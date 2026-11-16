@@ -1,4 +1,5 @@
 import "server-only";
+import { flushPayments } from "@/lib/mollie/pay";
 import { after } from "next/server";
 import { moneybirdConfigured } from "./config";
 import { syncBooking, syncBookings, type Delivery } from "./sync";
@@ -14,6 +15,8 @@ export function syncAfter(requestId: string, opts: { deliver?: Delivery } = {}):
     try {
       const result = await syncBooking(requestId, opts);
       if (result.status === "failed") console.error(`[moneybird] ${requestId}: ${result.error}`);
+      // What was paid online goes on the invoice just made (paid at booking, or a kept service fee's own invoice)
+      await flushPayments(requestId);
     } catch (err) {
       console.error(`[moneybird] ${requestId}: sync failed`, err);
     }

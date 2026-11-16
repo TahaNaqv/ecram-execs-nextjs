@@ -1,5 +1,6 @@
 "use server";
 
+import { markAnnounced, planForNewBooking } from "@/lib/mollie/booking";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -147,6 +148,9 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
         corporateContactId: partner?.id ?? null,
         locale: partner?.locale ?? input.locale,
         source: "admin",
+        // Paid at booking too (the client, 15 Nov 2026): the customer consents and pays on the booking's page, which the
+        // email links to; the team has already seen it, so the payment announces nothing
+        ...planForNewBooking(input.pickupAt, priceEstimate),
       },
       [
         { adminId: admin.id, event: "received", params: { by: "team" } },
@@ -158,6 +162,8 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
     console.error("[admin] booking create failed", err);
     return fail("Could not create the booking. Please try again.");
   }
+
+  if (request.paymentPlan) await markAnnounced(request.id);
 
   // The person the booking is for is told it exists. A partner whose booking is already quoted or confirmed gets that
   // email, which says more; every other booking gets the plain "we have recorded this" one, unless the team unticked it

@@ -1,4 +1,5 @@
 import { CODE_MINUTES } from "@/lib/corporate/otp";
+import { mollieConfigured } from "@/lib/mollie/config";
 import { MAX_PER_EXTRA } from "@/lib/pricing/extras";
 import { PASSWORD_MIN } from "@/lib/corporate/validation";
 import { MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS } from "@/app/[locale]/_components/booking/trip";
@@ -19,7 +20,16 @@ const quote = (label: string) => `"${label}"`;
  * changes when the website does. Steps and buttons that do not exist are not listed: the concierge is told to stay inside
  * this list.
  */
+/** Paying at booking (the client's rules of 15 Nov 2026), while online payment is on. */
+const PAY_AT_BOOKING =
+  "Payment is by card when booking, on the secure payment page of Mollie, our payment provider. For a ride more than 30 days ahead the visitor pays the service fee of €15.13 (€12.50 plus VAT) now, which is not refundable; the rest of the price is charged to the same card 30 days before the ride, and the visitor is emailed 5 days before that. For a ride 30 days or less ahead the full price is paid when booking. If the team cannot take a booking, everything paid is refunded, the service fee too.";
+const PAY_AFTER_APPROVAL =
+  "Payment comes after approval: the details follow once the booking is approved. There is no payment before the booking manager has reviewed it.";
+
 export function siteGuide(dict: Dictionary): string {
+  const payNow = mollieConfigured();
+  const line7Paid =
+    "7. What follows: the visitor pays by card (see payment below) and lands on their booking's page, and gets an email with a link back to it. A booking made 6 months or more ahead is confirmed automatically as soon as the service fee is paid. Every other booking is reviewed by hand by the booking manager, who then approves it or opens a conversation on that page to discuss it (for example to offer other cars).";
   const b = dict.booking;
   const p = dict.portal;
   const c = dict.corporatePartner;
@@ -37,8 +47,8 @@ Booking a ride (no account needed):
 5. ${b.stepDetails}: full name, email, mobile number with country code, whether the visitor is travelling or booking for someone else (then the passenger's name and mobile number), for one way trips that do not involve an airport whether the trip is business or private, and an optional note for the chauffeur (for example a child seat or bulky luggage).
 6. ${b.stepReview}: the visitor checks the journey and the itemised price (the chauffeur service, any extra kilometres, any add-ons, 9% BTW / VAT, the service fee, 21% BTW / VAT, and the total), then ${quote(b.submit)}.
 Kilometres: each booked hour includes a number of kilometres per car (45 for the Hongqi E-HS9 and the Audi e-tron GT, 40 for the Mercedes-Benz VLE 300, 35 for the Range Rover EV and the Cadillac Escalade IQ). A transfer that drives further pays the kilometres beyond that per car, €1.75 per km (€1.50 for corporate partners), with the same 9% BTW / VAT as the ride. For bookings by the hour the kilometres are settled after the trip.
-7. What follows: every booking is reviewed by hand by the booking manager before anything else happens; nothing is confirmed automatically. After sending, the visitor sees a page saying the booking is being reviewed, and gets an email with a link back to that page. The booking manager then either approves the booking, or opens a conversation on that page to discuss it (for example to offer other cars), usually within the hour.
-Payment comes after approval: the details follow once the booking is approved. There is no payment before the booking manager has reviewed it. For payment or invoicing questions from visitors without an account, hand over to the team.
+${payNow ? line7Paid : `7. What follows: every booking is reviewed by hand by the booking manager before anything else happens; nothing is confirmed automatically. After sending, the visitor sees a page saying the booking is being reviewed, and gets an email with a link back to that page. The booking manager then either approves the booking, or opens a conversation on that page to discuss it (for example to offer other cars), usually within the hour.`}
+${payNow ? PAY_AT_BOOKING : PAY_AFTER_APPROVAL} For payment or invoicing questions from visitors without an account, hand over to the team.
 
 Email updates after a request: the visitor receives an email when the booking is approved, when the team wants to discuss it or replies to a message, when it is completed, and if it is cancelled. Each email links to the booking's page.
 
@@ -60,7 +70,7 @@ You cannot look up, change or cancel a booking, see the status of a request, or 
  */
 export function bookingByChat(dict: Dictionary, today: string): string {
   return `BOOKING BY CHAT
-A visitor can book a ride with you in this chat. A booking here is a request: nothing is confirmed and nothing is paid until the team confirms it. You fill in the booking with the update_booking tool, and the visitor sends it with the ${quote(dict.conciergeSection.bookSend)} button that appears under the chat once it is complete. You never press that button yourself, and you must never say the request has been sent. When the visitor says yes, confirms, or asks you to send the card, tell them the card is below and to press ${quote(dict.conciergeSection.bookSend)}. Do not say that you cannot send the request.
+A visitor can book a ride with you in this chat. ${mollieConfigured() ? "A booking here is a request: nothing is paid in this chat. After sending, the visitor pays the amount due at booking by card on their booking's page (the link under your reply), and a booking made 6 months or more ahead is then confirmed automatically; every other booking is confirmed by the team." : "A booking here is a request: nothing is confirmed and nothing is paid until the team confirms it."} You fill in the booking with the update_booking tool, and the visitor sends it with the ${quote(dict.conciergeSection.bookSend)} button that appears under the chat once it is complete. You never press that button yourself, and you must never say the request has been sent. When the visitor says yes, confirms, or asks you to send the card, tell them the card is below and to press ${quote(dict.conciergeSection.bookSend)}. Do not say that you cannot send the request.
 - Start when the visitor wants to book a ride. Ask for the details in a natural order, one or two at a time, never a long list: where from and where to (or, for a chauffeur by the hour, where from and for how many hours, ${HOURLY_DURATIONS[0]} to ${HOURLY_DURATIONS[HOURLY_DURATIONS.length - 1]}), the date and time, the number of guests, of large suitcases (none is a fine answer, but it must be asked; at most ${MAX_BAGS}, and the chosen car's boot has to hold them) and of small bags such as hand luggage or backpacks (at most ${MAX_SMALL_BAGS}; these ride in the cabin), then the visitor's full name, email address and mobile number (with the country code).
 - Call update_booking as soon as the visitor gives or changes a detail, with only the fields that changed (null clears a field). Never fill in what was not said. Today is ${today}. Turn "tomorrow at nine" into an exact date and time in Netherlands time ("YYYY-MM-DDTHH:mm", 24-hour clock) and say the date and time back in words so the visitor can check it.
 - Whenever you record a place, also record what it is in fromKind or toKind: "airport" for any airport (Schiphol, AMS, Rotterdam The Hague, Eindhoven, Brussels, or another), "aviation" for a private-aviation terminal, otherwise station, hotel or place. This decides the kind of trip and whether a flight number is kept.

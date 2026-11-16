@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FLEET, fleetPicks, normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
-import { formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
+import { formatDate, formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { chatForRequest } from "@/lib/admin/chats";
 import { getRequest } from "@/lib/admin/queries";
 import { bookingServiceName, isCorporateBooking } from "@/lib/quotes/audience";
@@ -31,11 +31,14 @@ import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { AdminReturnLink } from "../../../_components/return-link";
 import { MessagesCard } from "./messages-card";
-import { ReviewCard } from "./review-card";
+import { ReviewCard, type PayState } from "./review-card";
 import { CarsEditor } from "./cars-editor";
 import { MoneybirdCard } from "./moneybird-card";
 import { invoiceBlocksDelete } from "@/lib/moneybird/sync";
-import { paymentBlocksDelete } from "@/lib/mollie/pay";
+import { paidNet, paymentBlocksDelete } from "@/lib/mollie/pay";
+import { invoiceCents } from "@/lib/moneybird/invoice";
+import { mollieConfig } from "@/lib/mollie/config";
+import { balanceDueOn } from "@/lib/payments/schedule";
 import { PaymentCard } from "./payment-card";
 import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
 import { guestUrl } from "@/lib/quotes/guest-link";
@@ -99,6 +102,20 @@ async function RequestDetail({ params, fromEnquiries }: Pick<PageProps<"/admin/r
     }
     return <p className="mt-4 rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 shadow-card">{message}</p>;
   }
+}
+
+/** On a booking paid at booking: what is in so far, for the review card (null for one paid the old way, after approval). */
+async function payState(r: QuoteRequest): Promise<PayState> {
+  const config = mollieConfig();
+  if (!r.paymentPlan || !config) return null;
+  const paid = await paidNet(r.id, config.mode);
+  if (paid <= 0) return { kind: "unpaid", paid: formatEuro("0") };
+  // Not yet approved, so nothing is "due" yet: the rest is the total less what is in
+  const rest = Math.max(0, (invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0) - paid);
+  const restOn = balanceDueOn(r.paymentPlan, r.pickupAt);
+  return rest > 0
+    ? { kind: "fee", paid: formatEuro((paid / 100).toFixed(2)), rest: formatEuro((rest / 100).toFixed(2)), restOn: restOn ? formatDate(restOn) : "" }
+    : { kind: "full", paid: formatEuro((paid / 100).toFixed(2)) };
 }
 
 async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/admin/requests/[id]">, "params"> & { fromEnquiries: boolean }) {
@@ -202,7 +219,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
       {/* Every booking is approved by hand, or discussed with the customer first (the client, 8 Nov 2026) */}
       {(r.status === "new" || r.status === "contacted") && r.source !== "website-corporate" && (
         <div className="mt-6">
-          <ReviewCard requestId={r.id} status={r.status} copy={d.admin.review} />
+          <ReviewCard requestId={r.id} status={r.status} copy={d.admin.review} pay={await payState(r)} />
         </div>
       )}
 

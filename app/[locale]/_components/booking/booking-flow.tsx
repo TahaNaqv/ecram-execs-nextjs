@@ -181,7 +181,10 @@ export function BookingFlow({
   lockedNotice,
   /** Set once a booking has been sent. The wizard drops that trip and returns to Journey. */
   sealedHref,
+  payOnline = false,
 }: {
+  /** Online payment is on: the booking is paid at booking (the client's rules of 15 Nov 2026) */
+  payOnline?: boolean;
   variant: "public" | "portal";
   locale: Locale;
   copy: BookingCopy;
@@ -444,13 +447,21 @@ export function BookingFlow({
           gallery={galleryCopy(fleetDict)}
           vehicles={vehicles}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
-          onSend={(quoted) => {
+          payOnline={payOnline}
+          onSend={(quoted, shown) => {
             if (sealedHref && sealed.current !== sealedHref) return;
             rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, addOns, locale }));
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
             for (const [k, v] of tripFields(trip, entered.purpose)) data.append(k, v);
             data.set("locale", locale);
+            // Only reached with the terms ticked: the server records the agreement with the payment at booking, if the
+            // plan and total it works out are the ones shown here
+            data.set("consent", "1");
+            if (shown) {
+              data.set("consentPlan", shown.plan);
+              data.set("consentTotal", String(shown.totalCents));
+            }
             startTransition(() => submit(data));
           }}
         />

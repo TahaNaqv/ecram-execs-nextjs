@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { mollieConfigured } from "@/lib/mollie/config";
 import { getBooking, latestPhone } from "@/lib/corporate/bookings";
 import { requirePartner } from "@/lib/corporate/portal";
 import { bookableFleet } from "@/lib/fleet/catalog";
@@ -93,6 +94,7 @@ async function NewBooking({ searchParams }: Pick<PageProps<"/[locale]/corporate-
         vehicles={vehicles}
         booker={{ name: contact.name, email: contact.email, companyName: contact.companyName }}
         defaultPhone={phone ?? undefined}
+        payOnline={mollieConfigured()}
         initialTrip={trip}
         defaults={
           source

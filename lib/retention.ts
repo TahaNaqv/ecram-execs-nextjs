@@ -43,7 +43,7 @@ export type RemoveFiles = (paths: string[]) => Promise<void>;
 const nlNow = (sql: Db) => sql`(now() at time zone 'Europe/Amsterdam')`;
 
 /**
- * Part of the financial records: a completed booking, one with an invoice (uploaded, or numbered in Moneybird), or a confirmed one whose trip has passed (it was
+ * Part of the financial records: a completed booking, one with an invoice (uploaded, or numbered in Moneybird), one paid online (live), or a confirmed one whose trip has passed (it was
  * driven and billed even if nobody marked it completed). Keeping too much is the safe error: a tax record is not recreated.
  * SQL for a quote_requests row aliased `r`.
  */
@@ -51,6 +51,7 @@ const isFinancial = (sql: Db) => sql`(
   r.status = 'completed'
   or exists (select 1 from booking_invoices i where i.request_id = r.id)
   or exists (select 1 from moneybird_invoices mb where mb.request_id = r.id and mb.number is not null)
+  or exists (select 1 from payments p where p.request_id = r.id and p.status = 'paid' and p.mode = 'live')
   or (r.status = 'confirmed' and r.pickup_at is not null and r.pickup_at < ${nlNow(sql)})
 )`;
 

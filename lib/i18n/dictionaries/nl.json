@@ -36,7 +36,7 @@
     "greeting": "Beste {name},",
     "signoff": "Met vriendelijke groet,",
     "quoteSubject": "Uw aanvraag bij Ecram Execs {reference}",
-    "quoteIntro": "Hartelijk dank voor uw boeking. Onze boekingsmanager controleert elke boeking persoonlijk vóór de betaling, meestal binnen het uur. U ontvangt een e-mail zodra hij is goedgekeurd, of als we hem met u willen bespreken. U volgt hem op de pagina van uw boeking.",
+    "quoteIntro": "Hartelijk dank voor uw boeking. Onze boekingsmanager controleert elke boeking persoonlijk, meestal binnen het uur. U ontvangt een e-mail zodra hij is goedgekeurd, of als we hem met u willen bespreken. U volgt hem op de pagina van uw boeking.",
     "quoteReply": "Wijzigt er iets? Antwoord dan eenvoudig op deze e-mail.",
     "quoteReplyPhone": "Wijzigt er iets? Antwoord dan eenvoudig op deze e-mail of bel ons op {phone}.",
     "applicationSubject": "Uw aanmelding als chauffeur bij Ecram Execs {reference}",
@@ -108,7 +108,16 @@
     "enquiryIntroConfirmedPay": "Uw boeking {reference} is goedgekeurd en klaar voor betaling. U kunt {amount} veilig betalen op uw boekingspagina; de boeking staat hieronder.",
     "bookingIntroConfirmedPay": "Uw boeking {reference} is bevestigd. U kunt {amount} veilig betalen op uw boekingspagina.",
     "paymentReceivedSubject": "Betaling ontvangen voor uw boeking {reference}",
-    "paymentReceivedIntro": "Dank u wel: wij hebben uw betaling van {amount} voor boeking {reference} ontvangen."
+    "paymentReceivedIntro": "Dank u wel: wij hebben uw betaling van {amount} voor boeking {reference} ontvangen.",
+    "balanceNoticeSubject": "Uw boeking {reference}: kaartbetaling op {date}",
+    "balanceNoticeIntro": "Een herinnering over uw boeking {reference}: op {date} schrijven wij het resterende bedrag van {amount} af van de kaart waarmee u bij het boeken hebt betaald{card}.",
+    "balanceFailedSubject": "Uw boeking {reference}: betaal alstublieft het restbedrag",
+    "balanceFailedIntro": "Wij konden het resterende bedrag van {amount} voor uw boeking {reference} niet van uw kaart afschrijven. Betaal het alstublieft op de pagina van uw boeking.",
+    "cardExpiresSubject": "Uw boeking {reference}: uw kaart verloopt voor de betaling",
+    "cardExpiresIntro": "De kaart waarmee u voor uw boeking {reference} hebt betaald, verloopt voor {date}, wanneer het resterende bedrag verschuldigd is. Lukt de afschrijving dan niet, dan sturen wij u een e-mail en kunt u betalen op de pagina van uw boeking.",
+    "declinedSubject": "Uw boeking {reference}",
+    "declinedIntro": "Het spijt ons: wij kunnen uw boeking {reference} niet aannemen. De boeking is geannuleerd.",
+    "declinedIntroRefund": "Het spijt ons: wij kunnen uw boeking {reference} niet aannemen. De boeking is geannuleerd en de {amount} die u hebt betaald, inclusief servicekosten, wordt teruggestort op uw kaart. Het kan een paar dagen duren voordat u het ziet."
   },
   "criteria": {
     "or": "of",
@@ -523,7 +532,7 @@
     "bookChangeHint": "Wat zal ik aanpassen?",
     "bookPress": "De boekingskaart staat hieronder. Druk op “Aanvraag versturen” om hem te versturen. Zeg het hier als er iets moet veranderen.",
     "bookNeed": "Ik heb nog een paar gegevens nodig voordat die kaart verstuurd kan worden: {fields}.",
-    "bookSent": "Dank u, {name}. Uw boeking {reference} is verstuurd. Onze boekingsmanager controleert elke boeking persoonlijk vóór de betaling, meestal binnen het uur, en u ontvangt een e-mail met een link om hem te volgen.",
+    "bookSent": "Dank u, {name}. Uw boeking {reference} is verstuurd. Onze boekingsmanager controleert elke boeking persoonlijk, meestal binnen het uur. Volg hem op de eigen pagina (de link hieronder); u ontvangt die link ook per e-mail.",
     "bookFollow": "Volg uw boeking",
     "bookFailed": "Ik kon uw aanvraag niet versturen. {reason} U kunt ook het formulier Plan uw rit hierboven gebruiken, of ons team schrijven via WhatsApp.",
     "carChoose": "Kies deze auto",
@@ -994,7 +1003,9 @@
       "streamLabel": "Boekingsstroom:",
       "streamAll": "Alle boekingen",
       "streamStandard": "Plan uw rit ",
-      "streamCorporate": "Zakelijke boekingen "
+      "streamCorporate": "Zakelijke boekingen ",
+      "notPaid": "Niet betaald",
+      "notPaidNote": "Te betalen bij het boeken, en er is nog niets betaald"
     },
     "requestDetail": {
       "rateCardTitle": "Prijs volgens tarief",
@@ -1186,7 +1197,14 @@
       "mbCredit": "Creditfactuur {number} verstuurd vanuit Moneybird",
       "paid": "Online betaald: {amount} ({method})",
       "refunded": "Terugbetaling via Mollie gestart: {amount}",
-      "chargedBack": "Teruggeboekt door de bank van de klant: {amount}"
+      "chargedBack": "Teruggeboekt door de bank van de klant: {amount}",
+      "balanceCharged": "Restbedrag van de opgeslagen kaart afgeschreven: {amount}",
+      "balanceFailed": "Afschrijving van het restbedrag mislukt: {amount}",
+      "noticeSent": "Klant op de hoogte gebracht van de afschrijving op {date}",
+      "cardExpires": "De opgeslagen kaart verloopt op {date}, voor de datum van het restbedrag",
+      "autoApproved": "Automatisch goedgekeurd (6 maanden of meer vooruit geboekt)",
+      "autoApproveStopped": "Niet automatisch goedgekeurd: een auto is dan al geboekt ({reference})",
+      "declined": "Afgewezen door het team, {amount} terugbetaald"
     },
     "corporate": {
       "title": "Zakelijke contacten",
@@ -1476,7 +1494,16 @@
       "carsLocked": "Een goedgekeurde boeking houdt zijn auto's: wijzig de auto in de kaart hieronder.",
       "carsFewer": "Eén {car} minder",
       "carsMore": "Eén {car} meer",
-      "carsCount": "Aantal {car}"
+      "carsCount": "Aantal {car}",
+      "payUnpaid": "Nog niet betaald. De klant betaalt het bedrag bij het boeken per kaart, op de pagina van de boeking.",
+      "payFee": "Servicekosten betaald ({amount}). Het resterende bedrag van {rest} wordt op {date} van de opgeslagen kaart afgeschreven.",
+      "payFull": "Volledig betaald ({amount}).",
+      "decline": "Afwijzen",
+      "declineRefund": "Afwijzen en terugbetalen",
+      "declineConfirm": "Deze boeking afwijzen? Hij wordt geannuleerd en de klant krijgt een e-mail.",
+      "declineConfirmRefund": "Deze boeking afwijzen? Hij wordt geannuleerd, de betaalde {amount} wordt volledig terugbetaald (ook de servicekosten), de opgeslagen kaart wordt verwijderd en de klant krijgt een e-mail.",
+      "declining": "Afwijzen…",
+      "declined": "Afgewezen. De klant heeft een e-mail gekregen."
     },
     "invoices": {
       "title": "Facturen",
@@ -1782,7 +1809,9 @@
       "makeInvoice": "Factuur maken in Moneybird",
       "feeTooHigh": "De kosten moeten lager zijn dan het totaal van de factuur. Wilt u alles inhouden, laat de factuur dan staan.",
       "paymentNotRecorded": "Een online betaling staat nog niet in Moneybird. Probeer het over een minuut opnieuw.",
-      "refundOwedMollie": "{amount} moet aan de klant worden terugbetaald: doe dat in het betaalblok hieronder (betaald met kaart of iDEAL), of zelf."
+      "refundOwedMollie": "{amount} moet aan de klant worden terugbetaald: doe dat in het betaalblok hieronder (betaald met kaart of iDEAL), of zelf.",
+      "creditServiceFee": "De servicekosten ({fee}) inhouden en de rest crediteren",
+      "noFeeLine": "Deze factuur heeft geen aparte regel voor de servicekosten (een afgesproken prijs), dus de servicekosten kunnen niet apart worden ingehouden. Crediteer volledig, of houd annuleringskosten in."
     },
     "payments": {
       "title": "Betaling (Mollie)",
@@ -2383,7 +2412,7 @@
     "privacyNote": "Geen account nodig. Wij gebruiken uw gegevens alleen om uw boeking te regelen.",
     "privacyLink": "Privacybeleid",
     "submit": "Ter beoordeling versturen",
-    "submitNote": "Onze boekingsmanager controleert elke boeking persoonlijk vóór de betaling, meestal binnen het uur.",
+    "submitNote": "Onze boekingsmanager controleert elke boeking persoonlijk, meestal binnen het uur.",
     "sending": "Versturen…",
     "summaryLabel": "Uw rit",
     "summaryAnyCar": "Auto door ons gekozen",
@@ -2498,14 +2527,20 @@
     "doneMapOpen": "Openen in Google Maps",
     "doneMapFrame": "Kaart van uw route",
     "termsLink": "algemene voorwaarden van Ecram Execs",
-    "termsAfter": " gelezen en ga ermee akkoord."
+    "termsAfter": " gelezen en ga ermee akkoord.",
+    "payConsent": "Ik ga er ook mee akkoord dat de servicekosten niet worden terugbetaald en dat de rest van de prijs 30 dagen voor de rit van dezelfde kaart wordt afgeschreven.",
+    "payNowFull": "U betaalt nu {amount}, per kaart.",
+    "payNowFee": "U betaalt nu de servicekosten van {amount}, per kaart (niet restitueerbaar). Het resterende bedrag van {rest} wordt op {date} van dezelfde kaart afgeschreven.",
+    "payAutoApproved": "Omdat u zo ver vooruit boekt, is uw boeking bevestigd zodra de servicekosten zijn betaald.",
+    "payReviewed": "Onze boekingsmanager controleert daarna de auto's en bevestigt uw boeking. Kunnen wij de rit niet aannemen, dan krijgt u alles terug wat u hebt betaald.",
+    "submitPay": "Boek en betaal {amount}"
   },
   "guestBooking": {
     "metaTitle": "Uw boeking",
     "notFound": "Deze link opent geen boeking. Gebruik de link in uw e-mail, of neem contact met ons op.",
     "reviewEyebrow": "Wordt beoordeeld",
     "reviewHeading": "Dank u, {name}. Uw boeking wordt beoordeeld.",
-    "reviewNote": "Onze boekingsmanager controleert elke boeking persoonlijk vóór de betaling, meestal binnen het uur.",
+    "reviewNote": "Onze boekingsmanager controleert elke boeking persoonlijk, meestal binnen het uur.",
     "reviewKeepOpen": "Sluit deze pagina niet: deze gaat vanzelf verder zodra er nieuws is. U ontvangt ook een e-mail met een link terug naar deze pagina.",
     "reviewChecking": "Wachten op onze boekingsmanager…",
     "discussEyebrow": "In overleg",
@@ -2551,6 +2586,12 @@
     "paidThanks": "Betaald. Dank u wel.",
     "payNothingDue": "Er staat niets meer open.",
     "payFailed": "De betaalpagina kon niet worden geopend. Probeer het zo opnieuw.",
-    "payTooMany": "Te veel pogingen. Wacht een paar minuten en probeer het opnieuw."
+    "payTooMany": "Te veel pogingen. Wacht een paar minuten en probeer het opnieuw.",
+    "paySecure": "Betaal {amount} om uw boeking vast te leggen",
+    "paySecureNote": "Uw boeking wordt vastgehouden zodra de betaling bij het boeken binnen is. Betaal hieronder per kaart.",
+    "payConsentRest": "Ik ga akkoord met de Algemene Voorwaarden. De servicekosten worden niet terugbetaald, en het resterende bedrag van {amount} wordt op {date} van deze kaart afgeschreven.",
+    "payConsentFull": "Ik ga akkoord met de Algemene Voorwaarden. De servicekosten in dit bedrag worden niet terugbetaald.",
+    "payConsentNeeded": "Vink eerst het vakje aan om akkoord te gaan.",
+    "payRestOn": "Servicekosten betaald. Het resterende bedrag van {amount} wordt op {date} van uw kaart afgeschreven."
   }
 }

@@ -30,6 +30,8 @@ type Props = {
   bookPath: string;
   privacyHref: string;
   homeHref: string;
+  /** Online payment is on: the booking is paid at booking */
+  payOnline?: boolean;
 };
 
 /**
@@ -45,7 +47,7 @@ export function PublicBooking(props: Props) {
   return <Run key={`${search}#${round}`} search={search} onAgain={() => setRound((r) => r + 1)} {...props} />;
 }
 
-function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, privacyHref, homeHref }: Props & { search: string; onAgain: () => void }) {
+function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fleetDict, vehicleAdvise, vehicles, privacyHref, homeHref, payOnline }: Props & { search: string; onAgain: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<QuoteFormState, FormData>(submitQuote, { status: "idle" });
   const trip = useMemo(() => tripFromParams(new URLSearchParams(search)), [search]);
@@ -65,6 +67,7 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
   // Counted once per sent booking, so the booking bar on the home page and the next visit to /book start empty. Then the
   // visitor goes to the booking's own page, where they follow the review by hand (the client, 8 Nov 2026)
   const href = state.status === "success" ? state.href : undefined;
+  const payUrl = state.status === "success" ? state.payUrl : undefined;
   const sentReference = state.status === "success" ? state.reference : "";
   const followed = useRef<string | null>(null);
   const [again, setAgain] = useState(false);
@@ -91,12 +94,14 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
     }
     markBookingSent();
     claimRideReceipt(sentReference);
-    if (href) router.push(href);
-  }, [sentReference, href, router]);
+    // The payment at booking first (Mollie's page, another site), which comes back to the booking's page
+    if (payUrl) window.location.assign(payUrl);
+    else if (href) router.push(href);
+  }, [sentReference, href, payUrl, router]);
 
   if (state.status === "success" && !again) {
     // On its way to the booking's page: nothing to show for the moment it takes
-    if (href) return <div className="min-h-[60svh]" aria-busy="true" />;
+    if (href || payUrl) return <div className="min-h-[60svh]" aria-busy="true" />;
     return <BookingDone copy={copy} locale={locale} name={state.name} reference={state.reference} map={state.map} price={state.price} onAgain={onAgain} />;
   }
 
@@ -114,6 +119,7 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
       initialTrip={trip}
       initialStep={initialStep}
       sealedHref={sentReference || null}
+      payOnline={payOnline}
       result={{
         pending,
         message: state.status === "error" ? state.message : null,

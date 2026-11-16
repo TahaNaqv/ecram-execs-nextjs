@@ -1,5 +1,6 @@
 "use server";
 
+import { stopPaying } from "@/lib/admin/approve";
 import { and, eq, sql } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -18,7 +19,7 @@ import type { RequestEventChange } from "@/lib/admin/events";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
 import { syncAfter } from "@/lib/moneybird/after";
 import { invoiceBlocksDelete, invoiceBlocksStatus } from "@/lib/moneybird/sync";
-import { paymentBlocksDelete } from "@/lib/mollie/pay";
+import { forgetCustomer, paymentBlocksDelete } from "@/lib/mollie/pay";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -180,6 +181,8 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   if (before.status !== saved.status || before.quotedAmount !== saved.quotedAmount) {
     syncAfter(saved.id, { deliver: notifiesPartner || notifiesGuest ? "Email" : "Manual" });
   }
+  // Cancelled: no checkout is left open and the saved card is not charged again
+  if (saved.status === "cancelled" && before.status !== "cancelled") after(() => stopPaying(saved.id, saved.reference));
   revalidatePath("/admin/corporate");
   revalidatePath("/admin");
   if (saved.corporateContactId) revalidatePath(`/admin/corporate/${saved.corporateContactId}`);
@@ -206,6 +209,8 @@ export async function deleteRequest(formData: FormData) {
   if ((await invoiceBlocksDelete(id.data)) || (await paymentBlocksDelete(id.data))) redirect(`/admin/requests/${id.data}`);
   // The invoice rows go with the request (cascade); the files on disk are removed here, like an application's documents
   const invoices = await db.select({ path: schema.bookingInvoices.path }).from(schema.bookingInvoices).where(eq(schema.bookingInvoices.requestId, id.data));
+  // The saved card and the customer at Mollie go too (a mandate kept for nobody)
+  await forgetCustomer(id.data).catch(() => null);
   const [deleted] = await db
     .delete(schema.quoteRequests)
     .where(eq(schema.quoteRequests.id, id.data))

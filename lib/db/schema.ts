@@ -88,6 +88,31 @@ export const quoteRequests = pgTable(
     source: text("source").notNull().default("website"),
     ipHash: text("ip_hash"),
     userAgent: text("user_agent"),
+    // Paying (lib/payments/schedule.ts, the client's rules of 15 Nov 2026): A = 6 months or more ahead (fee now, the rest
+    // 30 days before, approved by itself), B = fee now, the rest 30 days before, C = 30 days or less (everything now).
+    // Null for a booking made before these rules, or one with no date or price yet: it is paid in full after approval.
+    paymentPlan: text("payment_plan", { enum: ["A", "B", "C"] }),
+    /** What the customer agreed to pay, in cents, when they ticked the terms: nothing above it is charged by itself. */
+    consentedCents: integer("consented_cents"),
+    consentedAt: timestamp("consented_at", { withTimezone: true }),
+    consentVersion: text("consent_version"),
+    consentIpHash: text("consent_ip_hash"),
+    /** The booking's customer at Mollie, and the card saved by its first payment (charged for the balance). */
+    mollieCustomerId: text("mollie_customer_id"),
+    mollieMode: text("mollie_mode", { enum: ["test", "live"] }),
+    mollieMandateId: text("mollie_mandate_id"),
+    /** The saved card's last day ("YYYY-MM-DD"): a card that runs out before the balance date is flagged. */
+    cardExpiresOn: date("card_expires_on", { mode: "string" }),
+    cardLabel: text("card_label"),
+    // One-time steps of the sweep (lib/mollie/schedule.ts), each claimed by setting its column: never run twice
+    autoApproveDoneAt: timestamp("auto_approve_done_at", { withTimezone: true }),
+    autoApproveStoppedAt: timestamp("auto_approve_stopped_at", { withTimezone: true }),
+    noticeSentAt: timestamp("notice_sent_at", { withTimezone: true }),
+    balanceAttemptedAt: timestamp("balance_attempted_at", { withTimezone: true }),
+    cardWarnedAt: timestamp("card_warned_at", { withTimezone: true }),
+    paidNotifiedAt: timestamp("paid_notified_at", { withTimezone: true }),
+    /** Set by "Decline and refund": the team could not take the booking, so everything paid goes back. */
+    declinedAt: timestamp("declined_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -243,6 +268,8 @@ export const moneybirdInvoices = pgTable(
     unpaidCents: integer("unpaid_cents"),
     /** On a credit invoice: the cancellation fee the team kept, in cents (0 for a full credit). */
     feeCents: integer("fee_cents"),
+    /** On a credit invoice: the kept amount is the service fee's own line (credited is everything but that line). */
+    keepFeeLine: boolean("keep_fee_line").notNull().default(false),
     url: text("url"),
     paymentUrl: text("payment_url"),
     lastError: text("last_error"),
@@ -284,6 +311,11 @@ export const payments = pgTable(
     reference: text("reference").notNull(),
     mollieId: text("mollie_id"),
     mode: text("mode", { enum: ["test", "live"] }).notNull(),
+    /**
+     * What the payment is for: "upfront" (at booking, a first card payment that saves the card), "balance" (the rest, charged
+     * to that card 30 days before the ride), or "pay" (the Pay button: after approval, a failed charge, a price raise).
+     */
+    purpose: text("purpose", { enum: ["upfront", "balance", "pay"] }).notNull().default("pay"),
     /** Ours while the payment is being made ("creating"), then Mollie's: open, pending, authorized, paid, canceled, expired, failed. */
     status: text("status").notNull(),
     amountCents: integer("amount_cents").notNull(),

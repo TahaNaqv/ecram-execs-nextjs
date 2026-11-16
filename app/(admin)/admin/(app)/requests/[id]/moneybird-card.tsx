@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { feeWithVatCents } from "@/lib/payments/schedule";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
@@ -142,7 +143,13 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
         )}
 
         {live && sent && r.status === "cancelled" && connected && (
-          <CreditForm requestId={r.id} copy={t} paid={live.state === "paid"} total={euros(live.totalCents)} />
+          <CreditForm
+            requestId={r.id}
+            copy={t}
+            paid={live.state === "paid"}
+            total={euros(live.totalCents)}
+            serviceFee={r.paymentPlan && r.priceEstimate?.fee ? euros(feeWithVatCents(r.priceEstimate)) : undefined}
+          />
         )}
 
         {credits.map((row) => {

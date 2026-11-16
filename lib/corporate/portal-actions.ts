@@ -24,6 +24,7 @@ import { getCorporateContact } from "./access";
 import { MESSAGEABLE, REF_RE, partnerOwns } from "./bookings";
 import type { PortalState } from "./portal-state";
 import { syncAfter } from "@/lib/moneybird/after";
+import { consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
 
 const q = schema.quoteRequests;
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
@@ -78,6 +79,7 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
   }
 
   let created: QuoteRequest | undefined;
+  let createdIp: string | null = null;
   try {
     const { ipHash, userAgent } = await visitor();
     const [{ recent }] = await db
@@ -104,17 +106,27 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
       source: "portal",
       ipHash,
       userAgent,
+      // Partners pay at booking too (the client, 15 Nov 2026): the fee now and the rest 30 days before, or all now
+      ...planForNewBooking(parsed.data.pickupAt, priceEstimate),
     });
     created = request;
-    after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));
+    createdIp = ipHash;
   } catch (err) {
     console.error("[portal] booking failed", err);
     return fail(f.quoteServerError);
   }
   if (!created) return fail(f.quoteServerError);
+  const payUrl = await payAtBooking(created, { consent: consentFromForm(formData, created), ipHash: createdIp, locale, who: "partner" });
+  // Announced once the payment at booking is in (lib/mollie/schedule.ts), or now when there is none to make or no checkout
+  // was opened (the partner pays on the booking's page then), and not again once paid
+  if (!created.paymentPlan || !payUrl) {
+    const request = created;
+    if (request.paymentPlan) await markAnnounced(request.id);
+    after(() => Promise.all([notifyNewQuote(request), confirmToClient(request)]));
+  }
   // A thrown redirect from this action reaches the error screen, while the booking is already saved.
-  // The browser opens the booking page from the returned address instead.
-  return { status: "sent", href: `${localizedPath("/corporate-partner/account/booking", locale)}?ref=${encodeURIComponent(created.reference)}&created=1` };
+  // The browser opens Mollie's page (the payment at booking), or the booking page, from the returned address instead.
+  return { status: "sent", href: payUrl ?? `${localizedPath("/corporate-partner/account/booking", locale)}?ref=${encodeURIComponent(created.reference)}&created=1` };
 }
 
 /**

@@ -23,9 +23,10 @@ export function RetryButton({ requestId, copy: t, force = false }: { requestId: 
 }
 
 /** The cancelled booking's credit: in full, or keeping a cancellation fee. Nothing is credited until the team chooses. */
-export function CreditForm({ requestId, copy: t, paid, total }: { requestId: string; copy: Copy; paid: boolean; total: string }) {
+export function CreditForm({ requestId, copy: t, paid, total, serviceFee }: { requestId: string; copy: Copy; paid: boolean; total: string; serviceFee?: string }) {
   const [state, action, pending] = useActionState<MoneybirdState, FormData>(creditInvoice, {});
-  const [mode, setMode] = useState<"full" | "fee">("full");
+  // Paid at booking: the service fee is not refunded when the customer cancels, so that is the first choice
+  const [mode, setMode] = useState<"full" | "fee" | "serviceFee">(serviceFee ? "serviceFee" : "full");
   return (
     <form action={action} className="flex flex-col gap-3 rounded-lg bg-zinc-50 p-3 ring-1 ring-inset ring-zinc-200">
       <input type="hidden" name="requestId" value={requestId} />
@@ -33,6 +34,12 @@ export function CreditForm({ requestId, copy: t, paid, total }: { requestId: str
         <p className="m-0 text-[13px] font-semibold text-zinc-950">{t.creditTitle}</p>
         <p className="m-0 mt-0.5 text-xs text-zinc-500">{paid ? interpolate(t.creditNotePaid, { total }) : t.creditNote}</p>
       </div>
+      {serviceFee && (
+        <label className="flex items-center gap-2 text-[13px] text-zinc-800">
+          <input type="radio" name="mode" value="serviceFee" checked={mode === "serviceFee"} onChange={() => setMode("serviceFee")} />
+          {interpolate(t.creditServiceFee, { fee: serviceFee })}
+        </label>
+      )}
       <label className="flex items-center gap-2 text-[13px] text-zinc-800">
         <input type="radio" name="mode" value="full" checked={mode === "full"} onChange={() => setMode("full")} />
         {interpolate(t.creditFull, { total })}
