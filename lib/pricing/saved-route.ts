@@ -11,9 +11,19 @@ type SavedBooking = {
   collection?: string | null;
   destination?: string | null;
   destinations?: string[] | null;
+  destinationWaits?: number[] | null;
   durationHours?: number | null;
   priceEstimate?: Price | null;
 };
+
+/** Minutes the chauffeur waits at intermediate stops. Waiting is time on the clock, not extra distance. */
+function waitMinutesOf(waits: number[] | null | undefined) {
+  return (waits ?? []).reduce((sum, minutes) => sum + (Number.isFinite(minutes) && minutes > 0 ? minutes : 0), 0);
+}
+
+function withWaiting(span: { meters: number; seconds: number }, minutes: number) {
+  return minutes > 0 ? { meters: span.meters, seconds: span.seconds + minutes * 60 } : span;
+}
 
 /**
  * The Distance, time line for a booking already stored.
@@ -27,7 +37,9 @@ export async function savedRouteLine(
 ): Promise<string> {
   const stored = spanFromPrice(booking.priceEstimate);
   const exact = Boolean(booking.priceEstimate?.distanceMeters && booking.priceEstimate?.driveSeconds);
-  if (exact && stored) return formatRouteSpan(stored, words, locale);
+  const waits = booking.service === "hourly" ? 0 : waitMinutesOf(booking.destinationWaits);
+  // A stored drive is the moving time only. Billed hours already include the waits, so those are not added again.
+  if (exact && stored) return formatRouteSpan(withWaiting(stored, waits), words, locale);
 
   const hourly = booking.service === "hourly";
   const from = booking.collection?.trim() ?? "";
@@ -41,7 +53,7 @@ export async function savedRouteLine(
       console.error("[saved-route] cached estimate failed", err);
       found = await routeEstimate({ service: "business_travel", collection: from, destination: to, destinations: stops }).catch(() => null);
     }
-    if (found && found.meters > 0 && found.seconds > 0) return formatRouteSpan(found, words, locale);
+    if (found && found.meters > 0 && found.seconds > 0) return formatRouteSpan(withWaiting(found, waits), words, locale);
   }
 
   if (hourly && booking.durationHours && booking.durationHours > 0) return interpolate(words.hourly, { hours: booking.durationHours });

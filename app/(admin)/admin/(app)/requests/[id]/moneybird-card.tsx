@@ -11,7 +11,7 @@ import { mollieConfigured } from "@/lib/mollie/config";
 import { invoiceCents } from "@/lib/moneybird/invoice";
 import { billingComplete, invoiceEligible, invoicesFor, isSent } from "@/lib/moneybird/sync";
 import { AlertIcon, EuroIcon } from "../../../_components/icons";
-import { Card, CardHeader } from "../../../_components/ui";
+import { btn, Card, CardHeader } from "../../../_components/ui";
 import { CreditForm, RetryButton } from "./moneybird-controls";
 
 const euros = (cents: number | null | undefined) => (cents == null ? "—" : formatEuro((cents / 100).toFixed(2)));
@@ -73,14 +73,14 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
   const links = (row: { moneybirdId: string | null; url: string | null }) => {
     const inMoneybird = row.moneybirdId ? moneybirdInvoiceLink(row.moneybirdId) : null;
     return (
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+      <div className="flex flex-wrap gap-2">
         {inMoneybird && (
-          <a className="font-medium text-zinc-900 underline-offset-2 hover:underline" href={inMoneybird} target="_blank" rel="noreferrer">
+          <a className={`${btn.base} ${btn.secondary} ${btn.sm}`} href={inMoneybird} target="_blank" rel="noreferrer">
             {t.openInMoneybird}
           </a>
         )}
         {row.url && (
-          <a className="font-medium text-zinc-900 underline-offset-2 hover:underline" href={row.url} target="_blank" rel="noreferrer">
+          <a className={`${btn.base} ${btn.secondary} ${btn.sm}`} href={row.url} target="_blank" rel="noreferrer">
             {t.viewInvoice}
           </a>
         )}

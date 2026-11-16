@@ -200,6 +200,117 @@
   border-color: #ffffff !important;
 }
 
+/* Booking step 1. On a light card the type is black. Inside the navy panel the card itself is navy, so the type is cream
+   instead, including the browser's own fill colour, which otherwise washes the letters out against the field. */
+.journey-fields :where(input, textarea) {
+  color: #0a0a0b;
+  -webkit-text-fill-color: #0a0a0b;
+  caret-color: #0a0a0b;
+}
+.journey-fields :where(input, textarea)::placeholder {
+  color: #3f3f46;
+  -webkit-text-fill-color: #3f3f46;
+}
+:root[data-theme="navy"] .light-surface .journey-fields :where(input, textarea, label) {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  caret-color: #f4f4f5;
+}
+/* The wait control is a button that also wraps its menu. Only the closed control is cream.
+   Address suggestions use bg-white, which is already the navy panel, so they keep the cream type.
+   The hour and wait menus are a real white panel (bg-[#ffffff]) and stay dark.
+   The calendar popup is a navy dialog, so its columns are not part of that white-menu rule. */
+:root[data-theme="navy"] .light-surface .journey-fields button[aria-haspopup="listbox"] {
+  color: #f4f4f5 !important;
+}
+:root[data-theme="navy"] .light-surface .journey-fields [role="listbox"]:not(.bg-white),
+:root[data-theme="navy"] .light-surface .journey-fields [role="listbox"]:not(.bg-white) :where(button, li) {
+  color: #10224f !important;
+  -webkit-text-fill-color: #10224f !important;
+}
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"],
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] :where(button, li) {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+/* A chosen day or time sits on a white pill. The panel's inherited fill is cream, which vanishes on that pill. */
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] button[aria-pressed="true"],
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] button[aria-selected="true"],
+:root[data-theme="navy"] .light-surface .journey-fields .picker-solid,
+:root[data-theme="navy"] .light-surface .journey-fields .picker-solid:hover {
+  color: #081b62 !important;
+  -webkit-text-fill-color: #081b62 !important;
+}
+/* Calendar icon. On a light field it is dark, including on hover. On the navy card it stays cream,
+   and the hover wash stays translucent so the icon never sits light-on-light. */
+:root[data-theme="navy"] .light-surface .calendar-trigger,
+:root[data-theme="navy"] .light-surface .calendar-trigger:hover {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  background-color: transparent !important;
+}
+:root[data-theme="navy"] .light-surface .calendar-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+}
+/* One Way / By The Hour. Light themes: a dark pill with white type, idle type dark.
+   The navy booking card swaps those tokens, so the same pills are set again in real colours. */
+.mode-pill-dark.mode-pill-on {
+  background-color: #ffffff;
+  color: #081b62;
+  -webkit-text-fill-color: #081b62;
+}
+.mode-pill-dark.mode-pill-off,
+.mode-pill-dark.mode-pill-off:hover {
+  background-color: transparent;
+  color: #f4f4f5;
+  -webkit-text-fill-color: #f4f4f5;
+}
+.mode-pill-dark.mode-pill-off:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.mode-pill-light.mode-pill-on {
+  background-color: #0a0a0b;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+.mode-pill-light.mode-pill-off,
+.mode-pill-light.mode-pill-off:hover {
+  background-color: transparent;
+  color: #0a0a0b;
+  -webkit-text-fill-color: #0a0a0b;
+}
+.mode-pill-light.mode-pill-off:hover {
+  background-color: rgba(10, 10, 11, 0.06);
+}
+:root[data-theme="navy"] .light-surface .mode-pill-light.mode-pill-on {
+  background-color: #f4f4f5 !important;
+  color: #081b62 !important;
+  -webkit-text-fill-color: #081b62 !important;
+}
+:root[data-theme="navy"] .light-surface .mode-pill-light.mode-pill-off,
+:root[data-theme="navy"] .light-surface .mode-pill-light.mode-pill-off:hover {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  background-color: transparent !important;
+}
+:root[data-theme="navy"] .light-surface .mode-pill-light.mode-pill-off:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+:root[data-theme="navy"] .light-surface .journey-fields :is(.text-ink-950, .text-ink-800, .text-ink-700, .text-ink-600, .text-ink-500, .text-ink-475, .text-ink-400) {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+:root[data-theme="navy"] .light-surface .journey-fields :where(input, textarea)::placeholder {
+  color: #d5dced !important;
+  -webkit-text-fill-color: #d5dced !important;
+}
+/* A pale notice keeps dark type. The navy panel turns `text-error` light, which disappears on this pink fill. */
+:root[data-theme="navy"] .light-surface .journey-alert,
+:root[data-theme="navy"] .light-surface .journey-alert :where(span, strong) {
+  color: #7f1d1d !important;
+  -webkit-text-fill-color: #7f1d1d !important;
+}
+
 /* Corporate signup fields. `text-white` and `text-ink-950` both follow the swapped scale, so typed text was navy on navy. */
 :root[data-theme="navy"] .light-surface .corp-fields input:not([type="checkbox"]):not([type="hidden"]) {
   color: #ffffff !important;

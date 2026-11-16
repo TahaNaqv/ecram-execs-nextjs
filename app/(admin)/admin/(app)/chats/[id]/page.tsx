@@ -77,7 +77,10 @@ async function Detail({ params }: Pick<PageProps<"/admin/chats/[id]">, "params">
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
-          <ol className="m-0 flex list-none flex-col gap-4 p-5" aria-label={c.detailTitle}>
+          <ol
+            className="m-0 flex max-h-[min(70vh,42rem)] list-none flex-col gap-4 overflow-y-auto overscroll-contain p-5 [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400"
+            aria-label={c.detailTitle}
+          >
             {messages.map((m) => {
               const mine = m.role === "visitor";
               const meta = (m.meta ?? {}) as ConciergeMessageMeta;

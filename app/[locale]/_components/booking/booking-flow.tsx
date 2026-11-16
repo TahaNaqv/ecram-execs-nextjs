@@ -10,6 +10,7 @@ import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { receiptLineItems, type ReceiptLine } from "@/lib/pricing/receipt-lines";
 import { formatCents, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
+import { labelledRoute } from "@/lib/quotes/route-labels";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
@@ -24,19 +25,17 @@ import { bookingsSent } from "./sent";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
 import { ExtrasStep } from "./extras-step";
 
-/** Pickup, each stop, then drop-off, as "Stop 1: …", "Stop 2: …". An hourly trip is the pickup and the hours. */
+/** Collection, each intermediate stop, then destination. An hourly trip is the collection and the hours. */
 function numberedStops(trip: Trip, t: BookingCopy, shorten = false): string[] {
   const label = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return "";
     return shorten ? trimmed.split(",")[0].trim() : trimmed;
   };
+  const labels = { collection: t.reviewPickup, destination: t.reviewDropoff, stop: t.reviewStop };
   if (trip.mode === "hourly") {
     const from = label(trip.from.text);
-    return [
-      from ? `${interpolate(t.stopLabel, { number: 1 })}: ${from}` : "",
-      trip.hours === "" ? "" : interpolate(t.asDirected, { hours: trip.hours }),
-    ].filter(Boolean);
+    return [from ? `${t.reviewPickup}: ${from}` : "", trip.hours === "" ? "" : interpolate(t.asDirected, { hours: trip.hours })].filter(Boolean);
   }
   const places = [
     label(trip.from.text),
@@ -47,8 +46,8 @@ function numberedStops(trip: Trip, t: BookingCopy, shorten = false): string[] {
         return s.wait ? `${name} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : name;
       }),
     label(trip.to.text),
-  ].filter(Boolean);
-  return places.map((place, index) => `${interpolate(t.stopLabel, { number: index + 1 })}: ${place}`);
+  ];
+  return labelledRoute(places, labels);
 }
 
 export type BookingStep = "journey" | "car" | "extras" | "details" | "review";
@@ -335,7 +334,7 @@ export function BookingFlow({
           </h2>
           <p className="m-0 mt-2 mb-6 text-[15px] text-ink-600">{t.journeyIntro}</p>
           {journeyErrors.length > 0 && (
-            <p role="alert" className="m-0 mb-4 rounded-xl bg-[#fef3f2] px-4 py-3 text-[14px] text-error">
+            <p role="alert" className="journey-alert m-0 mb-4 rounded-xl bg-[#fef3f2] px-4 py-3 text-[14px] text-[#7f1d1d]">
               {journeyErrors.join(" ")}
             </p>
           )}
@@ -1427,9 +1426,9 @@ export function DownloadableReceiptCard({
         clientPhone: receipt?.passengerPhone ?? "",
         route,
         when: receipt?.when ?? "",
-        pickup: receipt?.pickup,
-        stops: receipt?.stops.map((stop, index) => `${interpolate(t.stopLabel, { number: index + 1 })}: ${stop}`),
-        dropoff: receipt?.dropoff,
+        pickup: receipt?.pickup ? `${t.reviewPickup}: ${receipt.pickup}` : undefined,
+        stops: receipt?.stops.map((stop, index) => `${interpolate(t.reviewStop, { number: index + 1 })}: ${stop}`),
+        dropoff: receipt?.dropoff ? `${t.reviewDropoff}: ${receipt.dropoff}` : undefined,
         vehicle: receipt?.vehicle,
         passengers: receipt?.passengers,
         lines,
@@ -1485,13 +1484,13 @@ export function DownloadableReceiptCard({
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[10px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">Itinerary</span>
-                  {receipt?.pickup && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{receipt.pickup}</strong>}
+                  {receipt?.pickup && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{t.reviewPickup}: {receipt.pickup}</strong>}
                   {receipt?.stops.map((stop, index) => (
                     <span key={`${stop}-${index}`} className="break-words text-[12px] text-zinc-200">
-                      {interpolate(t.stopLabel, { number: index + 1 })}: {stop}
+                      {interpolate(t.reviewStop, { number: index + 1 })}: {stop}
                     </span>
                   ))}
-                  {receipt?.dropoff && <span className="break-words text-[13px] font-semibold text-[#ffffff]">{receipt.dropoff}</span>}
+                  {receipt?.dropoff && <span className="break-words text-[13px] font-semibold text-[#ffffff]">{t.reviewDropoff}: {receipt.dropoff}</span>}
                   {!receipt?.pickup && !receipt?.dropoff && route && <strong className="text-[13px] font-semibold break-words text-[#ffffff]">{route}</strong>}
                   {receipt?.when && <span className="text-[12px] text-zinc-200">{receipt.when}</span>}
                   {receipt?.vehicle && <span className="text-[12px] text-zinc-200">{receipt.vehicle}</span>}

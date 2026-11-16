@@ -15,6 +15,7 @@ import { customerInvoices, payable } from "@/lib/moneybird/customer";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
 import { paymentView } from "@/lib/mollie/pay";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
+import { labelledRoute } from "@/lib/quotes/route-labels";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import type { RideReceipt } from "../_components/booking/booking-flow";
 import { GuestBookingView } from "../_components/booking/guest-booking";
@@ -55,7 +56,10 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
     ...intermediates.map((s) => (s.wait ? `${s.place} (${interpolate(d.booking.waitMinutes, { minutes: s.wait })})` : s.place)),
     booking.destination ?? (booking.durationHours ? interpolate(d.booking.asDirected, { hours: booking.durationHours }) : null),
   ].filter((place): place is string => Boolean(place?.trim()));
-  const route = routePlaces.map((place, index) => `${interpolate(d.booking.stopLabel, { number: index + 1 })}: ${place}`);
+  const hourlyRide = booking.service === "hourly" && !booking.destination;
+  const route = hourlyRide
+    ? routePlaces.map((place, index) => (index === 0 ? `${d.booking.reviewPickup}: ${place}` : place))
+    : labelledRoute(routePlaces, { collection: d.booking.reviewPickup, destination: d.booking.reviewDropoff, stop: d.booking.reviewStop });
   const cars = convoyTitle(booking) ?? vehicleByKey(booking.vehicle)?.name ?? (booking.vehicle === "advise" ? d.quoteForm.vehicleAdvise : booking.vehicle);
   // The amount the booking manager set wins over the rate card's, as in the emails (bookingTotalEuros)
   const total = bookingTotalEuros(booking);

@@ -257,6 +257,7 @@ export function ReviewStep({
   if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
   const segment = segmentOf(variant);
   const drive = estimate && estimate !== "pending" ? estimate : null;
+  const waits = tripWaitMinutes(trip);
   const price = tripPrice(trip, segment, drive?.seconds ?? null, drive?.meters ?? null);
   // When it is paid (lib/payments/schedule.ts; the server works it out again): the fee now and the rest 30 days before
   // the ride, or everything now when the ride is within 30 days. Approved by itself 6 months or more ahead.
@@ -266,7 +267,15 @@ export function ReviewStep({
   const restOn = balanceDueOn(payPlan, trip.at);
   const longDate = (iso: string) =>
     new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
-  const calculated = drive ?? (estimate === "pending" ? null : spanFromPrice(price));
+  // Google's drive does not include time waiting at a stop. The distance line's travel time does, the same way the
+  // corporate review states the drive and the waits together. A fallback that only has billed hours already counted them.
+  const storedDrive =
+    !drive && price && typeof price.distanceMeters === "number" && price.distanceMeters > 0 && typeof price.driveSeconds === "number" && price.driveSeconds > 0
+      ? { meters: price.distanceMeters, seconds: price.driveSeconds }
+      : null;
+  const driveOnly = drive ?? storedDrive;
+  const withWaits = driveOnly && waits > 0 ? { meters: driveOnly.meters, seconds: driveOnly.seconds + waits * 60 } : driveOnly;
+  const calculated = estimate === "pending" ? null : (withWaits ?? spanFromPrice(price));
   if (routed || trip.mode === "hourly" || calculated) {
     const distance =
       estimate === "pending" ? (
@@ -280,10 +289,9 @@ export function ReviewStep({
       );
     ride.push([t.reviewDistance, distance]);
   }
-  // The drive and the waits together: the time the price is worked out on
-  const waits = tripWaitMinutes(trip);
-  if (routed && estimate && estimate !== "pending" && waits > 0) {
-    ride.push([t.reviewTotalTime, interpolate(t.reviewTotalTimeValue, { time: minutesText(estimate.seconds / 60 + waits, t), wait: minutesText(waits, t) })]);
+  // The drive and the waits together, spelled out the same way on a standard booking and a corporate one
+  if (driveOnly && waits > 0) {
+    ride.push([t.reviewTotalTime, interpolate(t.reviewTotalTimeValue, { time: minutesText(driveOnly.seconds / 60 + waits, t), wait: minutesText(waits, t) })]);
   }
 
   const picks = trip.cars.filter((c) => c.count > 0);

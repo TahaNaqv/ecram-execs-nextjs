@@ -76,11 +76,11 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{copy.avgTrip}</p>
-          <p className="text-2xl font-bold tracking-tight text-zinc-950">€ {partner.avgTripValue}</p>
+          <p className="text-2xl font-bold tracking-tight text-zinc-950">{formatCurrency(partner.avgTripValue)}</p>
         </div>
         <div className="rounded-xl border border-zinc-950 bg-zinc-950 text-white p-5 shadow-xs space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">{copy.totalSpend}</p>
-          <p className="text-2xl font-bold tracking-tight">€ {partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
+          <p className="text-2xl font-bold tracking-tight">{formatCurrency(partner.totalSpend)}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{copy.preferredVehicle}</p>
@@ -165,7 +165,7 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
               [copy.billingEmail, billing.invoiceEmail],
               [copy.kvkNumber, partner.kvkNumber],
               [copy.kvrNumber, partner.kvrNumber],
-              [copy.ytdSpend, `€ ${partner.totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}`],
+              [copy.ytdSpend, formatCurrency(partner.totalSpend)],
             ]
               .filter(([, value]) => value && value !== "—")
               .map(([label, value]) => (

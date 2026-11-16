@@ -321,7 +321,7 @@ export async function notifyTeamPartnerActivity({
     ["Email", partner.email],
     ["Date & time (NL)", q.pickupAt && q.pickupAt.slice(0, 16).replace("T", " ")],
     ["Pick-up within 24 hours", soon ? "Yes — please act today" : null],
-    ["Quoted amount", bookingTotalEuros(q) && `€ ${bookingTotalEuros(q)}`],
+    ["Quoted amount", bookingTotalEuros(q) ? formatCurrency(Number(bookingTotalEuros(q))) : null],
     [kind === "declined" ? "Reason" : "Message", body ?? null],
   ];
   await send("portal", q.reference, `team alert (${kind})`, {

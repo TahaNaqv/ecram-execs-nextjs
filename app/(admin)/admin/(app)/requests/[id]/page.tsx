@@ -300,6 +300,14 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
           <Card className="flex flex-col overflow-hidden">
             <CardHeader title={d.admin.requestDetail.client} />
             <dl className="divide-y divide-zinc-100 p-5">
+              <ContactRow icon={<UsersIcon />} label={d.booking.reviewName}>
+                {guestName}
+              </ContactRow>
+              {r.passengerName?.trim() && r.passengerName.trim() !== guestName && (
+                <ContactRow icon={<UsersIcon />} label={d.booking.reviewPassenger}>
+                  {[r.passengerName.trim(), r.passengerPhone?.trim()].filter(Boolean).join(" · ")}
+                </ContactRow>
+              )}
               <ContactRow icon={<MailIcon />} label={d.admin.common.email}>
                 <a className="hover:underline" href={mailto}>{email || "—"}</a>
               </ContactRow>

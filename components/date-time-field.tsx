@@ -347,8 +347,10 @@ export function DateTimeField({
   const navBtn = "grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#f4f4f5] hover:bg-white/10 disabled:cursor-default disabled:opacity-25";
   const column = "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const optionCls = (selected: boolean) =>
-    `block w-full max-w-full min-h-5 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:text-[#616fa7] disabled:hover:bg-transparent ${
-      selected ? "bg-[#f4f4f5] text-[#081b62]" : "bg-transparent text-[#f4f4f5] hover:bg-white/10"
+    `block w-full max-w-full min-h-5 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7] disabled:hover:bg-transparent ${
+      selected
+        ? "bg-[#f4f4f5] text-[#081b62] [-webkit-text-fill-color:#081b62]"
+        : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10"
     }`;
 
   return (
@@ -412,8 +414,8 @@ export function DateTimeField({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? closePicker(false) : openPicker())}
-        className={`relative z-[2] grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent transition-colors ${
-          tone === "dark" ? "text-ink-300 hover:bg-white/10 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
+        className={`calendar-trigger relative z-[2] grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent transition-colors ${
+          tone === "dark" ? "text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/15 hover:text-[#f4f4f5]" : "text-[#3f3f46] [-webkit-text-fill-color:#3f3f46] hover:bg-[#f4f4f5] hover:text-[#09090b] hover:[-webkit-text-fill-color:#09090b]"
         }`}
       >
         <CalendarIcon />
@@ -483,8 +485,10 @@ export function DateTimeField({
                                 if (next.h !== time.h || next.min !== time.min) timeChosen.current = true;
                                 commit(cell, next);
                               }}
-                              className={`mx-auto grid size-6 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#616fa7] ${
-                                chosen ? "bg-[#f4f4f5] font-semibold text-[#081b62]" : "bg-transparent text-[#f4f4f5] hover:bg-white/10"
+                              className={`mx-auto grid size-6 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7] ${
+                                chosen
+                                  ? "bg-[#f4f4f5] font-semibold text-[#081b62] [-webkit-text-fill-color:#081b62]"
+                                  : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10"
                               } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-[#d4d4d8]" : ""}`}
                             >
                               {n}
@@ -568,7 +572,7 @@ export function DateTimeField({
           <button
             type="button"
             onClick={() => closePicker(true)}
-            className="mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-[#f4f4f5] text-[13px] font-semibold text-[#081b62] hover:bg-white"
+            className="picker-solid mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-[#f4f4f5] text-[13px] font-semibold text-[#081b62] [-webkit-text-fill-color:#081b62] hover:bg-[#ffffff]"
           >
             {copy.done}
           </button>

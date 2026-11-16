@@ -397,7 +397,7 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
       0,
     );
     const activeBookings = contactQuotes.filter((item) => OPEN_BOOKING.includes(item.status)).length;
-    const latestPhone = contactQuotes.find((item) => Boolean(item.phone))?.phone ?? "—";
+    const latestPhone = contact.phone?.trim() || contactQuotes.find((item) => item.phone?.trim())?.phone || "—";
     const preferredKey = contactQuotes.find((item) => Boolean(item.vehicle))?.vehicle;
     const preferredVehicle = preferredKey ? (vehicleByKey(preferredKey)?.name ?? preferredKey) : "—";
     const bookings = contactQuotes

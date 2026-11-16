@@ -12,6 +12,7 @@ import { getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { serviceLabel } from "@/lib/quotes/constants";
+import { routePointLabel } from "@/lib/quotes/route-labels";
 import { stopsWithWaits } from "@/lib/quotes/stops";
 import { extraName } from "@/lib/pricing/extras";
 import { bookingTotalEuros, formatCents, priceNet } from "@/lib/pricing/rates";
@@ -99,7 +100,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
   const bespoke = booking.service === "bespoke";
   const hourly = booking.service === "hourly";
   const intermediates = stopsWithWaits(booking.destinations, booking.destinationWaits).filter((s) => s.place.trim());
-  // In travelling order: where from, each stop on the way, where to. Every place is Stop 1, Stop 2, …
+  // In travelling order: collection, each stop on the way, then destination.
   const stops = [
     { text: booking.collection, wait: 0 },
     ...intermediates.map((s) => ({ text: s.place, wait: s.wait })),
@@ -250,7 +251,9 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/corporate-par
                     <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
                       {stops.map((stop, i) => (
                         <li key={i} className="min-w-0">
-                          {interpolate(d.booking.stopLabel, { number: i + 1 })}: {stop.text}
+                          {hourly && !booking.destination && i > 0
+                            ? stop.text
+                            : `${routePointLabel(i, stops.length, { collection: d.booking.reviewPickup, destination: d.booking.reviewDropoff, stop: d.booking.reviewStop })}: ${stop.text}`}
                           {stop.wait > 0 && <span className="text-ink-600"> · {interpolate(p.stopWait, { minutes: stop.wait })}</span>}
                         </li>
                       ))}

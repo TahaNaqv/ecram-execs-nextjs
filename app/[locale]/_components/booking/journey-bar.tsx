@@ -303,12 +303,8 @@ export function JourneyBar({
           type="button"
           aria-pressed={trip.mode === mode}
           onClick={() => update({ mode, ...(mode === "hourly" ? { to: emptyPlace(), stops: [] } : {}) })}
-          className={`h-[34px] min-w-0 cursor-pointer rounded-full border-0 px-3 text-[12px] sm:px-4 sm:text-[13px] ${
-            trip.mode === mode
-              ? dark
-                ? "bg-white font-semibold text-ink-950"
-                : "bg-ink-950 font-semibold text-white"
-              : `bg-transparent font-medium ${dark ? "text-white" : "text-ink-950"}`
+          className={`mode-pill h-[34px] min-w-0 cursor-pointer rounded-full border-0 px-3 text-[12px] sm:px-4 sm:text-[13px] ${dark ? "mode-pill-dark" : "mode-pill-light"} ${
+            trip.mode === mode ? "mode-pill-on font-semibold" : "mode-pill-off font-medium"
           }`}
         >
           {mode === "oneway" ? t.modeOneWay : t.modeHourly}
@@ -605,7 +601,7 @@ export function JourneyBar({
   // The journey step of /book and the portal: one field under the other, then the action
   if (stacked) {
     return (
-      <form onSubmit={submit} noValidate className="flex w-full min-w-0 max-w-full flex-col gap-3">
+      <form onSubmit={submit} noValidate className="journey-fields flex w-full min-w-0 max-w-full flex-col gap-3">
         <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950 md:p-6">
           <div className="mb-1">{modeToggle}</div>
           {fromCell}

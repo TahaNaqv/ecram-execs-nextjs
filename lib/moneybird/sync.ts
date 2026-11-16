@@ -5,6 +5,7 @@ import { CORPORATE_TERM_DAYS, amsterdamToday } from "@/lib/admin/financials-shar
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { Locale } from "@/lib/i18n/config";
 import { isCorporateBooking } from "@/lib/quotes/audience";
+import { formatCurrency } from "@/lib/pricing/rates";
 import { centsFromMoney, moneybird, moneyFromCents, MoneybirdError, salesTaxRates, type MoneybirdContact, type MoneybirdSalesInvoice } from "./client";
 import { moneybirdConfig } from "./config";
 import {
@@ -631,7 +632,7 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
         }
         const [booking] = await db.select({ locale: schema.quoteRequests.locale }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
         const words = INVOICE_WORDS[(booking?.locale as Locale) ?? "en"];
-        const label = `${words.credit(live.number ?? live.reference)} (${words.cancellationFee}: € ${moneyFromCents(keep)})`;
+        const label = `${words.credit(live.number ?? live.reference)} (${words.cancellationFee}: ${formatCurrency(keep / 100)})`;
         cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}.json`, {
           sales_invoice: {
             details_attributes: [

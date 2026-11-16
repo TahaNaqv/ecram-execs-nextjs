@@ -5,8 +5,38 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { ACTIVE_STATUSES, REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 
-const { quoteRequests: q, requestEvents: ev, adminUsers } = schema;
+const { quoteRequests: q, requestEvents: ev, adminUsers, corporateContacts: contacts } = schema;
 export const PAGE_SIZE = 10;
+
+/** A stored contact string that should not be shown as the customer. A bare country code is not a phone number. */
+function blankContact(value: string | null | undefined) {
+  const text = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!text || text === "—" || text === "-") return true;
+  return /^\+\d{1,4}$/.test(text.replace(/\s/g, ""));
+}
+
+/**
+ * Name, email and phone from the booking, then the lead passenger, then the linked corporate account.
+ * A partner booking sometimes only has those details on the account, which left the request looking empty.
+ */
+function withCustomer<T extends { name: string; email: string; phone: string; passengerName?: string | null; passengerPhone?: string | null }>(
+  row: T,
+  contact: { name: string | null; email: string | null; phone: string | null } | null,
+): T {
+  const first = (...values: (string | null | undefined)[]) => {
+    for (const value of values) {
+      const text = (value ?? "").replace(/\s+/g, " ").trim();
+      if (!blankContact(text)) return text;
+    }
+    return "";
+  };
+  return {
+    ...row,
+    name: first(row.name, row.passengerName, contact?.name) || row.name,
+    email: first(row.email, contact?.email) || row.email,
+    phone: first(row.phone, row.passengerPhone, contact?.phone) || row.phone,
+  };
+}
 
 export type ListFilters = { status?: string; search?: string; page?: number; queue?: string };
 
@@ -42,18 +72,26 @@ export async function listRequests({ status, search, page = 1, queue }: ListFilt
     );
   }
   const filter = where.length ? and(...where) : undefined;
-  const [rows, [counted]] = await Promise.all([
+  const [found, [counted]] = await Promise.all([
     db
-      .select()
+      .select({
+        request: q,
+        contactName: contacts.name,
+        contactEmail: contacts.email,
+        contactPhone: contacts.phone,
+      })
       .from(q)
+      .leftJoin(contacts, eq(contacts.id, q.corporateContactId))
       .where(filter)
-      // In ride order, the latest ride first (the client, 15 Nov 2026: the list read as out of order when it was sorted by
-      // when each booking came in). A request with no date yet (a bespoke programme) comes last, newest first.
-      .orderBy(sql`${q.pickupAt} desc nulls last`, desc(q.createdAt))
+      // Newest booking first, by when it was received. A later pick-up does not jump ahead of a request that just came in.
+      .orderBy(desc(q.createdAt))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(q).where(filter),
   ]);
+  const rows = found.map((row) =>
+    withCustomer(row.request, { name: row.contactName, email: row.contactEmail, phone: row.contactPhone }),
+  );
   return { rows, total: counted?.total ?? 0 };
 }
 
@@ -103,8 +141,19 @@ export async function requestStats() {
 export async function getRequest(id: string) {
   await requireAdmin();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-  const [request] = await db.select().from(q).where(eq(q.id, id)).limit(1);
-  if (!request) return null;
+  const [found] = await db
+    .select({
+      request: q,
+      contactName: contacts.name,
+      contactEmail: contacts.email,
+      contactPhone: contacts.phone,
+    })
+    .from(q)
+    .leftJoin(contacts, eq(contacts.id, q.corporateContactId))
+    .where(eq(q.id, id))
+    .limit(1);
+  if (!found) return null;
+  const request = withCustomer(found.request, { name: found.contactName, email: found.contactEmail, phone: found.contactPhone });
   const events = await db
     .select({ id: ev.id, event: ev.event, params: ev.params, createdAt: ev.createdAt, by: adminUsers.name })
     .from(ev)

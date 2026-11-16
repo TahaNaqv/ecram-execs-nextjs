@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "@/app/(admin)/admin/_components/icons";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import { formatCurrency } from "@/lib/pricing/rates";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -50,8 +51,8 @@ export function PartnerBillingClient({
         <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">{copy.ytdFinancials}</h3>
           <div className="text-xs space-y-2 text-zinc-700">
-            <p><strong className="text-zinc-900">{copy.contractSpend}:</strong> € {totalSpend.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
-            <p><strong className="text-zinc-900">{copy.estimatedVat}:</strong> € {(totalSpend * 0.21).toLocaleString("nl-NL", { minimumFractionDigits: 2 })}</p>
+            <p><strong className="text-zinc-900">{copy.contractSpend}:</strong> {formatCurrency(totalSpend)}</p>
+            <p><strong className="text-zinc-900">{copy.estimatedVat}:</strong> {formatCurrency(totalSpend * 0.21)}</p>
           </div>
         </div>
       </div>

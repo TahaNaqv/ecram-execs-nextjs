@@ -98,7 +98,7 @@ export function MessagesPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Only the thread scrolls; the composer stays pinned at the card bottom. */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3">
+      <div className="max-h-[min(70vh,32rem)] min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
         {messages.length === 0 && !pendingBody ? (
           <p className="m-0 text-sm text-zinc-500">{t.empty}</p>
         ) : (

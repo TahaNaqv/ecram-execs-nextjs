@@ -94,6 +94,12 @@ export type CardCopy = {
   notes: string;
   reviewExtras: string;
   stopLabel: string;
+  /** First place on the card's route. */
+  reviewPickup: string;
+  /** Last place on the card's route. */
+  reviewDropoff: string;
+  /** "Stop {number}" for a place between collection and destination. */
+  reviewStop: string;
   waitMinutes: string;
   asDirected: string;
   guestOne: string;
@@ -688,15 +694,18 @@ function BookingRows({ summary: b, c }: { summary: Summary; c: CardCopy }) {
   const guests = b.passengers === 1 ? c.guestOne : interpolate(c.guestMany, { count: b.passengers });
   const all = total === 1 ? c.bagOne : interpolate(c.bagMany, { count: total });
   const party = `${guests} · ${all} ${interpolate(c.bagSplit, { large: b.bags, small })}`;
-  const stopLine = (place: string, index: number) => `${interpolate(c.stopLabel, { number: index + 1 })}: ${place}`;
-  const route =
+  const places =
     b.mode === "hourly"
-      ? [b.from.trim() ? stopLine(b.from, 0) : "", b.hours ? interpolate(c.asDirected, { hours: b.hours }) : ""].filter(Boolean).join("\n")
+      ? []
       : [b.from, ...b.stops.map((s) => `${s.place}${s.wait ? ` (${interpolate(c.waitMinutes, { minutes: s.wait })})` : ""}`), b.to]
           .map((place) => place.trim())
-          .filter(Boolean)
-          .map(stopLine)
-          .join("\n");
+          .filter(Boolean);
+  const stopLine = (place: string, index: number) =>
+    `${index === 0 ? c.reviewPickup : index === places.length - 1 ? c.reviewDropoff : interpolate(c.reviewStop, { number: index })}: ${place}`;
+  const route =
+    b.mode === "hourly"
+      ? [b.from.trim() ? `${c.reviewPickup}: ${b.from.trim()}` : "", b.hours ? interpolate(c.asDirected, { hours: b.hours }) : ""].filter(Boolean).join("\n")
+      : places.map(stopLine).join("\n");
   const rows: [string, string][] = [
     [c.summaryRoute, route],
     [c.summaryWhen, b.when],

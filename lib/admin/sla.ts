@@ -95,7 +95,9 @@ export const enquiryQueues = cache(async (): Promise<{ nowMs: number; standard: 
   await requireAdmin();
   const rows = Array.from(
     await db.execute<Row>(sql`
-      select q.id, q.reference, q.name, q.entity, q.status::text as status,
+      select q.id, q.reference,
+             coalesce(nullif(btrim(q.name), ''), nullif(btrim(q.passenger_name), ''), c.name, q.name) as name,
+             q.entity, q.status::text as status,
              q.pickup_at::text as pickup_at, q.return_at::text as return_at,
              c.company_name,
              case when q.corporate_contact_id is not null or q.source in ('portal', 'website-corporate') then 'corporate' else 'standard' end as queue,
