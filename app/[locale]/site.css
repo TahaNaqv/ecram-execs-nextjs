@@ -223,10 +223,65 @@
 :root[data-theme="navy"] .light-surface .journey-fields button[aria-haspopup="listbox"] {
   color: #f4f4f5 !important;
 }
-:root[data-theme="navy"] .light-surface .journey-fields [role="listbox"]:not(.bg-white),
-:root[data-theme="navy"] .light-surface .journey-fields [role="listbox"]:not(.bg-white) :where(button, li) {
+:root[data-theme="navy"] .light-surface .journey-fields [role="listbox"]:not(.bg-white):not(.place-menu),
+:root[data-theme="navy"] .light-surface .journey-fields [role="listbox"]:not(.bg-white):not(.place-menu) :where(button, li) {
   color: #10224f !important;
   -webkit-text-fill-color: #10224f !important;
+}
+/* Address suggestions on the navy booking card. The panel token `white` is the card itself,
+   so the list is painted in real colours: a deeper sheet, cream names, and a quieter subtitle. */
+:root[data-theme="navy"] .light-surface .place-menu {
+  background: #071433 !important;
+  color: #f4f4f5 !important;
+  border-color: rgba(197, 212, 255, 0.45) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+:root[data-theme="navy"] .light-surface .place-menu .place-name,
+:root[data-theme="navy"] .light-surface .place-menu .place-icon {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+:root[data-theme="navy"] .light-surface .place-menu .place-detail {
+  color: #9eb6e8 !important;
+  -webkit-text-fill-color: #9eb6e8 !important;
+}
+:root[data-theme="navy"] .light-surface .place-menu .place-icon {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+:root[data-theme="navy"] .light-surface .place-menu .place-option-on {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+/* The phone row stays in the same field as the rest of the form. On navy the divider and the
+   country list are real colours, so "NL +31" and the number stay readable. */
+:root[data-theme="navy"] .light-surface .phone-code {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-right-color: rgba(197, 212, 255, 0.45) !important;
+}
+:root[data-theme="navy"] .light-surface .phone-field input,
+:root[data-theme="navy"] .light-surface .phone-number {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+}
+:root[data-theme="navy"] .light-surface .phone-field input::placeholder,
+:root[data-theme="navy"] .light-surface .phone-number::placeholder {
+  color: #9eb6e8 !important;
+  -webkit-text-fill-color: #9eb6e8 !important;
+}
+:root[data-theme="navy"] .light-surface .phone-menu {
+  background: #071433 !important;
+  color: #f4f4f5 !important;
+  border-color: rgba(197, 212, 255, 0.45) !important;
+}
+:root[data-theme="navy"] .light-surface .phone-menu button {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  background: transparent !important;
+}
+:root[data-theme="navy"] .light-surface .phone-menu button:hover,
+:root[data-theme="navy"] .light-surface .phone-menu [aria-selected="true"] button {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 :root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"],
 :root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] :where(button, li) {

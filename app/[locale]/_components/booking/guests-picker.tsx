@@ -268,17 +268,18 @@ export const partyLine = (t: BookingCopy, pax: number, bags: number, small: numb
   return `${guests} · ${all} ${interpolate(t.bagSplit, { large: bags, small })}`;
 };
 
-function Stepper({ value, label, min, max, less, more, onChange }: {
-  value: number; label: string; min: number; max: number; less: string; more: string; onChange: (n: number) => void;
+function Stepper({ value, label, min, max, less, more, onChange, admin = false }: {
+  value: number; label: string; min: number; max: number; less: string; more: string; onChange: (n: number) => void; admin?: boolean;
 }) {
-  const button =
-    "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[16px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:border-[#e4e8f2] disabled:text-[#b7c0d4] sm:size-8";
+  const button = admin
+    ? "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full border border-solid border-zinc-200 bg-white text-[16px] leading-none text-zinc-950 hover:border-zinc-950 disabled:cursor-default disabled:border-zinc-100 disabled:text-zinc-300"
+    : "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-solid border-[#c5d0e6] bg-[#ffffff] text-[16px] leading-none text-[#10224f] hover:border-[#10224f] disabled:cursor-default disabled:border-[#e4e8f2] disabled:text-[#b7c0d4] sm:size-8";
   return (
     <span className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
       <button type="button" aria-label={less} disabled={value <= min} onClick={() => onChange(value - 1)} className={button}>
         −
       </button>
-      <span className="box-border inline-flex h-10 w-9 max-w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-solid border-[#c5d0e6] bg-[#ffffff] [color-scheme:light] sm:h-8 sm:w-10 sm:max-w-10">
+      <span className={`box-border inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-solid [color-scheme:light] ${admin ? "h-8 w-10 max-w-10 border-zinc-200 bg-white" : "h-10 w-9 max-w-9 border-[#c5d0e6] bg-[#ffffff] sm:h-8 sm:w-10 sm:max-w-10"}`}>
         <input
           type="number"
           inputMode="numeric"
@@ -294,7 +295,7 @@ function Stepper({ value, label, min, max, less, more, onChange }: {
             if (!Number.isInteger(n)) return;
             onChange(Math.min(max, Math.max(min, n)));
           }}
-          className="w-full min-w-0 max-w-full appearance-none border-0 bg-transparent p-0 text-center text-xs font-semibold leading-none text-[#10224f] tabular-nums outline-none [-moz-appearance:textfield] sm:text-[15px] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className={`w-full min-w-0 max-w-full appearance-none border-0 bg-transparent p-0 text-center font-semibold leading-none tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${admin ? "text-[15px] text-zinc-950" : "text-xs text-[#10224f] sm:text-[15px]"}`}
         />
       </span>
       <button type="button" aria-label={more} disabled={value >= max} onClick={() => onChange(value + 1)} className={button}>
@@ -326,7 +327,7 @@ function placePanel(anchor: HTMLElement): PanelBox {
  * Passengers, large suitcases and small hand luggage, behind one button in the booking bar.
  * Escape, Done or a click outside closes it.
  */
-export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, tone, labelledBy, describedBy }: {
+export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, tone, labelledBy, describedBy, appearance = "site" }: {
   id: string;
   pax: number;
   bags: number;
@@ -338,6 +339,8 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
   tone: "dark" | "light";
   labelledBy: string;
   describedBy?: string;
+  /** The booking bar uses the site palette. The admin form uses the light zinc panel. */
+  appearance?: "site" | "admin";
 }) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<PanelBox | null>(null);
@@ -395,6 +398,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
   };
   const done = close;
   const dark = tone === "dark";
+  const admin = appearance === "admin";
 
   return (
     // Not `relative`: the press area of the button and the dialog are positioned against the cell around it
@@ -418,12 +422,18 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
         aria-describedby={describedBy}
         onClick={() => setOpen((o) => !o)}
         // The empty after: element stretches the press area over the whole cell, label and padding included
-        className={`flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-[14px] leading-snug font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-inset ${
-          dark ? "after:ring-white/60" : "after:ring-ink-950"
-        } ${set ? (dark ? "text-white" : "text-ink-950") : dark ? "font-normal text-ink-400" : "font-normal text-ink-475"}`}
+        className={
+          admin
+            ? `flex h-10 w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-left text-sm shadow-card outline-none transition hover:border-zinc-300 focus-visible:border-zinc-900 focus-visible:ring-4 focus-visible:ring-zinc-900/5 ${
+                set ? "font-medium text-zinc-950" : "font-normal text-zinc-400"
+              }`
+            : `flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-[14px] leading-snug font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-inset ${
+                dark ? "after:ring-white/60" : "after:ring-ink-950"
+              } ${set ? (dark ? "text-white" : "text-ink-950") : dark ? "font-normal text-ink-400" : "font-normal text-ink-475"}`
+        }
       >
         <span className="min-w-0 flex-1 whitespace-normal">{set ? partyLine(t, pax, bags, small) : t.guestsPlaceholder}</span>
-        <span className={`shrink-0 ${dark ? "text-ink-250" : "text-ink-600"}`} aria-hidden="true">
+        <span className={`shrink-0 ${admin ? "text-zinc-500" : dark ? "text-ink-250" : "text-ink-600"}`} aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? "rotate-180" : ""}`}>
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -438,12 +448,14 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
             role="dialog"
             aria-label={t.guestsDialog}
             style={{ top: box.top, bottom: box.bottom, left: box.left, width: box.width, maxHeight: box.maxHeight }}
-            className="fixed z-[80] box-border font-sans overflow-y-auto overscroll-contain rounded-xl border border-solid border-ink-300 bg-white px-3 py-2 text-ink-950 shadow-lg sm:px-3.5 sm:py-2.5"
+            className={`fixed z-[80] box-border overflow-y-auto overscroll-contain rounded-xl border border-solid px-3 py-2 font-sans shadow-lg sm:px-3.5 sm:py-2.5 ${
+              admin ? "border-zinc-200 bg-white text-zinc-950 shadow-pop [color-scheme:light]" : "border-ink-300 bg-white text-ink-950"
+            }`}
           >
             <div ref={first} className="flex items-center justify-between gap-2 py-1">
               <span className="flex min-w-0 flex-col">
-                <strong className="text-xs sm:text-sm font-semibold">{t.passengers}</strong>
-                <small className="text-[11px] leading-tight text-ink-600">{t.passengersHint}</small>
+                <strong className="text-xs font-semibold sm:text-sm">{t.passengers}</strong>
+                <small className={`text-[11px] leading-tight ${admin ? "text-zinc-500" : "text-ink-600"}`}>{t.passengersHint}</small>
               </span>
               <Stepper
                 value={pax}
@@ -452,28 +464,31 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
                 max={MAX_GROUP}
                 less={t.fewerPassengers}
                 more={t.morePassengers}
+                admin={admin}
                 onChange={(n) => onChange({ pax: n, bags, small })}
               />
             </div>
             <div className="flex items-center justify-between gap-2 py-1">
               <span className="flex min-w-0 flex-col">
-                <strong className="text-xs sm:text-sm font-semibold">{t.suitcases}</strong>
-                <small className="text-[11px] leading-tight text-ink-600">{t.suitcasesHint}</small>
+                <strong className="text-xs font-semibold sm:text-sm">{t.suitcases}</strong>
+                <small className={`text-[11px] leading-tight ${admin ? "text-zinc-500" : "text-ink-600"}`}>{t.suitcasesHint}</small>
               </span>
-              <Stepper value={Math.min(bags, MAX_GROUP_BAGS)} label={t.suitcases} min={0} max={MAX_GROUP_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_GROUP_BAGS, n), small })} />
+              <Stepper admin={admin} value={Math.min(bags, MAX_GROUP_BAGS)} label={t.suitcases} min={0} max={MAX_GROUP_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_GROUP_BAGS, n), small })} />
             </div>
             <div className="flex items-center justify-between gap-2 py-1">
               <span className="flex min-w-0 flex-col">
-                <strong className="text-xs sm:text-sm font-semibold">{t.smallBags}</strong>
-                <small className="text-[11px] leading-tight text-ink-600">{t.smallBagsHint}</small>
+                <strong className="text-xs font-semibold sm:text-sm">{t.smallBags}</strong>
+                <small className={`text-[11px] leading-tight ${admin ? "text-zinc-500" : "text-ink-600"}`}>{t.smallBagsHint}</small>
               </span>
-              <Stepper value={Math.min(small, MAX_SMALL_BAGS)} label={t.smallBags} min={0} max={MAX_SMALL_BAGS} less={t.fewerSmallBags} more={t.moreSmallBags} onChange={(n) => onChange({ pax, bags, small: Math.min(MAX_SMALL_BAGS, n) })} />
+              <Stepper admin={admin} value={Math.min(small, MAX_SMALL_BAGS)} label={t.smallBags} min={0} max={MAX_SMALL_BAGS} less={t.fewerSmallBags} more={t.moreSmallBags} onChange={(n) => onChange({ pax, bags, small: Math.min(MAX_SMALL_BAGS, n) })} />
             </div>
-            <p className="m-0 mt-1 text-[11px] leading-snug text-ink-600">{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
+            <p className={`m-0 mt-1 text-[11px] leading-snug ${admin ? "text-zinc-500" : "text-ink-600"}`}>{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
             <button
               type="button"
               onClick={done}
-              className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border-0 bg-ink-950 text-xs font-semibold text-white hover:bg-ink-800 sm:mt-2 sm:h-9 sm:text-[13px]"
+              className={`mt-1.5 h-10 w-full cursor-pointer rounded-lg border-0 text-xs font-semibold text-white sm:mt-2 sm:h-9 sm:text-[13px] ${
+                admin ? "bg-zinc-950 hover:bg-zinc-800" : "bg-ink-950 hover:bg-ink-800"
+              }`}
             >
               {t.done}
             </button>

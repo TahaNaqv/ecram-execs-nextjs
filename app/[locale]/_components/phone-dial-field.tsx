@@ -60,7 +60,7 @@ export function PhoneDialField({
   }, [open]);
 
   return (
-    <div ref={root} className="relative flex min-w-0 items-center gap-2.5">
+    <div ref={root} className="relative flex min-w-0 items-stretch">
       <input type="hidden" name={countryName} value={country} />
       <button
         type="button"
@@ -68,15 +68,18 @@ export function PhoneDialField({
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={() => setOpen((value) => !value)}
-        className="flex shrink-0 cursor-pointer items-center gap-1 border-0 border-r border-solid border-ink-225 bg-transparent p-0 pr-2 text-[16px] font-medium text-ink-950"
+        className="phone-code flex shrink-0 cursor-pointer items-center gap-1.5 border-0 border-r border-solid border-ink-225 bg-transparent p-0 pr-3 text-[16px] font-medium text-ink-950"
       >
-        {current[1]} +{current[0]}
+        <span className="whitespace-nowrap">{current[1]} +{current[0]}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className={open ? "rotate-180" : ""}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
       </button>
       {open && (
         <ul
           role="listbox"
           aria-label={countryLabel}
-          className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400"
+          className="phone-menu absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-[0_18px_48px_rgba(0,0,0,0.28)] [scrollbar-width:thin] [scrollbar-color:#c5c9d6_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c5c9d6]"
         >
           {COUNTRY_CODES.map(([code, iso]) => (
             <li key={code} role="option" aria-selected={code === country}>
@@ -112,7 +115,7 @@ export function PhoneDialField({
         onInput={(event) => {
           event.currentTarget.value = cleanPhoneInput(event.currentTarget.value, country);
         }}
-        className="min-w-0 flex-1 border-0 bg-transparent p-0 font-sans text-[16px] font-medium text-ink-950 outline-none placeholder:font-normal placeholder:text-ink-475"
+        className="phone-number min-w-0 flex-1 border-0 bg-transparent p-0 pl-3 font-sans text-[16px] font-medium text-ink-950 outline-none placeholder:font-normal placeholder:text-ink-475"
       />
     </div>
   );

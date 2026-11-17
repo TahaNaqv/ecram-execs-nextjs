@@ -58,6 +58,7 @@ async function Form() {
         copy={t}
         locale={sessionAdmin.locale}
         dateTimeCopy={d.dateTimePicker}
+        guests={d.booking}
       />
     </Card>
   );

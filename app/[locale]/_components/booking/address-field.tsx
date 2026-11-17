@@ -5,7 +5,22 @@ import type { PlaceHit, PlaceKind } from "@/lib/places/types";
 import { curatedKind } from "@/lib/places/curated";
 import { samePlace, type Place } from "./trip";
 
-export type AddressCopy = { suggestions: string };
+export type AddressCopy = {
+  suggestions: string;
+  placeAirport?: string;
+  placeAviation?: string;
+  placeStation?: string;
+  placeHotel?: string;
+  placeAddress?: string;
+};
+
+const KIND_LABEL: Record<PlaceKind, keyof AddressCopy> = {
+  airport: "placeAirport",
+  aviation: "placeAviation",
+  station: "placeStation",
+  hotel: "placeHotel",
+  place: "placeAddress",
+};
 
 // Google is asked once the visitor pauses, not on every letter; all the searches for one address share a billing session (below)
 const DEBOUNCE_MS = 400;
@@ -155,11 +170,13 @@ export function AddressField({
   };
 
   const dark = tone === "dark";
-  const scrollbar = dark
-    ? "[scrollbar-width:thin] [scrollbar-color:var(--color-ink-400)_var(--color-ink-950)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-ink-950 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-400 hover:[&::-webkit-scrollbar-thumb]:bg-ink-300"
-    : "[scrollbar-width:thin] [scrollbar-color:var(--color-ink-700)_var(--color-ink-100)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-ink-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-700 hover:[&::-webkit-scrollbar-thumb]:bg-ink-650";
+  const scrollbar =
+    "[scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full " +
+    (dark
+      ? "[scrollbar-color:rgba(197,212,255,0.45)_transparent] [&::-webkit-scrollbar-thumb]:bg-white/30"
+      : "[scrollbar-color:#c5c9d6_transparent] [&::-webkit-scrollbar-thumb]:bg-[#c5c9d6]");
   return (
-    <div className="relative w-full min-w-0">
+    <div className={`relative w-full min-w-0 ${open ? "z-50" : ""}`}>
       <input
         id={id}
         type="text"
@@ -192,12 +209,16 @@ export function AddressField({
           id={listId}
           role="listbox"
           aria-label={copy.suggestions}
-          className={`absolute top-[calc(100%+var(--field-pad,0px)+4px)] left-[calc(var(--field-pad,0px)*-1)] z-40 m-0 box-border max-h-52 w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-lg border border-solid p-1 shadow-lg ${scrollbar} ${
-            dark ? "border-white/15 bg-ink-900 text-white" : "border-ink-225 bg-white text-ink-950"
+          className={`place-menu absolute top-[calc(100%+var(--field-pad,0px)+8px)] left-[calc(var(--field-pad,0px)*-1)] z-50 m-0 box-border max-h-64 w-[calc(100%+var(--field-pad,0px)*2)] max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain list-none rounded-xl border border-solid p-1.5 ${scrollbar} ${
+            dark
+              ? "border-[rgba(197,212,255,0.45)] bg-[#071433] text-[#f4f4f5] shadow-[0_18px_48px_rgba(0,0,0,0.45)]"
+              : "border-[#d7deee] bg-[#ffffff] text-[#0a0a0b] shadow-[0_16px_40px_rgba(8,16,40,0.16)]"
           }`}
         >
           {items.map((hit, i) => {
             const blocked = matchesExcluded(hit, excludePlaces);
+            const kind = copy[KIND_LABEL[hit.kind]];
+            const subtitle = [typeof kind === "string" ? kind : "", hit.detail].filter(Boolean).join(" · ");
             return (
               <li
                 key={`${hit.source}-${hit.id ?? hit.name}`}
@@ -212,16 +233,16 @@ export function AddressField({
                   if (!blocked) pick(hit);
                 }}
                 onMouseEnter={() => setActive(i)}
-                className={`flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 ${
+                className={`place-option flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 ${
                   blocked ? "cursor-not-allowed opacity-40" : "cursor-pointer"
-                } ${!blocked && i === active ? (dark ? "bg-white/10" : "bg-ink-100") : ""}`}
+                } ${!blocked && i === active ? (dark ? "place-option-on bg-white/10" : "place-option-on bg-[#eef2fb]") : ""}`}
               >
-                <span className={`grid size-6 shrink-0 place-items-center rounded-md ${dark ? "bg-white/10" : "bg-ink-100"}`}>
-                  <PlaceIcon kind={hit.kind} size={13} />
+                <span className={`place-icon grid size-9 shrink-0 place-items-center rounded-lg ${dark ? "bg-white/10 text-[#f4f4f5]" : "bg-[#eef2fb] text-[#10224f]"}`}>
+                  <PlaceIcon kind={hit.kind} size={16} />
                 </span>
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-[13px] leading-snug font-semibold">{hit.name}</span>
-                  {hit.detail && <span className={`truncate text-[11px] leading-snug ${dark ? "text-ink-400" : "text-ink-600"}`}>{hit.detail}</span>}
+                  <span className={`place-name truncate text-[14px] leading-tight font-semibold ${dark ? "text-white" : "text-[#0a0a0b]"}`}>{hit.name}</span>
+                  {subtitle && <span className={`place-detail truncate text-[12px] leading-snug ${dark ? "text-[#9eb6e8]" : "text-[#5c6b8a]"}`}>{subtitle}</span>}
                 </span>
               </li>
             );

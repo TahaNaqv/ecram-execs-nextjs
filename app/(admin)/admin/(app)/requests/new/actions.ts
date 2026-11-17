@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { emailBookingRecorded, emailPartnerBooking } from "@/lib/email";
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
-import { capacityProblem, MAX_PASSENGERS, samePlace } from "@/app/[locale]/_components/booking/trip";
+import { capacityProblem, MAX_GROUP, MAX_GROUP_BAGS, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import type { QuoteRequest } from "@/lib/db/schema";
@@ -21,7 +21,7 @@ import { syncAfter } from "@/lib/moneybird/after";
 
 export type NewBookingState = { error?: string; values?: Record<string, string>; createdId?: string };
 
-const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes", "locale", "notifyClient", "entity", "entityKvk"] as const;
+const FIELDS = ["contactId", "service", "collection", "destination", "stops", "pickupAt", "passengers", "luggage", "handLuggage", "vehicle", "name", "email", "phoneCountry", "phone", "status", "quotedAmount", "notes", "internalNotes", "locale", "notifyClient", "entity", "entityKvk"] as const;
 
 const PHONE_MESSAGE = "Enter the contact's phone number, e.g. 6 1234 5678.";
 
@@ -36,7 +36,9 @@ const schemaFor = z.object({
   destination: z.string().trim().min(1, "Enter the destination.").max(200),
   stops: z.string().max(1200),
   pickupAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Enter the pick-up date and time."),
-  passengers: z.preprocess(blank, z.coerce.number().int().min(1).max(MAX_PASSENGERS, "Passengers are at most 7.").optional()),
+  passengers: z.preprocess(blank, z.coerce.number().int().min(1).max(MAX_GROUP, "Enter a valid number of passengers.").optional()),
+  luggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_GROUP_BAGS, "Enter a valid amount of luggage.").optional()),
+  handLuggage: z.preprocess(blank, z.coerce.number().int().min(0).max(MAX_SMALL_BAGS, "Enter a valid amount of hand luggage.").optional()),
   vehicle: z.preprocess(blank, z.enum(VEHICLE_CHOICES).optional()),
   name: z.string().trim().max(120),
   email: z.string().trim().toLowerCase().max(200),
@@ -58,8 +60,12 @@ const schemaFor = z.object({
   if (samePlace(v.collection, v.destination)) {
     ctx.addIssue({ code: "custom", path: ["destination"], message: "Pickup and drop-off locations cannot be the same." });
   }
-  if (capacityProblem(v.vehicle, v.passengers ?? 1, null).passengers) {
+  const fit = capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
+  if (fit.passengers) {
     ctx.addIssue({ code: "custom", path: ["passengers"], message: "This car cannot accommodate this count of passengers." });
+  }
+  if (fit.luggage) {
+    ctx.addIssue({ code: "custom", path: ["luggage"], message: "This car cannot accommodate this luggage." });
   }
 });
 
@@ -122,6 +128,8 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
     destinationWaits: stops.length > 0 ? stops.map((s) => s.wait) : null,
     pickupAt: input.pickupAt,
     passengers: input.passengers,
+    luggage: input.luggage,
+    handLuggage: input.handLuggage,
     vehicle: input.vehicle,
   };
   // A booking for a partner is at the corporate rates

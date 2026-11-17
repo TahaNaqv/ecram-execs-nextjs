@@ -808,12 +808,15 @@ function CountryCode({ name, label, country, onChange }: { name: string; label: 
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={() => setOpen((value) => !value)}
-        className="flex cursor-pointer items-center gap-1 border-0 border-r border-solid border-ink-225 bg-transparent p-0 pr-2 text-[16px] font-medium text-ink-950"
+        className="phone-code flex h-full cursor-pointer items-center gap-1.5 border-0 border-r border-solid border-ink-225 bg-transparent py-0 pr-3 pl-0 text-[16px] font-medium text-ink-950"
       >
-        {current[1]} +{current[0]}
+        <span className="whitespace-nowrap">{current[1]} +{current[0]}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className={open ? "rotate-180" : ""}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
       </button>
       {open && (
-        <ul role="listbox" aria-label={label} className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-2xl [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
+        <ul role="listbox" aria-label={label} className="phone-menu absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-[0_18px_48px_rgba(0,0,0,0.28)] [scrollbar-width:thin] [scrollbar-color:#c5c9d6_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c5c9d6]">
           {COUNTRY_CODES.map(([code, iso]) => (
             <li key={code} role="option" aria-selected={code === country}>
               <button
@@ -907,8 +910,8 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     onReview(entry);
   };
 
-  const field = (name: string, label: string, control: ReactNode, wide = false) => (
-    <div className={`flex min-w-0 flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 focus-within:border-ink-950 focus-within:shadow-[0_0_0_1px_#0a0a0b] ${errors[name] ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"} ${wide ? "md:col-span-2" : ""}`}>
+  const field = (name: string, label: string, control: ReactNode, wide = false, extra = "") => (
+    <div className={`flex min-w-0 flex-col gap-1 rounded-xl border border-solid bg-white px-3.5 py-2.5 focus-within:border-ink-950 focus-within:shadow-[0_0_0_1px_#0a0a0b] ${errors[name] ? "border-error shadow-[0_0_0_1px_#b42318]" : "border-ink-225"} ${wide ? "md:col-span-2" : ""} ${extra}`}>
       <label htmlFor={`${uid}-${name}`} className="text-[12px] text-ink-600">{label}</label>
       {control}
       {errors[name] && <span id={`${uid}-${name}-error`} className="text-[12px] text-error">{errors[name]}</span>}
@@ -922,7 +925,7 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
     return field(
       number,
       label,
-      <span className="flex min-w-0 items-center gap-2.5">
+      <span className="flex min-w-0 items-stretch">
         <CountryCode
           name={code}
           label={t.phoneCountry}
@@ -943,9 +946,11 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           defaultValue={defaultValue}
           placeholder={t.phonePlaceholder}
           onInput={(e) => { e.currentTarget.value = cleanPhoneInput(e.currentTarget.value, country); }}
-          className={`${input} flex-1`}
+          className="phone-number min-w-0 flex-1 border-0 bg-transparent py-0 pr-0 pl-3 font-sans text-[16px] font-medium text-ink-950 outline-none placeholder:font-normal placeholder:text-ink-475"
         />
       </span>,
+      false,
+      "phone-field",
     );
   };
 

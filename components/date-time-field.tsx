@@ -84,6 +84,7 @@ export function DateTimeField({
   size = "sm",
   allowTyping = false,
   fillCell = false,
+  appearance = "site",
   onValueChange,
 }: {
   id: string;
@@ -102,6 +103,8 @@ export function DateTimeField({
   allowTyping?: boolean;
   /** Stretch the press area over the whole booking-bar cell, label and padding included. */
   fillCell?: boolean;
+  /** The public booking popup is navy. The admin form uses the light admin panel instead. */
+  appearance?: "site" | "admin";
   onValueChange?: (value: string) => void;
 }) {
   const initial = useMemo(() => parseDateTime(defaultValue ?? ""), [defaultValue]);
@@ -344,13 +347,20 @@ export function DateTimeField({
     setActive(now.day);
   };
 
-  const navBtn = "grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#f4f4f5] hover:bg-white/10 disabled:cursor-default disabled:opacity-25";
+  const admin = appearance === "admin";
+  const navBtn = admin
+    ? "grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-zinc-700 [-webkit-text-fill-color:#3f3f46] hover:bg-zinc-100 disabled:cursor-default disabled:opacity-25"
+    : "grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#f4f4f5] hover:bg-white/10 disabled:cursor-default disabled:opacity-25";
   const column = "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const optionCls = (selected: boolean) =>
-    `block w-full max-w-full min-h-5 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7] disabled:hover:bg-transparent ${
-      selected
-        ? "bg-[#f4f4f5] text-[#081b62] [-webkit-text-fill-color:#081b62]"
-        : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10"
+    `block w-full max-w-full min-h-5 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:hover:bg-transparent ${
+      admin
+        ? selected
+          ? "bg-zinc-950 text-white [-webkit-text-fill-color:#ffffff] disabled:bg-zinc-100 disabled:text-zinc-300 disabled:[-webkit-text-fill-color:#d4d4d8]"
+          : "bg-transparent text-zinc-800 [-webkit-text-fill-color:#27272a] hover:bg-zinc-100 disabled:text-zinc-300 disabled:[-webkit-text-fill-color:#d4d4d8]"
+        : selected
+          ? "bg-[#f4f4f5] text-[#081b62] [-webkit-text-fill-color:#081b62] disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
+          : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10 disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
     }`;
 
   return (
@@ -415,7 +425,11 @@ export function DateTimeField({
         aria-expanded={open}
         onClick={() => (open ? closePicker(false) : openPicker())}
         className={`calendar-trigger relative z-[2] grid size-7 shrink-0 cursor-pointer place-items-center rounded-md border-0 bg-transparent transition-colors ${
-          tone === "dark" ? "text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/15 hover:text-[#f4f4f5]" : "text-[#3f3f46] [-webkit-text-fill-color:#3f3f46] hover:bg-[#f4f4f5] hover:text-[#09090b] hover:[-webkit-text-fill-color:#09090b]"
+          admin
+            ? "text-zinc-500 [-webkit-text-fill-color:#71717a] hover:bg-zinc-100 hover:text-zinc-950 hover:[-webkit-text-fill-color:#09090b]"
+            : tone === "dark"
+              ? "text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/15 hover:text-[#f4f4f5]"
+              : "text-[#3f3f46] [-webkit-text-fill-color:#3f3f46] hover:bg-[#f4f4f5] hover:text-[#09090b] hover:[-webkit-text-fill-color:#09090b]"
         }`}
       >
         <CalendarIcon />
@@ -431,12 +445,16 @@ export function DateTimeField({
             transform: fit.nudge ? `translateX(${fit.nudge}px)` : undefined,
             maxHeight: fit.maxH ? `${fit.maxH}px` : undefined,
           }}
-          className="absolute top-full left-0 z-50 mt-1.5 box-border max-h-[min(20rem,calc(100svh-1rem))] w-[min(17.5rem,calc(100vw-1rem))] max-w-[17.5rem] overflow-x-hidden overflow-y-auto rounded-xl border border-solid border-[#3f5192] bg-[#081b62] px-2.5 py-2 text-left text-[13px] text-[#f4f4f5] normal-case shadow-lg tracking-normal [color-scheme:dark] [scrollbar-color:#3f5192_transparent] [scrollbar-width:thin]"
+          className={`absolute top-full left-0 z-50 mt-1.5 box-border max-h-[min(20rem,calc(100svh-1rem))] w-[min(17.5rem,calc(100vw-1rem))] max-w-[17.5rem] overflow-x-hidden overflow-y-auto rounded-xl border border-solid px-2.5 py-2 text-left text-[13px] normal-case shadow-lg tracking-normal [scrollbar-width:thin] ${
+            admin
+              ? "border-zinc-200 bg-white text-zinc-950 shadow-pop [color-scheme:light] [scrollbar-color:#d4d4d8_transparent]"
+              : "border-[#3f5192] bg-[#081b62] text-[#f4f4f5] [color-scheme:dark] [scrollbar-color:#3f5192_transparent]"
+          }`}
         >
           <div className="flex min-w-0 items-start gap-2">
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="flex items-center justify-between gap-1 pb-1">
-                <span aria-live="polite" className="min-w-0 truncate text-xs font-semibold text-[#f4f4f5]">
+                <span aria-live="polite" className={`min-w-0 truncate text-xs font-semibold ${admin ? "text-zinc-950 [-webkit-text-fill-color:#09090b]" : "text-[#f4f4f5]"}`}>
                   {months.format(new Date(Date.UTC(view.y, view.m - 1, 1)))}
                 </span>
                 <span className="flex shrink-0 items-center">
@@ -452,7 +470,7 @@ export function DateTimeField({
                 <thead>
                   <tr>
                     {weekdays.map((w, index) => (
-                      <th key={index} scope="col" className="pb-0.5 text-[10px] font-medium text-[#aab2cf]">
+                      <th key={index} scope="col" className={`pb-0.5 text-[10px] font-medium ${admin ? "text-zinc-500" : "text-[#aab2cf]"}`}>
                         {w}
                       </th>
                     ))}
@@ -485,11 +503,15 @@ export function DateTimeField({
                                 if (next.h !== time.h || next.min !== time.min) timeChosen.current = true;
                                 commit(cell, next);
                               }}
-                              className={`mx-auto grid size-6 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7] ${
-                                chosen
-                                  ? "bg-[#f4f4f5] font-semibold text-[#081b62] [-webkit-text-fill-color:#081b62]"
-                                  : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10"
-                              } ${sameDay(cell, today) && !chosen ? "ring-1 ring-inset ring-[#d4d4d8]" : ""}`}
+                              className={`mx-auto grid size-6 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed ${
+                                admin
+                                  ? chosen
+                                    ? "bg-zinc-950 font-semibold text-white [-webkit-text-fill-color:#ffffff] disabled:bg-zinc-200 disabled:text-zinc-400 disabled:[-webkit-text-fill-color:#a1a1aa]"
+                                    : "bg-transparent text-zinc-800 [-webkit-text-fill-color:#27272a] hover:bg-zinc-100 disabled:text-zinc-300 disabled:[-webkit-text-fill-color:#d4d4d8]"
+                                  : chosen
+                                    ? "bg-[#f4f4f5] font-semibold text-[#081b62] [-webkit-text-fill-color:#081b62] disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
+                                    : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10 disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
+                              } ${sameDay(cell, today) && !chosen ? (admin ? "ring-1 ring-inset ring-zinc-400" : "ring-1 ring-inset ring-[#d4d4d8]") : ""}`}
                             >
                               {n}
                             </button>
@@ -501,7 +523,7 @@ export function DateTimeField({
                 </tbody>
               </table>
             </div>
-            <div className="grid h-[8.75rem] w-[4.6rem] shrink-0 grid-cols-3 gap-px overflow-hidden border-0 border-l border-solid border-[#3f5192] pl-1.5">
+            <div className={`grid h-[8.75rem] w-[4.6rem] shrink-0 grid-cols-3 gap-px overflow-hidden border-0 border-l border-solid pl-1.5 ${admin ? "border-zinc-200" : "border-[#3f5192]"}`}>
               <div role="listbox" aria-label={copy.hour} className={column}>
                 {Array.from({ length: 12 }, (_, i) => {
                   const h12 = i + 1;
@@ -553,7 +575,7 @@ export function DateTimeField({
               </div>
             </div>
           </div>
-          <div className="mt-1.5 flex items-center justify-between border-0 border-t border-solid border-[#3f5192] pt-1.5">
+          <div className={`mt-1.5 flex items-center justify-between border-0 border-t border-solid pt-1.5 ${admin ? "border-zinc-200" : "border-[#3f5192]"}`}>
             <button
               type="button"
               onClick={() => {
@@ -561,18 +583,22 @@ export function DateTimeField({
                 commit(null, nowInNetherlands().time);
                 setActive(today);
               }}
-              className="cursor-pointer border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium text-[#aab2cf] hover:text-[#f4f4f5]"
+              className={`cursor-pointer border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium ${admin ? "text-zinc-500 hover:text-zinc-950" : "text-[#aab2cf] hover:text-[#f4f4f5]"}`}
             >
               {copy.clear}
             </button>
-            <button type="button" onClick={applyToday} className="cursor-pointer border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium text-[#aab2cf] hover:text-[#f4f4f5]">
+            <button type="button" onClick={applyToday} className={`cursor-pointer border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium ${admin ? "text-zinc-500 hover:text-zinc-950" : "text-[#aab2cf] hover:text-[#f4f4f5]"}`}>
               {copy.today}
             </button>
           </div>
           <button
             type="button"
             onClick={() => closePicker(true)}
-            className="picker-solid mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-[#f4f4f5] text-[13px] font-semibold text-[#081b62] [-webkit-text-fill-color:#081b62] hover:bg-[#ffffff]"
+            className={
+              admin
+                ? "mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-zinc-950 text-[13px] font-semibold text-white [-webkit-text-fill-color:#ffffff] hover:bg-zinc-800"
+                : "picker-solid mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-[#f4f4f5] text-[13px] font-semibold text-[#081b62] [-webkit-text-fill-color:#081b62] hover:bg-[#ffffff]"
+            }
           >
             {copy.done}
           </button>
