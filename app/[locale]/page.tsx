@@ -34,7 +34,7 @@ const buildJsonLd = (locale: Locale, description: string) => ({
   inLanguage: locale,
   url: localizedPath("/", locale) === "/" + locale ? `${siteUrl}/${locale}` : siteUrl,
   logo: `${siteUrl}/assets/logo-mark.png`,
-  image: `${siteUrl}/assets/og-image-v3.jpg`,
+  image: `${siteUrl}/assets/og-image-v4.jpg`,
   areaServed: { "@type": "Country", name: "Netherlands" },
   ...(siteConfig.contact.phone ? { telephone: siteConfig.contact.phone } : {}),
   ...(siteConfig.contact.email ? { email: siteConfig.contact.email } : {}),

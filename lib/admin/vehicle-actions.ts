@@ -3,9 +3,20 @@
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
+import { FLEET_CACHE_TAG } from "@/lib/fleet/catalog";
 import { removeFleetImages, saveFleetImages } from "@/lib/fleet/image-store";
+
+/**
+ * Refresh the admin list now, and the public fleet in the background.
+ * Revalidating the locale layout made the next public visit rebuild every cached page under it.
+ * That render outlasted the proxy and came back as a 502; the following refresh then succeeded.
+ */
+function publishFleetChange() {
+  revalidatePath("/admin/vehicles");
+  revalidateTag(FLEET_CACHE_TAG, "max");
+}
 
 function optionalText(formData: FormData, key: string): string | null {
   const value = formData.get(key);
@@ -111,8 +122,7 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
     return { ok: false, error: "save" };
   }
 
-  revalidatePath("/admin/vehicles");
-  revalidatePath("/[locale]", "layout");
+  publishFleetChange();
   return { ok: true };
 }
 
@@ -135,10 +145,10 @@ export async function updateVehicleName(formData: FormData) {
     console.log(`✏️ Successfully updated vehicle ${id} name to: ${name}`);
   } catch (error) {
     console.error("❌ Error updating vehicle name:", error);
+    return;
   }
 
-  revalidatePath("/admin/vehicles");
-  revalidatePath("/[locale]", "layout");
+  publishFleetChange();
 }
 
 export async function toggleVehicleStatus(formData: FormData) {
@@ -168,10 +178,10 @@ export async function toggleVehicleStatus(formData: FormData) {
     console.log(`✔ Successfully toggled vehicle ${id} to ${newStatus}`);
   } catch (error) {
     console.error("❌ Error updating vehicle status:", error);
+    return;
   }
 
-  revalidatePath("/admin/vehicles");
-  revalidatePath("/[locale]", "layout");
+  publishFleetChange();
 }
 
 export async function deleteVehicle(formData: FormData) {
@@ -190,8 +200,8 @@ export async function deleteVehicle(formData: FormData) {
     console.log(`🗑 Successfully deleted vehicle: ${id}`);
   } catch (error) {
     console.error("❌ Error deleting vehicle:", error);
+    return;
   }
 
-  revalidatePath("/admin/vehicles");
-  revalidatePath("/[locale]", "layout");
+  publishFleetChange();
 }

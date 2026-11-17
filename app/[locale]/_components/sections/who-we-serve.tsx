@@ -14,7 +14,7 @@ export async function WhoWeServe() {
     { key: "private", title: w.segmentPrivate, text: w.segmentPrivateText, image: "/assets/serve-private-v4.jpg", focus: "54% 50%", brightness: 1.18 },
     { key: "hotels", title: w.segmentHotels, text: w.segmentHotelsText, image: "/assets/servehotel.jpeg", focus: "42% 50%" },
     { key: "international", title: w.segmentInternational, text: w.segmentInternationalText, image: "/assets/serve-international-v2.jpg", focus: "52% 50%", brightness: 1.1 },
-    { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-v3.jpg", focus: "30% 50%" },
+    { key: "events", title: w.segmentEvents, text: w.segmentEventsText, image: "/assets/serve-events-newv3.jpg", focus: "30% 50%" },
   ];
   return (
     <section className="border-b border-b-ink-850" id="corporate">

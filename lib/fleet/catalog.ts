@@ -1,8 +1,12 @@
 import "server-only";
+import { cacheLife, cacheTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { bagCapacity, FLEET, normalizeVehicleKey, type OfferedVehicle } from "@/lib/fleet/vehicles";
 import type { DayKind } from "@/lib/pricing/rates";
+
+/** Tagged so an admin edit can refresh the public fleet without rebuilding the site. */
+export const FLEET_CACHE_TAG = "fleet";
 
 export type { OfferedVehicle };
 
@@ -29,22 +33,30 @@ function ratesOf(row: Pick<CatalogRow, "rateWeekday" | "rateSaturday" | "rateSun
   };
 }
 
+async function readListedRows(): Promise<CatalogRow[]> {
+  "use cache";
+  cacheTag(FLEET_CACHE_TAG);
+  cacheLife("hours");
+  return db
+    .select({
+      id: schema.vehicles.id,
+      name: schema.vehicles.name,
+      status: schema.vehicles.status,
+      images: schema.vehicles.images,
+      seats: schema.vehicles.seats,
+      luggage: schema.vehicles.luggage,
+      rateWeekday: schema.vehicles.rateWeekday,
+      rateSaturday: schema.vehicles.rateSaturday,
+      rateSunday: schema.vehicles.rateSunday,
+    })
+    .from(schema.vehicles)
+    .where(eq(schema.vehicles.listed, true));
+}
+
+/** Listed cars for the public booking flow. A failed read is not cached, and the printed fleet still renders. */
 async function listedRows(): Promise<CatalogRow[]> {
   try {
-    return await db
-      .select({
-        id: schema.vehicles.id,
-        name: schema.vehicles.name,
-        status: schema.vehicles.status,
-        images: schema.vehicles.images,
-        seats: schema.vehicles.seats,
-        luggage: schema.vehicles.luggage,
-        rateWeekday: schema.vehicles.rateWeekday,
-        rateSaturday: schema.vehicles.rateSaturday,
-        rateSunday: schema.vehicles.rateSunday,
-      })
-      .from(schema.vehicles)
-      .where(eq(schema.vehicles.listed, true));
+    return await readListedRows();
   } catch (error) {
     console.error("[fleet] listed vehicles could not be read", error);
     return [];

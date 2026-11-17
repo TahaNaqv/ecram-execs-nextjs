@@ -242,7 +242,7 @@ export function AddressField({
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className={`place-name truncate text-[14px] leading-tight font-semibold ${dark ? "text-white" : "text-[#0a0a0b]"}`}>{hit.name}</span>
-                  {subtitle && <span className={`place-detail truncate text-[12px] leading-snug ${dark ? "text-[#9eb6e8]" : "text-[#5c6b8a]"}`}>{subtitle}</span>}
+                  {subtitle && <span className={`place-detail truncate text-[12px] leading-snug ${dark ? "text-[rgba(255,255,255,0.82)]" : "text-[#5c6b8a]"}`}>{subtitle}</span>}
                 </span>
               </li>
             );

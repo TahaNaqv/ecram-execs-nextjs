@@ -12,7 +12,7 @@ export async function Hero() {
   return (
     <section className="keep-navy relative flex min-w-0 flex-col justify-center md:min-h-[720px] xl:min-h-[860px]" id="top">
       <div className="inset-0 overflow-hidden bg-ink-940 absolute">
-        <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/hero-jet-arrival-v2.png" alt={d.hero.imageAlt} fill priority sizes="100vw" />
+        <Image className="hero-img inset-0 text-transparent h-full absolute w-full" src="/assets/hero-jet-arrival-newv2.jpg" alt={d.hero.imageAlt} fill priority sizes="100vw" />
         {/* A blue dusk, not black. Desktop: the deepest blue behind the copy (white text needs it: about 5:1), lighter at the
             edges so the jet and van show, a deep navy at the bottom for the strip */}
         <div className="inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_48%,rgba(var(--ec-sky-rgb),0.8)_0%,rgba(var(--ec-sky-rgb),0.62)_60%,rgba(var(--ec-sky-rgb),0.22)_100%),linear-gradient(180deg,rgba(var(--ec-sky-rgb),0.4)_0%,rgba(var(--ec-sky-rgb),0)_30%,rgba(var(--ec-sky-rgb),0)_78%,rgba(var(--ec-deep-rgb),0.8)_100%)] absolute hidden md:block"></div>

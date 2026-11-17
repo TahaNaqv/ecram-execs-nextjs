@@ -229,7 +229,7 @@
   -webkit-text-fill-color: #10224f !important;
 }
 /* Address suggestions on the navy booking card. The panel token `white` is the card itself,
-   so the list is painted in real colours: a deeper sheet, cream names, and a quieter subtitle. */
+   so the list is painted in real colours: a deeper sheet, white names, and a bright subtitle. */
 :root[data-theme="navy"] .light-surface .place-menu {
   background: #071433 !important;
   color: #f4f4f5 !important;
@@ -242,8 +242,8 @@
   -webkit-text-fill-color: #ffffff !important;
 }
 :root[data-theme="navy"] .light-surface .place-menu .place-detail {
-  color: #9eb6e8 !important;
-  -webkit-text-fill-color: #9eb6e8 !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.82) !important;
 }
 :root[data-theme="navy"] .light-surface .place-menu .place-icon {
   background: rgba(255, 255, 255, 0.1) !important;
