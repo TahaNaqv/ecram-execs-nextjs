@@ -26,6 +26,9 @@ export type ReceiptBooking = {
   durationHours: number | null;
   entity: string | null;
   itinerary: string | null;
+  passengers?: number | null;
+  luggage?: number | null;
+  handLuggage?: number | null;
 };
 
 export type ReceiptCopy = {
@@ -39,6 +42,13 @@ export type ReceiptCopy = {
   extras: ExtraNames;
   /** "Stop {number}" — intermediate stops are numbered in travelling order. */
   stopLabel: string;
+  bookingWords?: {
+    guestOne: string;
+    guestMany: string;
+    bagOne: string;
+    bagMany: string;
+    bagSplit: string;
+  };
 };
 
 function routeOf(row: ReceiptBooking, hourly: string, stopLabel: string): { pickup?: string; stops: string[]; dropoff?: string; route: string } {
@@ -83,6 +93,20 @@ function rateCardLines(price: Price, gross: number, words: ReceiptWords, names: 
   }
 }
 
+function partyText(row: ReceiptBooking, b?: ReceiptCopy["bookingWords"]): string | undefined {
+  if (!row.passengers && row.luggage == null && row.handLuggage == null) return undefined;
+  const pax = row.passengers ?? 1;
+  const large = row.luggage ?? 0;
+  const small = row.handLuggage ?? 0;
+  const total = large + small;
+  if (!b) {
+    return `${pax} ${pax === 1 ? "guest" : "passengers"}${total > 0 ? ` · ${total} bags` : ""}`;
+  }
+  const guests = pax === 1 ? b.guestOne : interpolate(b.guestMany, { count: pax });
+  const allBags = total === 1 ? b.bagOne : interpolate(b.bagMany, { count: total });
+  return `${guests} · ${allBags} ${interpolate(b.bagSplit, { large, small })}`;
+}
+
 /** The same one-page confirmation the booking flow downloads, filled from the stored booking. */
 export function buildBookingReceipt(row: ReceiptBooking, copy: ReceiptCopy, locale: Locale): Uint8Array {
   const gross = grossEuros({ quotedAmount: row.quotedAmount, priceEstimate: asTotal(row.priceEstimate) });
@@ -110,6 +134,7 @@ export function buildBookingReceipt(row: ReceiptBooking, copy: ReceiptCopy, loca
     stops: journey.stops,
     dropoff: journey.dropoff,
     vehicle: vehicleLine(row),
+    passengers: partyText(row, copy.bookingWords),
     lines,
     total: formatCurrency(gross),
   });

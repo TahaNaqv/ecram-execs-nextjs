@@ -150,6 +150,9 @@ export async function refreshPayment(id: string): Promise<{ status: string } | n
   }
   if (m.status === "paid" && row.requestId) await recordInBooks(row.id);
   await refreshRefunds(row.id);
+  if (row.requestId) {
+    await syncBookingPaymentStatus(row.requestId);
+  }
   return { status: m.status };
 }
 
@@ -475,6 +478,56 @@ async function postBalance(row: Payment, r: Booking): Promise<ChargeResult> {
   return status === "paid" ? { status: "charged" } : ["failed", "canceled", "expired"].includes(status) ? { status: "failed" } : { status: "pending" };
 }
 
+/**
+ * Synchronizes quoteRequests.paymentStatus with the booking's Mollie payments.
+ * Sets to "PAID" if any paid payment exists in the current mode,
+ * "UNPAID" if the latest attempt failed/canceled/expired,
+ * or "OPEN" if a payment is in progress or pending.
+ */
+export async function syncBookingPaymentStatus(requestId: string, explicitStatus?: string | null): Promise<string> {
+  const config = mollieConfig();
+  const mode = config?.mode ?? "test";
+
+  let nextStatus: "PAID" | "OPEN" | "UNPAID" = "OPEN";
+
+  if (explicitStatus) {
+    const norm = explicitStatus.toUpperCase();
+    if (norm === "PAID") nextStatus = "PAID";
+    else if (norm === "UNPAID" || norm === "FAILED" || norm === "CANCELED" || norm === "CANCELLED" || norm === "EXPIRED") nextStatus = "UNPAID";
+    else nextStatus = "OPEN";
+  } else {
+    const [paidRow] = await db
+      .select({ id: p.id })
+      .from(p)
+      .where(and(eq(p.requestId, requestId), eq(p.mode, mode), eq(p.status, "paid")))
+      .limit(1);
+
+    if (paidRow) {
+      nextStatus = "PAID";
+    } else {
+      const [latest] = await db
+        .select({ status: p.status })
+        .from(p)
+        .where(and(eq(p.requestId, requestId), eq(p.mode, mode)))
+        .orderBy(desc(p.createdAt))
+        .limit(1);
+
+      if (latest && ["canceled", "expired", "failed"].includes(latest.status)) {
+        nextStatus = "UNPAID";
+      } else {
+        nextStatus = "OPEN";
+      }
+    }
+  }
+
+  await db
+    .update(schema.quoteRequests)
+    .set({ paymentStatus: nextStatus })
+    .where(eq(schema.quoteRequests.id, requestId));
+
+  return nextStatus;
+}
+
 /** On the customer's return (?paid=1): asks Mollie about the booking's latest unfinished payment, so the page is right at once. */
 export async function refreshOnReturn(requestId: string): Promise<void> {
   const config = mollieConfig();
@@ -485,12 +538,16 @@ export async function refreshOnReturn(requestId: string): Promise<void> {
     .where(and(eq(p.requestId, requestId), eq(p.mode, config.mode)))
     .orderBy(desc(p.createdAt))
     .limit(1);
-  if (!latest || !(IN_PROGRESS as readonly string[]).includes(latest.status)) return;
+  if (!latest || !(IN_PROGRESS as readonly string[]).includes(latest.status)) {
+    await syncBookingPaymentStatus(requestId);
+    return;
+  }
   const result = await refreshPayment(latest.id).catch((err) => {
     console.error(`[mollie] return check for ${requestId} failed:`, err instanceof Error ? err.message : err);
     return undefined;
   });
   if (result === null) console.error(`[mollie] return check for ${requestId}: payment ${latest.id} is busy (leased)`);
+  await syncBookingPaymentStatus(requestId);
 }
 
 export type PaymentSummary = {

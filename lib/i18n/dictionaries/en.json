@@ -105,6 +105,7 @@
     "stopLabel": "Stop {number}",
     "stopWait": "{minutes} min",
     "fieldPassengers": "Passengers",
+    "fieldLuggage": "Luggage",
     "enquiryIntroConfirmedPay": "Your booking {reference} is approved and ready for payment. You can pay {amount} securely on your booking page; the booking is below.",
     "bookingIntroConfirmedPay": "Your booking {reference} is confirmed. You can pay {amount} securely on your booking page.",
     "paymentReceivedSubject": "Payment received for your booking {reference}",

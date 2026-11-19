@@ -6,7 +6,7 @@ import type { QuoteRequest } from "@/lib/db/schema";
 import { formatEuro } from "@/lib/admin/format";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { moneybirdConfig, moneybirdConfigured, moneybirdInvoiceLink } from "@/lib/moneybird/config";
+import { moneybirdConfigured, moneybirdInvoiceLink } from "@/lib/moneybird/config";
 import { mollieConfigured } from "@/lib/mollie/config";
 import { invoiceCents } from "@/lib/moneybird/invoice";
 import { billingComplete, invoiceEligible, invoicesFor, isSent } from "@/lib/moneybird/sync";
@@ -71,31 +71,38 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
     </span>
   );
 
-  const isMockRow = (row: { moneybirdId: string | null; url: string | null }) =>
-    Boolean(
-      (row.moneybirdId && row.moneybirdId.startsWith("mock_")) ||
-      (row.url && row.url.includes("mock")) ||
-      moneybirdConfig()?.token?.startsWith("mock"),
-    );
+  const links = (row: { moneybirdId: string | null; url: string | null; totalCents?: number | null; state?: string }) => {
+    // Open in Moneybird actual website in a new tab
+    const inMoneybird = moneybirdInvoiceLink(row.moneybirdId || "");
 
-  const links = (row: { moneybirdId: string | null; url: string | null; totalCents?: number | null }) => {
-    const inMoneybird = isMockRow(row)
-      ? `/api/mock/moneybird/invoice?id=${encodeURIComponent(row.moneybirdId || r.reference)}`
-      : row.moneybirdId ? moneybirdInvoiceLink(row.moneybirdId) : null;
-    const customerUrl = isMockRow(row)
-      ? `/api/mock/moneybird/invoice?id=${encodeURIComponent(row.moneybirdId || r.reference)}&view=customer`
-      : row.url;
+    // Customer's view opens the receipt in a new tab / website
+    const customerUrl =
+      row.url && row.url.startsWith("https://moneybird.com")
+        ? row.url
+        : `/api/mock/moneybird/invoice?id=${encodeURIComponent(row.moneybirdId || r.reference)}&view=customer`;
 
     return (
       <div className="flex flex-wrap gap-2">
-        {inMoneybird && (
-          <a className={`${btn.base} ${btn.secondary} ${btn.sm}`} href={inMoneybird} target="_blank" rel="noreferrer">
-            {t.openInMoneybird}
+        {customerUrl && (
+          <a
+            className={`${btn.base} ${btn.secondary} ${btn.sm}`}
+            href={customerUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="View receipt"
+          >
+            {t.viewInvoice}
           </a>
         )}
-        {customerUrl && (
-          <a className={`${btn.base} ${btn.secondary} ${btn.sm}`} href={customerUrl} target="_blank" rel="noreferrer">
-            {t.viewInvoice}
+        {inMoneybird && (
+          <a
+            className={`${btn.base} ${btn.secondary} ${btn.sm}`}
+            href={inMoneybird}
+            target="_blank"
+            rel="noreferrer"
+            title="Open in Moneybird"
+          >
+            {t.openInMoneybird}
           </a>
         )}
       </div>

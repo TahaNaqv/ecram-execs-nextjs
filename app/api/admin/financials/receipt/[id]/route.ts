@@ -38,6 +38,13 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/admin/finan
       },
       extras: dict.addOns,
       stopLabel: dict.booking.stopLabel,
+      bookingWords: {
+        guestOne: dict.booking.guestOne,
+        guestMany: dict.booking.guestMany,
+        bagOne: dict.booking.bagOne,
+        bagMany: dict.booking.bagMany,
+        bagSplit: dict.booking.bagSplit,
+      },
     },
     receiptLocale,
   );

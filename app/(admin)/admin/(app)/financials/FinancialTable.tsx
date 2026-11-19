@@ -94,6 +94,8 @@ function Actions({ row, copy }: { row: PresentedFinancialRow; copy: Copy }) {
       {row.invoiceId && (
         <a
           href={`/api/admin/invoices/${row.invoiceId}`}
+          target="_blank"
+          rel="noreferrer"
           className={`${btn.base} ${btn.secondary} ${btn.sm}`}
           title={row.invoiceCount > 1 ? interpolate(copy.invoiceCount, { count: row.invoiceCount }) : copy.downloadInvoice}
         >
@@ -101,7 +103,7 @@ function Actions({ row, copy }: { row: PresentedFinancialRow; copy: Copy }) {
           {copy.downloadInvoice}
         </a>
       )}
-      <a href={`/api/admin/financials/receipt/${row.id}`} className={`${btn.base} ${btn.ghost} ${btn.sm}`}>
+      <a href={`/api/admin/financials/receipt/${row.id}`} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.ghost} ${btn.sm}`}>
         <FileTextIcon size={13} />
         {copy.downloadReceipt}
       </a>

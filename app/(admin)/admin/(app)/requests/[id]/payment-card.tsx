@@ -105,11 +105,25 @@ export async function PaymentCard({ r }: { r: QuoteRequest }) {
                 <span>{row.lastError}</span>
               </p>
             )}
-            {row.dashboardUrl && (
-              <a className="text-[13px] font-medium text-zinc-900 underline-offset-2 hover:underline" href={row.dashboardUrl} target="_blank" rel="noreferrer">
-                {t.openInMollie}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {row.dashboardUrl ? (
+                <a className="text-[13px] font-medium text-zinc-900 underline-offset-2 hover:underline" href={row.dashboardUrl} target="_blank" rel="noreferrer">
+                  {t.openInMollie}
+                </a>
+              ) : row.mollieId ? (
+                <a className="text-[13px] font-medium text-zinc-900 underline-offset-2 hover:underline" href={`https://my.mollie.com/dashboard/payments/${row.mollieId}`} target="_blank" rel="noreferrer">
+                  {t.openInMollie}
+                </a>
+              ) : null}
+              <a
+                className="text-[13px] font-medium text-zinc-900 underline-offset-2 hover:underline"
+                href={`/api/admin/financials/receipt/${r.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {r.locale === "nl" ? "Ritbon bekijken (PDF)" : "View receipt (PDF)"}
               </a>
-            )}
+            </div>
             {r.status === "cancelled" && left > 0 && (
               <RefundForm paymentId={row.id} suggested={plain(Math.min(left, owed ?? left))} max={euros(left)} copy={t} />
             )}

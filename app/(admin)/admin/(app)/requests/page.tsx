@@ -167,6 +167,18 @@ async function unpaidAtBooking(rows: QuoteRequest[]): Promise<Set<string>> {
   return new Set(planned.filter((id) => !done.has(id)));
 }
 
+/** The listed bookings that have at least one paid payment in the current Mollie mode. */
+async function paidAtBooking(rows: QuoteRequest[]): Promise<Set<string>> {
+  const mode = mollieConfig()?.mode;
+  const ids = rows.map((r) => r.id);
+  if (!mode || ids.length === 0) return new Set();
+  const paid = await db
+    .selectDistinct({ id: schema.payments.requestId })
+    .from(schema.payments)
+    .where(and(inArray(schema.payments.requestId, ids), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")));
+  return new Set(paid.map((p) => p.id).filter(Boolean) as string[]);
+}
+
 async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const { status, q, page: pageParam, queue } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
@@ -181,13 +193,32 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
   // Paid at booking, but the payment never came in (the checkout was left, or the booking came by chat or phone)
-  const unpaid = await unpaidAtBooking(rows as QuoteRequest[]);
-  const unpaidBadge = (id: string) =>
-    unpaid.has(id) ? (
-      <span title={t.requests.notPaidNote} className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
-        {t.requests.notPaid}
+  const [unpaid, paid] = await Promise.all([
+    unpaidAtBooking(rows as QuoteRequest[]),
+    paidAtBooking(rows as QuoteRequest[]),
+  ]);
+  const paymentStatusBadge = (r: QuoteRequest) => {
+    const st = r.paymentStatus?.toUpperCase() || (paid.has(r.id) ? "PAID" : unpaid.has(r.id) ? "UNPAID" : "OPEN");
+    if (st === "PAID") {
+      return (
+        <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+          PAID
+        </span>
+      );
+    }
+    if (st === "UNPAID") {
+      return (
+        <span title={t.requests.notPaidNote} className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
+          UNPAID
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
+        OPEN
       </span>
-    ) : null;
+    );
+  };
   const partnerBadge = (id: string) => {
     const n = unseen.get(id) ?? 0;
     if (!n) return null;
@@ -340,7 +371,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <span className="flex flex-col items-end gap-1">
                           <StatusBadge status={r.status} />
                           <UrgentBadge request={r} />
-                          {unpaidBadge(r.id)}
+                          {paymentStatusBadge(r)}
                         </span>
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm text-zinc-700">
@@ -478,7 +509,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <span className="flex flex-col items-start gap-1">
                           <StatusBadge status={r.status} />
                           <UrgentBadge request={r} />
-                          {unpaidBadge(r.id)}
+                          {paymentStatusBadge(r)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap py-3.5 pl-3 pr-5 text-right">

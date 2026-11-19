@@ -7,7 +7,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingResult, BookingStep, DetailsEntry } from "./booking-flow";
-import { Check, pretty, SeatIcon } from "./parts";
+import { pretty, SeatIcon } from "./parts";
 import type { AddOnsCopy, BookingCopy } from "./copy";
 import { extrasLine } from "@/lib/pricing/extras";
 import { guestsText, partyLine } from "./guests-picker";
@@ -313,9 +313,23 @@ export function ReviewStep({
   const photos = (extra?.images?.length ? extra.images : lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
   const seats = label ? null : (lead?.specs?.passengers ?? null);
 
-  const card = (title: string, children: ReactNode) => (
+  const card = (title: string, children: ReactNode, onEditSection?: () => void) => (
     <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
-      <h3 className="m-0 shrink-0 text-[16px] font-semibold">{title}</h3>
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
+        {onEditSection && (
+          <button
+            type="button"
+            onClick={onEditSection}
+            className="flex cursor-pointer items-center gap-1.5 rounded-full bg-ink-100 px-3 py-1 text-[12px] font-semibold text-ink-950 hover:bg-ink-200"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M4 20h4L19 9l-4-4L4 16z" />
+            </svg>
+            {t.edit}
+          </button>
+        )}
+      </div>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </section>
   );
@@ -355,12 +369,24 @@ export function ReviewStep({
       </h2>
       <div className="flex min-w-0 flex-col gap-4">
         <div className="grid items-stretch gap-4 md:grid-cols-2">
-          {card(t.reviewContact, rows(contact))}
-          {card(t.reviewRide, rows(ride))}
+          {card(t.reviewContact, rows(contact), () => onEdit("details"))}
+          {card(t.reviewRide, rows(ride), () => onEdit("journey"))}
         </div>
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
           <section aria-label={t.reviewVehicle} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
-            <h3 className="m-0 shrink-0 text-[16px] font-semibold">{t.reviewVehicle}</h3>
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <h3 className="m-0 text-[16px] font-semibold">{t.reviewVehicle}</h3>
+              <button
+                type="button"
+                onClick={() => onEdit("car")}
+                className="flex cursor-pointer items-center gap-1.5 rounded-full bg-ink-100 px-3 py-1 text-[12px] font-semibold text-ink-950 hover:bg-ink-200"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M4 20h4L19 9l-4-4L4 16z" />
+                </svg>
+                {t.edit}
+              </button>
+            </div>
             {mix.length > 0 ? (
               <div className="min-h-0 flex-1">
                 <CarMixPreview cars={mix} copy={gallery} />

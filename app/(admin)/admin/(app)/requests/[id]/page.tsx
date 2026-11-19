@@ -165,6 +165,17 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{guestName}</h1>
               <LiveStatusBadge requestId={r.id} status={r.status} labels={d.admin.statuses} size="md" />
               <UrgentBadge request={r} size="md" />
+              {r.paymentStatus && (
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${
+                  r.paymentStatus.toUpperCase() === "PAID"
+                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                    : r.paymentStatus.toUpperCase() === "UNPAID"
+                      ? "bg-amber-100 text-amber-900 ring-amber-200"
+                      : "bg-sky-50 text-sky-700 ring-sky-200"
+                }`}>
+                  {r.paymentStatus.toUpperCase()}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1.5 text-sm text-zinc-700">
                 {bookingServiceName(r, d.services)}
                 <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">

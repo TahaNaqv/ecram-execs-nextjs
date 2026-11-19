@@ -86,18 +86,45 @@ function customerLink(q: QuoteRequest): string {
   return guestUrl(q, q.locale);
 }
 
+function formatPassengers(pax: number | null | undefined, b: Awaited<ReturnType<typeof getDictionary>>["booking"]): string | null {
+  if (!pax) return null;
+  return pax === 1 ? b.guestOne : interpolate(b.passengerMany, { count: pax });
+}
+
+function formatLuggage(
+  luggage: number | null | undefined,
+  handLuggage: number | null | undefined,
+  b: Awaited<ReturnType<typeof getDictionary>>["booking"],
+): string | null {
+  if (luggage == null && handLuggage == null) return null;
+  const large = luggage ?? 0;
+  const small = handLuggage ?? 0;
+  const total = large + small;
+  const countStr = total === 1 ? b.bagOne : interpolate(b.bagMany, { count: total });
+  const splitStr = interpolate(b.bagSplit, { large, small });
+  return `${countStr} ${splitStr}`;
+}
+
 /** Confirms receipt to the client. Logged in full when no mail provider is configured. */
 export async function confirmToClient(q: QuoteRequest) {
   const first = q.name.split(" ")[0];
   const { phone, email } = siteConfig.contact;
   // The confirmation goes out in the language the visitor filled the form in (stored on the row).
-  const { email: t, services, addOns } = await getDictionary(q.locale);
+  const { email: t, services, addOns, booking: b } = await getDictionary(q.locale);
   const row = (label: string, value: string) =>
     `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const bespoke = q.service === "bespoke";
   const channel = q.contactPreference === "whatsapp" ? t.channelWhatsapp : q.contactPreference === "email" ? t.channelEmail : t.channelPhone;
+  const paxText = formatPassengers(q.passengers, b);
+  const luggageText = formatLuggage(q.luggage, q.handLuggage, b);
   const details = bespoke
-    ? [row(t.fieldReference, q.reference), row(t.fieldService, serviceLabel(q.service, services)), q.entity ? row(t.fieldEntity, q.entity) : ""]
+    ? [
+        row(t.fieldReference, q.reference),
+        row(t.fieldService, serviceLabel(q.service, services)),
+        q.entity ? row(t.fieldEntity, q.entity) : "",
+        paxText ? row(t.fieldPassengers, paxText) : "",
+        luggageText ? row(t.fieldLuggage, luggageText) : "",
+      ]
     : [
         row(t.fieldReference, q.reference),
         row(t.fieldService, serviceLabel(q.service, services)),
@@ -106,6 +133,8 @@ export async function confirmToClient(q: QuoteRequest) {
         ...destinationRows(q, t, row),
         row(t.fieldDateTime, (q.pickupAt ?? "").slice(0, 16).replace("T", " ")),
         ...extraRows(q, t, row, addOns),
+        paxText ? row(t.fieldPassengers, paxText) : "",
+        luggageText ? row(t.fieldLuggage, luggageText) : "",
         q.priceEstimate
           ? row(t.fieldPrice, interpolate(q.priceEstimate.exact ? t.priceValue : t.priceValueFrom, { price: formatCents(q.priceEstimate.total, q.locale) }))
           : "",
@@ -557,7 +586,7 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
   const values = { reference: q.reference, amount: euro(bookingTotalEuros(q), q.locale) };
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const status = d.portal.statuses[kind === "reply" ? (q.status as keyof typeof d.portal.statuses) : kind] ?? q.status;
-  const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row, d.addOns)];
+  const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row, d.addOns, d.booking)];
   // Every booking is reviewed by hand (the client, 8 Nov 2026): the visitor answers, and later pays, on their booking's page.
   // A row tied to a partner account (a corporate introduction) has no such page.
   const link = q.corporateContactId ? null : guestUrl(q, q.locale);
@@ -592,9 +621,9 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
 export async function emailBookingRecorded(q: QuoteRequest) {
   const { SITE_URL } = process.env;
   const { phone, email } = siteConfig.contact;
-  const { email: t, services, quoteForm, addOns } = await getDictionary(q.locale);
+  const { email: t, services, quoteForm, addOns, booking: b } = await getDictionary(q.locale);
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
-  const details = summaryRows(q, t, services, quoteForm, row, addOns);
+  const details = summaryRows(q, t, services, quoteForm, row, addOns, b);
   const link = q.corporateContactId ? `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", q.locale)}?ref=${encodeURIComponent(q.reference)}` : null;
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
@@ -628,9 +657,12 @@ function summaryRows(
   quoteForm: Awaited<ReturnType<typeof getDictionary>>["quoteForm"],
   row: Row,
   addOns: ExtraNames,
+  b: Awaited<ReturnType<typeof getDictionary>>["booking"],
 ) {
   const named = q.vehicle && (vehicleByKey(q.vehicle)?.name ?? (q.vehicle === "advise" ? quoteForm.vehicleAdvise : q.vehicle));
   const vehicle = convoyTitle(q) ?? named;
+  const paxText = formatPassengers(q.passengers, b);
+  const luggageText = formatLuggage(q.luggage, q.handLuggage, b);
   return [
     row(t.fieldReference, q.reference),
     row(t.fieldService, serviceLabel(q.service, services)),
@@ -639,7 +671,8 @@ function summaryRows(
     ...destinationRows(q, t, row),
     q.pickupAt ? row(t.fieldDateTime, q.pickupAt.slice(0, 16).replace("T", " ")) : "",
     ...extraRows(q, t, row, addOns),
-    q.passengers ? row(t.fieldPassengers, String(q.passengers)) : "",
+    paxText ? row(t.fieldPassengers, paxText) : "",
+    luggageText ? row(t.fieldLuggage, luggageText) : "",
     vehicle ? row(t.fieldVehicle, vehicle) : "",
   ];
 }

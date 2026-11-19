@@ -92,6 +92,8 @@ export const quoteRequests = pgTable(
     // 30 days before, approved by itself), B = fee now, the rest 30 days before, C = 30 days or less (everything now).
     // Null for a booking made before these rules, or one with no date or price yet: it is paid in full after approval.
     paymentPlan: text("payment_plan", { enum: ["A", "B", "C"] }),
+    /** Current payment status: "PAID", "OPEN", "UNPAID". Synchronized from online payments and test mode. */
+    paymentStatus: text("payment_status").default("OPEN"),
     /** What the customer agreed to pay, in cents, when they ticked the terms: nothing above it is charged by itself. */
     consentedCents: integer("consented_cents"),
     consentedAt: timestamp("consented_at", { withTimezone: true }),

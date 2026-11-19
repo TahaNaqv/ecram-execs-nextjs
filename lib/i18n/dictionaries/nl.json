@@ -105,6 +105,7 @@
     "stopLabel": "Tussenstop {number}",
     "stopWait": "{minutes} minuten",
     "fieldPassengers": "Passagiers",
+    "fieldLuggage": "Bagage",
     "enquiryIntroConfirmedPay": "Uw boeking {reference} is goedgekeurd en klaar voor betaling. U kunt {amount} veilig betalen op uw boekingspagina; de boeking staat hieronder.",
     "bookingIntroConfirmedPay": "Uw boeking {reference} is bevestigd. U kunt {amount} veilig betalen op uw boekingspagina.",
     "paymentReceivedSubject": "Betaling ontvangen voor uw boeking {reference}",

@@ -26,11 +26,13 @@ export function moneybirdConfig(): MoneybirdConfig | null {
 
 export const moneybirdConfigured = () => moneybirdConfig() !== null;
 
-/** The invoice in Moneybird's own web app, for the team. */
-export function moneybirdInvoiceLink(moneybirdId: string): string | null {
+/** The invoice in Moneybird's own web app, for the team (always opens Moneybird actual website). */
+export function moneybirdInvoiceLink(moneybirdId: string): string {
   const config = moneybirdConfig();
-  if (config?.token?.startsWith("mock") || moneybirdId.startsWith("mock_")) {
-    return `/api/mock/moneybird/invoice?id=${encodeURIComponent(moneybirdId)}`;
-  }
-  return config ? `https://moneybird.com/${config.administrationId}/sales_invoices/${moneybirdId}` : null;
+  const adminId =
+    config?.administrationId && !config.administrationId.startsWith("mock")
+      ? config.administrationId
+      : "503600919228712305";
+  const invoicePart = moneybirdId && !moneybirdId.startsWith("mock_") ? `/sales_invoices/${moneybirdId}` : "/sales_invoices";
+  return `https://moneybird.com/${adminId}${invoicePart}`;
 }

@@ -210,6 +210,7 @@ export function BookingFlow({
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [draft, setDraft] = useState<Trip>(initialTrip);
   const [journeyEdit, setJourneyEdit] = useState(0);
+  const [editingJourney, setEditingJourney] = useState(false);
   const [step, setStep] = useState<BookingStep>(initialStep);
   const [entered, setEntered] = useState<DetailsEntry | null>(null);
   const [details, setDetails] = useState<FleetVehicle | null>(null);
@@ -240,6 +241,7 @@ export function BookingFlow({
   useEffect(() => {
     if (sealedHref) {
       clearBookingDraft();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReady(true);
       return;
     }
@@ -282,9 +284,23 @@ export function BookingFlow({
   const showJourney = () => {
     setDraft(trip);
     setJourneyEdit((n) => n + 1);
+    setEditingJourney(true);
     go("journey");
   };
   const editJourney = () => showJourney();
+
+  const canCancelToCar =
+    editingJourney ||
+    startsAtCar(trip) ||
+    trip.cars.length > 0 ||
+    Boolean(trip.vehicle && trip.vehicle !== "") ||
+    Boolean(trip.from?.text && (trip.to?.text || trip.hours !== ""));
+
+  const handleCancelJourney = () => {
+    setDraft(trip);
+    setEditingJourney(false);
+    go("car");
+  };
 
   const tripLine = [
     numberedStops(trip, t, true).join(" · "),
@@ -299,10 +315,10 @@ export function BookingFlow({
       {notice && <p className="m-0 rounded-xl bg-ink-100 px-4 py-3 text-[14px] text-ink-800">{notice}</p>}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        {(step === "car" || step === "extras" || step === "details") && (
+        {(step === "car" || step === "extras" || step === "details" || step === "review") && (
           <button
             type="button"
-            onClick={editJourney}
+            onClick={() => showJourney()}
             className="flex min-h-12 w-full min-w-0 cursor-pointer items-center gap-3 rounded-full border border-solid border-ink-225 bg-white py-1.5 pr-1.5 pl-4 text-left text-[14px] font-medium text-ink-950 hover:border-ink-950 sm:w-auto sm:max-w-[calc(100%-20rem)] sm:pl-5"
           >
             <span className="min-w-0 flex-1 truncate">{tripLine}</span>
@@ -316,7 +332,7 @@ export function BookingFlow({
         )}
         <ol
           aria-label={t.progress}
-          className={`m-0 grid list-none grid-cols-5 gap-2 p-0 text-[12px] text-ink-600 sm:gap-3 ${step === "car" || step === "extras" || step === "details" ? "w-full sm:ml-auto sm:w-[20rem] sm:shrink-0" : "w-full"}`}
+          className={`m-0 grid list-none grid-cols-5 gap-2 p-0 text-[12px] text-ink-600 sm:gap-3 ${step === "car" || step === "extras" || step === "details" || step === "review" ? "w-full sm:ml-auto sm:w-[20rem] sm:shrink-0" : "w-full"}`}
         >
           {steps.map(([s, label], i) => (
             <li key={s} aria-current={s === step ? "step" : undefined} className={`flex min-w-0 flex-col gap-1.5 ${s === step ? "ee-mark font-semibold text-ink-950" : ""}`}>
@@ -348,10 +364,12 @@ export function BookingFlow({
               tone="light"
               layout="stacked"
               initial={draft}
-              cancelHref={cancelHref}
+              cancelHref={canCancelToCar ? undefined : cancelHref}
+              onCancel={canCancelToCar ? handleCancelJourney : undefined}
               onTripChange={setDraft}
               onDone={(next) => {
                 setTrip(next);
+                setEditingJourney(false);
                 go("car");
               }}
             />

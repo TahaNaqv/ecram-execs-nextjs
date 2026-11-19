@@ -43,7 +43,7 @@ const BOOKING_QUERY = ["from", "to", "at", "mode", "stop", "hours", "pax"];
  * The homepage bar. A trip in the URL (Edit on the car step) fills the fields. With no trip in the URL the bar keeps
  * what the visitor typed, including when the browser comes back from /book.
  */
-export function HeroJourneyBar(props: Omit<Parameters<typeof JourneyBar>[0], "initial" | "layout" | "onDone" | "onTripChange" | "cancelHref">) {
+export function HeroJourneyBar(props: Omit<Parameters<typeof JourneyBar>[0], "initial" | "layout" | "onDone" | "onTripChange" | "cancelHref" | "onCancel">) {
   const search = useSearchParams();
   const query = search.toString();
   const seeded = BOOKING_QUERY.some((key) => search.has(key)) ? tripFromParams(search) : undefined;
@@ -62,6 +62,7 @@ export function JourneyBar({
   onDone,
   onTripChange,
   cancelHref,
+  onCancel,
 }: {
   locale: string;
   copy: BookingCopy;
@@ -77,6 +78,8 @@ export function JourneyBar({
   onTripChange?: (trip: Trip) => void;
   /** The journey step's Cancel: where it leads */
   cancelHref?: string;
+  /** The journey step's Cancel callback when editing within the booking flow */
+  onCancel?: () => void;
 }) {
   const uid = useId();
   const ids = { from: `${uid}-from`, to: `${uid}-to`, hours: `${uid}-hours`, at: `${uid}-at`, guests: `${uid}-guests`, guestsLabel: `${uid}-guests-label`, flight: `${uid}-flight`, error: `${uid}-error` };
@@ -613,12 +616,20 @@ export function JourneyBar({
           {flightCell}
         </div>
         {errorLine}
-        <div className={`flex flex-wrap items-center gap-3 ${cancelHref ? "justify-between" : "justify-end"}`}>
-          {cancelHref && (
+        <div className={`flex flex-wrap items-center gap-3 ${onCancel || cancelHref ? "justify-between" : "justify-end"}`}>
+          {onCancel ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex h-11 cursor-pointer items-center rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 no-underline hover:border-ink-950"
+            >
+              {t.cancel}
+            </button>
+          ) : cancelHref ? (
             <Link href={cancelHref} className="inline-flex h-11 items-center rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 no-underline hover:border-ink-950">
               {t.cancel}
             </Link>
-          )}
+          ) : null}
           <button type="submit" disabled={consecutive} aria-describedby={consecutive ? ids.error : undefined} className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">
             {t.chooseCar}
             <ArrowIcon />

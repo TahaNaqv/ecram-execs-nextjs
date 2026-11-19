@@ -7,7 +7,7 @@ import { db, schema } from "@/lib/db";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { siteOrigin } from "@/lib/mollie/config";
-import { refreshOnReturn } from "@/lib/mollie/pay";
+import { refreshOnReturn, syncBookingPaymentStatus } from "@/lib/mollie/pay";
 import { getGuestBooking } from "@/lib/quotes/guest";
 import { guestPath } from "@/lib/quotes/guest-link";
 import { withinLimit } from "@/lib/rate-limit";
@@ -32,7 +32,9 @@ export async function GET(req: NextRequest) {
     const q = schema.quoteRequests;
     const [booking] = await db.select({ id: q.id }).from(q).where(and(eq(q.reference, ref), partnerOwns(contact.id))).limit(1);
     if (booking && withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) {
+      const explicitStatus = params.get("status") ?? params.get("paymentStatus");
       await refreshOnReturn(booking.id);
+      if (explicitStatus) await syncBookingPaymentStatus(booking.id, explicitStatus);
       after(() => runPaymentSteps(booking.id));
     }
     return NextResponse.redirect(target, 303);
@@ -41,7 +43,9 @@ export async function GET(req: NextRequest) {
   const booking = await getGuestBooking(ref, params.get("k"));
   if (!booking) return home;
   if (withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) {
+    const explicitStatus = params.get("status") ?? params.get("paymentStatus");
     await refreshOnReturn(booking.id);
+    if (explicitStatus) await syncBookingPaymentStatus(booking.id, explicitStatus);
     // Approved by itself (6 months or more ahead) and announced: after the customer is on their way to the page
     after(() => runPaymentSteps(booking.id));
   }

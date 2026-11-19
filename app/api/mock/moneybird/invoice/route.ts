@@ -169,6 +169,9 @@ export async function GET(request: NextRequest) {
         durationHours: effectiveBooking.durationHours,
         entity: effectiveBooking.entity,
         itinerary: effectiveBooking.itinerary,
+        passengers: effectiveBooking.passengers,
+        luggage: effectiveBooking.luggage,
+        handLuggage: effectiveBooking.handLuggage,
       };
 
       const pdfBytes = buildBookingReceipt(
@@ -190,6 +193,13 @@ export async function GET(request: NextRequest) {
           },
           extras: dict.addOns,
           stopLabel: dict.booking.stopLabel,
+          bookingWords: {
+            guestOne: dict.booking.guestOne,
+            guestMany: dict.booking.guestMany,
+            bagOne: dict.booking.bagOne,
+            bagMany: dict.booking.bagMany,
+            bagSplit: dict.booking.bagSplit,
+          },
         },
         receiptLocale,
       );
