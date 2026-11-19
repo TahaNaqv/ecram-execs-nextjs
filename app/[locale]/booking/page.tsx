@@ -1,5 +1,8 @@
+export const instant = false;
+
 import Image from "next/image";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { formatPickup, formatStamp } from "@/lib/corporate/format";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
@@ -139,6 +142,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
  * review, holds the conversation with the booking manager and, once approved, the payment. Opened from the private link.
  */
 export default async function BookingPage({ searchParams }: PageProps<"/[locale]/booking">) {
+  await connection();
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   return (
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.6] text-ink-150">

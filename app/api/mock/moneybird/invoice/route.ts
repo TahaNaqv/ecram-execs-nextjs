@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { desc, eq, or } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
@@ -12,6 +13,7 @@ const NO_CACHE_HEADERS = {
 };
 
 export async function GET(request: NextRequest) {
+  await connection();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id")?.trim() || "mock_mb_12345";
@@ -1057,7 +1059,10 @@ export async function GET(request: NextRequest) {
         "Content-Type": "text/html; charset=utf-8",
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "digest" in err && (err as { digest: string }).digest === "NEXT_PRERENDER_INTERRUPTED") {
+      throw err;
+    }
     console.error("[mock/moneybird/invoice] unhandled error", err);
     return new NextResponse("<!DOCTYPE html><html><body><h2>Moneybird Preview</h2><p>Mock invoice available.</p></body></html>", {
       status: 200,
