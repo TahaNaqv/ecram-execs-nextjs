@@ -16,6 +16,8 @@ export type InvoiceWords = {
   cancellationFee: string;
   /** The kept service fee, invoiced on its own when the customer cancels before approval */
   feeKept: string;
+  /** Standard payment terms when no card balance charge is scheduled */
+  paymentConditions: string;
   /** On a booking paid at booking: when the rest is charged to the card */
   balanceByCard: (date: string) => string;
 };
@@ -32,6 +34,7 @@ export const INVOICE_WORDS: Record<Locale, InvoiceWords> = {
     credit: (number) => `Credit for invoice ${number}`,
     cancellationFee: "cancellation fee kept",
     feeKept: "Service fee (non-refundable, booking cancelled)",
+    paymentConditions: "We kindly request you to pay the amount of {document.total_price} before {document.due_date} to our bank account stating reference {document.reference}. For questions, please contact us by email.",
     balanceByCard: (date) => `The service fee was paid at booking. The balance is charged to the card used then on ${date}.`,
   },
   nl: {
@@ -45,6 +48,7 @@ export const INVOICE_WORDS: Record<Locale, InvoiceWords> = {
     credit: (number) => `Creditering van factuur ${number}`,
     cancellationFee: "annuleringskosten ingehouden",
     feeKept: "Servicekosten (niet restitueerbaar, boeking geannuleerd)",
+    paymentConditions: "We verzoeken u vriendelijk het bovenstaande bedrag van {document.total_price} voor {document.due_date} te voldoen op onze bankrekening onder vermelding van de omschrijving {document.reference}. Voor vragen kunt u contact opnemen per e-mail.",
     balanceByCard: (date) => `De servicekosten zijn bij het boeken betaald. Het resterende bedrag wordt op ${date} van dezelfde kaart afgeschreven.`,
   },
 };

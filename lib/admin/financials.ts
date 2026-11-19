@@ -20,7 +20,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { isCorporateBooking } from "@/lib/quotes/audience";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
-import { moneybirdInvoiceLink } from "@/lib/moneybird/config";
+import { moneybirdConfig, moneybirdInvoiceLink } from "@/lib/moneybird/config";
 
 const q = schema.quoteRequests;
 const contacts = schema.corporateContacts;
@@ -372,7 +372,11 @@ export function presentLedger(
       invoiceFile: invoice?.fileName ?? null,
       moneybirdNumber: mbInvoice?.number ?? null,
       moneybirdState: mbInvoice?.state ?? null,
-      moneybirdHref: mbInvoice?.moneybirdId ? moneybirdInvoiceLink(mbInvoice.moneybirdId) : null,
+      moneybirdHref: mbInvoice?.moneybirdId
+        ? (mbInvoice.moneybirdId.startsWith("mock_") || moneybirdConfig()?.token?.startsWith("mock"))
+          ? `/api/admin/financials/receipt/${row.id}`
+          : moneybirdInvoiceLink(mbInvoice.moneybirdId)
+        : null,
     };
   });
 }

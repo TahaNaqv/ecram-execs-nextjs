@@ -3,20 +3,22 @@ import { z } from "zod";
 import { buildBookingReceipt } from "@/lib/admin/financial-receipt";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import type { Locale } from "@/lib/i18n/config";
 
 const NO_STORE = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex" };
 
 /** The booking confirmation PDF, built with the same receipt the website downloads. */
 export async function GET(_request: Request, ctx: RouteContext<"/api/admin/financials/receipt/[id]">) {
-  const admin = await requireAdmin();
+  await requireAdmin();
   const { id } = await ctx.params;
   if (!z.uuid().safeParse(id).success) return new Response("Not found", { status: 404, headers: NO_STORE });
 
   const [row] = await db.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
   if (!row) return new Response("Not found", { status: 404, headers: NO_STORE });
 
-  const dict = await adminDictionary();
+  const receiptLocale: Locale = row.locale === "nl" ? "nl" : "en";
+  const dict = await getDictionary(receiptLocale);
   const bytes = buildBookingReceipt(
     row,
     {
@@ -37,7 +39,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/admin/finan
       extras: dict.addOns,
       stopLabel: dict.booking.stopLabel,
     },
-    admin.locale,
+    receiptLocale,
   );
 
   const filename = `${row.reference.replace(/[^A-Za-z0-9-]/g, "") || "receipt"}.pdf`;

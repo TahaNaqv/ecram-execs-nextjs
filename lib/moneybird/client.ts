@@ -53,8 +53,113 @@ function describe(status: number, body: unknown): string {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+let mockCounter = 2000;
+
+function handleMockMoneybird<T>(method: string, path: string, body: unknown): T {
+  const reqBody = body as Record<string, unknown> | null | undefined;
+  if (method === "GET" && path.startsWith("workflows.json")) {
+    return [
+      { id: "mock_wf_en", name: "English", language: "en", type: "SalesInvoiceWorkflow", active: true },
+      { id: "mock_wf_nl", name: "Nederlands", language: "nl", type: "SalesInvoiceWorkflow", active: true, default: true },
+    ] as T;
+  }
+  if (method === "GET" && path.startsWith("tax_rates.json")) {
+    return [
+      { id: "mock_tax_9", percentage: "9.0", tax_rate_type: "sales_invoice", active: true, country: null },
+      { id: "mock_tax_21", percentage: "21.0", tax_rate_type: "sales_invoice", active: true, country: null },
+    ] as T;
+  }
+  if (method === "GET" && path.includes("contacts/customer_id/")) {
+    return { id: "mock_contact_1", customer_id: "mock" } as T;
+  }
+  if (method === "POST" && path.startsWith("contacts.json")) {
+    const contact = reqBody?.contact as Record<string, unknown> | undefined;
+    return { id: "mock_contact_1", customer_id: (contact?.customer_id as string) ?? "mock" } as T;
+  }
+  if (method === "PATCH" && path.startsWith("contacts/")) {
+    const contact = reqBody?.contact as Record<string, unknown> | undefined;
+    return { id: path.replace(".json", "").split("/")[1], customer_id: "mock", ...contact } as T;
+  }
+  if (method === "GET" && path.includes("find_by_reference")) {
+    throw new MoneybirdError(404, null, "not found");
+  }
+  if (method === "POST" && path.startsWith("sales_invoices.json")) {
+    const s = reqBody?.sales_invoice as Record<string, unknown> | undefined;
+    const details = (s?.details_attributes ?? []) as Array<{ price?: string | number; amount?: number }>;
+    const total = details.reduce((sum: number, d) => sum + Math.round(Number(d.price ?? 0) * 100) * Number(d.amount ?? 1), 0);
+    const moneyStr = (total / 100).toFixed(2);
+    const newId = String(mockCounter++);
+    return {
+      id: newId,
+      invoice_id: null,
+      reference: (s?.reference as string) ?? "EE-MOCK",
+      state: "draft",
+      total_price_incl_tax: moneyStr,
+      total_unpaid: moneyStr,
+      url: `/api/mock/moneybird/invoice?id=${newId}&view=customer`,
+      payment_url: `/api/mock/moneybird/invoice?id=${newId}&view=customer`,
+    } as T;
+  }
+  if (method === "PATCH" && path.includes("/send_invoice.json")) {
+    const id = path.split("/")[1];
+    return {
+      id,
+      invoice_id: `2026-${String(mockCounter++).padStart(4, "0")}`,
+      reference: "EE-MOCK",
+      state: "open",
+      total_price_incl_tax: "178.63",
+      total_unpaid: "178.63",
+      url: `/api/mock/moneybird/invoice?id=${id}&view=customer`,
+      payment_url: `/api/mock/moneybird/invoice?id=${id}&view=customer`,
+      sent_at: new Date().toISOString(),
+    } as T;
+  }
+  if (method === "GET" && path.startsWith("sales_invoices/")) {
+    const id = path.replace(".json", "").split("/")[1];
+    return {
+      id,
+      invoice_id: `2026-${String(mockCounter++).padStart(4, "0")}`,
+      reference: "EE-MOCK",
+      state: "open",
+      total_price_incl_tax: "178.63",
+      total_unpaid: "178.63",
+      url: "https://moneybird.com/mock-customer-view",
+      payment_url: "https://moneybird.com/mock-pay",
+      sent_at: new Date().toISOString(),
+    } as T;
+  }
+  if (method === "PATCH" && path.includes("/duplicate_creditinvoice.json")) {
+    return {
+      id: String(mockCounter++),
+      invoice_id: `2026-${String(mockCounter++).padStart(4, "0")}`,
+      state: "draft",
+      total_price_incl_tax: "-178.63",
+      total_unpaid: "-178.63",
+    } as T;
+  }
+  if (method === "PATCH" && path.includes("/register_payment_creditinvoice.json")) {
+    return {
+      id: String(mockCounter++),
+      state: "paid",
+    } as T;
+  }
+  if (method === "PATCH" && path.startsWith("sales_invoices/")) {
+    return {
+      id: String(mockCounter++),
+      state: "open",
+    } as T;
+  }
+  if (method === "DELETE" && path.startsWith("sales_invoices/")) {
+    return {} as T;
+  }
+  return {} as T;
+}
+
 export async function moneybird<T>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, body?: unknown, retried = false): Promise<T> {
   const config = required();
+  if (config.token === "mock" || config.token.startsWith("mock")) {
+    return handleMockMoneybird<T>(method, path, body);
+  }
   const res = await fetch(`${config.api}/${config.administrationId}/${path}`, {
     method,
     headers: {
@@ -107,6 +212,34 @@ export function salesTaxRates(): Promise<{ low: string; high: string }> {
       throw err;
     });
   return taxRates;
+}
+
+export type MoneybirdWorkflow = {
+  id: string;
+  name: string;
+  type?: string | null;
+  language?: string | null;
+  active?: boolean;
+  default?: boolean;
+};
+
+let workflowsPromise: Promise<{ en?: string; nl?: string } | null> | null = null;
+
+/** Active sales invoice workflows by language ("en" / "nl"), if configured in Moneybird. */
+export function invoiceWorkflows(): Promise<{ en?: string; nl?: string } | null> {
+  workflowsPromise ??= moneybird<MoneybirdWorkflow[]>("GET", "workflows.json")
+    .then((list) => {
+      if (!Array.isArray(list)) return null;
+      const active = list.filter((w) => w.active !== false);
+      const en = active.find((w) => w.language === "en" || /english|engels/i.test(w.name))?.id;
+      const nl = active.find((w) => w.language === "nl" || w.language === "nl-be" || /nederlands|dutch/i.test(w.name))?.id;
+      return { en: en ? String(en) : undefined, nl: nl ? String(nl) : undefined };
+    })
+    .catch(() => {
+      workflowsPromise = null;
+      return null;
+    });
+  return workflowsPromise;
 }
 
 export const centsFromMoney = (value: string | number | null | undefined): number => Math.round(Number(value ?? 0) * 100);

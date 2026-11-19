@@ -6,7 +6,7 @@ import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { Locale } from "@/lib/i18n/config";
 import { isCorporateBooking } from "@/lib/quotes/audience";
 import { formatCurrency } from "@/lib/pricing/rates";
-import { centsFromMoney, moneybird, moneyFromCents, MoneybirdError, salesTaxRates, type MoneybirdContact, type MoneybirdSalesInvoice } from "./client";
+import { centsFromMoney, invoiceWorkflows, moneybird, moneyFromCents, MoneybirdError, salesTaxRates, type MoneybirdContact, type MoneybirdSalesInvoice } from "./client";
 import { moneybirdConfig } from "./config";
 import {
   creditSplit,
@@ -223,7 +223,7 @@ async function createContact(customerId: string, fields: Record<string, unknown>
 }
 
 /** The Moneybird contact the invoice is addressed to: the partner's company, or the guest (and their company, if given). */
-async function ensureContact(r: Booking, partner: Partner | null): Promise<string> {
+async function ensureContact(r: Booking, partner: Partner | null, workflowId?: string): Promise<string> {
   if (partner) {
     const fields = {
       company_name: partner.companyName?.trim() || partner.name,
@@ -238,6 +238,7 @@ async function ensureContact(r: Booking, partner: Partner | null): Promise<strin
       send_invoices_to_email: partner.invoiceEmail || partner.email,
       send_invoices_to_attention: partner.name,
       delivery_method: "Email",
+      ...(workflowId ? { invoice_workflow_id: workflowId } : {}),
     };
     let id = partner.moneybirdContactId;
     if (id) {
@@ -261,9 +262,8 @@ async function ensureContact(r: Booking, partner: Partner | null): Promise<strin
   }
   const customerId = guestCustomerId(r.email, r.entity);
   const found = await findContact(customerId);
-  if (found) return String(found.id);
   const name = splitName(r.name);
-  const created = await createContact(customerId, {
+  const fields = {
     ...(r.entity?.trim() ? { company_name: r.entity.trim(), send_invoices_to_attention: r.name } : {}),
     firstname: name.firstname || undefined,
     lastname: name.lastname || r.name,
@@ -271,7 +271,19 @@ async function ensureContact(r: Booking, partner: Partner | null): Promise<strin
     phone: r.phone || undefined,
     send_invoices_to_email: r.email,
     delivery_method: "Email",
-  });
+    ...(workflowId ? { invoice_workflow_id: workflowId } : {}),
+  };
+  if (found) {
+    try {
+      await moneybird("PATCH", `contacts/${found.id}.json`, { contact: fields });
+    } catch (err) {
+      if (!(err instanceof MoneybirdError && err.status === 404)) {
+        console.warn(`[moneybird] updating contact ${found.id} failed:`, err instanceof Error ? err.message : err);
+      }
+    }
+    return String(found.id);
+  }
+  const created = await createContact(customerId, fields);
   return String(created.id);
 }
 
@@ -309,8 +321,15 @@ async function deleteDraft(id: string): Promise<void> {
 
 async function createDraft(r: Booking, partner: Partner | null, row: Row, cents: number): Promise<MoneybirdSalesInvoice> {
   const config = moneybirdConfig()!;
-  const [contactId, rates, dict] = await Promise.all([ensureContact(r, partner), salesTaxRates(), getDictionary(r.locale as Locale)]);
-  const words = INVOICE_WORDS[(r.locale as Locale) ?? "en"];
+  const locale: Locale = (r.locale as Locale) === "nl" ? "nl" : "en";
+  const [rates, dict, workflows] = await Promise.all([
+    salesTaxRates(),
+    getDictionary(locale),
+    invoiceWorkflows().catch(() => null),
+  ]);
+  const workflowId = workflows?.[locale];
+  const contactId = await ensureContact(r, partner, workflowId);
+  const words = INVOICE_WORDS[locale];
   // The customer cancelled a booking paid at booking: the service fee is not refunded, so it is invoiced on its own
   const lines = isFeeRow(row)
     ? [{ description: `${r.reference} · ${words.feeKept}`, cents, rate: "high" as const, ledger: "extras" as const }]
@@ -326,7 +345,7 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
       passengers: r.passengers,
       vehicle: r.vehicle,
       vehicles: r.vehicles,
-      locale: r.locale as Locale,
+      locale,
       quotedAmount: r.quotedAmount,
       priceEstimate: r.priceEstimate ?? null,
     },
@@ -346,7 +365,9 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
       currency: "EUR",
       prices_are_incl_tax: true,
       first_due_interval: firstDue,
-      ...(balanceOn ? { payment_conditions: words.balanceByCard(longDay(balanceOn, (r.locale as Locale) ?? "en")) } : {}),
+      language: locale,
+      ...(workflowId ? { workflow_id: workflowId } : {}),
+      payment_conditions: balanceOn ? words.balanceByCard(longDay(balanceOn, locale)) : words.paymentConditions,
       details_attributes: lines.map((line) => ({
         description: line.description,
         price: moneyFromCents(line.cents),
@@ -631,10 +652,12 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
           groups.set(key, group);
         }
         const [booking] = await db.select({ locale: schema.quoteRequests.locale }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
-        const words = INVOICE_WORDS[(booking?.locale as Locale) ?? "en"];
+        const creditLocale: Locale = (booking?.locale as Locale) === "nl" ? "nl" : "en";
+        const words = INVOICE_WORDS[creditLocale];
         const label = `${words.credit(live.number ?? live.reference)} (${words.cancellationFee}: ${formatCurrency(keep / 100)})`;
         cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}.json`, {
           sales_invoice: {
+            language: creditLocale,
             details_attributes: [
               ...((cr.details ?? []) as CreditDetail[]).map((d) => ({ id: d.id, _destroy: true })),
               ...creditSplit([...groups.values()], keep).map((g) => ({
@@ -646,6 +669,12 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
               })),
             ],
           },
+        });
+      } else if (!invoiceSent(cr)) {
+        const [booking] = await db.select({ locale: schema.quoteRequests.locale }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
+        const creditLocale: Locale = (booking?.locale as Locale) === "nl" ? "nl" : "en";
+        cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}.json`, {
+          sales_invoice: { language: creditLocale },
         });
       }
       if (!invoiceSent(cr)) {
