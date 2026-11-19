@@ -59,24 +59,17 @@
   --font-sans: var(--font-manrope), sans-serif;
 }
 
-/* ---------- Colour theme ----------
-   The site's colours are the `ink` scale above, so a theme is a different set of values for it. "navy" (the default, see
-   lib/site-theme.ts) puts the page background on #000f4d (ink-950) and tints the rest of the dark steps, the greys and the paper
-   tones toward it. The greys and paper tones keep exactly the brightness they had, so text keeps its contrast; the dark steps,
-   which are surfaces and borders, move up with the background. "classic" sets nothing: the values in @theme stay as they were. */
+/* ---------- Colour theme ---------- */
 :root {
-  /* Colours used inside gradients and shadows, as red, green, blue: the near-black that darkens photographs and the navy of the hero */
   --ec-black-rgb: 10, 10, 11;
   --ec-deep-rgb: 9, 24, 52;
   --ec-panel-rgb: 10, 28, 60;
   --ec-swap-rgb: 14, 36, 74;
-  /* The wash over the hero photograph */
   --ec-sky-rgb: 72, 126, 202;
   --ec-chrome-hi: #dbe7f7;
 }
 
 :root[data-theme="navy"],
-/* In the light-blue theme, the parts of the page that sit on a white card or on a photograph keep the navy theme's colours. */
 :root[data-theme="lightblue"] :is(.light-surface, .keep-navy, dialog, [role="dialog"]) {
   --color-ink-50: #f3f4f6;
   --color-ink-75: #f1f1f4;
@@ -114,8 +107,6 @@
   --color-white: #fff;
 }
 
-/* Navy, one blue throughout: the header, the footer and the footer's bottom strip are the page's own #000f4d (the footer was a deeper navy, the strip white, the header see-through),
-   with the black social icons turned white */
 :root[data-theme="navy"] header,
 :root[data-theme="navy"] footer {
   background-color: var(--color-ink-950);
@@ -131,14 +122,10 @@
   fill: #fff;
 }
 
-/* Navy, the hero too: the photograph sits under the deep navy wash instead of the lighter blue dusk */
 :root[data-theme="navy"] {
   --ec-sky-rgb: 6, 32, 104;
 }
 
-/* Navy, the booking page, the apply form and the corporate panels (marked .light-surface, light grey and white in the other themes) are navy too.
-   Their markup says "pale surface, dark type", so inside them the scale is swapped: the pale steps become the page's navy, the dark steps become the pale type,
-   cards (white) a shade lighter than the page. Buttons that were dark on pale come out white on navy, like the ones in the hero. */
 :root[data-theme="navy"] .light-surface {
   color-scheme: dark;
   --color-white: #081b62;
@@ -173,8 +160,6 @@
   --color-ink-975: #f6f7f9;
 }
 
-/* Inside this panel the token `white` is the panel navy, so a tab painted with it disappears.
-   Active and hovered marks stay real white. Other themes keep the ink foreground. */
 :root[data-theme="navy"] .light-surface .ee-mark {
   color: #ffffff;
   border-color: #ffffff;
@@ -187,8 +172,6 @@
   background-color: #ffffff;
 }
 
-/* Business / Private sit on a navy card. The swapped white becomes that same navy, so an unselected button vanishes.
-   These stay a pale outline, and the chosen one a white pill with dark type. */
 :root[data-theme="navy"] .light-surface .purpose-choice {
   background: transparent !important;
   color: #ffffff !important;
@@ -200,8 +183,6 @@
   border-color: #ffffff !important;
 }
 
-/* Booking step 1. On a light card the type is black. Inside the navy panel the card itself is navy, so the type is cream
-   instead, including the browser's own fill colour, which otherwise washes the letters out against the field. */
 .journey-fields :where(input, textarea) {
   color: #0a0a0b;
   -webkit-text-fill-color: #0a0a0b;
@@ -216,10 +197,6 @@
   -webkit-text-fill-color: #f4f4f5 !important;
   caret-color: #f4f4f5;
 }
-/* The wait control is a button that also wraps its menu. Only the closed control is cream.
-   Address suggestions use bg-white, which is already the navy panel, so they keep the cream type.
-   The hour and wait menus are a real white panel (bg-[#ffffff]) and stay dark.
-   The calendar popup is a navy dialog, so its columns are not part of that white-menu rule. */
 :root[data-theme="navy"] .light-surface .journey-fields button[aria-haspopup="listbox"] {
   color: #f4f4f5 !important;
 }
@@ -228,8 +205,6 @@
   color: #10224f !important;
   -webkit-text-fill-color: #10224f !important;
 }
-/* Address suggestions on the navy booking card. The panel token `white` is the card itself,
-   so the list is painted in real colours: a deeper sheet, white names, and a bright subtitle. */
 :root[data-theme="navy"] .light-surface .place-menu {
   background: #071433 !important;
   color: #f4f4f5 !important;
@@ -251,8 +226,6 @@
 :root[data-theme="navy"] .light-surface .place-menu .place-option-on {
   background: rgba(255, 255, 255, 0.1) !important;
 }
-/* The phone row stays in the same field as the rest of the form. On navy the divider and the
-   country list are real colours, so "NL +31" and the number stay readable. */
 :root[data-theme="navy"] .light-surface .phone-code {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
@@ -283,21 +256,36 @@
 :root[data-theme="navy"] .light-surface .phone-menu [aria-selected="true"] button {
   background: rgba(255, 255, 255, 0.1) !important;
 }
-:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"],
-:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] :where(button, li) {
+
+/* Date/Time picker popover */
+[role="dialog"]:not(.guests-landing-modal) button {
   color: #f4f4f5 !important;
   -webkit-text-fill-color: #f4f4f5 !important;
 }
-/* A chosen day or time sits on a white pill. The panel's inherited fill is cream, which vanishes on that pill. */
-:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] button[aria-pressed="true"],
-:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] button[aria-selected="true"],
-:root[data-theme="navy"] .light-surface .journey-fields .picker-solid,
-:root[data-theme="navy"] .light-surface .journey-fields .picker-solid:hover {
+
+[role="dialog"]:not(.guests-landing-modal) button:disabled {
+  color: #9eb6e8 !important;
+  -webkit-text-fill-color: #9eb6e8 !important;
+}
+
+[role="dialog"]:not(.guests-landing-modal) button[aria-pressed="true"],
+[role="dialog"]:not(.guests-landing-modal) button[aria-pressed="true"]:hover,
+[role="dialog"]:not(.guests-landing-modal) button[aria-selected="true"],
+[role="dialog"]:not(.guests-landing-modal) button[aria-selected="true"]:hover,
+[role="dialog"]:not(.guests-landing-modal) .picker-solid,
+[role="dialog"]:not(.guests-landing-modal) .picker-solid:hover,
+.picker-solid,
+.picker-solid:hover {
+  background-color: #f4f4f5 !important;
   color: #081b62 !important;
   -webkit-text-fill-color: #081b62 !important;
 }
-/* Calendar icon. On a light field it is dark, including on hover. On the navy card it stays cream,
-   and the hover wash stays translucent so the icon never sits light-on-light. */
+
+[role="dialog"]:not(.guests-landing-modal) .picker-solid:hover,
+.picker-solid:hover {
+  background-color: #ffffff !important;
+}
+
 :root[data-theme="navy"] .light-surface .calendar-trigger,
 :root[data-theme="navy"] .light-surface .calendar-trigger:hover {
   color: #f4f4f5 !important;
@@ -307,8 +295,7 @@
 :root[data-theme="navy"] .light-surface .calendar-trigger:hover {
   background-color: rgba(255, 255, 255, 0.16) !important;
 }
-/* One Way / By The Hour. Light themes: a dark pill with white type, idle type dark.
-   The navy booking card swaps those tokens, so the same pills are set again in real colours. */
+
 .mode-pill-dark.mode-pill-on {
   background-color: #ffffff;
   color: #081b62;
@@ -359,14 +346,13 @@
   color: #d5dced !important;
   -webkit-text-fill-color: #d5dced !important;
 }
-/* A pale notice keeps dark type. The navy panel turns `text-error` light, which disappears on this pink fill. */
 :root[data-theme="navy"] .light-surface .journey-alert,
 :root[data-theme="navy"] .light-surface .journey-alert :where(span, strong) {
   color: #7f1d1d !important;
   -webkit-text-fill-color: #7f1d1d !important;
 }
 
-/* Corporate signup fields. `text-white` and `text-ink-950` both follow the swapped scale, so typed text was navy on navy. */
+/* Corporate signup fields */
 :root[data-theme="navy"] .light-surface .corp-fields input:not([type="checkbox"]):not([type="hidden"]) {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
@@ -377,7 +363,7 @@
   -webkit-text-fill-color: #a1a1aa !important;
 }
 
-/* An empty datetime-local paints dd/mm/yyyy with the input's color. `text-white` is navy inside this surface, so the date vanishes on the blue field. */
+/* datetime-local */
 :root[data-theme="navy"] .light-surface input[type="datetime-local"] {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff;
@@ -399,8 +385,7 @@
   opacity: 1;
 }
 
-/* These notices stay pale (amber, emerald) inside the navy panel, whose type is inverted to near-white.
-   The inversion would wipe the words out, including on hover, so the notice text is pinned dark. */
+/* Amber & emerald notices */
 :root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50),
 :root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) :where(h1, h2, h3, h4, p, span, strong, a, button, label, li, dt, dd) {
   color: #10224f !important;
@@ -410,7 +395,6 @@
   color: #10224f !important;
   -webkit-text-fill-color: #10224f;
 }
-/* Accept sits on the same pale card, whose rule above would paint its letters navy. This button keeps white type on the theme blue. */
 :root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) button.quote-accept,
 :root[data-theme="navy"] .light-surface :is(.bg-amber-50, .bg-emerald-50) button.quote-accept:hover {
   color: #ffffff !important;
@@ -422,8 +406,7 @@
   color: #fff;
 }
 
-/* Midnight: a softer, slightly lighter dark blue than "navy" (page #0f2a63, a little less violet). Same idea: the greys and paper tones keep their
-   brightness, the dark steps move up with the page. */
+/* Midnight theme */
 :root[data-theme="midnight"] {
   --color-ink-50: #f3f4f6;
   --color-ink-75: #f1f2f4;
@@ -460,7 +443,6 @@
   --ec-swap-rgb: 26, 62, 130;
 }
 
-/* Panels and pop-ups that stay light keep the navy theme's greys: one grey cannot be readable both on the dark blue and on white. */
 :root[data-theme="midnight"] :is(.light-surface, dialog, [role="dialog"]) {
   --color-ink-50: #f3f4f6;
   --color-ink-75: #f1f1f4;
@@ -481,9 +463,7 @@
   --color-white: #fff;
 }
 
-/* Light blue: the page is a pale sky blue and the type is the deep navy. The steps below are the classic ones mirrored — a step that
-   was as bright against the black page is as dark against the blue page, so text keeps its contrast. White becomes navy, which turns
-   "white text" and "white button" into navy text and navy buttons; the scopes above hand the real colours back where the page sits on a white card or on a photograph. */
+/* Light blue theme */
 :root[data-theme="lightblue"] {
   --color-white: #000f4d;
   --color-ink-50: #000f4d;
@@ -523,13 +503,11 @@
   --ec-chrome-hi: #2c4a99;
 }
 
-/* The photographs (hero, cards) keep a navy wash and white type on the light-blue page; the hero's blue is a deeper navy than the dusk it has in the other themes */
 :root[data-theme="lightblue"] .keep-navy {
   --ec-sky-rgb: 6, 32, 104;
   --ec-chrome-hi: #dbe7f7;
 }
 
-/* The footer's bottom strip (white in the other themes) is navy too, with the black social icons turned white; the floating scroll buttons are navy */
 :root[data-theme="lightblue"] footer > .light-surface {
   background-color: #000b38;
   color: var(--color-ink-300);
@@ -551,7 +529,6 @@
   color: #000f4d;
 }
 
-/* Midnight: the footer is a little deeper than the page, and its bottom strip (white in the navy theme) follows it, with the black social icons turned white */
 :root[data-theme="midnight"] footer {
   background-color: #0a1d4a;
 }
@@ -566,20 +543,15 @@
   fill: #fff;
 }
 
-/* The panels that sit on the light-blue page are blue-tinted paper rather than neutral grey */
 :root[data-theme="lightblue"] .light-surface {
   --color-ink-50: #eff5fc;
 }
 
-/* While a dialog (a car's details, its photo viewer, the cookie settings) is open the page behind it does not scroll: a touch that
-   reaches the end of the dialog would otherwise carry on into the page */
 html:has(dialog[open]),
 body:has(dialog[open]) {
   overflow: hidden !important;
 }
 
-/* The WhatsApp button and the scroll arrows step aside while the concierge chat is on screen on a phone or tablet: the chat has its own WhatsApp link
-   and its send button is in the same corner */
 @media (max-width: 1000px) {
   html[data-chat-in-view] .wa-float,
   html[data-chat-in-view] .section-nav {
@@ -605,7 +577,6 @@ body:has(dialog[open]) {
     font-family: inherit;
   }
 
-  /* Long emails and phone numbers scroll inside the box. Do not set overflow here: that stops the caret following the arrow keys. */
   input[type="email"],
   input[type="tel"],
   input[inputmode="email"],
@@ -621,14 +592,10 @@ body:has(dialog[open]) {
     overflow-x: clip;
   }
 
-  /* The header is sticky, so in-page links must stop below it rather than under it */
   html {
     scroll-padding-top: 88px;
   }
 
-  /* Header and hero buttons are plain #anchor links: this makes them glide to their section instead of jumping.
-     Left off for visitors who ask their device to reduce motion. Scripts that must not animate (reloading to the
-     top, restoring the position after a language switch) say behavior: "instant" explicitly. */
   @media (prefers-reduced-motion: no-preference) {
     html {
       scroll-behavior: smooth;
@@ -819,7 +786,6 @@ body:has(dialog[open]) {
     animation: ecChrome 9s linear infinite;
   }
 
-  /* The same moving shine on a blue ground: pale stops only, so no part of the word falls to grey against the blue */
   .chrome-live-light {
     background: linear-gradient(100deg, var(--color-ink-100) 0%, var(--color-white, #fff) 18%, var(--ec-chrome-hi, #dbe7f7) 36%, var(--color-ink-75) 54%, var(--color-ink-100) 72%, var(--color-white, #fff) 90%, var(--color-ink-100) 100%);
     background-size: 200% 100%;
@@ -895,7 +861,6 @@ body:has(dialog[open]) {
     height: 100%;
     object-fit: cover;
     object-position: 50% 55%;
-    /* The night photograph lifted into a blue dusk: brighter and more colour than before, never grey or black */
     filter: saturate(1.15) contrast(1.02) brightness(1.2);
     animation: ecDrift 18s ease-out both;
   }
@@ -976,8 +941,6 @@ body:has(dialog[open]) {
       animation-range: entry 5% cover 28%;
     }
 
-    /* For a box that changes height (the Services cards unfold): the range is in pixels, so growing does not move it back
-       into the middle of the animation and dim the card while it opens */
     .reveal-card {
       animation: ecRise linear both;
       animation-timeline: view();
@@ -993,11 +956,7 @@ body:has(dialog[open]) {
   }
 }
 
-/* ---------- Mobile menu (≤1279px) ----------
- * CSS-only: a visually hidden checkbox (#nav-toggle) drives the burger and the
- * slide-down panel. Kept unlayered and together so its !important rules win
- * over the nav's desktop utility classes in one predictable place.
- */
+/* ---------- Mobile menu (≤1279px) ---------- */
 .nav-toggle {
   position: absolute;
   width: 1px;
@@ -1061,7 +1020,6 @@ body:has(dialog[open]) {
     transform: translateY(-7px) rotate(-45deg);
   }
 
-  /* Closed */
   .primary-nav,
   .nav-actions {
     display: none !important;
@@ -1073,7 +1031,6 @@ body:has(dialog[open]) {
     min-height: 50px !important;
   }
 
-  /* Language flags stay in the header bar (beside the burger) instead of inside the menu. */
   .nav-lang {
     order: 1;
     margin-left: auto;
@@ -1089,13 +1046,11 @@ body:has(dialog[open]) {
     order: 3;
   }
 
-  /* An open menu taller than the screen scrolls inside the sticky header */
   header:has(.nav-toggle:checked) {
     max-height: 100dvh;
     overflow-y: auto;
   }
 
-  /* Open */
   .nav-toggle:checked ~ .primary-nav {
     display: flex !important;
     flex-direction: column;
@@ -1120,21 +1075,17 @@ body:has(dialog[open]) {
   }
 }
 
-/* The browser's own show-password eye (Edge) hides itself after one use; the forms draw their own toggle instead. */
 input::-ms-reveal,
 input::-ms-clear {
   display: none;
 }
 
-/* The cookie banner (components set --cookie-banner-h while it is open) pushes the fixed buttons up instead of covering them */
 .cookie-lift {
   margin-bottom: var(--cookie-banner-h, 0px);
   transition: margin-bottom 0.2s ease;
 }
 
 /* ---------- Interaction states (hover, focus) and motion preferences ---------- */
-/* White on hover suits the dark page. Links on the light surfaces (the Corporate Partner panel, the booking form, the
-   footer's white strip) keep their own colours, or the text would vanish against the background. */
 a:not(:where(.light-surface *)):hover {
   color: var(--color-white, #fff);
 }
@@ -1235,4 +1186,101 @@ select:focus-visible {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Date/Time picker listbox buttons */
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] button:not([aria-selected="true"]):not(:disabled),
+[role="dialog"]:not(.guests-landing-modal) [role="listbox"] button:not([aria-selected="true"]):not(:disabled) {
+  background-color: transparent !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] button:not([aria-selected="true"]):not(:disabled):hover,
+[role="dialog"]:not(.guests-landing-modal) [role="listbox"] button:not([aria-selected="true"]):not(:disabled):hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] button[aria-selected="true"],
+[role="dialog"]:not(.guests-landing-modal) [role="listbox"] button[aria-selected="true"] {
+  background-color: #f4f4f5 !important;
+  color: #081b62 !important;
+  -webkit-text-fill-color: #081b62 !important;
+}
+
+:root[data-theme="navy"] .light-surface .journey-fields [role="dialog"] [role="listbox"] button:disabled,
+[role="dialog"]:not(.guests-landing-modal) [role="listbox"] button:disabled {
+  background-color: transparent !important;
+  color: #9eb6e8 !important;
+  -webkit-text-fill-color: #9eb6e8 !important;
+}
+
+/* Match guests selector on admin/booking pages to landing page styling */
+.guests-landing-modal {
+  background-color: #ffffff !important;
+  color: #10224f !important;
+  -webkit-text-fill-color: #10224f !important;
+  border-color: #d7dae2 !important;
+}
+
+.guests-landing-modal .stepper-btn:not(:disabled) {
+  background-color: #ffffff !important;
+  border-color: #c5d0e6 !important;
+  color: #10224f !important;
+  -webkit-text-fill-color: #10224f !important;
+  opacity: 1 !important;
+}
+
+.guests-landing-modal .stepper-btn:not(:disabled):hover {
+  border-color: #10224f !important;
+  color: #10224f !important;
+  -webkit-text-fill-color: #10224f !important;
+}
+
+.guests-landing-modal .stepper-btn:disabled {
+  background-color: #ffffff !important;
+  border-color: #e4e8f2 !important;
+  color: #09328b !important;
+  -webkit-text-fill-color: #0e2556 !important;
+  opacity: 1 !important;
+}
+
+.guests-landing-modal .guests-done-btn,
+.guests-landing-modal .guests-done-btn:hover {
+  background-color: #000f4d !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.guests-landing-modal .guests-done-btn:hover {
+  background-color: #081b62 !important;
+}
+
+/* Time columns in the date/time popover (dark site look only).
+   Selected = light chip with navy text. Not selected = transparent with light text.
+   Raised specificity so no other rule can turn the unselected times navy-on-navy. */
+:root:root:root:root:root [role="dialog"] [role="listbox"] button.time-option[role="option"]:not([aria-selected="true"]) {
+  background-color: transparent !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  opacity: 1 !important;
+}
+
+:root:root:root:root:root [role="dialog"] [role="listbox"] button.time-option[role="option"]:not([aria-selected="true"]):hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+:root:root:root:root:root [role="dialog"] [role="listbox"] button.time-option[role="option"]:not([aria-selected="true"]):disabled {
+  color: #8ea4dc !important;
+  -webkit-text-fill-color: #8ea4dc !important;
+  opacity: 0.55 !important;
+}
+
+:root:root:root:root:root [role="dialog"] [role="listbox"] button.time-option[role="option"][aria-selected="true"] {
+  background-color: #f4f4f5 !important;
+  color: #081b62 !important;
+  -webkit-text-fill-color: #081b62 !important;
+  opacity: 1 !important;
 }

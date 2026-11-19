@@ -359,8 +359,8 @@ export function DateTimeField({
           ? "bg-zinc-950 text-white [-webkit-text-fill-color:#ffffff] disabled:bg-zinc-100 disabled:text-zinc-300 disabled:[-webkit-text-fill-color:#d4d4d8]"
           : "bg-transparent text-zinc-800 [-webkit-text-fill-color:#27272a] hover:bg-zinc-100 disabled:text-zinc-300 disabled:[-webkit-text-fill-color:#d4d4d8]"
         : selected
-          ? "bg-[#f4f4f5] text-[#081b62] [-webkit-text-fill-color:#081b62] disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
-          : "bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10 disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
+          ? "time-option bg-[#f4f4f5] text-[#081b62] [-webkit-text-fill-color:#081b62] disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
+          : "time-option bg-transparent text-[#f4f4f5] [-webkit-text-fill-color:#f4f4f5] hover:bg-white/10 disabled:text-[#616fa7] disabled:[-webkit-text-fill-color:#616fa7]"
     }`;
 
   return (
