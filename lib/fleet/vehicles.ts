@@ -229,10 +229,13 @@ export const FLEET: FleetVehicle[] = [
     key: "hongqi_e_hs9",
     name: "Hongqi E-HS9",
     images: [
-      "/assets/fleet-hongqi-e-hs9-v2.jpg",
-      "/assets/fleet-hongqi-e-hs9-gallery-2.jpg",
-      "/assets/fleet-hongqi-e-hs9-gallery-3.jpg",
-      "/assets/fleet-hongqi-e-hs9-gallery-4.jpg",
+      // 23 Nov 2026: the fleet car is the Black Edition, with black rims and a black grille (the red stripe and the red wheel
+      // caps stay). black-1 to 4 are v2 and gallery-2 to 4 with the chrome rims and grille recoloured gloss black; gallery-5
+      // (the rear) shows neither. A new picture needs a new filename: /assets is cached for 7 days.
+      "/assets/fleet-hongqi-e-hs9-black-1.jpg",
+      "/assets/fleet-hongqi-e-hs9-black-2.jpg",
+      "/assets/fleet-hongqi-e-hs9-black-3.jpg",
+      "/assets/fleet-hongqi-e-hs9-black-4.jpg",
       "/assets/fleet-hongqi-e-hs9-gallery-5.jpg",
       "/assets/fleet-hongqi-e-hs9-gallery-6.jpg",
       "/assets/fleet-hongqi-e-hs9-gallery-7.jpg",
