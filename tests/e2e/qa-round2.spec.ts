@@ -33,12 +33,12 @@ test("W1: the car step names every model in full, and the Mercedes-Benz EQS is n
   await page.goto(READY_TRIP);
   await expect(carChoices(page).first()).toBeVisible();
   const names = await carChoices(page).allTextContents();
-  expect(names.join("|")).toContain("Audi e-tron GT");
+  expect(names.join("|")).toContain("Audi E-Tron GT");
   expect(names.join("|")).toContain("Range Rover EV");
   // The EQS left the fleet (22 Oct 2026): not offered, not in the fleet data or the Corporate Partner introduction
   expect(names.join("|")).not.toMatch(/EQS/);
   expect(FLEET.map((v) => v.name)).not.toContain("Mercedes-Benz EQS");
-  expect(FLEET.map((v) => v.name)).toEqual(expect.arrayContaining(["Audi e-tron GT", "Mercedes-Benz VLE 300"]));
+  expect(FLEET.map((v) => v.name)).toEqual(expect.arrayContaining(["Audi E-Tron GT", "Mercedes-Benz VLE 300"]));
 });
 
 test("W3: every booking step fits the screen, so nothing is cut off at the edge", async ({ page }) => {

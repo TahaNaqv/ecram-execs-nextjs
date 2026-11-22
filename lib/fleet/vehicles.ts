@@ -118,7 +118,7 @@ export const FLEET: FleetVehicle[] = [
     // The key stays "audi" (stored on every booking made so far); the model is the e-tron GT, as the client lists it on
     // the Corporate Partner form.
     key: "audi",
-    name: "Audi e-tron GT",
+    name: "Audi E-Tron GT",
     images: [
       "/assets/fleet-audi-v2.jpg",
       "/assets/fleet-audi-gallery-2.jpg",
@@ -438,7 +438,7 @@ export function fleetPicks(raw: unknown): FleetPick[] {
 
 const pickLine = (picks: FleetPick[]) => picks.map((p) => `${p.count} × ${vehicleByKey(p.key)?.name ?? p.key}`).join(", ");
 
-/** "2 × Audi e-tron GT", a mix such as "1 × Audi e-tron GT, 1 × Cadillac Escalade IQ", or nothing for a single car. */
+/** "2 × Audi E-Tron GT", a mix such as "1 × Audi E-Tron GT, 1 × Cadillac Escalade IQ", or nothing for a single car. */
 export function convoyTitle(input: { passengers?: number | null; vehicle?: string | null; vehicles?: unknown }): string | null {
   const picks = fleetPicks(input.vehicles);
   if (picks.length > 1 || (picks[0] && picks[0].count > 1)) return pickLine(picks);

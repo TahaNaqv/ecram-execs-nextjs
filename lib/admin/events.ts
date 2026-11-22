@@ -99,7 +99,7 @@ export type EventLabels = {
   partnerErased: string;
   /** Interpolates {from} and {to}: the car that does the job */
   vehicleChanged: string;
-  /** Interpolates {from} and {to}: the booking's cars ("2 × Audi e-tron GT, 1 × Range Rover EV") */
+  /** Interpolates {from} and {to}: the booking's cars ("2 × Audi E-Tron GT, 1 × Range Rover EV") */
   carsChanged: string;
   /** Interpolates {reference}: a partner accepted a quote for a car that another confirmed booking already holds */
   carClash: string;
@@ -141,7 +141,7 @@ export const eventLabels = (events: Omit<EventLabels, "statuses">, statuses: Rec
   statuses,
 });
 
-/** "audi:2|range_rover:1" as "2 × Audi e-tron GT, 1 × Range Rover EV". */
+/** "audi:2|range_rover:1" as "2 × Audi E-Tron GT, 1 × Range Rover EV". */
 const carsLine = (value: unknown) =>
   (typeof value === "string" ? value : "")
     .split("|")

@@ -122,7 +122,7 @@ test("the booking manager discusses a booking, changes its cars, and approves it
   await team.page.reload();
   await expect(team.page.getByText("Yes, an Audi is fine.")).toBeVisible();
   await team.page.getByRole("button", { name: r.carsFewer.replace("{car}", "Mercedes-Benz VLE 300") }).click();
-  await team.page.getByRole("button", { name: r.carsMore.replace("{car}", "Audi e-tron GT") }).click();
+  await team.page.getByRole("button", { name: r.carsMore.replace("{car}", "Audi E-Tron GT") }).click();
   await team.page.getByRole("button", { name: r.carsSave }).click();
   await expect(team.page.getByText(r.carsSaved)).toBeVisible();
   const changed = await row(reference);
@@ -133,5 +133,5 @@ test("the booking manager discusses a booking, changes its cars, and approves it
   await expect.poll(async () => (await row(reference)).status, { timeout: 30_000 }).toBe("confirmed");
   await team.close();
   await expect(page.getByRole("heading", { name: g.approvedHeading })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("Audi e-tron GT")).toBeVisible();
+  await expect(page.getByText("Audi E-Tron GT")).toBeVisible();
 });

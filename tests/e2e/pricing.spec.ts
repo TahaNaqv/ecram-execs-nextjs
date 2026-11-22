@@ -31,7 +31,7 @@ test("every car has the rate and the kilometres the 2027 card gives it", () => {
     expect(kmPerHour(key)).toBe(km);
   }
   // A car named as the admin's Vehicles page names it is the same car
-  expect(hourlyRate("Audi e-tron GT", "public", "weekday")).toBe(9500);
+  expect(hourlyRate("Audi E-Tron GT", "public", "weekday")).toBe(9500);
   expect(hourlyRate("a bicycle", "public", "weekday")).toBeNull();
 });
 

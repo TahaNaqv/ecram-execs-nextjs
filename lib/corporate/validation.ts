@@ -16,7 +16,7 @@ export const DURATIONS = ["2_4", "2_8", "2_12", "2_24"] as const;
 export const RETURN_STATUSES = ["one_way", "hourly"] as const;
 
 export const CORPORATE_VEHICLES = [
-  { key: "audi_etron_gt", name: "Audi e-tron GT", fleetKey: "audi" },
+  { key: "audi_etron_gt", name: "Audi E-Tron GT", fleetKey: "audi" },
   { key: "mercedes_vle_300", name: "Mercedes-Benz VLE 300", fleetKey: "mercedes_vle_300" },
   { key: "cadillac_escalade_iq", name: "Cadillac Escalade IQ", fleetKey: "cadillac_escalade" },
   { key: "range_rover_ev", name: "Range Rover EV", fleetKey: "range_rover" },

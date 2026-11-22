@@ -144,7 +144,7 @@ test("approving a website booking makes, checks and emails its Moneybird invoice
     ["15.13", "900000000000000021", "L-EXTRAS"],
   ]);
   expect(inv.details[0].description).toContain(booking.reference);
-  expect(inv.details[0].description).toContain("Audi e-tron GT");
+  expect(inv.details[0].description).toContain("Audi E-Tron GT");
   // The guest is a Moneybird contact with their own email
   const contact = contacts.get(inv.contact_id)!;
   expect(contact).toMatchObject({ lastname: "Jansen", firstname: "Anouk", send_invoices_to_email: booking.email });

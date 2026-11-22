@@ -132,7 +132,7 @@ export function CarMixPreview({ cars, copy }: { cars: { key: string; name: strin
   );
 }
 
-/** "2 × Audi e-tron GT" or "1 × Audi e-tron GT, 1 × Cadillac Escalade IQ". Null for one single car. */
+/** "2 × Audi E-Tron GT" or "1 × Audi E-Tron GT, 1 × Cadillac Escalade IQ". Null for one single car. */
 export function selectionLabel(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): string | null {
   const picks = chosenPicks(trip);
   if (picks.length > 1 || (picks[0] && picks[0].count > 1)) return lineFor(t, picks);

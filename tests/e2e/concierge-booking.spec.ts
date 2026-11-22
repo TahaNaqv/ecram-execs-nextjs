@@ -143,7 +143,7 @@ test("an hourly booking needs hours, not a destination; phone numbers are split 
     expect(field(r.form, "vehicle"), typed).toEqual(["audi"]);
     expect(field(r.form, "phoneCountry"), typed).toEqual([country]);
     expect(field(r.form, "phone"), typed).toEqual([digits]);
-    expect(r.summary).toMatchObject({ mode: "hourly", hours: 4, car: "Audi e-tron GT" });
+    expect(r.summary).toMatchObject({ mode: "hourly", hours: 4, car: "Audi E-Tron GT" });
   }
   // A country code we do not offer is not guessed at
   model.reset();

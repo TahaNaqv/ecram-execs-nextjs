@@ -234,7 +234,7 @@ test("a vehicle the team switches off is not offered, and the homepage itself do
     expect(await (await request.get("/api/vehicles/unavailable")).json()).toEqual({ unavailable: ["audi"] });
     await page.goto(READY_TRIP);
     await expect(carChoice(page, "Mercedes-Benz VLE 300")).toBeVisible();
-    await expect(carChoice(page, "Audi e-tron GT")).toHaveCount(0);
+    await expect(carChoice(page, "Audi E-Tron GT")).toHaveCount(0);
     await expect(carChoices(page)).toHaveCount(FLEET.length); // the four left, and "No preference"
   } finally {
     await db`delete from vehicles where id = 'audi'`;

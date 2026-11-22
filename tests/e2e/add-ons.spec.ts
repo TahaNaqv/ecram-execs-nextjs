@@ -14,7 +14,7 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
   // A Monday, so the Audi is €95 an hour (the 2027 card)
   await fillJourney(page, { from: "Kurhaus, Scheveningen", to: "Hotel Des Indes, The Hague", at: nextYear("14-06", "10:00") });
   await expect(page.getByRole("heading", { name: en.booking.carTitle })).toBeVisible();
-  await carChoice(page, "Audi e-tron GT").click();
+  await carChoice(page, "Audi E-Tron GT").click();
   await page.getByRole("button", { name: /^Continue/ }).click();
 
   // The four add-ons, each with its price before VAT
@@ -111,7 +111,7 @@ test("add-ons are chosen after the car, kept when going back, priced on the revi
 test("skipping the add-ons sends none", async ({ page }) => {
   await page.goto("/en");
   await fillJourney(page, { from: "Kurhaus, Scheveningen", to: "Hotel Des Indes, The Hague", at: nextYear("15-06", "10:00") });
-  await carChoice(page, "Audi e-tron GT").click();
+  await carChoice(page, "Audi E-Tron GT").click();
   await page.getByRole("button", { name: /^Continue/ }).click();
   await chooseExtras(page, []);
   await expect(page.getByRole("heading", { name: en.booking.detailsTitle })).toBeVisible();

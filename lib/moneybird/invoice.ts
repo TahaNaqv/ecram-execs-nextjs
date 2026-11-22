@@ -46,7 +46,7 @@ export function invoiceCents(r: Pick<InvoiceBooking, "quotedAmount" | "priceEsti
   return Number.isFinite(cents) && cents > 0 ? cents : null;
 }
 
-/** "EE-1234 · Airport Transfer · 14 Nov 2026, 10:00 · Schiphol → Amsterdam · 2 × Audi e-tron GT" */
+/** "EE-1234 · Airport Transfer · 14 Nov 2026, 10:00 · Schiphol → Amsterdam · 2 × Audi E-Tron GT" */
 export function rideSummary(r: InvoiceBooking, labels: InvoiceLabels): string {
   const words = INVOICE_WORDS[r.locale];
   const where = r.collection

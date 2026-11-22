@@ -853,7 +853,7 @@ export async function GET(request: NextRequest) {
               <td>
                 <strong>Executive Chauffeur Service</strong>
                 <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
-                  ${effectiveBooking.collection || "Amsterdam"} → ${effectiveBooking.destination || (effectiveBooking.durationHours ? `${effectiveBooking.durationHours} hours as directed` : "Destination")} · Audi e-tron GT
+                  ${effectiveBooking.collection || "Amsterdam"} → ${effectiveBooking.destination || (effectiveBooking.durationHours ? `${effectiveBooking.durationHours} hours as directed` : "Destination")} · Audi E-Tron GT
                 </div>
               </td>
               <td class="num">9%</td>
