@@ -84,11 +84,14 @@ export const FLEET: FleetVehicle[] = [
     key: "mercedes_vle_300",
     name: "Mercedes-Benz VLE 300",
     images: [
-      "/assets/fleet-mercedes-vle-300-new5.jpg",
-      "/assets/fleet-mercedes-vle-300-gallery-new1.jpg",
-      "/assets/fleet-mercedes-vle-300-gallery-new2.jpg",
-      "/assets/fleet-mercedes-vle-300-gallery-new3.jpg",
-      "/assets/fleet-mercedes-vle-300-gallery-new4.jpg",
+      // 23 Nov 2026: the VLE 300 has a black interior. The cream seats that showed through the glass of the first five
+      // pictures (new5 and gallery-new1 to 4) were recoloured to black leather; those files are no longer used. A new
+      // cut needs new filenames: /assets is cached for 7 days.
+      "/assets/fleet-mercedes-vle-300-black-1.jpg",
+      "/assets/fleet-mercedes-vle-300-black-2.jpg",
+      "/assets/fleet-mercedes-vle-300-black-3.jpg",
+      "/assets/fleet-mercedes-vle-300-black-4.jpg",
+      "/assets/fleet-mercedes-vle-300-black-5.jpg",
       "/assets/fleet-mercedes-vle-300-gallery-6.jpg",
       "/assets/fleet-mercedes-vle-300-gallery-7.jpg",
     ],
