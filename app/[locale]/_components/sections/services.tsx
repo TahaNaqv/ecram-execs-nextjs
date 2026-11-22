@@ -16,8 +16,8 @@ export async function Services() {
     { key: "protection", numeral: "II", title: s.protectionTitle, text: s.protectionText, points: [s.protectionP1, s.protectionP2, s.protectionP3], image: "/assets/service-protection-v1.jpg", focus: "62% 45%", brightness: 1.15, cta: { label: s.protectionCta, href: "#protection" } },
     { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate-v5.jpg", focus: "62% 40%", brightness: 1.15, cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
     { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private-v5.jpg", focus: "52% 62%", brightness: 1.15, cta: quote },
-    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels-v5.jpg", focus: "60% 55%", brightness: 1.15, cta: quote },
-    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke-v5.jpg", focus: "52% 62%", brightness: 1.15, cta: quote },
+    { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels-v6.jpg", focus: "50% 55%", brightness: 1.1, cta: quote },
+    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke-v6.jpg", focus: "50% 55%", cta: quote },
   ];
   return (
     <section className="border-b border-b-ink-850" id="services">
