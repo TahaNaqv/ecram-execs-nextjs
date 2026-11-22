@@ -96,7 +96,8 @@ export const FLEET: FleetVehicle[] = [
     // The client, 22 Nov 2026: every vehicle is available now except the VLE 300
     expected: "Q2 2027",
     specs: {
-      passengers: 6,
+      // 23 Nov 2026: the VLE 300 carries 7 passengers
+      passengers: 7,
       rangeKm: 700,
       rangeStandard: "WLTP",
       luggage: {
@@ -110,7 +111,7 @@ export const FLEET: FleetVehicle[] = [
         url: "https://www.adac.de/rund-ums-fahrzeug/autokatalog/marken-modelle/mercedes-benz/vle/1generation/350749/",
         checkedOn: "2026-10-14",
         by: "Claude (research)",
-        caveat: "Sold as 6- and 7-seat versions: confirm which configuration the fleet vehicle is. Range is stated as 'above 700 km' WLTP.",
+        caveat: "Sold as 6- and 7-seat versions; the fleet vehicle seats 7 (confirmed 23 Nov 2026). Range is stated as 'above 700 km' WLTP.",
       },
     },
   },
@@ -197,7 +198,8 @@ export const FLEET: FleetVehicle[] = [
     ],
     drivetrain: "bev",
     specs: {
-      passengers: 5,
+      // 23 Nov 2026: the Range Rover EV carries 4 passengers
+      passengers: 4,
       rangeKm: 611,
       rangeStandard: "WLTP",
       luggage: {
