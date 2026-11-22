@@ -190,8 +190,8 @@ export default async function FleetPage() {
             <h1 className="m-0 font-serif text-[clamp(36px,8.6vw,40px)] leading-[1.05] font-light text-white md:text-[clamp(40px,5vw,64px)]">
               {t.heading}
             </h1>
-            <p className="m-0 max-w-[640px] font-light text-ink-400">{t.intro}</p>
-            <p className="m-0 max-w-[640px] text-[13.5px] font-light text-ink-450">{t.specNote}</p>
+            <p className="m-0 font-light text-ink-400">{t.intro}</p>
+            <p className="m-0 text-[13.5px] font-light text-ink-450">{t.specNote}</p>
           </div>
         </section>
 
