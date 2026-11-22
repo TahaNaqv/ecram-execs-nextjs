@@ -93,7 +93,11 @@ export const FLEET: FleetVehicle[] = [
       "/assets/fleet-mercedes-vle-300-black-4.jpg",
       "/assets/fleet-mercedes-vle-300-black-5.jpg",
       "/assets/fleet-mercedes-vle-300-gallery-6.jpg",
-      "/assets/fleet-mercedes-vle-300-gallery-7.jpg",
+      // The 7th picture shows the same rear seats as gallery-6 (a bench of three, seat-back screens in front of it) from the
+      // opposite side of the cabin. The earlier gallery-7 had a different seat layout, and gallery-6 is the right one
+      // (23 Nov 2026), so gallery-7 is no longer used. The new picture was generated with Gamma from a written description.
+      // gallery-8 is the cockpit, kept unused.
+      "/assets/fleet-mercedes-vle-300-rear-bench.jpg",
     ],
     drivetrain: "bev",
     // The client, 22 Nov 2026: every vehicle is available now except the VLE 300
