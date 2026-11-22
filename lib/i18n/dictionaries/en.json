@@ -414,6 +414,28 @@
     "galleryCounter": "Photo {current} of {total}",
     "galleryLightbox": "{name}, enlarged photo"
   },
+  "fleetPage": {
+    "metaTitle": "Our fleet — Ecram Execs",
+    "metaDescription": "The fully electric Ecram Execs fleet: photographs, specifications and availability of every vehicle.",
+    "eyebrow": "ECRAM FLEET",
+    "heading": "Our Fleet",
+    "intro": "Every vehicle in our fleet is chosen for exceptional comfort, whisper-quiet electric performance and refined executive luxury.",
+    "specNote": "Every vehicle runs in an all-black exterior with a black executive leather interior, in full top-of-the-range specification.",
+    "specsLabel": "Specifications",
+    "availabilityLabel": "Availability",
+    "availableNow": "Available now",
+    "expected": "Expected {when}",
+    "passengers": "Passengers",
+    "passengersValue": "Up to {count}",
+    "range": "Electric range",
+    "rangeValue": "Up to {km} km ({standard})",
+    "luggage": "Luggage",
+    "luggageBagsOne": "1 suitcase",
+    "luggageBags": "{count} suitcases",
+    "specsPending": "Full specifications follow once Mercedes-Benz confirms the final design.",
+    "features": "Features",
+    "home": "Ecram Execs home"
+  },
   "marquee": {
     "label": "Cities we serve",
     "theHague": "The Hague"
@@ -498,7 +520,7 @@
     "faq7Q": "How Does Waiting Time Work, And Are There Additional Charges?",
     "faq7A": "Tell us if you would like your chauffeur to wait and we will include it in the price of your journey.",
     "faq8Q": "Which Vehicles Do You Offer?",
-    "faq8A": "Our fleet consists strictly of top-of-the-range, fully electric vehicles from leading luxury manufacturers, each finished in obsidian black with a black executive interior. See The Fleet section for the full line-up.",
+    "faq8A": "Our fleet consists strictly of top-of-the-range, fully electric vehicles from leading luxury manufacturers, each finished in obsidian black with a black executive interior. See the Fleet page for the full line-up, with photographs, specifications and availability.",
     "faq9Q": "Which Vehicle Best Suits My Passengers And Luggage?",
     "faq9A": "Tell us how many passengers you will be travelling with and how much luggage you have, and we will recommend the most suitable vehicle.",
     "faq10Q": "Is Your Fleet Fully Electric?",

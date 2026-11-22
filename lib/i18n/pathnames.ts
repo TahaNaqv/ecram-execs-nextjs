@@ -10,6 +10,8 @@ import { LOCALES, type Locale } from "./config";
 export const PATHNAMES = {
   "/": { en: "", nl: "" },
   "/drive-with-us": { en: "drive-with-us", nl: "rijd-met-ons" },
+  // The fleet on its own page: photos, specs and availability, no booking
+  "/fleet": { en: "fleet", nl: "vloot" },
   "/corporate-partner": { en: "corporate-partner", nl: "zakelijke-partner" },
   // Nested slugs: the proxy and the language switcher match the whole path after the locale, so these work as they are
   "/corporate-partner/login": { en: "corporate-partner/login", nl: "zakelijke-partner/inloggen" },

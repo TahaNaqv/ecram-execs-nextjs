@@ -414,6 +414,28 @@
     "galleryCounter": "Foto {current} van {total}",
     "galleryLightbox": "{name}, vergrote foto"
   },
+  "fleetPage": {
+    "metaTitle": "Onze vloot — Ecram Execs",
+    "metaDescription": "De volledig elektrische vloot van Ecram Execs: foto's, specificaties en beschikbaarheid van elk voertuig.",
+    "eyebrow": "ECRAM VLOOT",
+    "heading": "Onze vloot",
+    "intro": "Elk voertuig in onze vloot is gekozen vanwege uitzonderlijk comfort, fluisterstille elektrische prestaties en verfijnde executive luxe.",
+    "specNote": "Elk voertuig rijdt met een volledig zwart exterieur en een zwart executive leren interieur, in de volledige topuitvoering.",
+    "specsLabel": "Specificaties",
+    "availabilityLabel": "Beschikbaarheid",
+    "availableNow": "Nu beschikbaar",
+    "expected": "Verwacht {when}",
+    "passengers": "Passagiers",
+    "passengersValue": "Tot {count}",
+    "range": "Elektrische actieradius",
+    "rangeValue": "Tot {km} km ({standard})",
+    "luggage": "Bagage",
+    "luggageBagsOne": "1 koffer",
+    "luggageBags": "{count} koffers",
+    "specsPending": "De volledige specificaties volgen zodra Mercedes-Benz het definitieve ontwerp bevestigt.",
+    "features": "Voorzieningen",
+    "home": "Ecram Execs home"
+  },
   "marquee": {
     "label": "Steden waar wij rijden",
     "theHague": "Den Haag"
@@ -498,7 +520,7 @@
     "faq7Q": "Hoe werkt wachttijd en zijn er extra kosten?",
     "faq7A": "Laat ons weten als u wilt dat uw chauffeur wacht; wij nemen dit op in de prijs van uw rit.",
     "faq8Q": "Welke voertuigen biedt u aan?",
-    "faq8A": "Onze vloot bestaat uitsluitend uit volledig elektrische voertuigen in de topuitvoering van toonaangevende luxemerken, elk afgewerkt in obsidiaanzwart met een zwart executive interieur. Kies een voertuig in het formulier Plan uw rit om de foto's en details te zien.",
+    "faq8A": "Onze vloot bestaat uitsluitend uit volledig elektrische voertuigen in de topuitvoering van toonaangevende luxemerken, elk afgewerkt in obsidiaanzwart met een zwart executive interieur. Op de pagina Vloot ziet u alle voertuigen, met foto's, specificaties en beschikbaarheid.",
     "faq9Q": "Welk voertuig past het best bij mijn passagiers en bagage?",
     "faq9A": "Laat ons weten met hoeveel passagiers u reist en hoeveel bagage u meeneemt, en wij adviseren het meest geschikte voertuig.",
     "faq10Q": "Is uw vloot volledig elektrisch?",

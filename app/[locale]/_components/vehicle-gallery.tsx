@@ -25,7 +25,7 @@ const Chevron = ({ direction }: { direction: "left" | "right" }) => (
   </svg>
 );
 
-export function VehicleGallery({ name, images, alt, copy, fit = "cover" }: { name: string; images: string[]; alt: string; copy: GalleryCopy; fit?: "cover" | "contain" }) {
+export function VehicleGallery({ name, images, alt, copy, fit = "cover", sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" }: { name: string; images: string[]; alt: string; copy: GalleryCopy; fit?: "cover" | "contain"; /** How wide the photo shows, for the image optimiser. */ sizes?: string }) {
   const [index, setIndex] = useState(0);
   const track = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -132,7 +132,7 @@ export function VehicleGallery({ name, images, alt, copy, fit = "cover" }: { nam
               src={src}
               alt={many ? `${alt} (${i + 1}/${images.length})` : alt}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              sizes={sizes}
             />
           </div>
         ))}

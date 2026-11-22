@@ -63,7 +63,9 @@ export async function SiteFooter() {
               <Link className="navlink no-underline" href={`${home}#netherlands`}>
                 {d.footer.linkDestinations}
               </Link>
-              
+              <Link className="navlink no-underline" href={localizedPath("/fleet", locale)}>
+                {d.footer.linkElectricFleet}
+              </Link>
               <Link className="navlink no-underline" href={localizedPath("/drive-with-us", locale)}>
                 {d.footer.linkDriveWithUs}
               </Link>

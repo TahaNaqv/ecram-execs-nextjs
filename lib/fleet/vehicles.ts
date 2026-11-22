@@ -62,6 +62,11 @@ export type FleetVehicle = {
   /** What the client has told us the vehicle is. Decides whether an electric-range answer is offered (not for "ice"); no badge is shown. Confirm per model before launch. */
   drivetrain: "bev" | "phev" | "ice";
   specs?: VehicleSpecs;
+  /**
+   * When a vehicle is not on the road yet: the expected launch, as the client words it (e.g. "Q2 2027"), shown in red on
+   * the fleet page. Absent means available now (shown in green). It does not change what the booking form offers.
+   */
+  expected?: string;
 };
 
 export const MAX_GALLERY_IMAGES = 8;
@@ -88,6 +93,8 @@ export const FLEET: FleetVehicle[] = [
       "/assets/fleet-mercedes-vle-300-gallery-7.jpg",
     ],
     drivetrain: "bev",
+    // The client, 22 Nov 2026: every vehicle is available now except the VLE 300
+    expected: "Q2 2027",
     specs: {
       passengers: 6,
       rangeKm: 700,
@@ -240,6 +247,22 @@ export const FLEET: FleetVehicle[] = [
         caveat: "Several battery sizes (84/99/110 kWh, 396-515 km WLTP) and 5-, 6- and 7-seat layouts exist. Luggage comes from a single source.",
       },
     },
+  },
+];
+
+/**
+ * Vehicles announced on the fleet page before they can be booked. Not in FLEET, so the booking form, prices and the
+ * concierge never offer them. No specs until the manufacturer publishes the final design and figures; the photo is a
+ * covered car with the Ecram Execs logo (the client, 22 Nov 2026). Move a vehicle into FLEET when it can be booked.
+ */
+export type UpcomingVehicle = { key: string; name: string; images: string[]; expected: string };
+
+export const UPCOMING: UpcomingVehicle[] = [
+  {
+    key: "mercedes_e_class_electric",
+    name: "Mercedes-Benz E-Class Electric",
+    images: ["/assets/fleet-mercedes-e-class-electric-covered.jpg"],
+    expected: "Q4 2027",
   },
 ];
 

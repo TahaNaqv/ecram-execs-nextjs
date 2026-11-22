@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
-import { LOCALES } from "@/lib/i18n/config";
+import { PUBLIC_LOCALES } from "@/lib/i18n/config";
 import { APP_ROUTES, localizedPath, unprefixedPath, type AppRoute } from "@/lib/i18n/pathnames";
 
 /** How often each route changes, and how it ranks against the others. `null`: not listed (sign-in screens and the account page). */
 const SETTINGS: Record<AppRoute, Pick<MetadataRoute.Sitemap[number], "changeFrequency" | "priority"> | null> = {
   "/": { changeFrequency: "monthly", priority: 1 },
   "/drive-with-us": { changeFrequency: "monthly", priority: 0.5 },
+  "/fleet": { changeFrequency: "monthly", priority: 0.7 },
   "/corporate-partner": { changeFrequency: "monthly", priority: 0.5 },
   "/corporate-partner/login": null,
   "/corporate-partner/signup": null,
@@ -30,15 +31,15 @@ const SETTINGS: Record<AppRoute, Pick<MetadataRoute.Sitemap[number], "changeFreq
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = process.env.SITE_URL ?? "https://ecramexecs.vercel.app";
-  const absolute = (route: AppRoute, locale: (typeof LOCALES)[number]) => `${site}${localizedPath(route, locale)}`;
+  const absolute = (route: AppRoute, locale: (typeof PUBLIC_LOCALES)[number]) => `${site}${localizedPath(route, locale)}`;
 
   return APP_ROUTES.filter((route) => SETTINGS[route]).flatMap((route) =>
-    LOCALES.map((locale) => ({
+    PUBLIC_LOCALES.map((locale) => ({
       url: absolute(route, locale),
       ...SETTINGS[route],
       alternates: {
         languages: {
-          ...Object.fromEntries(LOCALES.map((l) => [l, absolute(route, l)])),
+          ...Object.fromEntries(PUBLIC_LOCALES.map((l) => [l, absolute(route, l)])),
           "x-default": `${site}${unprefixedPath(route)}`,
         },
       },
