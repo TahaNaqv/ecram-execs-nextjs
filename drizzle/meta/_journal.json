@@ -225,6 +225,13 @@
       "when": 1794763018024,
       "tag": "0031_pay_at_booking",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795371001510,
+      "tag": "0032_booking_payment_status",
+      "breakpoints": true
     }
   ]
 }
