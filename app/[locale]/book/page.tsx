@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { bookableFleet } from "@/lib/fleet/catalog";
 import { mollieConfigured } from "@/lib/mollie/config";
-import { LOCALES, type Locale } from "@/lib/i18n/config";
+import { PUBLIC_LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict, type Dictionary } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { PublicBooking } from "../_components/booking/public-booking";
@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: d.booking.pageDescription,
     alternates: {
       canonical: localizedPath("/book", locale),
-      languages: { ...Object.fromEntries(LOCALES.map((l) => [l, localizedPath("/book", l)])), "x-default": unprefixedPath("/book") },
+      languages: { ...Object.fromEntries(PUBLIC_LOCALES.map((l) => [l, localizedPath("/book", l)])), "x-default": unprefixedPath("/book") },
     },
   };
 }

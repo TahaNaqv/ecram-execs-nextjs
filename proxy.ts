@@ -1,17 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n/config";
+import { isLocale, isPublicLocale, LANDING_LOCALE, type Locale } from "@/lib/i18n/config";
 import { localizedPath, physicalSegment, PATHNAMES, routeFromPhysical, routeFromSlug } from "@/lib/i18n/pathnames";
 
 const LOCALE_COOKIE = "NEXT_LOCALE";
 const ADMIN_SESSION_COOKIE = "ee_admin_session";
 
-/** Cookie first (an explicit choice), then straight to the default (Dutch). */
+/** Cookie first (an explicit choice, if that language is shown at the moment), then the landing language. */
 function detectLocale(request: NextRequest): Locale {
   const fromCookie = request.cookies.get(LOCALE_COOKIE)?.value;
-  if (isLocale(fromCookie)) return fromCookie;
+  if (isPublicLocale(fromCookie)) return fromCookie;
 
-  // Bypass browser language sniffing to enforce Dutch as the primary default landing language
-  return DEFAULT_LOCALE;
+  // No browser language sniffing: everyone lands on the same language
+  return LANDING_LOCALE;
 }
 
 /**
@@ -69,8 +69,18 @@ export function proxy(request: NextRequest) {
     return rememberLocale(NextResponse.redirect(url), request, locale);
   }
 
-  const locale = first;
   const tail = rest.join("/");
+
+  // ── A language that is not shown at the moment (Dutch, until it is translated): the same page in the landing
+  //    language. Temporary (307), so search engines keep the URL for when the language comes back.
+  if (!isPublicLocale(first)) {
+    const route = routeFromSlug(tail, first) ?? routeFromPhysical(tail);
+    const url = new URL(route ? localizedPath(route, LANDING_LOCALE) : localizedPath("/", LANDING_LOCALE), request.url);
+    url.search = request.nextUrl.search;
+    return rememberLocale(NextResponse.redirect(url, 307), request, LANDING_LOCALE);
+  }
+
+  const locale = first;
 
   // ── Locale-prefixed. The slug in the URL is the localized one; the folder on disk is not.
   const bySlug = routeFromSlug(tail, locale);

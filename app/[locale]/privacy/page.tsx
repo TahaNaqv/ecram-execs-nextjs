@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { LOCALES } from "@/lib/i18n/config";
+import { PUBLIC_LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -140,7 +140,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: d.privacy.metaDescription,
     alternates: {
       canonical: localizedPath("/privacy", locale),
-      languages: { ...Object.fromEntries(LOCALES.map((l) => [l, localizedPath("/privacy", l)])), "x-default": unprefixedPath("/privacy") },
+      languages: { ...Object.fromEntries(PUBLIC_LOCALES.map((l) => [l, localizedPath("/privacy", l)])), "x-default": unprefixedPath("/privacy") },
     },
   };
 }

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCorporateContact } from "@/lib/corporate/access";
-import { LOCALES } from "@/lib/i18n/config";
+import { PUBLIC_LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath, unprefixedPath, type AppRoute } from "@/lib/i18n/pathnames";
@@ -109,7 +109,7 @@ export async function corporateMetadata(route: AppRoute, title: string, descript
           alternates: {
             canonical: localizedPath(route, locale),
             languages: {
-              ...Object.fromEntries(LOCALES.map((l) => [l, localizedPath(route, l)])),
+              ...Object.fromEntries(PUBLIC_LOCALES.map((l) => [l, localizedPath(route, l)])),
               "x-default": unprefixedPath(route),
             },
           },

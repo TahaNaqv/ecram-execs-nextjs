@@ -1,4 +1,4 @@
-import type { Locale } from "@/lib/i18n/config";
+import { PUBLIC_LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, type AppRoute } from "@/lib/i18n/pathnames";
 import { LanguageSwitcherLinks } from "./language-switcher-links";
@@ -12,6 +12,8 @@ const DISPLAY_ORDER: readonly Locale[] = ["nl", "en"];
  * route it is.
  */
 export async function LanguageSwitcher({ route }: { route: AppRoute }) {
+  // One language on show (English at launch): no flags
+  if (PUBLIC_LOCALES.length < 2) return null;
   const locale = await currentLocale();
   const d = await getDict();
 
@@ -19,7 +21,7 @@ export async function LanguageSwitcher({ route }: { route: AppRoute }) {
     <LanguageSwitcherLinks
       label={d.switcher.label}
       current={locale}
-      options={DISPLAY_ORDER.map((value) => ({
+      options={DISPLAY_ORDER.filter((value) => PUBLIC_LOCALES.includes(value)).map((value) => ({
         locale: value,
         href: localizedPath(route, value),
         aria: value === "en" ? d.switcher.ariaEn : d.switcher.ariaNl,

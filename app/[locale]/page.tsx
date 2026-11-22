@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { siteConfig, socialLinks } from "@/lib/site-config";
-import { LOCALES, type Locale } from "@/lib/i18n/config";
+import { PUBLIC_LOCALES, type Locale } from "@/lib/i18n/config";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { NavAutoClose } from "./_components/nav-auto-close";
@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     alternates: {
       canonical: localizedPath("/", locale),
-      languages: { ...Object.fromEntries(LOCALES.map((l) => [l, localizedPath("/", l)])), "x-default": unprefixedPath("/") },
+      languages: { ...Object.fromEntries(PUBLIC_LOCALES.map((l) => [l, localizedPath("/", l)])), "x-default": unprefixedPath("/") },
     },
   };
 }

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { fontVariables } from "@/lib/fonts";
 import { locale as localeParam } from "next/root-params";
-import { isLocale, LOCALES } from "@/lib/i18n/config";
+import { isLocale, LOCALES, PUBLIC_LOCALES } from "@/lib/i18n/config";
 import { currentLocale, getDictionary } from "@/lib/i18n/get-dictionary";
 import { CaretScroll } from "@/components/caret-scroll";
 import { WhatsAppFloat } from "@/components/whatsapp-float";
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: d.meta.ogDescription,
       images: [{ url: "/assets/og-image-v5.jpg", width: 1200, height: 630, alt: d.meta.ogImageAlt }],
       locale: d.meta.ogLocale,
-      alternateLocale: LOCALES.filter((l) => l !== locale).map((l) => (l === "nl" ? "nl_NL" : "en_NL")),
+      alternateLocale: PUBLIC_LOCALES.filter((l) => l !== locale).map((l) => (l === "nl" ? "nl_NL" : "en_NL")),
       type: "website",
     },
     twitter: {
