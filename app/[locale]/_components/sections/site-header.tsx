@@ -27,8 +27,12 @@ export async function SiteHeader() {
           <span></span>
           <span></span>
         </label>
-        {/* Seven links since the fleet page (22 Nov 2026): the tighter size and the 10px gap run up to 2xl so the bar and the button still fit on one row at 1280px, in Dutch too */}
-        <nav className="primary-nav gap-3 lg:gap-3.5 xl:gap-2.5 2xl:gap-5 flex flex-wrap text-[13px] 2xl:text-[14px] tracking-[0.02em] shrink" id="primary-nav" aria-label={d.nav.primaryLabel}>
+        {/* Seven links since the fleet page (22 Nov 2026), Fleet first: the 13px size and the 20px gap run up to 2xl so the bar and the button still fit on one row at 1280px (about 18px to spare in English); from 1800px (2xl) the gap opens to 32px */}
+        <nav className="primary-nav gap-3 lg:gap-3.5 xl:gap-5 2xl:gap-8 flex flex-wrap text-[13px] 2xl:text-[14px] tracking-[0.02em] shrink" id="primary-nav" aria-label={d.nav.primaryLabel}>
+          {/* First in the bar, and the one link that leaves the page: the fleet has its own page (22 Nov 2026) */}
+          <a className="navlink" href={localizedPath("/fleet", locale)}>
+            {d.nav.fleet}
+          </a>
           <a className="navlink" href="#corporate">
             {d.nav.corporate}
           </a>
@@ -40,10 +44,6 @@ export async function SiteHeader() {
           </a>
           <a className="navlink" href="#services">
             {d.nav.services}
-          </a>
-          {/* The one link that leaves the page: the fleet has its own page (22 Nov 2026) */}
-          <a className="navlink" href={localizedPath("/fleet", locale)}>
-            {d.nav.fleet}
           </a>
           <a className="navlink" href="#protection">
             {d.nav.protection}
