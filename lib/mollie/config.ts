@@ -4,7 +4,8 @@
  * MOLLIE_API_URL points the e2e tests at a stand-in (tests/e2e); never set in production.
  */
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
-const LIVE_SITE = /^https:\/\/(www\.)?ecramexecs\.nl\/?$/;
+// The live site: www.ecramexecs.com since 23 Nov 2026, and the .nl it moved from
+const LIVE_SITE = /^https:\/\/(www\.)?ecramexecs\.(com|nl)\/?$/;
 
 export type MollieMode = "test" | "live";
 export type MollieConfig = { key: string; mode: MollieMode; api: string };
