@@ -16,7 +16,7 @@ import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { getGuestBooking, guestMessages } from "@/lib/quotes/guest";
 import { customerInvoices, payable } from "@/lib/moneybird/customer";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
-import { paymentView } from "@/lib/mollie/pay";
+import { openCheckoutFor, paymentView } from "@/lib/mollie/pay";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
 import { labelledRoute } from "@/lib/quotes/route-labels";
 import { stopsWithWaits } from "@/lib/quotes/stops";
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The booking the link opens, or the same plain answer for anything else (a wrong key reveals nothing). */
 async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "searchParams">) {
-  const { ref, k } = await searchParams;
+  const { ref, k, pay } = await searchParams;
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const t = d.guestBooking;
   const booking = await getGuestBooking(ref, k);
@@ -47,7 +47,12 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       </div>
     );
   }
-  const [messages, invoices, payment] = await Promise.all([guestMessages(booking.id), customerInvoices(booking.id), paymentView(booking.id, locale)]);
+  const [messages, invoices, payment, checkout] = await Promise.all([
+    guestMessages(booking.id),
+    customerInvoices(booking.id),
+    paymentView(booking.id, locale),
+    openCheckoutFor(booking.id),
+  ]);
   const latest = invoices.find((inv) => inv.kind === "invoice") ?? null;
   const invoice = latest
     ? { number: latest.number, href: payable(latest) ? (latest.paymentUrl ?? latest.url) : latest.url, pay: payable(latest), emailed: latest.delivery !== "Manual" }
@@ -133,6 +138,9 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       invoice={invoice}
       awaitingInvoice={booking.status === "confirmed" && !invoice && moneybirdConfigured()}
       payment={payment}
+      checkoutUrl={checkout.url}
+      paymentStatus={checkout.status}
+      payBlocked={pay === "blocked"}
     />
   );
 }

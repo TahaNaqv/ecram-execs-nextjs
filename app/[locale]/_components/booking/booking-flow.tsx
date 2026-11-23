@@ -181,6 +181,7 @@ export function BookingFlow({
   /** Set once a booking has been sent. The wizard drops that trip and returns to Journey. */
   sealedHref,
   payOnline = false,
+  sentPayment = null,
 }: {
   /** Online payment is on: the booking is paid at booking (the client's rules of 15 Nov 2026) */
   payOnline?: boolean;
@@ -206,6 +207,8 @@ export function BookingFlow({
   notice?: string;
   lockedNotice?: ReactNode;
   sealedHref?: string | null;
+  /** Book and pay finished: stay on Review your booking and follow the Mollie tab. */
+  sentPayment?: { reference: string; checkoutUrl: string | null; guestKey: string | null; popupBlocked?: boolean } | null;
 }) {
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [draft, setDraft] = useState<Trip>(initialTrip);
@@ -472,6 +475,7 @@ export function BookingFlow({
           onUpdateDetails={setEntered}
           onEdit={(next) => (next === "journey" ? showJourney() : go(next))}
           payOnline={payOnline}
+          sentPayment={sentPayment}
           onSend={(quoted, shown) => {
             if (sealedHref && sealed.current !== sealedHref) return;
             rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, addOns, locale }));
@@ -1504,8 +1508,32 @@ export function DownloadableReceiptCard({
   );
 }
 
+const PAID = "paid";
+
+function checkoutUrlOk(value: string | null | undefined): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" && (url.hostname === "mollie.com" || url.hostname.endsWith(".mollie.com"))) return true;
+    return (url.protocol === "http:" || url.protocol === "https:") && (url.hostname === "127.0.0.1" || url.hostname === "localhost");
+  } catch {
+    return false;
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+}
+
+function openBlank(url: string): boolean {
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) return false;
+  opened.opener = null;
+  return true;
+}
+
 /** The thank-you after a website request */
-export function BookingDone({ copy: t, locale, name, reference, map, price, onAgain }: {
+export function BookingDone({ copy: t, locale, name, reference, map, price, onAgain, payment }: {
   copy: BookingCopy;
   locale: Locale;
   name: string;
@@ -1513,10 +1541,43 @@ export function BookingDone({ copy: t, locale, name, reference, map, price, onAg
   map?: RouteMapLinks | null;
   price?: { total: number; exact: boolean } | null;
   onAgain: () => void;
+  /** Present after Book and pay: Mollie stays in another tab, and this screen follows Paid or Pay now. */
+  payment?: { checkoutUrl: string | null; guestKey: string | null; popupBlocked: boolean } | null;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef(false);
   const [receipt, setReceipt] = useState<RideReceipt | null>(null);
+  const [payState, setPayState] = useState<string | null>(payment ? "open" : null);
+  const [checking, setChecking] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [receiptBlocked, setReceiptBlocked] = useState(false);
+  const paid = payState === PAID;
+  const checkoutUrl = checkoutUrlOk(payment?.checkoutUrl) ? payment.checkoutUrl : null;
+
+  const checkPayment = useRef<() => void>(() => {});
+  checkPayment.current = () => {
+    const key = payment?.guestKey;
+    const ref = reference.trim();
+    if (!key || !/^EE-[A-Z0-9]{6}$/i.test(ref)) {
+      setPayError(t.payLiveRetry);
+      return;
+    }
+    setChecking(true);
+    const params = new URLSearchParams({ ref, k: key, sync: "1" });
+    fetch(`/api/booking/state?${params}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { payment?: string | null } | null) => {
+        if (!data) {
+          setPayError(t.payLiveRetry);
+          return;
+        }
+        setPayError(null);
+        setPayState(typeof data.payment === "string" && data.payment ? data.payment : "open");
+      })
+      .catch(() => setPayError(t.payLiveRetry))
+      .finally(() => setChecking(false));
+  };
+
   useEffect(() => {
     if (shown.current) return;
     shown.current = true;
@@ -1524,6 +1585,44 @@ export function BookingDone({ copy: t, locale, name, reference, map, price, onAg
     heading.current?.focus({ preventScroll: true });
     heading.current?.closest("section")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, []);
+
+  const guestKey = payment?.guestKey ?? null;
+  const livePayment = Boolean(payment);
+  useEffect(() => {
+    if (!livePayment || paid) return;
+    if (!guestKey) {
+      setPayError(t.payLiveRetry);
+      return;
+    }
+    checkPayment.current();
+    const timer = window.setInterval(() => checkPayment.current(), 5000);
+    return () => window.clearInterval(timer);
+  }, [livePayment, guestKey, paid, t.payLiveRetry]);
+
+  const openReceipt = () => {
+    if (!receipt) return;
+    const amount = formatCents(price?.total ?? receipt.price?.total ?? 0, locale);
+    const rows = [
+      [t.receiptReference, reference],
+      [t.receiptStatus, paid ? t.payLivePaid : t.doneEyebrow],
+      [t.receiptPassenger, receipt.passengerName],
+      [t.reviewPickup, receipt.pickup],
+      [t.reviewDropoff, receipt.dropoff],
+      [t.pickupWhen, receipt.when],
+      [t.reviewVehicle, receipt.vehicle],
+      [t.summaryParty, receipt.passengers],
+      [t.priceTotal, amount],
+    ].filter((row): row is [string, string] => Boolean(row[1]));
+    const html = `<!DOCTYPE html><html lang="${escapeHtml(locale)}"><head><meta charset="utf-8"><title>${escapeHtml(reference || t.receiptTitle)}</title></head><body style="font-family:Georgia,serif;margin:32px;color:#0a1942"><h1>${escapeHtml(t.receiptTitle)}</h1><table>${rows
+      .map(([label, value]) => `<tr><th align="left" style="padding:6px 16px 6px 0">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
+      .join("")}</table></body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const opened = openBlank(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    setReceiptBlocked(!opened);
+  };
+
   return (
     <div role="status" className="mx-auto flex max-w-[640px] flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1531,17 +1630,57 @@ export function BookingDone({ copy: t, locale, name, reference, map, price, onAg
          
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3">
-              <BookingStatusBadge label={t.doneEyebrow} />
-              <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span>
+              <BookingStatusBadge label={paid ? t.payLivePaid : t.doneEyebrow} />
+              {reference ? <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span> : null}
             </div>
             <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,5vw,44px)] leading-[1.08] font-normal outline-none">
               {interpolate(t.doneHeading, { name })}
             </h2>
           </div>
         </div>
-        <DownloadableReceiptCard copy={t} locale={locale} reference={reference} status={t.doneEyebrow} name={name} receipt={receipt} price={price} />
+        <DownloadableReceiptCard copy={t} locale={locale} reference={reference || t.receiptReference} status={paid ? t.payLivePaid : t.doneEyebrow} name={name} receipt={receipt} price={price} />
       </div>
       <p className="m-0 text-[15px] text-ink-600">{t.doneNote}</p>
+      {payment && (
+        <div className="flex flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-4 text-ink-950">
+          <p className="m-0 text-[15px] font-semibold">{paid ? t.payLivePaid : t.payLiveDue}</p>
+          {price && Number.isFinite(price.total) ? <p className="m-0 text-[14px] tabular-nums">{formatCents(price.total, locale)}</p> : null}
+          {payment.popupBlocked && !paid ? <p className="m-0 text-[13px] text-ink-700">{t.payLiveBlocked}</p> : null}
+          {!paid && !checkoutUrl ? <p className="m-0 text-[13px] text-ink-700">{t.payLiveMissing}</p> : null}
+          {payError ? <p role="alert" className="m-0 text-[13px] text-error">{payError}</p> : null}
+          {receiptBlocked ? <p className="m-0 text-[13px] text-ink-700">{t.payLiveNoReceipt}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            {paid ? (
+              <button
+                type="button"
+                disabled={!receipt}
+                onClick={openReceipt}
+                className="inline-flex h-11 cursor-pointer items-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {receipt ? t.payLiveReceipt : t.payLiveNoReceipt}
+              </button>
+            ) : checkoutUrl ? (
+              <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 cursor-pointer items-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white no-underline hover:bg-ink-800">
+                {t.payLiveNow}
+              </a>
+            ) : (
+              <button type="button" disabled className="inline-flex h-11 cursor-not-allowed items-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white opacity-60">
+                {t.payLiveNow}
+              </button>
+            )}
+            {!paid && (
+              <button
+                type="button"
+                disabled={checking}
+                onClick={() => checkPayment.current()}
+                className="inline-flex h-11 cursor-pointer items-center rounded-lg border border-solid border-ink-225 bg-white px-5 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950 disabled:cursor-progress disabled:opacity-70"
+              >
+                {checking ? t.payLiveChecking : t.payLiveCheck}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {map && <RouteMap map={map} copy={t} />}
       <div>
         <button type="button" onClick={onAgain} className="inline-flex h-11 cursor-pointer items-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800">

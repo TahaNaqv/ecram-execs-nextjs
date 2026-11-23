@@ -21,13 +21,15 @@ export function planForNewBooking(pickupAt: string | null | undefined, price: Pr
 }
 
 /** Where Mollie sends the customer back to: the return route, which asks Mollie and then opens the booking's page. */
-export function returnUrlFor(request: Pick<QuoteRequest, "id" | "reference">, locale: Locale, who: "guest" | "partner"): string | null {
+export function returnUrlFor(request: Pick<QuoteRequest, "id" | "reference">, locale: Locale, who: "guest" | "partner", stay = false): string | null {
   const origin = siteOrigin();
   if (!origin) return null;
   const params =
     who === "partner"
       ? new URLSearchParams({ for: "partner", ref: request.reference, locale })
       : new URLSearchParams({ ref: request.reference, k: guestKey(request.id), locale });
+  // The website review tab stays where it is. Mollie's own tab must not be sent back over it.
+  if (stay && who === "guest") params.set("stay", "1");
   return `${origin}/api/mollie/return?${params}`;
 }
 
@@ -38,12 +40,12 @@ export function returnUrlFor(request: Pick<QuoteRequest, "id" | "reference">, lo
  */
 export async function payAtBooking(
   request: QuoteRequest,
-  { consent, ipHash, locale, who }: { consent: boolean; ipHash: string | null; locale: Locale; who: "guest" | "partner" },
+  { consent, ipHash, locale, who, stay = false }: { consent: boolean; ipHash: string | null; locale: Locale; who: "guest" | "partner"; stay?: boolean },
 ): Promise<string | undefined> {
   if (!request.paymentPlan || !consent) return undefined;
   try {
     await recordConsent(request.id, ipHash);
-    const back = returnUrlFor(request, locale, who);
+    const back = returnUrlFor(request, locale, who, stay);
     if (!back) return undefined;
     const result = await startPayment(request.id, back);
     return result.status === "redirect" ? result.url : undefined;

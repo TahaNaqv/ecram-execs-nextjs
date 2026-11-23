@@ -231,6 +231,62 @@ function setFieldValue(fields: DetailsEntry["fields"], key: string, nextValue: s
  * The last step: the trip and party, then the vehicle and price, then the agreement, then the send.
  * Distance and driving time are asked of Google here, once, and not before (see /api/route-estimate).
  */
+function payLabel(status: string, t: { payLivePaid: string; payLivePending: string; payLiveFailed: string; payLiveUnpaid: string }): string {
+  if (status === "paid") return t.payLivePaid;
+  if (status === "pending" || status === "authorized") return t.payLivePending;
+  if (status === "failed" || status === "canceled" || status === "expired") return t.payLiveFailed;
+  return t.payLiveUnpaid;
+}
+
+function savedReceipt(reference: string): string | null {
+  try {
+    return sessionStorage.getItem("ee-booking-receipt-for") === reference ? sessionStorage.getItem("ee-booking-receipt") : null;
+  } catch {
+    return null;
+  }
+}
+
+function openReviewReceipt(reference: string, locale: string, paidLabel: string) {
+  const raw = savedReceipt(reference);
+  if (!raw) return;
+  let receipt: { passengerName?: string; pickup?: string; dropoff?: string; when?: string; vehicle?: string } = {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    receipt = parsed as typeof receipt;
+  } catch {
+    return;
+  }
+  const rows = [
+    ["Reference", reference],
+    ["Status", paidLabel],
+    ["Passenger", receipt?.passengerName ?? ""],
+    ["Collection", receipt?.pickup ?? ""],
+    ["Destination", receipt?.dropoff ?? ""],
+    ["When", receipt?.when ?? ""],
+    ["Vehicle", receipt?.vehicle ?? ""],
+  ].filter((row) => row[1]);
+  const html = `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><title>${reference}</title></head><body style="font-family:Georgia,serif;margin:32px;color:#0a1942"><h1>${reference}</h1><table>${rows
+    .map(([label, value]) => `<tr><th align="left" style="padding:6px 16px 6px 0">${label}</th><td>${String(value).replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"))}</td></tr>`)
+    .join("")}</table></body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (opened) opened.opener = null;
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+function checkoutHref(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" && (url.hostname === "mollie.com" || url.hostname.endsWith(".mollie.com"))) return true;
+    return (url.protocol === "http:" || url.protocol === "https:") && (url.hostname === "127.0.0.1" || url.hostname === "localhost");
+  } catch {
+    return false;
+  }
+}
+
 export function ReviewStep({
   headingRef,
   variant,
@@ -253,6 +309,7 @@ export function ReviewStep({
   onUpdateDetails,
   onSend,
   payOnline = false,
+  sentPayment = null,
 }: {
   /** Paid at booking (the client's rules of 15 Nov 2026): the button pays, and the schedule is spelled out */
   payOnline?: boolean;
@@ -278,6 +335,8 @@ export function ReviewStep({
   onUpdateDetails?: (nextDetails: DetailsEntry) => void;
   /** `shown`: the payment plan and total the customer agreed to on this screen (checked again by the server) */
   onSend: (quoted: ReturnType<typeof tripPrice>, shown: { plan: string; totalCents: number } | null) => void;
+  /** After Book and pay: this screen stays, Mollie is the other tab, and the button follows the payment. */
+  sentPayment?: { reference: string; checkoutUrl: string | null; guestKey: string | null; popupBlocked?: boolean } | null;
 }) {
   const uid = useId();
   const portal = variant === "portal";
@@ -474,6 +533,43 @@ export function ReviewStep({
   };
 
   const [agreed, setAgreed] = useState(false);
+  const [payStatus, setPayStatus] = useState("open");
+  const [checking, setChecking] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const paid = payStatus === "paid";
+  const checkoutUrl = sentPayment && checkoutHref(sentPayment.checkoutUrl) ? sentPayment.checkoutUrl : null;
+  const reference = sentPayment?.reference?.trim() ?? "";
+  const referenceOk = /^EE-[A-Z0-9]{6}$/i.test(reference);
+
+  const lookUpPayment = useRef<() => void>(() => {});
+  lookUpPayment.current = () => {
+    const key = sentPayment?.guestKey;
+    if (!key || !referenceOk) {
+      setPayError(t.payLiveRetry);
+      return;
+    }
+    setChecking(true);
+    const params = new URLSearchParams({ ref: reference, k: key, sync: "1" });
+    fetch(`/api/booking/state?${params}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { payment?: string | null } | null) => {
+        if (!data) {
+          setPayError(t.payLiveRetry);
+          return;
+        }
+        setPayError(null);
+        setPayStatus(typeof data.payment === "string" && data.payment ? data.payment : "open");
+      })
+      .catch(() => setPayError(t.payLiveRetry))
+      .finally(() => setChecking(false));
+  };
+
+  useEffect(() => {
+    if (!sentPayment?.guestKey || !referenceOk || paid) return;
+    lookUpPayment.current();
+    const timer = window.setInterval(() => lookUpPayment.current(), 4000);
+    return () => window.clearInterval(timer);
+  }, [sentPayment?.guestKey, referenceOk, paid]);
   const [mustAgree, setMustAgree] = useState(false);
 
   const routed = trip.mode === "oneway" && trip.from.text.trim() && trip.to.text.trim();
@@ -1115,8 +1211,15 @@ export function ReviewStep({
           </section>
         </div>
 
-        <p aria-live="polite" className={result.message ? "m-0 text-[13px] text-error" : "sr-only"}>
-          {result.message ?? ""}
+        {sentPayment && (
+          <div className="flex flex-col gap-1 rounded-lg border border-solid border-ink-225 bg-white px-4 py-3 text-ink-950">
+            {referenceOk ? <p className="m-0 text-[12px] font-semibold tracking-[0.16em] uppercase">{reference}</p> : null}
+            <p className="m-0 text-[15px] font-semibold">{payLabel(payStatus, t)}</p>
+            {upfront != null ? <p className="m-0 text-[14px] tabular-nums">{formatCents(upfront, locale)}</p> : null}
+          </div>
+        )}
+        <p aria-live="polite" className={result.message || payError || (sentPayment?.popupBlocked && !paid) ? "m-0 text-[13px] text-error" : "sr-only"}>
+          {result.message ?? payError ?? (sentPayment?.popupBlocked && !paid ? t.payLiveBlocked : !paid && sentPayment && !checkoutUrl ? t.payLiveMissing : "")}
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-end gap-4">
           <div className="flex w-full gap-2.5 lg:w-auto">
@@ -1128,7 +1231,39 @@ export function ReviewStep({
               <ArrowLeft />
               {t.back}
             </button>
-            {lockedNotice ?? (
+            {lockedNotice ??
+              (sentPayment ? (
+                <>
+                {paid ? (
+                  <button
+                    type="button"
+                    disabled={!referenceOk}
+                    onClick={() => openReviewReceipt(reference, locale, t.payLivePaid)}
+                    className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+                  >
+                    {savedReceipt(reference) ? t.payLiveReceipt : t.payLivePaid}
+                  </button>
+                ) : checkoutUrl ? (
+                  <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white no-underline hover:bg-ink-800 sm:flex-none">
+                    {t.payLiveNow}
+                  </a>
+                ) : (
+                  <button type="button" disabled className="inline-flex h-11 flex-1 cursor-not-allowed items-center justify-center rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white opacity-60 sm:flex-none">
+                    {t.payLiveNow}
+                  </button>
+                )}
+                {!paid && (
+                  <button
+                    type="button"
+                    disabled={checking}
+                    onClick={() => lookUpPayment.current()}
+                    className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950 disabled:cursor-progress disabled:opacity-70"
+                  >
+                    {checking ? t.payLiveChecking : t.payLiveCheck}
+                  </button>
+                )}
+                </>
+              ) : (
               <button
                 type="button"
                 disabled={result.pending}
@@ -1145,7 +1280,7 @@ export function ReviewStep({
                 {result.pending ? t.sending : payPlan && upfront != null ? interpolate(t.submitPay, { amount: formatCents(upfront, locale) }) : t.submit}
                 {!result.pending && <ArrowRight />}
               </button>
-            )}
+              ))}
           </div>
         </div>
       </div>

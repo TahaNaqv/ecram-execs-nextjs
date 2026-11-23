@@ -49,5 +49,15 @@ export async function GET(req: NextRequest) {
     // Approved by itself (6 months or more ahead) and announced: after the customer is on their way to the page
     after(() => runPaymentSteps(booking.id));
   }
+  // Book and pay keeps Review your booking in the original tab. This tab is only Mollie's.
+  if (params.get("stay") === "1") {
+    const note = locale === "nl" ? "U kunt dit tabblad sluiten en teruggaan naar uw boeking." : "You can close this tab and return to your booking.";
+    const html = `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escapeHtml(booking.reference)}</title></head><body style="font-family:Georgia,serif;margin:48px;color:#0a1942"><p>${escapeHtml(note)}</p><p>${escapeHtml(booking.reference)}</p></body></html>`;
+    return new NextResponse(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+  }
   return NextResponse.redirect(`${origin}${guestPath(booking, locale)}`, 303);
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }

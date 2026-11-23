@@ -46,8 +46,10 @@ export type QuoteFormState =
       price?: { total: number; exact: boolean } | null;
       /** The booking's private page, where the visitor follows the review (the client, 8 Nov 2026) */
       href?: string;
-      /** Mollie's page for the payment at booking (the client's rules of 15 Nov 2026): the browser goes there first */
+      /** Mollie's page for the payment at booking (the client's rules of 15 Nov 2026): opened beside the confirmation */
       payUrl?: string;
+      /** Book and pay was chosen: the confirmation stays up even when checkout could not be opened */
+      payNow?: boolean;
     };
 
 const FIELDS = [
@@ -154,6 +156,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     ipHash,
     locale: request.locale,
     who: "guest",
+    stay: true,
   });
 
   // A booking paid at booking is announced once its payment is in (lib/mollie/schedule.ts): an abandoned checkout does
@@ -188,6 +191,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     map: routeMapLinks(request, browserMapKey()),
     href: safeGuestPath(request),
     payUrl,
+    payNow: formData.get("payWhen") !== "later" && Boolean(request.paymentPlan),
     price: request.priceEstimate ? { total: request.priceEstimate.total, exact: request.priceEstimate.exact } : null,
   };
 }

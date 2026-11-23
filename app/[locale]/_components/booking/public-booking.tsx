@@ -18,6 +18,17 @@ const NO_ERRORS = {};
 /** The booking this page already opened. A later visit to the form must not open it again. */
 const OPENED_KEY = "ee-public-booking-opened";
 
+function checkoutUrlOk(value: string | null | undefined): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" && (url.hostname === "mollie.com" || url.hostname.endsWith(".mollie.com"))) return true;
+    return (url.protocol === "http:" || url.protocol === "https:") && (url.hostname === "127.0.0.1" || url.hostname === "localhost");
+  } catch {
+    return false;
+  }
+}
+
 type Props = {
   locale: Locale;
   copy: BookingCopy;
@@ -67,7 +78,8 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
   // Counted once per sent booking, so the booking bar on the home page and the next visit to /book start empty. Then the
   // visitor goes to the booking's own page, where they follow the review by hand (the client, 8 Nov 2026)
   const href = state.status === "success" ? state.href : undefined;
-  const payUrl = state.status === "success" ? state.payUrl : undefined;
+  const payingNow = state.status === "success" && state.payNow === true;
+  const payUrl = state.status === "success" && checkoutUrlOk(state.payUrl) ? state.payUrl : undefined;
   const sentReference = state.status === "success" ? state.reference : "";
   const followed = useRef<string | null>(null);
   const [again, setAgain] = useState(false);
@@ -90,18 +102,29 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
     try {
       sessionStorage.setItem(OPENED_KEY, sentReference);
     } catch {
-      // the booking page still opens; only a return to this form can repeat it
+      // the confirmation still shows; only a return to this form can repeat it
     }
     markBookingSent();
     claimRideReceipt(sentReference);
-    // The payment at booking first (Mollie's page, another site), which comes back to the booking's page
-    if (payUrl) window.location.assign(payUrl);
-    else if (href) router.push(href);
-  }, [sentReference, href, payUrl, router]);
+    // This tab opens the confirmation. Mollie is only the other tab, and it does not replace this one.
+    if (payingNow) {
+      let blocked = !payUrl;
+      if (payUrl) {
+        const opened = window.open(payUrl, "_blank", "noopener,noreferrer");
+        if (opened) opened.opener = null;
+        else blocked = true;
+      }
+      if (href) router.push(blocked ? `${href}${href.includes("?") ? "&" : "?"}pay=blocked` : href);
+    } else if (href) router.push(href);
+  }, [sentReference, href, payUrl, payingNow, router]);
 
-  if (state.status === "success" && !again) {
-    // On its way to the booking's page: nothing to show for the moment it takes
-    if (href || payUrl) return <div className="min-h-[60svh]" aria-busy="true" />;
+  if (state.status === "success" && !again && payingNow) {
+    return <div className="min-h-[60svh]" aria-busy="true" />;
+  }
+
+  if (state.status === "success" && !again && !payingNow) {
+    // On its way to the booking's page when there is nothing to pay now
+    if (href) return <div className="min-h-[60svh]" aria-busy="true" />;
     return <BookingDone copy={copy} locale={locale} name={state.name} reference={state.reference} map={state.map} price={state.price} onAgain={onAgain} />;
   }
 

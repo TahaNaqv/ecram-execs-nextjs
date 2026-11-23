@@ -10,14 +10,31 @@ import { refreshOnce } from "@/lib/nav/refresh-once";
 import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-actions";
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
-import { PayButton } from "../pay-button";
 import type { PaymentView } from "@/lib/mollie/pay";
-import { consentText } from "@/lib/mollie/consent-text";
 
 type Copy = Dictionary["guestBooking"];
 type Message = { id: string; by: "guest" | "team"; body: string; at: string };
 
 const noSubscription = () => () => {};
+
+function checkoutHref(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" && (url.hostname === "mollie.com" || url.hostname.endsWith(".mollie.com"))) return url.toString();
+    if ((url.protocol === "http:" || url.protocol === "https:") && (url.hostname === "127.0.0.1" || url.hostname === "localhost")) return url.toString();
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function paymentBadge(status: string | null, state: PaymentView["state"] | undefined, copy: BookingCopy): string {
+  if (status === "paid" || state === "paid") return copy.payLivePaid;
+  if (status === "pending" || status === "authorized" || state === "progress") return copy.payLivePending;
+  if (status === "failed" || status === "canceled" || status === "expired" || state === "failed") return copy.payLiveFailed;
+  return copy.payLiveUnpaid;
+}
 
 /** How often the open page asks whether the booking manager has decided, in milliseconds. */
 const POLL_MS = 10_000;
@@ -48,6 +65,9 @@ export function GuestBookingView({
   invoice,
   awaitingInvoice,
   payment,
+  checkoutUrl = null,
+  paymentStatus = null,
+  payBlocked = false,
 }: {
   reference: string;
   linkKey: string;
@@ -73,9 +93,18 @@ export function GuestBookingView({
    * `dueLabel`); `state` is the latest payment's: in progress, paid (on `paidOn`), or ended without paying.
    */
   payment: PaymentView | null;
+  /** Mollie's page for the payment still open, or nothing when there is no page to open. */
+  checkoutUrl?: string | null;
+  /** Latest Mollie status, so a change to paid refreshes this screen once. */
+  paymentStatus?: string | null;
+  /** The payment tab was blocked, so Pay now on this screen is the way through. */
+  payBlocked?: boolean;
 }) {
   const router = useRouter();
   const heading = useRef<HTMLHeadingElement>(null);
+  const [checking, setChecking] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const safeCheckout = checkoutHref(checkoutUrl);
   // The receipt this tab kept when the booking was sent (none on the server, nor in another browser)
   const storedReceipt = useSyncExternalStore(noSubscription, () => storedRideReceipt(reference), () => null);
   const receipt = useMemo(() => parseRideReceipt(storedReceipt) ?? savedReceipt, [storedReceipt, savedReceipt]);
@@ -90,11 +119,13 @@ export function GuestBookingView({
     const ask = async () => {
       if (document.visibilityState === "hidden" || Date.now() > until) return;
       try {
-        const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}`, { cache: "no-store" });
+        const sync = payment && payment.state !== "paid" ? "&sync=1" : "";
+        const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}${sync}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
         const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null; payment: string | null };
         const moved = now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null);
-        if (moved || (paying && now.payment !== null && now.payment !== "open" && now.payment !== "pending" && now.payment !== "authorized" && now.payment !== "creating")) {
+        const paymentMoved = (now.payment ?? null) !== (paymentStatus ?? null);
+        if (moved || paymentMoved || (paying && now.payment !== null && now.payment !== "open" && now.payment !== "pending" && now.payment !== "authorized" && now.payment !== "creating")) {
           refreshOnce(router);
         }
       } catch {}
@@ -107,7 +138,7 @@ export function GuestBookingView({
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment?.state]);
+  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment?.state, paymentStatus, payment]);
 
   // A new status moves the focus to the new heading, so a screen reader reads the decision out
   const seen = useRef(status);
@@ -137,7 +168,8 @@ export function GuestBookingView({
         <div role="status" aria-live="polite" className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <BookingStatusBadge label={view.eyebrow} />
-            <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span>
+            {payment && reference ? <BookingStatusBadge label={paymentBadge(paymentStatus, payment.state, bookingCopy)} /> : null}
+            {reference ? <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span> : null}
           </div>
           <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(30px,5vw,42px)] leading-[1.08] font-normal outline-none">
             {view.heading}
@@ -158,16 +190,44 @@ export function GuestBookingView({
               {payment.state === "progress" && <p className="m-0 text-[15px] text-ink-700">{t.payInProgress}</p>}
               {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.payNotCompleted}</p>}
               {payment.due > 0 && payment.state !== "progress" && (
-                <PayButton
-                  who="guest"
-                  reference={reference}
-                  linkKey={linkKey}
-                  locale={locale}
-                  label={interpolate(payment.first ? t.paySecure : t.payNow, { amount: payment.dueLabel })}
-                  pendingLabel={t.payOpening}
-                  consent={payment.first ? consentText(t, payment) : undefined}
-                  className="self-start cursor-pointer rounded-full border-none bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70"
-                />
+                <div className="flex flex-col items-start gap-2">
+                  {payBlocked ? <p className="m-0 text-[13px] text-ink-700">{bookingCopy.payLiveBlocked}</p> : null}
+                  {!safeCheckout ? <p className="m-0 text-[13px] text-ink-700">{bookingCopy.payLiveMissing}</p> : null}
+                  {payError ? <p role="alert" className="m-0 text-[13px] text-error">{payError}</p> : null}
+                  {safeCheckout ? (
+                    <a href={safeCheckout} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800">
+                      {bookingCopy.payLiveNow}
+                    </a>
+                  ) : (
+                    <button type="button" disabled className="inline-flex cursor-not-allowed rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase opacity-60">
+                      {bookingCopy.payLiveNow}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={checking || !reference || !linkKey}
+                    onClick={() => {
+                      if (!reference || !linkKey) return;
+                      setChecking(true);
+                      setPayError(null);
+                      const params = new URLSearchParams({ ref: reference, k: linkKey, sync: "1" });
+                      fetch(`/api/booking/state?${params}`, { cache: "no-store" })
+                        .then((response) => (response.ok ? response.json() : null))
+                        .then((now: { payment?: string | null } | null) => {
+                          if (!now) {
+                            setPayError(bookingCopy.payLiveRetry);
+                            return;
+                          }
+                          if ((now.payment ?? null) !== (paymentStatus ?? null)) refreshOnce(router);
+                        })
+                        .catch(() => setPayError(bookingCopy.payLiveRetry))
+                        .finally(() => setChecking(false));
+                    }}
+                    className="inline-flex cursor-pointer rounded-full border border-solid border-ink-225 bg-white px-5 py-2.5 text-[12px] font-semibold tracking-[0.16em] text-ink-950 uppercase hover:border-ink-950 disabled:cursor-progress disabled:opacity-70"
+                  >
+                    {checking ? bookingCopy.payLiveChecking : bookingCopy.payLiveCheck}
+                  </button>
+                </div>
               )}
             </div>
           )}

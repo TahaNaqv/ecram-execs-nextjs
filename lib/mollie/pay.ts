@@ -559,6 +559,21 @@ export type PaymentSummary = {
   latest: { status: string; amountCents: number; paidAt: Date | null } | null;
 };
 
+/** The open Mollie page for this booking, if the customer can still pay it. Paid bookings have none. */
+export async function openCheckoutFor(requestId: string): Promise<{ url: string | null; status: string | null }> {
+  const config = mollieConfig();
+  if (!config) return { url: null, status: null };
+  const [latest] = await db
+    .select({ status: p.status, checkoutUrl: p.checkoutUrl })
+    .from(p)
+    .where(and(eq(p.requestId, requestId), eq(p.mode, config.mode)))
+    .orderBy(desc(p.createdAt))
+    .limit(1);
+  if (!latest) return { url: null, status: null };
+  const url = latest.status === "paid" ? null : safeCheckoutUrl(latest.checkoutUrl);
+  return { url, status: latest.status };
+}
+
 /** What the customer's pages show about paying. */
 export async function paymentSummary(requestId: string): Promise<PaymentSummary | null> {
   const config = mollieConfig();
