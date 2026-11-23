@@ -4,6 +4,7 @@ import { desc, eq, or } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { formatEuro } from "@/lib/admin/format";
 import { buildBookingReceipt, type ReceiptBooking } from "@/lib/admin/financial-receipt";
+import { sepaEpcPayload, sepaQrSvg } from "@/lib/payments/sepa-qr";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { Locale } from "@/lib/i18n/config";
 
@@ -244,6 +245,8 @@ export async function GET(request: NextRequest) {
           iban: "IBAN",
           amount: "Bedrag",
           paymentRef: "Betalingskenmerk",
+          scanHint: "Of scan de QR-code met uw bankapp om bovenstaande gegevens over te nemen.",
+          qrPending: "De QR-code verschijnt hier zodra het betalingskenmerk klaarstaat.",
           copy: "Kopiëren",
           copied: "Gekopieerd!",
           close: "Sluiten",
@@ -274,6 +277,8 @@ export async function GET(request: NextRequest) {
           iban: "IBAN",
           amount: "Amount",
           paymentRef: "Payment reference",
+          scanHint: "Or scan the QR code with your banking app to copy the above details.",
+          qrPending: "The QR code will appear here once the payment reference is ready.",
           copy: "Copy",
           copied: "Copied!",
           close: "Close",
@@ -286,6 +291,26 @@ export async function GET(request: NextRequest) {
           totalDue: "Total due",
           terms: `We kindly request you to pay the amount of ${totalFormatted} before the due date to our bank account stating reference ${invoiceNumber}. For questions, please contact us by email.`,
         };
+
+    const iban = "NL91 ABNA 0417 1643 00";
+    const payee = "Ecram Execs B.V.";
+    let qrSvg = "";
+    try {
+      const payload = sepaEpcPayload({
+        name: payee,
+        iban,
+        bic: "ABNANL2A",
+        amountCents: totalCents,
+        reference: invoiceNumber,
+      });
+      qrSvg = sepaQrSvg(payload) ?? "";
+    } catch (qrError) {
+      console.error("[mock/moneybird/invoice] payment QR failed", qrError);
+      qrSvg = "";
+    }
+    const qrBlock = qrSvg
+      ? `<div class="qr-container">${qrSvg}</div>`
+      : `<div class="qr-container qr-pending" role="img" aria-label="${labels.qrPending}"><span>${labels.qrPending}</span></div>`;
 
     const html = `<!DOCTYPE html>
 <html lang="${isDutch ? "nl" : "en"}">
@@ -712,9 +737,28 @@ export async function GET(request: NextRequest) {
       align-items: center;
       justify-content: center;
     }
-    .qr-svg {
+    .qr-svg,
+    .qr-container svg {
       width: 190px;
       height: 190px;
+      display: block;
+      margin: 0 auto;
+    }
+    .qr-pending {
+      width: 190px;
+      min-height: 190px;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.4;
+      text-align: center;
+    }
+    .scan-hint {
+      width: 100%;
+      margin: 4px 0 16px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #475569;
+      text-align: center;
     }
     .details-list {
       width: 100%;
@@ -906,80 +950,16 @@ export async function GET(request: NextRequest) {
       <div class="modal-body">
         <p class="modal-desc">${labels.dialogDesc}</p>
 
-        <!-- SEPA EPC QR Code -->
-        <div class="qr-container">
-          <svg class="qr-svg" viewBox="0 0 160 160" fill="none">
-            <!-- Background -->
-            <rect width="160" height="160" fill="white" />
-            
-            <!-- Top-Left Finder -->
-            <rect x="10" y="10" width="35" height="35" fill="black" />
-            <rect x="15" y="15" width="25" height="25" fill="white" />
-            <rect x="20" y="20" width="15" height="15" fill="black" />
-            
-            <!-- Top-Right Finder -->
-            <rect x="115" y="10" width="35" height="35" fill="black" />
-            <rect x="120" y="15" width="25" height="25" fill="white" />
-            <rect x="125" y="20" width="15" height="15" fill="black" />
-            
-            <!-- Bottom-Left Finder -->
-            <rect x="10" y="115" width="35" height="35" fill="black" />
-            <rect x="15" y="120" width="25" height="25" fill="white" />
-            <rect x="20" y="125" width="15" height="15" fill="black" />
-
-            <!-- Timing and Alignment Patterns -->
-            <rect x="50" y="22" width="55" height="5" fill="black" stroke="white" stroke-dasharray="5,5" />
-            <rect x="22" y="50" width="5" height="55" fill="black" stroke="white" stroke-dasharray="5,5" />
-            <rect x="105" y="105" width="25" height="25" fill="black" />
-            <rect x="110" y="110" width="15" height="15" fill="white" />
-            <rect x="115" y="115" width="5" height="5" fill="black" />
-
-            <!-- Data Blocks -->
-            <rect x="55" y="35" width="10" height="10" fill="black" />
-            <rect x="75" y="35" width="15" height="10" fill="black" />
-            <rect x="95" y="35" width="10" height="10" fill="black" />
-            <rect x="55" y="55" width="15" height="10" fill="black" />
-            <rect x="80" y="55" width="10" height="15" fill="black" />
-            <rect x="100" y="55" width="15" height="10" fill="black" />
-            <rect x="125" y="55" width="10" height="10" fill="black" />
-            <rect x="140" y="55" width="10" height="10" fill="black" />
-            
-            <rect x="35" y="65" width="10" height="15" fill="black" />
-            <rect x="55" y="75" width="10" height="15" fill="black" />
-            <rect x="75" y="75" width="15" height="10" fill="black" />
-            <rect x="100" y="75" width="10" height="10" fill="black" />
-            <rect x="120" y="75" width="10" height="10" fill="black" />
-            <rect x="135" y="75" width="15" height="10" fill="black" />
-
-            <rect x="35" y="90" width="10" height="10" fill="black" />
-            <rect x="55" y="95" width="15" height="10" fill="black" />
-            <rect x="75" y="95" width="10" height="15" fill="black" />
-            <rect x="90" y="95" width="10" height="10" fill="black" />
-            <rect x="135" y="95" width="15" height="10" fill="black" />
-
-            <rect x="55" y="115" width="10" height="15" fill="black" />
-            <rect x="70" y="115" width="10" height="10" fill="black" />
-            <rect x="85" y="115" width="15" height="10" fill="black" />
-            <rect x="135" y="115" width="15" height="10" fill="black" />
-
-            <rect x="55" y="135" width="15" height="10" fill="black" />
-            <rect x="75" y="135" width="10" height="10" fill="black" />
-            <rect x="90" y="135" width="15" height="10" fill="black" />
-            <rect x="110" y="135" width="10" height="10" fill="black" />
-            <rect x="130" y="135" width="15" height="10" fill="black" />
-          </svg>
-        </div>
-
         <!-- Details Grid -->
         <div class="details-list">
           <div class="detail-item">
             <span class="detail-label">${labels.beneficiary}</span>
-            <span class="detail-value">Ecram Execs B.V.</span>
+            <span class="detail-value">${payee}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">${labels.iban}</span>
             <span class="detail-value">
-              <span id="iban-val">NL91 ABNA 0417 1643 00</span>
+              <span id="iban-val">${iban}</span>
               <button type="button" class="copy-pill" onclick="copyText('iban-val', this)">${labels.copy}</button>
             </span>
           </div>
@@ -995,6 +975,9 @@ export async function GET(request: NextRequest) {
             </span>
           </div>
         </div>
+
+        <p class="scan-hint">${labels.scanHint}</p>
+        ${qrBlock}
       </div>
 
       <div class="modal-footer">

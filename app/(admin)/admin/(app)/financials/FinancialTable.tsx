@@ -79,16 +79,15 @@ function Vat({ row, copy }: { row: PresentedFinancialRow; copy: Copy }) {
 function Actions({ row, copy }: { row: PresentedFinancialRow; copy: Copy }) {
   return (
     <div className="flex flex-wrap justify-end gap-1.5">
-      {row.moneybirdNumber && (
+      {row.moneybirdHref && (
         <a
-          href={row.moneybirdHref ?? undefined}
+          href={row.moneybirdHref}
           target="_blank"
           rel="noreferrer"
           className={`${btn.base} ${btn.secondary} ${btn.sm}`}
-          title={(copy.moneybirdStates as Record<string, string>)[row.moneybirdState ?? ""] ?? row.moneybirdState ?? undefined}
+          title={row.moneybirdNumber ? interpolate(copy.moneybirdInvoice, { number: row.moneybirdNumber }) : copy.openMoneybird}
         >
-          {interpolate(copy.moneybirdInvoice, { number: row.moneybirdNumber })}
-          {row.moneybirdState && ` · ${(copy.moneybirdStates as Record<string, string>)[row.moneybirdState] ?? row.moneybirdState}`}
+          {row.moneybirdNumber ? interpolate(copy.moneybirdInvoice, { number: row.moneybirdNumber }) : copy.openMoneybird}
         </a>
       )}
       {row.invoiceId && (
@@ -182,7 +181,7 @@ export function FinancialTable({
       </ul>
 
       <div className="hidden overflow-x-auto xl:block">
-        <table className="w-full text-left text-sm">
+        <table className="w-max min-w-full text-left text-sm">
           <caption className="sr-only">{copy.title}</caption>
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500">
@@ -194,12 +193,12 @@ export function FinancialTable({
               <th scope="col" className="px-3 py-2.5 text-right font-medium">{copy.colVat}</th>
               <SortHeader query={query} sort="status" label={copy.colStatus} />
               <th scope="col" className="px-3 py-2.5 font-medium">{copy.colBookingStatus}</th>
-              <th scope="col" className="py-2.5 pr-5 pl-3 text-right font-medium">{copy.colActions}</th>
+              <th scope="col" className="sticky right-0 bg-zinc-50 py-2.5 pr-5 pl-3 text-right font-medium shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.08)]">{copy.colActions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {rows.map((row) => (
-              <tr key={row.id} className="align-top hover:bg-zinc-50/80">
+              <tr key={row.id} className="group align-top hover:bg-zinc-50/80">
                 <td className="py-3.5 pr-3 pl-5">
                   <Link href={`/admin/requests/${row.id}`} className="font-mono text-[13px] font-medium text-zinc-950 underline-offset-2 hover:underline">
                     {row.reference}
@@ -221,7 +220,7 @@ export function FinancialTable({
                 <td className="px-3 py-3.5 whitespace-nowrap"><Vat row={row} copy={copy} /></td>
                 <td className="px-3 py-3.5"><Payment status={row.status} copy={copy} /></td>
                 <td className="px-3 py-3.5"><StatusBadge status={row.bookingStatus} /></td>
-                <td className="py-3.5 pr-5 pl-3"><Actions row={row} copy={copy} /></td>
+                <td className="sticky right-0 bg-white py-3.5 pr-5 pl-3 shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.08)] group-hover:bg-zinc-50"><Actions row={row} copy={copy} /></td>
               </tr>
             ))}
           </tbody>

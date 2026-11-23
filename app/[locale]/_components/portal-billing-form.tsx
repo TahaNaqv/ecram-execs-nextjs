@@ -79,9 +79,11 @@ export function BillingForm({ locale, initial, phone, loginEmail, copy: t }: { l
       {input("invoiceEmail", t.invoiceEmail, { type: "email", autoComplete: "email", maxLength: 254, placeholder: loginEmail })}
       <p className="m-0 text-[13px] text-ink-600">{interpolate(t.invoiceEmailNote, { email: loginEmail })}</p>
       <input type="hidden" name="locale" value={locale} />
-      <button type="submit" disabled={pending} className={submitClass}>
-        {pending ? t.saving : t.save}
-      </button>
+      <div className="mt-6 flex w-full justify-center">
+        <button type="submit" disabled={pending} className={`${submitClass} mx-auto block`}>
+          {pending ? t.saving : t.save}
+        </button>
+      </div>
       <Status error={state.status === "error" || state.status === "locked"}>
         {state.status === "ok" ? state.notice : state.status === "error" || state.status === "locked" ? state.message : undefined}
       </Status>

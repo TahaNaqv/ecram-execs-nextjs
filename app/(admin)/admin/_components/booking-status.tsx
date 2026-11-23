@@ -18,17 +18,22 @@ export function publishBookingStatus(requestId: string, status: RequestStatus) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: { requestId, status } }));
 }
 
-/** The booking's status, following both a server refresh and a status change made on this page. */
+/**
+ * The booking's status, following both a server refresh and a status change made on this page.
+ * The stored status is the starting point. An older in-tab value must not keep "In discussion"
+ * on screen after the booking is "new". A choice made afterwards still updates the badge at once.
+ */
 export function useBookingStatus(requestId: string, initial: RequestStatus): RequestStatus {
-  const [status, setStatus] = useState<RequestStatus>(() => published.get(requestId) ?? initial);
+  const [status, setStatus] = useState<RequestStatus>(initial);
 
   useEffect(() => {
     const override = published.get(requestId);
-    if (override && override !== initial) setStatus(override);
-    else {
-      if (override === initial) published.delete(requestId);
-      setStatus(initial);
+    if (override && override !== initial && initial !== "new") {
+      setStatus(override);
+      return;
     }
+    published.delete(requestId);
+    setStatus(initial);
   }, [requestId, initial]);
 
   useEffect(() => {

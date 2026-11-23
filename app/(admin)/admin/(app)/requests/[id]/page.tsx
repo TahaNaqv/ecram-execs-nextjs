@@ -33,7 +33,7 @@ import { AdminReturnLink } from "../../../_components/return-link";
 import { MessagesCard } from "./messages-card";
 import { ReviewCard, type PayState } from "./review-card";
 import { CarsEditor } from "./cars-editor";
-import { MoneybirdCard } from "./moneybird-card";
+import { MoneybirdCard, MoneybirdHeaderLink } from "./moneybird-card";
 import { invoiceBlocksDelete } from "@/lib/moneybird/sync";
 import { paidNet, paymentBlocksDelete } from "@/lib/mollie/pay";
 import { invoiceCents } from "@/lib/moneybird/invoice";
@@ -193,6 +193,9 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:flex">
+          <Suspense fallback={null}>
+            <MoneybirdHeaderLink requestId={r.id} />
+          </Suspense>
           <a href={mailto} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <MailIcon /> {rd.emailAction}
           </a>

@@ -130,13 +130,22 @@ export function AutoPricingGateway({
   const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(asStatus(liveStatus));
 
   useEffect(() => {
-    const next = asStatus(liveStatus);
-    setStatus(next);
-    setSelectedStatus(next);
+    setStatus(asStatus(request.status));
+  }, [request.status]);
+
+  useEffect(() => {
+    setSelectedStatus(asStatus(liveStatus));
   }, [liveStatus]);
   
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  function showNotice(message: string, ok: boolean) {
+    setToast({ message, ok });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 5000);
+  }
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
@@ -152,12 +161,17 @@ export function AutoPricingGateway({
     .filter((stop) => stop.place);
   const pickup = typeof request.pickupAt === "string" && request.pickupAt ? pickupParts(request.pickupAt) : null;
 
+  function chooseStatus(next: StatusChoice) {
+    setSelectedStatus(next);
+    publishBookingStatus(request.id, next);
+  }
+
   // Notify Client Button: Commits the selected status and dispatches email (including on cancel).
   // The amount is not sent: the server keeps the total stored when the booking was submitted.
   async function handleSend() {
     setLoading(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
     try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
       const res = await fetch(`/api/admin/requests/${request.id}/authorise`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -165,32 +179,40 @@ export function AutoPricingGateway({
           status: selectedStatus,
           sendMail: true,
           ...(selectedStatus === "cancelled" ? { sendCancellationEmail: true } : {}),
-        })
+        }),
       });
-      const data = await res.json().catch(() => ({}));
-      console.log("Resend Mail Response:", data);
+      let data: { error?: unknown; warning?: unknown } = {};
+      try {
+        data = (await res.json()) as { error?: unknown; warning?: unknown };
+      } catch {
+        data = {};
+      }
 
       // Refused (e.g. the car is already booked at that time): nothing was saved, so the status stays as it was
       if (!res.ok) {
         setSelectedStatus(status);
-        setToast(typeof data.error === "string" ? data.error : "Could not save the change.");
+        publishBookingStatus(request.id, status);
+        showNotice(typeof data.error === "string" ? data.error : "Could not notify the client. The booking was not changed.", false);
         return;
       }
 
-      setStatus(selectedStatus); // Commit status change
+      setStatus(selectedStatus);
       publishBookingStatus(request.id, selectedStatus);
-      refreshOnce(router);
+      try {
+        refreshOnce(router);
+      } catch (refreshError) {
+        console.error("[notify] page refresh failed", refreshError);
+      }
       if (data.warning || data.error) {
-        setToast(`Sent with note: Check terminal for Resend logs.`);
+        showNotice("The client was notified, with a note. Check the server logs for the email result.", true);
       } else {
-        setToast(selectedStatus === "cancelled" ? "Cancellation email dispatched!" : "Email Dispatched!");
+        showNotice(selectedStatus === "cancelled" ? "Cancellation email dispatched." : "The client was notified.", true);
       }
     } catch (err) {
       console.error("Resend Mail Dispatch Error:", err);
-      setToast("Error sending email. Check server terminal logs.");
+      showNotice("Could not notify the client. This booking stays open — try again.", false);
     } finally {
       setLoading(false);
-      setTimeout(() => setToast(null), 4000);
     }
   }
 
@@ -297,8 +319,13 @@ export function AutoPricingGateway({
   return (
     <>
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-900 text-white px-4 py-2 rounded-lg shadow-lg text-xs flex items-center gap-2 animate-bounce">
-          <CheckIcon size={14} /> {toast}
+        <div
+          role={toast.ok ? "status" : "alert"}
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg px-4 py-2 text-xs text-white shadow-lg ${
+            toast.ok ? "bg-emerald-900" : "bg-red-800"
+          }`}
+        >
+          {toast.ok ? <CheckIcon size={14} /> : <XIcon size={14} />} {toast.message}
         </div>
       )}
 
@@ -470,8 +497,17 @@ export function AutoPricingGateway({
             
             {/* Status Dropdown Selector */}
             <div className="mb-3">
-              <StatusMenu value={selectedStatus} labels={statuses} disabled={loading} onChange={setSelectedStatus} />
+              <StatusMenu value={selectedStatus} labels={statuses} disabled={loading} onChange={chooseStatus} />
             </div>
+
+            {toast && (
+              <p
+                role={toast.ok ? "status" : "alert"}
+                className={`mb-3 rounded-lg px-3 py-2 text-xs ${toast.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}
+              >
+                {toast.message}
+              </p>
+            )}
 
             <div className="space-y-2">
               <button

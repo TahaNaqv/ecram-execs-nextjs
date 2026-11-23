@@ -7,6 +7,7 @@ import {
   BriefcaseIcon,
   CarIcon,
   ChatIcon,
+  ChevronDownIcon,
   ClockIcon,
   EuroIcon,
   InboxIcon,
@@ -33,9 +34,18 @@ export type AdminNavCopy = {
   applications: string;
   corporate: string;
   vehicles: string;
+  fleetOverview?: string;
+  vehicleCosts?: string;
   financials?: string;
   openMenu: string;
   closeMenu: string;
+};
+
+type NavChild = {
+  href: string;
+  key: keyof AdminNavCopy;
+  defaultLabel: string;
+  match: (p: string, from?: string | null) => boolean;
 };
 
 type NavItem = {
@@ -44,6 +54,7 @@ type NavItem = {
   defaultLabel: string;
   icon: (props: { size?: number; className?: string }) => React.JSX.Element;
   match: (p: string, from?: string | null) => boolean;
+  children?: NavChild[];
 };
 
 type NavSection = {
@@ -77,7 +88,17 @@ const SECTIONS: NavSection[] = [
     titleKey: "fleetPartners",
     items: [
       { href: "/admin/corporate", key: "corporate", defaultLabel: "Corporate Partners", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
-      { href: "/admin/vehicles", key: "vehicles", defaultLabel: "Fleet & Compliance", icon: CarIcon, match: (p: string) => p.startsWith("/admin/vehicles") },
+      {
+        href: "/admin/vehicles",
+        key: "vehicles",
+        defaultLabel: "Fleet & Compliance",
+        icon: CarIcon,
+        match: (p: string) => p.startsWith("/admin/vehicles"),
+        children: [
+          { href: "/admin/vehicles", key: "fleetOverview", defaultLabel: "Fleet overview", match: (p: string) => p === "/admin/vehicles" },
+          { href: "/admin/vehicles/financials", key: "vehicleCosts", defaultLabel: "Vehicle costs", match: (p: string) => p.startsWith("/admin/vehicles/financials") },
+        ],
+      },
       {
         href: "/admin/drivers",
         key: "drivers",
@@ -120,6 +141,7 @@ export function AdminChrome({
   account: React.ReactNode;
   copy: AdminNavCopy;
 }) {
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
   const search = useSearchParams();
   const from = search.get("from");
@@ -199,19 +221,56 @@ export function AdminChrome({
                   const active = l.match(pathname, from);
                   const Icon = l.icon;
                   const label = copy[l.key] || l.defaultLabel;
+                  const expanded = l.children ? (opened[l.href] ?? active) : false;
                   return (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`group flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors ${
-                        active ? "bg-white/[0.08] text-white" : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
-                      }`}
-                    >
-                      <Icon size={17} className={active ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"} />
-                      <span className="truncate">{label}</span>
-                      <span className="ml-auto">{badges[l.href]}</span>
-                    </Link>
+                    <div key={l.href}>
+                      <div
+                        className={`group flex h-9 items-center gap-1 rounded-lg pr-1 text-[13px] font-medium transition-colors ${
+                          active ? "bg-white/[0.08] text-white" : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
+                        }`}
+                      >
+                        <Link
+                          href={l.href}
+                          aria-current={active && !l.children ? "page" : undefined}
+                          className="flex h-9 min-w-0 flex-1 items-center gap-3 rounded-lg px-3"
+                        >
+                          <Icon size={17} className={active ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"} />
+                          <span className="truncate">{label}</span>
+                          <span className="ml-auto">{badges[l.href]}</span>
+                        </Link>
+                        {l.children && (
+                          <button
+                            type="button"
+                            aria-expanded={expanded}
+                            aria-label={label}
+                            onClick={() => setOpened((current) => ({ ...current, [l.href]: !expanded }))}
+                            className="grid size-7 shrink-0 place-items-center rounded-md text-zinc-400 hover:bg-white/10 hover:text-white"
+                          >
+                            <ChevronDownIcon size={14} className={expanded ? "rotate-180" : ""} />
+                          </button>
+                        )}
+                      </div>
+                      {l.children && expanded && (
+                        <div className="mt-0.5 flex flex-col gap-0.5 pl-8">
+                          {l.children.map((child) => {
+                            const childActive = child.match(pathname, from);
+                            const childLabel = copy[child.key] || child.defaultLabel;
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                aria-current={childActive ? "page" : undefined}
+                                className={`flex h-8 items-center rounded-lg px-3 text-[13px] ${
+                                  childActive ? "bg-white/[0.08] font-medium text-white" : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
+                                }`}
+                              >
+                                <span className="truncate">{childLabel}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>

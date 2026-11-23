@@ -263,6 +263,17 @@
   -webkit-text-fill-color: #f4f4f5 !important;
 }
 
+/* Ride receipt: light controls on the navy dialog, with dark text and icon strokes */
+[role="dialog"]:not(.guests-landing-modal) button.receipt-contrast,
+[role="dialog"]:not(.guests-landing-modal) button.receipt-contrast:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[role="dialog"]:not(.guests-landing-modal) button.receipt-contrast svg {
+  stroke: #0f172a;
+}
+
 [role="dialog"]:not(.guests-landing-modal) button:disabled {
   color: #9eb6e8 !important;
   -webkit-text-fill-color: #9eb6e8 !important;
@@ -323,6 +334,60 @@
 }
 .mode-pill-light.mode-pill-off:hover {
   background-color: rgba(10, 10, 11, 0.06);
+}
+.review-mode-track {
+  width: fit-content;
+  max-width: 100%;
+  background-color: #0a1942;
+}
+.review-mode-pill {
+  cursor: pointer;
+  background-color: transparent;
+  color: rgba(244, 244, 245, 0.62);
+  -webkit-text-fill-color: rgba(244, 244, 245, 0.62);
+}
+.review-mode-pill-on,
+.review-mode-pill-on:hover {
+  background-color: #ffffff !important;
+  color: #0a1942 !important;
+  -webkit-text-fill-color: #0a1942 !important;
+}
+.review-mode-pill-off,
+.review-mode-pill-off:hover {
+  background-color: transparent !important;
+  color: rgba(244, 244, 245, 0.62) !important;
+  -webkit-text-fill-color: rgba(244, 244, 245, 0.62) !important;
+}
+.review-when input,
+.review-when input:focus,
+.review-when input:focus-visible,
+.review-when input[type="datetime-local"] {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.review-when input[type="datetime-local"]::-webkit-datetime-edit,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-text,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
+.review-when input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 0;
+}
+.review-when input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  cursor: pointer;
+  background: transparent;
+  opacity: 1;
 }
 :root[data-theme="navy"] .light-surface .mode-pill-light.mode-pill-on {
   background-color: #f4f4f5 !important;

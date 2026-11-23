@@ -299,20 +299,26 @@ export function JourneyBar({
     );
 
   const modeToggle = (
-    <div role="group" aria-label={t.modeLabel} className={`flex max-w-full rounded-full p-1 ${dark ? "bg-white/[0.1]" : "bg-ink-100"}`}>
-      {(["oneway", "hourly"] as const).map((mode) => (
-        <button
-          key={mode}
-          type="button"
-          aria-pressed={trip.mode === mode}
-          onClick={() => update({ mode, ...(mode === "hourly" ? { to: emptyPlace(), stops: [] } : {}) })}
-          className={`mode-pill h-[34px] min-w-0 cursor-pointer rounded-full border-0 px-3 text-[12px] sm:px-4 sm:text-[13px] ${dark ? "mode-pill-dark" : "mode-pill-light"} ${
-            trip.mode === mode ? "mode-pill-on font-semibold" : "mode-pill-off font-medium"
-          }`}
-        >
-          {mode === "oneway" ? t.modeOneWay : t.modeHourly}
-        </button>
-      ))}
+    <div className="w-fit max-w-full self-start">
+      <label className="mb-2 block text-xs uppercase tracking-wider text-slate-400">{t.modeLabel}</label>
+      <div role="group" aria-label={t.modeLabel} className={`inline-flex w-fit max-w-full rounded-full border border-solid p-1 ${dark ? "border-white/25 bg-white/[0.1]" : "border-ink-225 bg-ink-100"}`}>
+        {(["oneway", "hourly"] as const).map((mode) => {
+          const selected = trip.mode === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => update({ mode, ...(mode === "hourly" ? { to: emptyPlace(), stops: [] } : {}) })}
+              className={`mode-pill h-[34px] min-w-0 cursor-pointer rounded-full border-0 px-3 text-[12px] sm:px-4 sm:text-[13px] ${dark ? "mode-pill-dark" : "mode-pill-light"} ${
+                selected ? "mode-pill-on font-semibold" : "mode-pill-off font-medium"
+              }`}
+            >
+              {mode === "oneway" ? t.modeOneWay : t.modeHourly}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 

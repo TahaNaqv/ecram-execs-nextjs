@@ -65,7 +65,10 @@ const describeError = (err: unknown): string => {
     const lasting = err.status >= 400 && err.status < 500 && err.status !== 429 && err.status !== 404;
     return `${lasting ? "rejected: " : ""}${err.message}`.slice(0, 500);
   }
-  return (err instanceof Error ? err.message : String(err)).slice(0, 500);
+  const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : "";
+  const message = err instanceof Error ? err.message : String(err);
+  const detail = message.startsWith("Failed query:") && cause ? cause : message;
+  return detail.replace(/\s+/g, " ").slice(0, 500);
 };
 
 const lastingSql = () =>

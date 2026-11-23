@@ -28,7 +28,7 @@ export function BillingAddressCard({ partnerId, initial, copy: t }: { partnerId:
         {row("country", t.billingCountry, { maxLength: 2, placeholder: "NL" })}
         {row("vatNumber", t.billingVat, { maxLength: 30 })}
         <div className="sm:col-span-2">{row("invoiceEmail", t.billingEmail, { type: "email", maxLength: 254 })}</div>
-        <div className="flex items-center gap-3 sm:col-span-2">
+        <div className="mt-6 flex w-full items-center justify-center gap-3 sm:col-span-2">
           <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.md}`}>
             {pending ? t.billingSaving : t.billingSave}
           </button>

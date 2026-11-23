@@ -53,7 +53,14 @@ function describe(status: number, body: unknown): string {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let mockCounter = 2000;
+/** A fresh id on every call. A counter that restarts at 2000 collides with the unique moneybird_id already stored. */
+function mockId() {
+  return `mock_${crypto.randomUUID()}`;
+}
+
+function mockNumber() {
+  return `2026-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
 
 function handleMockMoneybird<T>(method: string, path: string, body: unknown): T {
   const reqBody = body as Record<string, unknown> | null | undefined;
@@ -88,7 +95,7 @@ function handleMockMoneybird<T>(method: string, path: string, body: unknown): T 
     const details = (s?.details_attributes ?? []) as Array<{ price?: string | number; amount?: number }>;
     const total = details.reduce((sum: number, d) => sum + Math.round(Number(d.price ?? 0) * 100) * Number(d.amount ?? 1), 0);
     const moneyStr = (total / 100).toFixed(2);
-    const newId = String(mockCounter++);
+    const newId = mockId();
     return {
       id: newId,
       invoice_id: null,
@@ -104,7 +111,7 @@ function handleMockMoneybird<T>(method: string, path: string, body: unknown): T 
     const id = path.split("/")[1];
     return {
       id,
-      invoice_id: `2026-${String(mockCounter++).padStart(4, "0")}`,
+      invoice_id: mockNumber(),
       reference: "EE-MOCK",
       state: "open",
       total_price_incl_tax: "178.63",
@@ -118,7 +125,7 @@ function handleMockMoneybird<T>(method: string, path: string, body: unknown): T 
     const id = path.replace(".json", "").split("/")[1];
     return {
       id,
-      invoice_id: `2026-${String(mockCounter++).padStart(4, "0")}`,
+      invoice_id: mockNumber(),
       reference: "EE-MOCK",
       state: "open",
       total_price_incl_tax: "178.63",
@@ -130,8 +137,8 @@ function handleMockMoneybird<T>(method: string, path: string, body: unknown): T 
   }
   if (method === "PATCH" && path.includes("/duplicate_creditinvoice.json")) {
     return {
-      id: String(mockCounter++),
-      invoice_id: `2026-${String(mockCounter++).padStart(4, "0")}`,
+      id: mockId(),
+      invoice_id: mockNumber(),
       state: "draft",
       total_price_incl_tax: "-178.63",
       total_unpaid: "-178.63",
@@ -139,13 +146,13 @@ function handleMockMoneybird<T>(method: string, path: string, body: unknown): T 
   }
   if (method === "PATCH" && path.includes("/register_payment_creditinvoice.json")) {
     return {
-      id: String(mockCounter++),
+      id: mockId(),
       state: "paid",
     } as T;
   }
   if (method === "PATCH" && path.startsWith("sales_invoices/")) {
     return {
-      id: String(mockCounter++),
+      id: mockId(),
       state: "open",
     } as T;
   }

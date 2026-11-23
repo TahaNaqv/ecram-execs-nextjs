@@ -83,7 +83,11 @@ export function DayMapView({
 
   return (
     <div className={dashboard ? "flex h-full min-h-0 flex-col" : undefined}>
-      <div role="region" aria-label={copy.frame} className={dashboard ? "h-44 w-full shrink-0 bg-zinc-100" : "h-72 w-full bg-zinc-100 sm:h-96"}>
+      <div
+        role="region"
+        aria-label={copy.frame}
+        className={dashboard ? "h-[220px] max-h-56 w-full shrink-0 overflow-hidden rounded-lg bg-zinc-100" : "h-72 w-full overflow-hidden bg-zinc-100 sm:h-96"}
+      >
         <APIProvider apiKey={apiKey} language={locale} region="NL">
           <Map defaultCenter={NETHERLANDS} defaultZoom={7} gestureHandling="cooperative" mapTypeControl={false} streetViewControl={false} className="h-full w-full">
             <Lines routes={drawn} selected={selected} onSelect={setSelected} />

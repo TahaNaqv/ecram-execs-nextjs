@@ -176,6 +176,36 @@ export const vehicles = pgTable("vehicles", {
   check("vehicles_status_known", sql`${t.status} in ('available', 'unavailable', 'maintenance')`),
 ]);
 
+/** One cost record per battery-electric car: purchase, lease, energy, and the Dutch tax bases. */
+export const vehicleFinancials = pgTable(
+  "vehicle_financials",
+  {
+    vehicleId: text("vehicle_id")
+      .primaryKey()
+      .references(() => vehicles.id, { onDelete: "cascade" }),
+    catalogueValue: numeric("catalogue_value", { precision: 12, scale: 2 }).notNull().default("0"),
+    purchasePrice: numeric("purchase_price", { precision: 12, scale: 2 }).notNull().default("0"),
+    leaseMonthlyCost: numeric("lease_monthly_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+    batteryCapacityKwh: numeric("battery_capacity_kwh", { precision: 8, scale: 2 }).notNull().default("0"),
+    efficiencyKwhPer100Km: numeric("efficiency_kwh_per_100km", { precision: 8, scale: 2 }).notNull().default("0"),
+    chargingRateEurPerKwh: numeric("charging_rate_eur_per_kwh", { precision: 8, scale: 4 }).notNull().default("0"),
+    insuranceMonthly: numeric("insurance_monthly", { precision: 12, scale: 2 }).notNull().default("0"),
+    standardMrbAnnual: numeric("standard_mrb_annual", { precision: 12, scale: 2 }).notNull().default("0"),
+    annualKmEstimate: integer("annual_km_estimate").notNull().default(0),
+    registrationDate: timestamp("registration_date", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    check(
+      "vehicle_financials_nonneg",
+      sql`${t.catalogueValue} >= 0 and ${t.purchasePrice} >= 0 and ${t.leaseMonthlyCost} >= 0 and ${t.batteryCapacityKwh} >= 0 and ${t.efficiencyKwhPer100Km} >= 0 and ${t.chargingRateEurPerKwh} >= 0 and ${t.insuranceMonthly} >= 0 and ${t.standardMrbAnnual} >= 0 and ${t.annualKmEstimate} >= 0`,
+    ),
+  ],
+);
+
 export const requestEvents = pgTable(
   "request_events",
   {
@@ -646,6 +676,7 @@ export const appSettings = pgTable(
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Vehicle = typeof vehicles.$inferSelect;
+export type VehicleFinancial = typeof vehicleFinancials.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;

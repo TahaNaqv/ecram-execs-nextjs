@@ -297,14 +297,14 @@ async function attachMoneybird(rows: LedgerRow[]): Promise<Map<string, Moneybird
   const found = await db
     .select({ requestId: mb.requestId, number: mb.number, state: mb.state, moneybirdId: mb.moneybirdId, creditedAt: mb.creditedAt })
     .from(mb)
-    .where(and(inArray(mb.requestId, rows.map((row) => row.id)), eq(mb.kind, "invoice"), sql`${mb.number} is not null`))
+    .where(and(inArray(mb.requestId, rows.map((row) => row.id)), eq(mb.kind, "invoice"), sql`(${mb.number} is not null or ${mb.moneybirdId} is not null)`))
     .orderBy(desc(mb.createdAt))
     .catch(() => []);
   for (const inv of found) {
-    if (!inv.requestId || !inv.number) continue;
+    if (!inv.requestId || (!inv.number && !inv.moneybirdId)) continue;
     const existing = map.get(inv.requestId);
     if (!existing || (!inv.creditedAt && existing.state === "credited")) {
-      map.set(inv.requestId, { number: inv.number, state: inv.creditedAt ? "credited" : inv.state, moneybirdId: inv.moneybirdId });
+      map.set(inv.requestId, { number: inv.number ?? "", state: inv.creditedAt ? "credited" : inv.state, moneybirdId: inv.moneybirdId });
     }
   }
   return map;
@@ -370,12 +370,12 @@ export function presentLedger(
       invoiceId: invoice?.id ?? null,
       invoiceCount: invoice?.count ?? 0,
       invoiceFile: invoice?.fileName ?? null,
-      moneybirdNumber: mbInvoice?.number ?? null,
+      moneybirdNumber: mbInvoice?.number || null,
       moneybirdState: mbInvoice?.state ?? null,
-      moneybirdHref: mbInvoice?.moneybirdId
-        ? (mbInvoice.moneybirdId.startsWith("mock_") || moneybirdConfig()?.token?.startsWith("mock"))
-          ? `/api/admin/financials/receipt/${row.id}`
-          : moneybirdInvoiceLink(mbInvoice.moneybirdId)
+      moneybirdHref: mbInvoice
+        ? mbInvoice.moneybirdId && !mbInvoice.moneybirdId.startsWith("mock_") && !moneybirdConfig()?.token?.startsWith("mock")
+          ? moneybirdInvoiceLink(mbInvoice.moneybirdId)
+          : `/api/admin/financials/receipt/${row.id}`
         : null,
     };
   });

@@ -21,9 +21,10 @@ import {
   XIcon,
 } from "../../_components/icons";
 import { StatusBadge, UrgentBadge } from "../../_components/status-badge";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mollieConfig } from "@/lib/mollie/config";
+import { moneybirdInvoiceLink } from "@/lib/moneybird/config";
 import { ClickableRow } from "./clickable-row";
 import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../../_components/ui";
@@ -154,6 +155,31 @@ function StatsSkeleton() {
   );
 }
 
+/** Invoice link for each booking on this page, so Moneybird stays on the row instead of only inside the booking. */
+async function moneybirdLinks(ids: string[]): Promise<Map<string, string>> {
+  const links = new Map<string, string>();
+  if (ids.length === 0) return links;
+  try {
+    const mb = schema.moneybirdInvoices;
+    const found = await db
+      .select({ requestId: mb.requestId, number: mb.number, moneybirdId: mb.moneybirdId, creditedAt: mb.creditedAt })
+      .from(mb)
+      .where(and(inArray(mb.requestId, ids), eq(mb.kind, "invoice"), sql`(${mb.number} is not null or ${mb.moneybirdId} is not null)`))
+      .orderBy(desc(mb.createdAt));
+    for (const row of found) {
+      if (!row.requestId || row.creditedAt || links.has(row.requestId)) continue;
+      const href =
+        row.moneybirdId && !row.moneybirdId.startsWith("mock_")
+          ? moneybirdInvoiceLink(row.moneybirdId)
+          : `/api/admin/financials/receipt/${row.requestId}`;
+      links.set(row.requestId, href);
+    }
+  } catch (error) {
+    console.error("[bookings] moneybird links failed", error);
+  }
+  return links;
+}
+
 /** The listed bookings that are to be paid at booking and have nothing paid yet (in the current Mollie mode). */
 async function unpaidAtBooking(rows: QuoteRequest[]): Promise<Set<string>> {
   const mode = mollieConfig()?.mode;
@@ -193,9 +219,10 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
   // Paid at booking, but the payment never came in (the checkout was left, or the booking came by chat or phone)
-  const [unpaid, paid] = await Promise.all([
+  const [unpaid, paid, invoices] = await Promise.all([
     unpaidAtBooking(rows as QuoteRequest[]),
     paidAtBooking(rows as QuoteRequest[]),
+    moneybirdLinks(rows.map((r: QuoteRequest) => r.id)),
   ]);
   const paymentStatusBadge = (r: QuoteRequest) => {
     const st = r.paymentStatus?.toUpperCase() || (paid.has(r.id) ? "PAID" : unpaid.has(r.id) ? "UNPAID" : "OPEN");
@@ -359,6 +386,13 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               const destinationsArray = [...(r.destinations ?? []), journeyEnd(r)].filter(Boolean);
               return (
                 <li key={r.id}>
+                  {invoices.get(r.id) && (
+                    <div className="flex justify-end px-4 pt-3">
+                      <a href={invoices.get(r.id)} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.sm}`}>
+                        {t.moneybird.openInMoneybird}
+                      </a>
+                    </div>
+                  )}
                   <Link href={`/admin/requests/${r.id}`} className="flex w-full cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 active:bg-zinc-100">
                     <Avatar name={r.name} />
                     <div className="min-w-0 flex-1">
@@ -510,6 +544,11 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                           <StatusBadge status={r.status} />
                           <UrgentBadge request={r} />
                           {paymentStatusBadge(r)}
+                          {invoices.get(r.id) && (
+                            <a href={invoices.get(r.id)} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.sm}`}>
+                              {t.moneybird.openInMoneybird}
+                            </a>
+                          )}
                         </span>
                       </td>
                       <td className="whitespace-nowrap py-3.5 pl-3 pr-5 text-right">

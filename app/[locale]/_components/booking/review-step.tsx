@@ -1,21 +1,39 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
-import { FLEET, MAX_GALLERY_IMAGES, fitConvoy, suggestVehicle, vehicleByKey, type ConvoyPlan, type FleetVehicle, type OfferedVehicle } from "@/lib/fleet/vehicles";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  FLEET,
+  MAX_GALLERY_IMAGES,
+  fitConvoy,
+  suggestVehicle,
+  vehicleByKey,
+  type ConvoyPlan,
+  type FleetVehicle,
+  type OfferedVehicle,
+} from "@/lib/fleet/vehicles";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import type { Locale } from "@/lib/i18n/config";
 import type { BookingResult, BookingStep, DetailsEntry } from "./booking-flow";
+import { CountryCode } from "./country-code";
 import { pretty, SeatIcon } from "./parts";
-import type { AddOnsCopy, BookingCopy } from "./copy";
+import { netherlandsNow, type AddOnsCopy, type BookingCopy, type TripMessages } from "./copy";
 import { extrasLine } from "@/lib/pricing/extras";
-import { guestsText, partyLine } from "./guests-picker";
-import { involvesAirport, pickupAtAirport, type Trip } from "./trip";
+import { AddressField } from "./address-field";
+import { DateTimeField, type DateTimeCopy } from "@/components/date-time-field";
+import { GuestsPicker, guestsText, partyLine } from "./guests-picker";
+import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
+import { MAX_STOPS } from "@/lib/quotes/stops";
+import { adjacentPlaceTexts, carsCapacityProblem, involvesAirport, MAX_PER_CAR, normalizeTrip, samePlace, type Place, type Stop, type Trip } from "./trip";
+import { cleanPhoneInput } from "@/lib/phone";
+import { isPastWall } from "@/lib/time/amsterdam";
 import { formatRouteSpan, spanFromPrice } from "@/lib/pricing/route-span";
 import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
 import { amsterdamDay, balanceDueOn, planFor, upfrontCents } from "@/lib/payments/schedule";
 import { formatCents } from "@/lib/pricing/rates";
+
+type EditableSection = "contact" | "ride" | "vehicle" | null;
 
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -33,10 +51,12 @@ function waypoints(trip: Trip, t: BookingCopy): { label: string; place: string }
   if (trip.mode === "hourly") return trip.from.text ? [{ label: t.reviewPickup, place: trip.from.text }] : [];
   return [
     { label: t.reviewPickup, place: trip.from.text },
-    ...trip.stops.filter((s) => s.place.trim()).map((s, index) => ({
-      label: interpolate(t.reviewStop, { number: index + 1 }),
-      place: s.wait ? `${s.place} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : s.place,
-    })),
+    ...trip.stops
+      .filter((s) => s.place.trim())
+      .map((s, index) => ({
+        label: interpolate(t.reviewStop, { number: index + 1 }),
+        place: s.wait ? `${s.place} (${interpolate(t.waitMinutes, { minutes: s.wait })})` : s.place,
+      })),
     { label: t.reviewDropoff, place: trip.to.text },
   ].filter((w) => w.place.trim());
 }
@@ -48,7 +68,10 @@ function waypoints(trip: Trip, t: BookingCopy): { label: string; place: string }
 export function RouteOutline({ trip, copy: t, locale }: { trip: Trip; copy: BookingCopy; locale: Locale }) {
   const points = waypoints(trip, t);
   return (
-    <aside aria-label={t.routeTitle} className="flex flex-col gap-5 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6 lg:sticky lg:top-24">
+    <aside
+      aria-label={t.routeTitle}
+      className="flex flex-col gap-5 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6 lg:sticky lg:top-24"
+    >
       <span className="text-[11px] font-semibold tracking-[0.16em] text-ink-500 uppercase">{t.routeTitle}</span>
       {points.length === 0 ? (
         <p className="m-0 text-[14px] text-ink-600">{t.routeEmpty}</p>
@@ -56,8 +79,15 @@ export function RouteOutline({ trip, copy: t, locale }: { trip: Trip; copy: Book
         <ol className="m-0 flex list-none flex-col p-0">
           {points.map((w, i) => (
             <li key={i} className="relative flex gap-4 pb-5 last:pb-0">
-              {i < points.length - 1 && <span aria-hidden="true" className="absolute top-4 bottom-0 left-[7px] w-px bg-ink-300" />}
-              <span aria-hidden="true" className={`relative mt-1 size-[15px] shrink-0 rounded-full border-2 border-solid border-ink-950 ${i === 0 || i === points.length - 1 ? "bg-ink-950" : "bg-white"}`} />
+              {i < points.length - 1 && (
+                <span aria-hidden="true" className="absolute top-4 bottom-0 left-[7px] w-px bg-ink-300" />
+              )}
+              <span
+                aria-hidden="true"
+                className={`relative mt-1 size-[15px] shrink-0 rounded-full border-2 border-solid border-ink-950 ${
+                  i === 0 || i === points.length - 1 ? "bg-ink-950" : "bg-white"
+                }`}
+              />
               <span className="flex min-w-0 flex-col">
                 <span className="text-[12px] text-ink-600">{w.label}</span>
                 <span className="text-[15px] font-medium wrap-break-word">{w.place}</span>
@@ -66,7 +96,9 @@ export function RouteOutline({ trip, copy: t, locale }: { trip: Trip; copy: Book
           ))}
         </ol>
       )}
-      {trip.mode === "hourly" && trip.hours !== "" && <p className="m-0 text-[14px] text-ink-700">{interpolate(t.routeHourly, { hours: trip.hours })}</p>}
+      {trip.mode === "hourly" && trip.hours !== "" && (
+        <p className="m-0 text-[14px] text-ink-700">{interpolate(t.routeHourly, { hours: trip.hours })}</p>
+      )}
       {(trip.at || trip.guestsSet) && (
         <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-0 border-t border-solid border-ink-150 pt-4 text-[14px]">
           {trip.at && (
@@ -99,9 +131,12 @@ const lineFor = (t: BookingCopy, picks: { key: string; count: number }[]) =>
   picks.map((p) => interpolate(t.convoyCars, { count: p.count, car: vehicleByKey(p.key)?.name ?? p.key })).join(", ");
 
 /** Cars to draw when more than one is in play: the visitor's mix, or the tight fit we suggest. Empty for a single car. */
-export function previewCars(trip: Pick<Trip, "pax" | "cars">, offered: readonly OfferedVehicle[] = FLEET): { key: string; name: string; images: string[]; count: number }[] {
+export function previewCars(
+  trip: Pick<Trip, "pax" | "cars">,
+  offered: readonly OfferedVehicle[] = FLEET,
+): { key: string; name: string; images: string[]; count: number }[] {
   const manual = chosenPicks(trip);
-  const source = manual.length > 1 || (manual[0]?.count ?? 0) > 1 ? manual : manual.length === 0 ? (fitConvoy(offered, trip.pax) ?? []) : [];
+  const source = manual.length > 1 || (manual[0]?.count ?? 0) > 1 ? manual : manual.length === 0 ? fitConvoy(offered, trip.pax) ?? [] : [];
   return source.flatMap((pick) => {
     const vehicle = vehicleByKey(pick.key);
     const extra = offered.find((item) => item.key === pick.key);
@@ -112,12 +147,21 @@ export function previewCars(trip: Pick<Trip, "pax" | "cars">, offered: readonly 
 }
 
 /** Every photo of each chosen model, stacked as its own full-width card with arrows. */
-export function CarMixPreview({ cars, copy }: { cars: { key: string; name: string; images: string[]; count: number }[]; copy: GalleryCopy }) {
+export function CarMixPreview({
+  cars,
+  copy,
+}: {
+  cars: { key: string; name: string; images: string[]; count: number }[];
+  copy: GalleryCopy;
+}) {
   if (cars.length === 0) return null;
   return (
     <ul className="m-0 flex w-full list-none flex-col gap-4 p-0">
       {cars.map((car) => (
-        <li key={car.key} className="box-border flex w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-[12px] border border-solid border-[#d7deee] bg-[#ffffff]">
+        <li
+          key={car.key}
+          className="box-border flex w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-[12px] border border-solid border-[#d7deee] bg-[#ffffff]"
+        >
           <div className="flex items-center px-3 py-2.5">
             <span className="truncate text-[13px] leading-none font-semibold text-[#10224f]">
               {car.count} × {car.name}
@@ -133,7 +177,11 @@ export function CarMixPreview({ cars, copy }: { cars: { key: string; name: strin
 }
 
 /** "2 × Audi E-Tron GT" or "1 × Audi E-Tron GT, 1 × Cadillac Escalade IQ". Null for one single car. */
-export function selectionLabel(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): string | null {
+export function selectionLabel(
+  t: BookingCopy,
+  trip: Pick<Trip, "pax" | "vehicle" | "cars">,
+  offered: readonly { key: string }[] = FLEET,
+): string | null {
   const picks = chosenPicks(trip);
   if (picks.length > 1 || (picks[0] && picks[0].count > 1)) return lineFor(t, picks);
   if (picks.length === 1) return null;
@@ -142,14 +190,20 @@ export function selectionLabel(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle
 }
 
 /** The sentence shown when more than one car is chosen, or when the party does not fit in one and none was chosen. */
-export function convoySentence(t: BookingCopy, trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): string | null {
+export function convoySentence(
+  t: BookingCopy,
+  trip: Pick<Trip, "pax" | "vehicle" | "cars">,
+  offered: readonly { key: string }[] = FLEET,
+): string | null {
   const label = selectionLabel(t, trip, offered);
   if (!label) return null;
-  // The visitor's own mix is their choice, not something the party requires
   return interpolate(chosenPicks(trip).length > 0 ? t.convoyChosen : t.convoyLine, { cars: label, party: guestsText(t, trip.pax) });
 }
 
-export function convoyPlan(trip: Pick<Trip, "pax" | "vehicle" | "cars">, offered: readonly { key: string }[] = FLEET): ConvoyPlan | undefined {
+export function convoyPlan(
+  trip: Pick<Trip, "pax" | "vehicle" | "cars">,
+  offered: readonly { key: string }[] = FLEET,
+): ConvoyPlan | undefined {
   if (chosenPicks(trip).length > 0) return undefined;
   const plan = fitConvoy(offered, trip.pax);
   const lead = plan ? vehicleByKey(plan[0]?.key) : undefined;
@@ -167,6 +221,12 @@ function distanceText(est: { meters: number; seconds: number }, t: BookingCopy, 
   return formatRouteSpan(est, t, locale);
 }
 
+function setFieldValue(fields: DetailsEntry["fields"], key: string, nextValue: string): DetailsEntry["fields"] {
+  const index = fields.findIndex(([name]) => name === key);
+  if (index === -1) return [...fields, [key, nextValue]];
+  return fields.map(([name, val], idx) => (idx === index ? [name, nextValue] : [name, val]));
+}
+
 /**
  * The last step: the trip and party, then the vehicle and price, then the agreement, then the send.
  * Distance and driving time are asked of Google here, once, and not before (see /api/route-estimate).
@@ -174,19 +234,23 @@ function distanceText(est: { meters: number; seconds: number }, t: BookingCopy, 
 export function ReviewStep({
   headingRef,
   variant,
-  trip,
-  entered,
+  trip: propTrip,
+  entered: propEntered,
   copy: t,
   addOns,
   locale,
-  chosen,
+  chosen: propChosen,
   vehicleAdvise,
   result,
   booker,
   lockedNotice,
   gallery,
   vehicles = FLEET,
+  messages,
+  dateTimeCopy,
   onEdit,
+  onUpdateTrip,
+  onUpdateDetails,
   onSend,
   payOnline = false,
 }: {
@@ -206,21 +270,222 @@ export function ReviewStep({
   lockedNotice?: ReactNode;
   gallery: GalleryCopy;
   vehicles?: readonly OfferedVehicle[];
+  messages: TripMessages;
+  dateTimeCopy: DateTimeCopy;
   onEdit: (step: BookingStep) => void;
+  /** Optional inline updaters so edits stay on the review step without restarting the flow */
+  onUpdateTrip?: (nextTrip: Trip) => void;
+  onUpdateDetails?: (nextDetails: DetailsEntry) => void;
   /** `shown`: the payment plan and total the customer agreed to on this screen (checked again by the server) */
   onSend: (quoted: ReturnType<typeof tripPrice>, shown: { plan: string; totalCents: number } | null) => void;
 }) {
   const uid = useId();
   const portal = variant === "portal";
+
+  const [localTrip, setLocalTrip] = useState<Trip>(propTrip);
+  const [localEntered, setLocalEntered] = useState<DetailsEntry>(propEntered);
+
+  useEffect(() => {
+    setLocalTrip(propTrip);
+  }, [propTrip]);
+
+  useEffect(() => {
+    setLocalEntered(propEntered);
+  }, [propEntered]);
+
+  const trip = onUpdateTrip ? propTrip : localTrip;
+  const entered = onUpdateDetails ? propEntered : localEntered;
+
+  const commitTrip = (nextTrip: Trip) => {
+    setLocalTrip(nextTrip);
+    onUpdateTrip?.(nextTrip);
+  };
+
+  const commitEntered = (nextDetails: DetailsEntry) => {
+    setLocalEntered(nextDetails);
+    onUpdateDetails?.(nextDetails);
+  };
+
+  const [editingSection, setEditingSection] = useState<EditableSection>(null);
+
+  // Draft state for inline Contact Details editing
+  const [draftName, setDraftName] = useState("");
+  const [draftEmail, setDraftEmail] = useState("");
+  const [draftPhoneCountry, setDraftPhoneCountry] = useState("31");
+  const [draftPhone, setDraftPhone] = useState("");
+  const [draftPurpose, setDraftPurpose] = useState<DetailsEntry["purpose"]>("business");
+  const [draftWho, setDraftWho] = useState<DetailsEntry["who"]>("me");
+  const [draftPassengerName, setDraftPassengerName] = useState("");
+  const [draftPassengerPhone, setDraftPassengerPhone] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
+
+  // Draft state for inline Ride details editing
+  const [draftMode, setDraftMode] = useState<Trip["mode"]>("oneway");
+  const [draftFrom, setDraftFrom] = useState<Place>({ text: "", id: null, kind: null });
+  const [draftTo, setDraftTo] = useState<Place>({ text: "", id: null, kind: null });
+  const [draftAt, setDraftAt] = useState("");
+  const [draftHours, setDraftHours] = useState<number | "">("");
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const [draftPax, setDraftPax] = useState<number>(1);
+  const [draftBags, setDraftBags] = useState<number>(0);
+  const [draftSmall, setDraftSmall] = useState<number>(0);
+  const [draftStops, setDraftStops] = useState<Stop[]>([]);
+
+  // Draft state for inline Vehicle editing
+  const [draftVehicleKey, setDraftVehicleKey] = useState<string>("advise");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const vehicleOrigin = useRef<Trip | null>(null);
+
   const value = (k: string) => (entered.fields.find(([name]) => name === k)?.[1] ?? "").trim();
+
+  const discardVehiclePreview = () => {
+    if (editingSection === "vehicle" && vehicleOrigin.current) commitTrip(vehicleOrigin.current);
+    vehicleOrigin.current = null;
+  };
+
+  const startEditContact = () => {
+    discardVehiclePreview();
+    setFormErrors({});
+    setDraftName(portal && booker ? booker.name : value("name"));
+    setDraftEmail(portal && booker ? booker.email : value("email"));
+    setDraftPhoneCountry(value("phoneCountry") || "31");
+    setDraftPhone(value("phone"));
+    setDraftPurpose(entered.purpose);
+    setDraftWho(entered.who);
+    setDraftPassengerName(entered.who === "other" ? value("passengerName") : "");
+    setDraftPassengerPhone(value("passengerPhone"));
+    setDraftNotes(value("notes"));
+    setEditingSection("contact");
+  };
+
+  const saveContact = () => {
+    const name = draftName.trim();
+    const email = draftEmail.trim();
+    const country = draftPhoneCountry.replace(/\D/g, "") || "31";
+    const phone = cleanPhoneInput(draftPhone, country);
+    const found: Record<string, string> = {};
+    if (!portal && !name) found.name = messages.nameRequired;
+    if (!portal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) found.email = messages.emailInvalid;
+    if (phone.replace(/\D/g, "").length < 6) found.phone = messages.phoneNumberInvalid;
+    if (draftWho === "other" && !draftPassengerName.trim()) found.passenger = t.passengerNameRequired;
+    setFormErrors(found);
+    if (Object.keys(found).length > 0) return;
+    let nextFields = [...entered.fields];
+    if (!(portal && booker)) {
+      nextFields = setFieldValue(nextFields, "name", name);
+      nextFields = setFieldValue(nextFields, "email", email);
+    }
+    nextFields = setFieldValue(nextFields, "phoneCountry", country);
+    nextFields = setFieldValue(nextFields, "phone", phone);
+    nextFields = setFieldValue(nextFields, "passengerName", draftWho === "other" ? draftPassengerName.trim() : "");
+    nextFields = setFieldValue(nextFields, "passengerPhone", draftWho === "other" ? cleanPhoneInput(draftPassengerPhone, country) : "");
+    nextFields = setFieldValue(nextFields, "notes", draftNotes);
+    commitEntered({ ...entered, who: draftWho, purpose: draftPurpose, fields: nextFields });
+    setFormErrors({});
+    setEditingSection(null);
+  };
+
+  const startEditRide = () => {
+    discardVehiclePreview();
+    setFormErrors({});
+    setDraftMode(trip.mode);
+    setDraftFrom(trip.from);
+    setDraftTo(trip.to);
+    setDraftAt(trip.at ?? "");
+    setDraftHours(trip.hours);
+    setDraftPax(Math.max(1, Number(trip.pax) || 1));
+    setDraftBags(Math.max(0, Number(trip.bags) || 0));
+    setDraftSmall(Math.max(0, Number(trip.small) || 0));
+    setDraftStops(trip.stops);
+    setEditingSection("ride");
+  };
+
+  const saveRide = () => {
+    const from = draftFrom.text.trim();
+    const to = draftTo.text.trim();
+    const found: Record<string, string> = {};
+    if (!from) found.from = messages.collectionRequired;
+    if (draftMode === "oneway" && !to) found.to = messages.destinationRequired;
+    if (from && to && samePlace(from, to)) found.to = messages.samePlace;
+    if (draftMode === "hourly" && draftHours === "") found.hours = t.durationPlaceholder;
+    if (!draftAt.trim()) found.at = messages.pickupInvalid;
+    else if (isPastWall(draftAt.trim(), netherlandsNow())) found.at = messages.pickupPast;
+    setFormErrors(found);
+    if (Object.keys(found).length > 0) return;
+    commitTrip({
+      ...trip,
+      mode: draftMode,
+      from: { ...draftFrom, text: from },
+      to: draftMode === "hourly" ? trip.to : { ...draftTo, text: to },
+      at: draftAt.trim(),
+      hours: draftMode === "hourly" ? draftHours : trip.hours,
+      stops: draftMode === "oneway" ? draftStops.filter((stop) => stop.place.trim()) : [],
+      pax: Math.max(1, draftPax),
+      bags: Math.max(0, draftBags),
+      small: Math.max(0, draftSmall),
+      guestsSet: true,
+    });
+    setFormErrors({});
+    setEditingSection(null);
+  };
+
+  const setVehicleCount = (key: string, count: number) => {
+    const others = trip.cars.filter((car) => car.key !== key);
+    const cars = key === "advise" || count <= 0 ? (key === "advise" ? [] : others) : [...others, { key, count: Math.min(MAX_PER_CAR, count) }];
+    const next = normalizeTrip(cars.length > 0 ? { ...trip, cars, vehicle: cars[0].key } : { ...trip, cars: [], vehicle: "advise" });
+    const problem = carsCapacityProblem(next.cars, next.pax, next.bags);
+    setFormErrors(
+      problem.passengers || problem.luggage
+        ? { vehicle: problem.passengers && problem.luggage ? messages.vehicleBoth : problem.passengers ? messages.vehiclePassengers : messages.vehicleLuggage }
+        : {},
+    );
+    setDraftVehicleKey(next.vehicle || "advise");
+    commitTrip(next);
+  };
+
+  const startEditVehicle = () => {
+    vehicleOrigin.current = trip;
+    const activePick = trip.cars.find((c) => c.count > 0)?.key;
+    setDraftVehicleKey(activePick || trip.vehicle || "advise");
+    setFormErrors({});
+    setEditingSection("vehicle");
+  };
+
+  const saveVehicle = () => {
+    vehicleOrigin.current = null;
+    setFormErrors({});
+    setEditingSection(null);
+  };
+
+  const setRideMode = (mode: Trip["mode"]) => {
+    if (editingSection === "ride") {
+      setDraftMode(mode);
+      return;
+    }
+    if (trip.mode === mode) return;
+    commitTrip({ ...trip, mode });
+  };
+
+  const cancelEdit = () => {
+    if (editingSection === "vehicle" && vehicleOrigin.current) commitTrip(vehicleOrigin.current);
+    vehicleOrigin.current = null;
+    setFormErrors({});
+    setEditingSection(null);
+  };
+
   const [agreed, setAgreed] = useState(false);
   const [mustAgree, setMustAgree] = useState(false);
 
   const routed = trip.mode === "oneway" && trip.from.text.trim() && trip.to.text.trim();
   const stopsKey = trip.stops.map((s) => s.place.trim()).filter(Boolean).join("|");
   const [estimate, setEstimate] = useState<{ meters: number; seconds: number } | null | "pending">(routed ? "pending" : null);
+
   useEffect(() => {
-    if (!routed) return;
+    if (!routed) {
+      setEstimate(null);
+      return;
+    }
+    setEstimate("pending");
     const query = new URLSearchParams({ from: trip.from.text, to: trip.to.text });
     for (const s of stopsKey.split("|").filter(Boolean)) query.append("stop", s);
     const controller = new AbortController();
@@ -235,9 +500,21 @@ export function ReviewStep({
 
   const phone = (country: string, number: string) => (number ? `+${country} ${number}` : "");
   const kind =
-    trip.mode === "hourly" ? t.modeHourly : involvesAirport(trip) ? t.reviewAirport : entered.purpose === "private" ? t.purposePrivate : t.purposeBusiness;
-  const company = entered.purpose === "business" ? [value("entity"), value("entityKvk") && `KVK ${value("entityKvk")}`].filter(Boolean).join(" · ") : "";
-  const passenger = entered.who === "other" ? [value("passengerName"), phone(value("passengerPhoneCountry") || value("phoneCountry"), value("passengerPhone"))].filter(Boolean).join(" · ") : t.reviewSameAsBooker;
+    trip.mode === "hourly"
+      ? t.modeHourly
+      : involvesAirport(trip)
+        ? t.reviewAirport
+        : entered.purpose === "private"
+          ? t.purposePrivate
+          : t.purposeBusiness;
+  const company =
+    entered.purpose === "business" ? [value("entity"), value("entityKvk") && `KVK ${value("entityKvk")}`].filter(Boolean).join(" · ") : "";
+  const passenger =
+    entered.who === "other"
+      ? [value("passengerName"), phone(value("passengerPhoneCountry") || value("phoneCountry"), value("passengerPhone"))]
+          .filter(Boolean)
+          .join(" · ")
+      : t.reviewSameAsBooker;
 
   const contact: [string, ReactNode][] = [
     [t.reviewName, portal && booker ? booker.name : value("name")],
@@ -254,28 +531,31 @@ export function ReviewStep({
   if (trip.mode === "hourly" && trip.hours !== "") ride.push([t.duration, interpolate(t.asDirected, { hours: trip.hours })]);
   if (trip.at) ride.push([t.summaryWhen, pretty(trip.at, locale)]);
   ride.push([t.summaryParty, partyLine(t, trip.pax, trip.bags, trip.small)]);
-  if (pickupAtAirport(trip) && trip.flight.trim()) ride.push([t.summaryFlight, trip.flight.trim()]);
+
   const segment = segmentOf(variant);
   const drive = estimate && estimate !== "pending" ? estimate : null;
   const waits = tripWaitMinutes(trip);
   const price = tripPrice(trip, segment, drive?.seconds ?? null, drive?.meters ?? null);
-  // When it is paid (lib/payments/schedule.ts; the server works it out again): the fee now and the rest 30 days before
-  // the ride, or everything now when the ride is within 30 days. Approved by itself 6 months or more ahead.
   const payPlan = payOnline && price && price.total > 0 ? planFor(trip.at, amsterdamDay()) : null;
   const upfront = payPlan && price ? upfrontCents(payPlan, price.total, price) : null;
   const restCents = payPlan && price && upfront != null ? price.total - upfront : 0;
   const restOn = balanceDueOn(payPlan, trip.at);
   const longDate = (iso: string) =>
-    new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
-  // Google's drive does not include time waiting at a stop. The distance line's travel time does, the same way the
-  // corporate review states the drive and the waits together. A fallback that only has billed hours already counted them.
+    new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${iso}T12:00:00Z`));
+
   const storedDrive =
     !drive && price && typeof price.distanceMeters === "number" && price.distanceMeters > 0 && typeof price.driveSeconds === "number" && price.driveSeconds > 0
       ? { meters: price.distanceMeters, seconds: price.driveSeconds }
       : null;
   const driveOnly = drive ?? storedDrive;
   const withWaits = driveOnly && waits > 0 ? { meters: driveOnly.meters, seconds: driveOnly.seconds + waits * 60 } : driveOnly;
-  const calculated = estimate === "pending" ? null : (withWaits ?? spanFromPrice(price));
+  const calculated = estimate === "pending" ? null : withWaits ?? spanFromPrice(price);
+
   if (routed || trip.mode === "hourly" || calculated) {
     const distance =
       estimate === "pending" ? (
@@ -289,50 +569,76 @@ export function ReviewStep({
       );
     ride.push([t.reviewDistance, distance]);
   }
-  // The drive and the waits together, spelled out the same way on a standard booking and a corporate one
   if (driveOnly && waits > 0) {
-    ride.push([t.reviewTotalTime, interpolate(t.reviewTotalTimeValue, { time: minutesText(driveOnly.seconds / 60 + waits, t), wait: minutesText(waits, t) })]);
+    ride.push([
+      t.reviewTotalTime,
+      interpolate(t.reviewTotalTimeValue, { time: minutesText(driveOnly.seconds / 60 + waits, t), wait: minutesText(waits, t) }),
+    ]);
   }
 
   const picks = trip.cars.filter((c) => c.count > 0);
   const plan = convoyPlan(trip);
   const convoy = convoySentence(t, trip);
-  const listed = picks.length > 1 || (picks[0]?.count ?? 0) > 1
-    ? picks.map((p) => `${p.count} × ${vehicleByKey(p.key)?.name ?? p.key}`).join(", ")
-    : null;
+  const listed =
+    picks.length > 1 || (picks[0]?.count ?? 0) > 1
+      ? picks.map((p) => `${p.count} × ${vehicleByKey(p.key)?.name ?? p.key}`).join(", ")
+      : null;
   if (listed) ride.push([t.reviewVehicle, listed]);
   else if (convoy) ride.push([t.reviewVehicle, convoy]);
+
   const extras = extrasLine(addOns, trip.extras);
   if (extras) ride.push([t.reviewExtras, extras]);
+
+  const activeSingleVehicle = picks.length === 1 ? vehicleByKey(picks[0].key) : undefined;
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip, vehicles);
   const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
-  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? chosen ?? advised;
+  const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? activeSingleVehicle ?? propChosen ?? advised;
   const extra = picks[0] ? vehicles.find((item) => item.key === picks[0].key) : undefined;
   const name = advised?.name || label || lead?.name || extra?.name || vehicleAdvise;
   const photos = (extra?.images?.length ? extra.images : lead?.images ?? []).slice(0, MAX_GALLERY_IMAGES);
-  const seats = label ? null : (lead?.specs?.passengers ?? null);
+  const seats = label ? null : lead?.specs?.passengers ?? null;
 
-  const card = (title: string, children: ReactNode, onEditSection?: () => void) => (
-    <section aria-label={title} className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
-      <div className="flex shrink-0 items-center justify-between gap-3">
-        <h3 className="m-0 text-[16px] font-semibold">{title}</h3>
-        {onEditSection && (
+  const renderSectionActions = (
+    sectionKey: Exclude<EditableSection, null>,
+    onStart: () => void,
+    onSave: () => void,
+  ) => {
+    if (editingSection === sectionKey) {
+      return (
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={onEditSection}
-            className="flex cursor-pointer items-center gap-1.5 rounded-full bg-ink-100 px-3 py-1 text-[12px] font-semibold text-ink-950 hover:bg-ink-200"
+            onClick={cancelEdit}
+            className="cursor-pointer rounded-full border border-solid border-ink-225 bg-white px-3 py-1 text-[12px] font-semibold text-ink-700 hover:border-ink-950 hover:text-ink-950"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M4 20h4L19 9l-4-4L4 16z" />
-            </svg>
-            {t.edit}
+            {t.cancel}
           </button>
-        )}
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-    </section>
-  );
+          <button
+            type="button"
+            onClick={onSave}
+            className="cursor-pointer rounded-full border-0 bg-ink-950 px-3 py-1 text-[12px] font-semibold text-white hover:bg-ink-800"
+          >
+            {t.reviewSave}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={onStart}
+        className="flex cursor-pointer items-center gap-1.5 rounded-full bg-ink-100 px-3 py-1 text-[12px] font-semibold text-ink-950 hover:bg-ink-200"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M4 20h4L19 9l-4-4L4 16z" />
+        </svg>
+        {t.edit}
+      </button>
+    );
+  };
+
   const rows = (items: [string, ReactNode][]) => (
     <dl className="m-0 flex h-full flex-1 flex-col">
       {items.map(([k, v], i) => {
@@ -362,6 +668,9 @@ export function ReviewStep({
     </dl>
   );
 
+  const inputClass =
+    "w-full rounded-lg border border-solid border-ink-225 bg-white px-3 py-1.5 text-[13px] text-ink-950 focus:border-ink-950 focus:outline-none";
+
   return (
     <section aria-labelledby="booking-review" className="scroll-mt-6">
       <h2 id="booking-review" ref={headingRef} tabIndex={-1} className="m-0 mb-6 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
@@ -369,60 +678,396 @@ export function ReviewStep({
       </h2>
       <div className="flex min-w-0 flex-col gap-4">
         <div className="grid items-stretch gap-4 md:grid-cols-2">
-          {card(t.reviewContact, rows(contact), () => onEdit("details"))}
-          {card(t.reviewRide, rows(ride), () => onEdit("journey"))}
+          {/* Contact Details Card */}
+          <section
+            aria-label={t.reviewContact}
+            className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <h3 className="m-0 text-[16px] font-semibold">{t.reviewContact}</h3>
+              {renderSectionActions("contact", startEditContact, saveContact)}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              {editingSection === "contact" ? (
+                <div className="flex flex-col gap-3 text-[13px]">
+                  {!(portal && booker) && (
+                    <>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[12px] text-ink-500">{t.reviewName}</span>
+                        <input type="text" value={draftName} onChange={(e) => setDraftName(e.target.value)} className={inputClass} />
+                        {formErrors.name && <span className="text-[12px] text-error">{formErrors.name}</span>}
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[12px] text-ink-500">{t.email}</span>
+                        <input type="email" inputMode="email" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} className={inputClass} />
+                        {formErrors.email && <span className="text-[12px] text-error">{formErrors.email}</span>}
+                      </label>
+                    </>
+                  )}
+                  <div className="phone-field flex flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5 focus-within:border-ink-950">
+                    <span className="text-[12px] text-ink-600">{t.mobile}</span>
+                    <span className="flex min-w-0 items-stretch">
+                      <CountryCode
+                        name="phoneCountry"
+                        label={t.phoneCountry}
+                        country={draftPhoneCountry}
+                        onChange={(next) => {
+                          setDraftPhoneCountry(next);
+                          setDraftPhone((current) => cleanPhoneInput(current, next));
+                        }}
+                      />
+                      <input
+                        type="text"
+                        inputMode="tel"
+                        autoComplete="tel-national"
+                        value={draftPhone}
+                        onChange={(e) => setDraftPhone(cleanPhoneInput(e.target.value, draftPhoneCountry.replace(/\D/g, "") || "31"))}
+                        className="phone-number min-w-0 flex-1 border-0 bg-transparent py-0 pr-0 pl-3 font-sans text-[16px] font-medium text-ink-950 outline-none"
+                      />
+                    </span>
+                    {formErrors.phone && <span className="text-[12px] text-error">{formErrors.phone}</span>}
+                  </div>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[12px] text-ink-500">{t.reviewTrip}</span>
+                    <select value={draftPurpose} onChange={(e) => setDraftPurpose(e.target.value as DetailsEntry["purpose"])} className={inputClass}>
+                      <option value="business">{t.purposeBusiness}</option>
+                      <option value="private">{t.purposePrivate}</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[12px] text-ink-500">{t.reviewPassenger}</span>
+                    <select value={draftWho} onChange={(e) => setDraftWho(e.target.value as DetailsEntry["who"])} className={inputClass}>
+                      <option value="me">{t.reviewSameAsBooker}</option>
+                      <option value="other">{t.whoOther}</option>
+                    </select>
+                  </label>
+                  {draftWho === "other" && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[12px] text-ink-500">{t.passengerName}</span>
+                        <input
+                          type="text"
+                          value={draftPassengerName}
+                          onChange={(e) => setDraftPassengerName(e.target.value)}
+                          className={inputClass}
+                        />
+                        {formErrors.passenger && <span className="text-[12px] text-error">{formErrors.passenger}</span>}
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[12px] text-ink-500">{t.mobile}</span>
+                        <input
+                          type="tel"
+                          value={draftPassengerPhone}
+                          onChange={(e) => setDraftPassengerPhone(e.target.value)}
+                          className={inputClass}
+                        />
+                      </label>
+                    </div>
+                  )}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[12px] text-ink-500">{t.notes}</span>
+                    <textarea
+                      rows={2}
+                      value={draftNotes}
+                      onChange={(e) => setDraftNotes(e.target.value)}
+                      className={`${inputClass} resize-y`}
+                    />
+                  </label>
+                </div>
+              ) : (
+                rows(contact)
+              )}
+            </div>
+          </section>
+
+          {/* Ride Details Card with SERVICE TYPE segmented toggle */}
+          <section
+            aria-label={t.reviewRide}
+            className="box-border flex h-full min-w-0 flex-col gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <h3 className="m-0 text-[16px] font-semibold">{t.reviewRide}</h3>
+              {renderSectionActions("ride", startEditRide, saveRide)}
+            </div>
+
+            <div className="w-fit max-w-full self-start border-0 border-b border-solid border-ink-150 pb-3">
+              <span className="mb-2 block text-xs uppercase tracking-wider text-slate-400">{t.modeLabel}</span>
+              <div role="group" aria-label={t.modeLabel} className="review-mode-track inline-flex w-fit max-w-full rounded-full p-1">
+                {(["oneway", "hourly"] as const).map((mode) => {
+                  const selected = (editingSection === "ride" ? draftMode : trip.mode) === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setRideMode(mode);
+                      }}
+                      className={`review-mode-pill h-[34px] cursor-pointer rounded-full border-0 px-3 text-[12px] sm:px-4 sm:text-[13px] ${selected ? "review-mode-pill-on font-bold" : "review-mode-pill-off font-medium"}`}
+                    >
+                      {mode === "oneway" ? t.modeOneWay : t.modeHourly}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col">
+              {editingSection === "ride" ? (
+                <div className="flex flex-col gap-3 text-[13px]">
+                  <div className="flex flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5 focus-within:border-ink-950">
+                    <span className="text-[12px] text-ink-600">{t.reviewPickup}</span>
+                    <AddressField
+                      id={`${uid}-from`}
+                      value={draftFrom}
+                      onChange={setDraftFrom}
+                      placeholder={t.addressPlaceholder}
+                      locale={locale}
+                      copy={t}
+                      tone="light"
+                      excludePlaces={adjacentPlaceTexts({ ...trip, from: draftFrom, to: draftTo, mode: draftMode }, { kind: "from" })}
+                      invalid={Boolean(formErrors.from)}
+                    />
+                    {formErrors.from && <span className="text-[12px] text-error">{formErrors.from}</span>}
+                  </div>
+                  {draftMode === "oneway" ? (
+                    <div className="flex flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5 focus-within:border-ink-950">
+                      <span className="text-[12px] text-ink-600">{t.reviewDropoff}</span>
+                      <AddressField
+                        id={`${uid}-to`}
+                        value={draftTo}
+                        onChange={setDraftTo}
+                        placeholder={t.addressPlaceholder}
+                        locale={locale}
+                        copy={t}
+                        tone="light"
+                        excludePlaces={adjacentPlaceTexts({ ...trip, from: draftFrom, to: draftTo, mode: draftMode }, { kind: "to" })}
+                        invalid={Boolean(formErrors.to)}
+                      />
+                      {formErrors.to && <span className="text-[12px] text-error">{formErrors.to}</span>}
+                    </div>
+                  ) : (
+                    <div className="relative flex flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5">
+                      <span className="text-[12px] text-ink-600">{t.duration}</span>
+                      <button
+                        type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={hoursOpen}
+                        onClick={() => setHoursOpen((open) => !open)}
+                        className="flex h-9 cursor-pointer items-center justify-between border-0 bg-transparent p-0 text-left text-[16px] font-medium text-ink-950"
+                      >
+                        {draftHours === "" ? t.durationPlaceholder : interpolate(t.hoursOption, { hours: draftHours })}
+                      </button>
+                      {hoursOpen && (
+                        <ul role="listbox" aria-label={t.duration} className="absolute top-full left-0 z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg">
+                          {HOURLY_DURATIONS.map((h) => (
+                            <li key={h}>
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={draftHours === h}
+                                onClick={() => {
+                                  setDraftHours(h);
+                                  setHoursOpen(false);
+                                }}
+                                className={`w-full cursor-pointer rounded-lg border-0 px-3 py-2 text-left text-[15px] text-[#10224f] ${draftHours === h ? "bg-[#e8eeff] font-semibold" : "bg-[#ffffff]"}`}
+                              >
+                                {interpolate(t.hoursOption, { hours: h })}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {formErrors.hours && <span className="text-[12px] text-error">{formErrors.hours}</span>}
+                    </div>
+                  )}
+                  {draftMode === "oneway" && (
+                    <div className="flex flex-col gap-2">
+                      {draftStops.map((stop, index) => (
+                        <div key={index} className="flex flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5">
+                          <span className="flex items-center justify-between gap-2 text-[12px] text-ink-600">
+                            {interpolate(t.stopLabel, { number: index + 1 })}
+                            <button
+                              type="button"
+                              onClick={() => setDraftStops((current) => current.filter((_, j) => j !== index))}
+                              className="cursor-pointer border-0 bg-transparent p-0 text-[12px] font-semibold text-ink-700"
+                            >
+                              {interpolate(t.removeStop, { number: index + 1 })}
+                            </button>
+                          </span>
+                          <AddressField
+                            id={`${uid}-stop-${index}`}
+                            value={{ text: stop.place, id: null, kind: null }}
+                            onChange={(place) => setDraftStops((current) => current.map((item, j) => (j === index ? { ...item, place: place.text } : item)))}
+                            placeholder={t.addressPlaceholder}
+                            locale={locale}
+                            copy={t}
+                            tone="light"
+                            excludePlaces={adjacentPlaceTexts({ ...trip, from: draftFrom, to: draftTo, stops: draftStops, mode: draftMode }, { kind: "stop", index })}
+                          />
+                        </div>
+                      ))}
+                      {draftStops.length < MAX_STOPS && (
+                        <button
+                          type="button"
+                          onClick={() => setDraftStops((current) => [...current, { place: "", wait: 0 }])}
+                          className="inline-flex h-9 w-fit cursor-pointer items-center rounded-full border border-solid border-ink-225 bg-white px-3 text-[13px] font-semibold text-ink-950"
+                        >
+                          {t.addStop}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="review-when relative flex flex-col gap-1 rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5">
+                    <label htmlFor={`${uid}-at`} className="text-[12px] text-ink-600">{t.summaryWhen}</label>
+                    <DateTimeField
+                      id={`${uid}-at`}
+                      locale={locale}
+                      copy={dateTimeCopy}
+                      defaultValue={draftAt}
+                      onValueChange={setDraftAt}
+                      invalid={Boolean(formErrors.at)}
+                      tone="light"
+                      size="md"
+                      appearance="site"
+                      className="review-when-input border-0 bg-transparent shadow-none ring-0 outline-none appearance-none"
+                    />
+                    {formErrors.at && <span className="text-[12px] text-error">{formErrors.at}</span>}
+                  </div>
+                  <div className="relative rounded-xl border border-solid border-ink-225 bg-white px-3.5 py-2.5">
+                    <span id={`${uid}-guests-label`} className="mb-1 block text-[12px] text-ink-600">{t.guests}</span>
+                    <GuestsPicker
+                      id={`${uid}-guests`}
+                      labelledBy={`${uid}-guests-label`}
+                      pax={draftPax}
+                      bags={draftBags}
+                      small={draftSmall}
+                      set
+                      onChange={(next) => {
+                        setDraftPax(next.pax);
+                        setDraftBags(next.bags);
+                        setDraftSmall(next.small);
+                      }}
+                      copy={t}
+                      tone="light"
+                      appearance="site"
+                    />
+                  </div>
+                </div>
+              ) : (
+                rows(ride)
+              )}
+            </div>
+          </section>
         </div>
+
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          <section aria-label={t.reviewVehicle} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+          {/* Vehicle Card */}
+          <section
+            aria-label={t.reviewVehicle}
+            className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6"
+          >
             <div className="flex shrink-0 items-center justify-between gap-3">
               <h3 className="m-0 text-[16px] font-semibold">{t.reviewVehicle}</h3>
-              <button
-                type="button"
-                onClick={() => onEdit("car")}
-                className="flex cursor-pointer items-center gap-1.5 rounded-full bg-ink-100 px-3 py-1 text-[12px] font-semibold text-ink-950 hover:bg-ink-200"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M4 20h4L19 9l-4-4L4 16z" />
-                </svg>
-                {t.edit}
-              </button>
+              {renderSectionActions("vehicle", startEditVehicle, saveVehicle)}
             </div>
-            {mix.length > 0 ? (
-              <div className="min-h-0 flex-1">
-                <CarMixPreview cars={mix} copy={gallery} />
-              </div>
-            ) : photos.length > 0 ? (
-              <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-[12px] bg-ink-100">
-                <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} fit="contain" />
+
+            {editingSection === "vehicle" ? (
+              <div className="flex max-h-[28rem] flex-1 flex-col gap-2 overflow-y-auto">
+                <button
+                  type="button"
+                  aria-pressed={trip.cars.length === 0}
+                  onClick={() => setVehicleCount("advise", 0)}
+                  className={`cursor-pointer rounded-xl border border-solid px-3 py-2.5 text-left text-[14px] font-semibold ${trip.cars.length === 0 ? "border-ink-950 bg-ink-950 text-white" : "border-ink-225 bg-white text-ink-950"}`}
+                >
+                  {vehicleAdvise}
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                {vehicles.map((item) => {
+                  const count = trip.cars.find((car) => car.key === item.key)?.count ?? 0;
+                  const selected = count > 0;
+                  return (
+                    <div key={item.key} className={`rounded-xl border border-solid p-2 ${selected ? "border-2 border-ink-950" : "border-ink-225"}`}>
+                      <button type="button" aria-pressed={selected} onClick={() => setVehicleCount(item.key, selected ? 0 : 1)} className="flex w-full cursor-pointer flex-col gap-2 border-0 bg-transparent p-1 text-left">
+                        {item.images?.[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.images[0]} alt="" className="aspect-[16/10] w-full rounded-lg object-cover" />
+                        ) : (
+                          <span className="block aspect-[16/10] w-full rounded-lg bg-ink-100" />
+                        )}
+                        <span className="min-w-0">
+                          <span className="block truncate text-[14px] font-semibold text-ink-950">{item.name}</span>
+                          <span className="text-[12px] font-medium text-ink-600">{selected ? t.carSelected : t.carSelect}</span>
+                        </span>
+                      </button>
+                      {selected && (
+                        <span className="mt-1 flex h-10 items-center justify-end gap-2 px-1">
+                          <button type="button" aria-label={interpolate(t.fewerOf, { car: item.name })} onClick={() => setVehicleCount(item.key, count - 1)} className="grid size-8 cursor-pointer place-items-center rounded-full border border-solid border-ink-225 bg-white text-ink-950">−</button>
+                          <output className="w-6 text-center text-[15px] font-semibold tabular-nums">{count}</output>
+                          <button type="button" aria-label={interpolate(t.moreOf, { car: item.name })} disabled={count >= MAX_PER_CAR} onClick={() => setVehicleCount(item.key, count + 1)} className="grid size-8 cursor-pointer place-items-center rounded-full border border-solid border-ink-225 bg-white text-ink-950 disabled:cursor-not-allowed disabled:opacity-40">+</button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                </div>
+                {formErrors.vehicle && <span className="text-[12px] text-error">{formErrors.vehicle}</span>}
               </div>
             ) : (
-              <div className="min-h-0 flex-1" />
-            )}
-            <div className="flex shrink-0 items-start justify-between gap-3">
-              {listed ? (
-                <span className="flex flex-col gap-1 font-serif text-[22px] leading-tight">
-                  {picks.map((p) => (
-                    <span key={p.key}>
-                      {p.count} × {vehicleByKey(p.key)?.name ?? p.key}
+              <>
+                {mix.length > 0 ? (
+                  <div className="min-h-0 flex-1">
+                    <CarMixPreview cars={mix} copy={gallery} />
+                  </div>
+                ) : photos.length > 0 ? (
+                  <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-[12px] bg-ink-100">
+                    <VehicleGallery key={photos.join("|")} name={name} images={photos} alt={name} copy={gallery} fit="contain" />
+                  </div>
+                ) : (
+                  <div className="min-h-0 flex-1" />
+                )}
+                <div className="flex shrink-0 items-start justify-between gap-3">
+                  {listed ? (
+                    <span className="flex flex-col gap-1 font-serif text-[22px] leading-tight">
+                      {picks.map((p) => (
+                        <span key={p.key}>
+                          {p.count} × {vehicleByKey(p.key)?.name ?? p.key}
+                        </span>
+                      ))}
                     </span>
-                  ))}
-                </span>
-              ) : (
-                <span className="min-w-0 font-serif text-[22px] leading-tight">{name}</span>
-              )}
-              {seats !== null && (
-                <span className="flex shrink-0 items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
-                  <SeatIcon />
-                  {interpolate(t.seatsUpTo, { seats })}
-                </span>
-              )}
-            </div>
-            {convoy && <p className="m-0 shrink-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
+                  ) : (
+                    <span className="min-w-0 font-serif text-[22px] leading-tight">{name}</span>
+                  )}
+                  {seats !== null && (
+                    <span className="flex shrink-0 items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-700">
+                      <SeatIcon />
+                      {interpolate(t.seatsUpTo, { seats })}
+                    </span>
+                  )}
+                </div>
+                {convoy && <p className="m-0 shrink-0 text-[14px] leading-snug text-ink-700">{convoy}</p>}
+              </>
+            )}
           </section>
-          <section aria-label={t.reviewPrice} className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6">
+
+          {/* Price Card */}
+          <section
+            aria-label={t.reviewPrice}
+            className="box-border flex h-full min-w-0 flex-col justify-between gap-3 rounded-[20px] border border-solid border-ink-150 bg-white p-5 text-ink-950 md:p-6"
+          >
             <h3 className="m-0 shrink-0 text-[16px] font-semibold">{t.reviewPrice}</h3>
             <div className="flex min-h-0 flex-1 flex-col justify-between">
-              <PriceBreakdown price={price} names={addOns} pending={estimate === "pending"} hourly={trip.mode === "hourly"} timed={Boolean(estimate && estimate !== "pending")} copy={t} locale={locale} />
+              <PriceBreakdown
+                price={price}
+                names={addOns}
+                pending={estimate === "pending"}
+                hourly={trip.mode === "hourly"}
+                timed={Boolean(estimate && estimate !== "pending")}
+                copy={t}
+                locale={locale}
+              />
             </div>
             <div className="shrink-0 border-0 border-t border-solid border-ink-150 pt-3">
               <label htmlFor={`${uid}-agree`} className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug">
@@ -452,7 +1097,11 @@ export function ReviewStep({
                   <p className="m-0">
                     {payPlan === "C"
                       ? interpolate(t.payNowFull, { amount: formatCents(upfront, locale) })
-                      : interpolate(t.payNowFee, { amount: formatCents(upfront, locale), rest: formatCents(restCents, locale), date: restOn ? longDate(restOn) : "" })}
+                      : interpolate(t.payNowFee, {
+                          amount: formatCents(upfront, locale),
+                          rest: formatCents(restCents, locale),
+                          date: restOn ? longDate(restOn) : "",
+                        })}
                   </p>
                   <p className="m-0">{payPlan === "A" ? t.payAutoApproved : t.payReviewed}</p>
                 </div>
@@ -465,13 +1114,17 @@ export function ReviewStep({
             </div>
           </section>
         </div>
-       
+
         <p aria-live="polite" className={result.message ? "m-0 text-[13px] text-error" : "sr-only"}>
           {result.message ?? ""}
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-end gap-4">
           <div className="flex w-full gap-2.5 lg:w-auto">
-            <button type="button" onClick={() => onEdit("details")} className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950">
+            <button
+              type="button"
+              onClick={() => onEdit("details")}
+              className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950"
+            >
               <ArrowLeft />
               {t.back}
             </button>

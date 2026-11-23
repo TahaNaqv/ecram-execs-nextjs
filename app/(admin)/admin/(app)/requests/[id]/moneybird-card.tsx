@@ -32,6 +32,22 @@ const TONE: Record<string, string> = {
  * what the team can do: try again after an error, or credit it once the booking is cancelled. Hidden when Moneybird is not
  * connected and nothing was ever invoiced, and for a booking that was never confirmed.
  */
+/** Shown beside Email and Call, so the invoice is reachable without scrolling to the card. */
+export async function MoneybirdHeaderLink({ requestId }: { requestId: string }) {
+  const [rows, { admin }] = await Promise.all([invoicesFor(requestId), adminDictionary()]);
+  const live = rows.find((row) => row.kind === "invoice" && !row.creditedAt && (row.moneybirdId || row.number));
+  if (!live) return null;
+  const href =
+    live.moneybirdId && !live.moneybirdId.startsWith("mock_")
+      ? moneybirdInvoiceLink(live.moneybirdId)
+      : `/api/mock/moneybird/invoice?id=${encodeURIComponent(live.moneybirdId || live.number || requestId)}&view=customer`;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.md}`}>
+      {admin.moneybird.openInMoneybird}
+    </a>
+  );
+}
+
 export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
   const [rows, { admin }] = await Promise.all([invoicesFor(r.id), adminDictionary()]);
   const t = admin.moneybird;

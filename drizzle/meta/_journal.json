@@ -232,6 +232,13 @@
       "when": 1795371001510,
       "tag": "0032_booking_payment_status",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795480000000,
+      "tag": "0033_vehicle_financials",
+      "breakpoints": true
     }
   ]
 }
