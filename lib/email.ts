@@ -14,6 +14,7 @@ import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 import { bookingTotalEuros, formatCents, formatCurrency, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
 import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
+import { templateOverride, type TemplateKey } from "@/lib/admin/templates";
 import { mollieConfigured } from "@/lib/mollie/config";
 
 const esc = (s: string) =>
@@ -273,6 +274,15 @@ export async function sendVerificationCode({
  * Tells the owner of an address that the password of their Corporate Partner account was just replaced, with the way
  * back in if it wasn't them. Best-effort: the change has already happened, so a failure is logged, not shown.
  */
+export async function emailAdminReset(to: { email: string; name: string }, link: string) {
+  return send("admin", to.email, "password reset", {
+    from: mailFrom(),
+    to: [to.email],
+    subject: "Reset your Ecram Execs admin password",
+    html: `<p>Hello ${esc(to.name.split(" ")[0] ?? "")},</p><p><a href="${esc(link)}">Choose a new password</a>. This link works for one hour.</p>`,
+  });
+}
+
 export async function sendPasswordChanged({ email, name, locale }: { email: string; name: string; locale: QuoteRequest["locale"] }) {
   const { SITE_URL } = process.env;
   const { email: t } = await getDictionary(locale);
@@ -408,15 +418,19 @@ async function customerNote(q: QuoteRequest, kind: string, subjectKey: string, i
   const copy = t as unknown as Record<string, string>;
   const all = { reference: q.reference, ...values };
   const link = customerLink(q);
+  const templateKey: TemplateKey | null = kind === "declined" ? "booking_alternative" : kind === "balance notice" || kind === "balance failed" ? "payment_notice" : null;
+  const saved = templateKey ? await templateOverride(templateKey) : null;
+  const subject = interpolate(saved?.subject ?? copy[subjectKey], all);
+  const intro = interpolate(saved?.body ?? copy[introKey], all);
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
-      <p>${esc(interpolate(copy[introKey], all))}</p>
+      <p>${esc(intro)}</p>
       ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("quote", q.reference, kind, { from: mailFrom(), to: [q.email], subject: interpolate(copy[subjectKey], all), html });
+  return send("quote", q.reference, kind, { from: mailFrom(), to: [q.email], subject, html });
 }
 
 const longDate = (iso: string, locale: QuoteRequest["locale"]) =>
@@ -496,16 +510,17 @@ export async function emailPaymentReceived(q: QuoteRequest, cents: number) {
   if (!q.email) return false;
   const { email: t } = await getDictionary(q.locale);
   const values = { reference: q.reference, amount: formatCurrency(cents / 100) };
+  const saved = await templateOverride("payment_notice");
   const link = customerLink(q);
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
-      <p>${esc(interpolate(t.paymentReceivedIntro, values))}</p>
+      <p>${esc(interpolate(saved?.body ?? t.paymentReceivedIntro, values))}</p>
       ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("quote", q.reference, "payment received", { from: mailFrom(), to: [q.email], subject: interpolate(t.paymentReceivedSubject, values), html });
+  return send("quote", q.reference, "payment received", { from: mailFrom(), to: [q.email], subject: interpolate(saved?.subject ?? t.paymentReceivedSubject, values), html });
 }
 
 export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
@@ -582,8 +597,10 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
     cancelled: [t.bookingSubjectCancelled, t.enquiryIntroCancelled],
     reply: [t.bookingSubjectReply, t.enquiryIntroReply],
   };
-  const [subject, intro] = copy[kind];
-  const values = { reference: q.reference, amount: euro(bookingTotalEuros(q), q.locale) };
+  const templateKey: TemplateKey | null = kind === "confirmed" ? "booking_confirmed" : kind === "cancelled" ? "booking_cancelled" : kind === "contacted" ? "booking_received" : null;
+  const saved = templateKey ? await templateOverride(templateKey) : null;
+  const [subject, intro] = saved ? [saved.subject, saved.body] : copy[kind];
+  const values = { reference: q.reference, name: q.name, amount: euro(bookingTotalEuros(q), q.locale) };
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const status = d.portal.statuses[kind === "reply" ? (q.status as keyof typeof d.portal.statuses) : kind] ?? q.status;
   const details = [row(t.fieldStatus, status), ...summaryRows(q, t, services, quoteForm, row, d.addOns, d.booking)];
@@ -622,6 +639,7 @@ export async function emailBookingRecorded(q: QuoteRequest) {
   const { SITE_URL } = process.env;
   const { phone, email } = siteConfig.contact;
   const { email: t, services, quoteForm, addOns, booking: b } = await getDictionary(q.locale);
+  const saved = await templateOverride("booking_received");
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const details = summaryRows(q, t, services, quoteForm, row, addOns, b);
   const link = q.corporateContactId ? `${SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", q.locale)}?ref=${encodeURIComponent(q.reference)}` : null;
@@ -629,7 +647,7 @@ export async function emailBookingRecorded(q: QuoteRequest) {
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
-      <p>${esc(interpolate(t.bookingRecordedIntro, { reference: q.reference }))}</p>
+      <p>${esc(interpolate(saved?.body ?? t.bookingRecordedIntro, { reference: q.reference, name: q.name, amount: "" }))}</p>
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
         ${details.join("")}
       </table>
@@ -641,7 +659,7 @@ export async function emailBookingRecorded(q: QuoteRequest) {
     from: mailFrom(),
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
-    subject: interpolate(t.bookingRecordedSubject, { reference: q.reference }),
+    subject: interpolate(saved?.subject ?? t.bookingRecordedSubject, { reference: q.reference, name: q.name, amount: "" }),
     html,
   });
 }

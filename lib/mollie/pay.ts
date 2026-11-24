@@ -5,7 +5,7 @@ import { emailBalanceFailed, emailPaymentReceived, notifyTeamBalanceFailed, noti
 import { invoiceCents } from "@/lib/moneybird/invoice";
 import { invoiceOpenCents, recordingOn, recordPayment, recordRefund } from "@/lib/moneybird/payments";
 import { amountOf, centsOf, mollie, MollieError, type MollieCustomer, type MollieMandate, type MolliePayment, type MollieRefund } from "./client";
-import { addDays, amsterdamDay, balanceDueOn, upfrontCents } from "@/lib/payments/schedule";
+import { addDays, amsterdamDay, balanceDueOn, chargeAllowed, requiresManualConfirmation, upfrontCents } from "@/lib/payments/schedule";
 import { mollieConfig, safeCheckoutUrl, webhookOrigin } from "./config";
 
 /**
@@ -238,9 +238,9 @@ const NOTHING: Due = { cents: 0, purpose: "pay", first: false };
 
 /**
  * What the customer can pay now on the booking's page, and how:
+ * - the amount due at booking (the service fee, or the full amount within a month) is collected when the booking is made;
  * - a booking made before the client's rules of 15 Nov 2026 (no plan): everything still due, once it is approved;
- * - not yet paid at booking (left Mollie's page, a chat or phone booking, or approved unpaid): the upfront part, as a
- *   first card payment that saves the card;
+ * - a corporate booking with 7, 14 or 30 day terms does not have its balance taken from the card;
  * - approved, plan C, or from the balance date on (a failed or capped charge, a raised price): what is still due;
  * - otherwise (approved, the balance not yet due): nothing, the card is charged by itself.
  * Throws when Moneybird cannot be asked what is open.
@@ -256,6 +256,7 @@ export async function dueNow(requestId: string): Promise<Due> {
   const upfront = upfrontCents(r.paymentPlan, Math.min(total, r.consentedCents ?? total), r.priceEstimate);
   if (paid < upfront) return { cents: upfront - paid, purpose: "upfront", first: true };
   if (!payable(r.status)) return NOTHING;
+  if (r.invoiceTermsDays) return NOTHING;
   const due = balanceDueOn(r.paymentPlan, r.pickupAt);
   if (r.paymentPlan === "C" || r.balanceAttemptedAt || (due && amsterdamDay() >= due)) {
     return { cents: await amountDue(requestId), purpose: "pay", first: false };
@@ -822,8 +823,12 @@ export type PaymentView = {
   paidOn: string | null;
   /** The payment at booking (it saves the card): asked for with the consent tick, before approval too */
   first: boolean;
+  /** The customer already agreed to the terms on the booking form, so the confirmation page does not ask again. */
+  agreed: boolean;
   /** Paid at booking, the rest to come from the card: how much, and on which day */
   rest: { label: string; on: string } | null;
+  /** Under six months: the team confirms the booking before any money is taken. */
+  awaitingConfirmation: boolean;
 };
 
 /** The customer pages' view of paying: what is due (formatted), and how the latest payment went. Null when payments are off. */
@@ -844,7 +849,7 @@ export async function paymentView(requestId: string, locale: "en" | "nl"): Promi
         : "failed";
   // What the card is charged later: after the payment at booking (still to make, or made and the card saved)
   let rest: PaymentView["rest"] = null;
-  const r = summary.first || summary.due === 0 ? await booking(requestId) : null;
+  const r = await booking(requestId);
   const restOn = r && !r.balanceAttemptedAt && (summary.first || r.mollieMandateId) ? balanceDueOn(r.paymentPlan, r.pickupAt) : null;
   if (r && restOn) {
     const total = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
@@ -857,7 +862,9 @@ export async function paymentView(requestId: string, locale: "en" | "nl"): Promi
     state,
     paidOn: summary.latest?.paidAt ? formatDay(summary.latest.paidAt, locale) : null,
     first: summary.first,
+    agreed: Boolean(r?.consentedAt),
     rest,
+    awaitingConfirmation: Boolean(r && requiresManualConfirmation(r.paymentPlan) && !chargeAllowed(r.paymentPlan, r.status) && summary.due === 0),
   };
 }
 

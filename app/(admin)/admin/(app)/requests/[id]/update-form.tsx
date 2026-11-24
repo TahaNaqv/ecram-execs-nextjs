@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { ACTIVE_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { updateRequest, type UpdateState } from "../../../actions";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../../_components/icons";
@@ -12,13 +12,24 @@ type Props = {
   quotedAmount: string | null;
   internalNotes: string | null;
   statusLabels: Record<RequestStatus, string>;
-  copy: { save: string; saving: string; status: string; quotedAmount: string; internalNotes: string; amountPlaceholder: string; internalPlaceholder: string };
+  copy: { save: string; saving: string; status: string; quotedAmount: string; internalNotes: string; amountPlaceholder: string; internalPlaceholder: string; cancelWarn?: string; cancelGo?: string; cancelBack?: string };
 };
 
 export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabels, copy }: Props) {
   const [state, action, pending] = useActionState<UpdateState, FormData>(updateRequest, {});
+  const [warn, setWarn] = useState(false);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      action={action}
+      className="flex flex-col gap-4"
+      onSubmit={(event) => {
+        const next = String(new FormData(event.currentTarget).get("status") ?? "");
+        if (next === "cancelled" && status !== "cancelled" && !warn) {
+          event.preventDefault();
+          setWarn(true);
+        }
+      }}
+    >
       <input type="hidden" name="id" value={id} />
       {/* What this form was showing: the save is refused if the booking has moved on since (e.g. the partner answered it) */}
       <input type="hidden" name="seenStatus" value={status} />
@@ -27,7 +38,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
           {copy.status}
         </label>
         <div className="relative">
-          <select id="req-status" name="status" defaultValue={(ACTIVE_STATUSES as readonly string[]).includes(status) ? status : "new"} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
+          <select id="req-status" name="status" defaultValue={(ACTIVE_STATUSES as readonly string[]).includes(status) ? status : "new"} onChange={(event) => setWarn(event.target.value === "cancelled" && status !== "cancelled" ? warn : false)} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
             {ACTIVE_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {statusLabels[s]}
@@ -78,11 +89,21 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
         </p>
       )}
 
+      {warn && (
+        <div role="dialog" aria-modal="true" className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-950 ring-1 ring-inset ring-amber-200">
+          <p role="alert" className="m-0">{copy.cancelWarn}</p>
+        </div>
+      )}
       <div className="flex items-center gap-3">
-        <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.lg} flex-1`}>
+        <button disabled={pending} className={`${btn.base} ${warn ? "bg-red-600 text-white hover:bg-red-700" : btn.primary} ${btn.lg} flex-1`}>
           {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-          {pending ? copy.saving : copy.save}
+          {pending ? copy.saving : warn ? copy.cancelGo : copy.save}
         </button>
+        {warn && (
+          <button type="button" onClick={() => setWarn(false)} className={`${btn.base} ${btn.ghost} ${btn.lg}`}>
+            {copy.cancelBack}
+          </button>
+        )}
       </div>
       <p aria-live="polite" className="-mt-1 min-h-5 text-center text-[13px]">
         {state.ok && !pending && (

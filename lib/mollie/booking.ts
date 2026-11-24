@@ -1,9 +1,10 @@
 import "server-only";
 import { eq } from "drizzle-orm";
+import { setBookingStatus } from "@/lib/admin/approve";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import type { Locale } from "@/lib/i18n/config";
-import { amsterdamDay, planFor, type PaymentPlan } from "@/lib/payments/schedule";
+import { amsterdamDay, confirmsAutomatically, planFor, type PaymentPlan } from "@/lib/payments/schedule";
 import type { Price } from "@/lib/pricing/rates";
 import { guestKey } from "@/lib/quotes/guest-link";
 import { mollieConfigured, siteOrigin } from "./config";
@@ -18,6 +19,26 @@ export function planForNewBooking(pickupAt: string | null | undefined, price: Pr
   if (!mollieConfigured() || !price || !(price.total > 0)) return {};
   const plan = planFor(pickupAt, amsterdamDay());
   return plan ? { paymentPlan: plan } : {};
+}
+
+/**
+ * A ride six months or more ahead is confirmed as soon as it is booked, before the service fee is taken.
+ * A nearer ride is left for the team. A car already held comes back unchanged, still unconfirmed, so nothing is charged.
+ */
+export async function confirmIfAutomatic(request: QuoteRequest, mail = true): Promise<QuoteRequest> {
+  if (request.status !== "new" || !confirmsAutomatically(request.paymentPlan)) return request;
+  const result = await setBookingStatus(request.id, { newStatus: "confirmed", sendMail: mail, adminId: null, onlyFrom: "new" });
+  if (result.status === "ok") {
+    await db.insert(schema.requestEvents).values({ requestId: request.id, event: "auto_approved" });
+    await db.update(schema.quoteRequests).set({ autoApproveDoneAt: new Date() }).where(eq(schema.quoteRequests.id, request.id));
+    await result.followUp();
+    const [now] = await db.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, request.id)).limit(1);
+    return now ?? request;
+  }
+  if (result.status === "clash") {
+    await db.update(schema.quoteRequests).set({ autoApproveStoppedAt: new Date() }).where(eq(schema.quoteRequests.id, request.id));
+  }
+  return request;
 }
 
 /** Where Mollie sends the customer back to: the return route, which asks Mollie and then opens the booking's page. */

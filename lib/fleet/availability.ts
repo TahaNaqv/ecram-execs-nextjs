@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { carKey, heldKeys } from "@/lib/fleet/held";
 import { blocksOf, overlaps, wallText, windowBlocks, type Block, type Window } from "@/lib/fleet/schedule";
@@ -54,6 +54,39 @@ export async function busyVehicleKeys(window: Window, opts: { excludeId?: string
     if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) for (const key of keys) busy.add(key);
   }
   return busy;
+}
+
+/**
+ * Another booking already holds one of these cars across this trip: a confirmed booking, or one still
+ * pending (new, in discussion, or at the payment step). The review panel uses this so staff can offer
+ * another car or decline. Confirming still refuses only a confirmed clash.
+ */
+export async function holdConflict(
+  booking: { id?: string; vehicle: string | null; vehicles?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null; driveBackMinutes?: number | null },
+): Promise<{ reference: string; pending: boolean } | null> {
+  const keys = heldKeys(booking);
+  if (keys.size === 0 || !booking.pickupAt) return null;
+  const mine = blocksOf({ id: booking.id ?? "new", status: "confirmed", service: booking.service, pickupAt: booking.pickupAt, returnAt: booking.returnAt, durationHours: booking.durationHours, blockMinutes: booking.blockMinutes ?? null, driveBackMinutes: booking.driveBackMinutes ?? null });
+  if (mine.length === 0) return null;
+  const lo = wallText(Math.min(...mine.map((b) => b.start)) - 2 * 24 * 60);
+  const hi = wallText(Math.max(...mine.map((b) => b.end)));
+  const rows = await db
+    .select({ id: q.id, reference: q.reference, status: q.status, vehicle: q.vehicle, vehicles: q.vehicles, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes, driveBackMinutes: q.driveBackMinutes })
+    .from(q)
+    .where(
+      and(
+        inArray(q.status, ["new", "contacted", "quoted", "confirmed"]),
+        ne(q.vehicle, "advise"),
+        or(sql`${q.pickupAt} between ${lo}::timestamp and ${hi}::timestamp`, sql`${q.returnAt} between ${lo}::timestamp and ${hi}::timestamp`),
+        booking.id ? ne(q.id, booking.id) : undefined,
+      ),
+    );
+  for (const row of rows) {
+    if (![...heldKeys(row)].some((k) => keys.has(k))) continue;
+    const theirs = blocksOf({ ...row, status: "confirmed" });
+    if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return { reference: row.reference, pending: row.status !== "confirmed" };
+  }
+  return null;
 }
 
 /** The reference of a confirmed booking that already holds one of this booking's cars at some point of this trip, or null when they are all free. */

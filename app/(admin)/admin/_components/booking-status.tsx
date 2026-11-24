@@ -72,7 +72,7 @@ export function LiveStatusBadge({
   );
 }
 
-const PIPELINE: RequestStatus[] = ["new", "contacted", "confirmed", "completed"];
+const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed"];
 
 export function LivePipeline({
   requestId,
@@ -91,9 +91,9 @@ export function LivePipeline({
   if (live === "cancelled") {
     return <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">{cancelledNote}</div>;
   }
-  const at = live === "quoted" ? PIPELINE.indexOf("new") : PIPELINE.indexOf(live);
+  const at = PIPELINE.indexOf(live);
   return (
-    <ol className="grid grid-cols-4 gap-1" aria-label={progressLabel}>
+    <ol className="grid grid-cols-5 gap-1" aria-label={progressLabel}>
       {PIPELINE.map((step, i) => {
         const done = i < at;
         const current = i === at;

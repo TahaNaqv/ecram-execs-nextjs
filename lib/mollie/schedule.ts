@@ -19,7 +19,7 @@ import { amountDue, chargeBalance, flushPayments, paidNet, refundable, refundPay
 
 /**
  * The scheduled steps of paying for a booking (the client's rules of 15 Nov 2026; lib/payments/schedule.ts):
- * 1. a booking made 6 months or more ahead is approved by itself once its service fee is paid (plan A);
+ * 1. a booking made 6 months or more ahead is confirmed by itself as soon as it is booked, and the service fee is taken after that (plan A);
  * 2. a booking is announced (the team's alert, the customer's acknowledgement) once its payment at booking is in;
  * 3. a saved card that runs out before the balance date is flagged;
  * 4. five days before the balance date the customer is told what will be charged, to which card;
@@ -65,7 +65,7 @@ async function balanceCents(r: Booking, mode: "test" | "live"): Promise<number> 
   return Math.max(0, Math.min(due, consented - paid));
 }
 
-async function autoApprove(mode: "test" | "live", requestId?: string, limit = 20) {
+async function autoApprove(_mode: "test" | "live", requestId?: string, limit = 20) {
   const rows = await db
     .select()
     .from(q)
@@ -77,7 +77,6 @@ async function autoApprove(mode: "test" | "live", requestId?: string, limit = 20
         isNull(q.declinedAt),
         isNull(q.autoApproveDoneAt),
         isNull(q.autoApproveStoppedAt),
-        upfrontPaid(mode),
       ),
     )
     .limit(limit);
@@ -190,7 +189,7 @@ async function balances(mode: "test" | "live", today: string, requestId?: string
   const rows = await db
     .select()
     .from(q)
-    .where(and(one(requestId), inArray(q.paymentPlan, ["A", "B"]), eq(q.status, "confirmed"), isNull(q.balanceAttemptedAt), isNull(q.declinedAt), onOrBefore(BALANCE_DAYS_BEFORE, today)))
+    .where(and(one(requestId), inArray(q.paymentPlan, ["A", "B"]), eq(q.status, "confirmed"), isNull(q.balanceAttemptedAt), isNull(q.declinedAt), isNull(q.invoiceTermsDays), onOrBefore(BALANCE_DAYS_BEFORE, today)))
     .orderBy(q.pickupAt)
     .limit(limit);
   for (const r of rows) {

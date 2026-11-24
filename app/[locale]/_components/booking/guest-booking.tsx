@@ -11,7 +11,6 @@ import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-act
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
 import { PayButton } from "../pay-button";
-import { consentText } from "@/lib/mollie/consent-text";
 import type { PaymentView } from "@/lib/mollie/pay";
 
 type Copy = Dictionary["guestBooking"];
@@ -111,36 +110,40 @@ export function GuestBookingView({
   const storedReceipt = useSyncExternalStore(noSubscription, () => storedRideReceipt(reference), () => null);
   const receipt = useMemo(() => parseRideReceipt(storedReceipt) ?? savedReceipt, [storedReceipt, savedReceipt]);
 
-  // Asks for the status and the conversation's last change; the page is fetched again only when one of them moved
+  // Asks for the status and the conversation's last change; the page is fetched again only when one of them moved.
+  // An open Mollie payment stays "none" until it is paid, so the confirmation tab keeps asking until that changes.
   useEffect(() => {
-    const paying = payment?.state === "progress";
-    if (!WAITING.has(status) && !awaitingInvoice && !paying) return;
+    const followPayment = payment != null && payment.state !== "paid" && paymentStatus !== "paid";
+    if (!WAITING.has(status) && !awaitingInvoice && !followPayment) return;
     let stopped = false;
     // Waiting for the invoice or a payment is short: stop asking after a while (the page shows the answer on a reload)
-    const until = WAITING.has(status) ? Infinity : Date.now() + (paying ? 15 : 5) * 60_000;
+    const until = WAITING.has(status) ? Infinity : Date.now() + (followPayment ? 15 : 5) * 60_000;
     const ask = async () => {
-      if (document.visibilityState === "hidden" || Date.now() > until) return;
+      if (Date.now() > until) return;
       try {
-        const sync = payment && payment.state !== "paid" ? "&sync=1" : "";
+        const sync = followPayment ? "&sync=1" : "";
         const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}${sync}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
         const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null; payment: string | null };
         const moved = now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null);
         const paymentMoved = (now.payment ?? null) !== (paymentStatus ?? null);
-        if (moved || paymentMoved || (paying && now.payment !== null && now.payment !== "open" && now.payment !== "pending" && now.payment !== "authorized" && now.payment !== "creating")) {
-          refreshOnce(router);
-        }
+        if (moved || paymentMoved) refreshOnce(router);
       } catch {}
     };
     const timer = window.setInterval(ask, POLL_MS);
-    const onShow = () => void ask();
+    const onShow = () => {
+      if (document.visibilityState === "hidden") return;
+      void ask();
+    };
     document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
     return () => {
       stopped = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
     };
-  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment?.state, paymentStatus, payment]);
+  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment, paymentStatus]);
 
   // A new status moves the focus to the new heading, so a screen reader reads the decision out
   const seen = useRef(status);
@@ -163,111 +166,111 @@ export function GuestBookingView({
     cancelled: { eyebrow: t.cancelledEyebrow, heading: t.cancelledHeading, note: t.cancelledNote },
   }[status] ?? { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote };
   const reviewing = status === "new" || status === "quoted";
+  const settled = payment?.state === "paid" || paymentStatus === "paid";
+
+  const paying = Boolean(
+    payment && status !== "cancelled" && (settled || (!payment.awaitingConfirmation && (status === "confirmed" || status === "completed" || payment.first || payment.rest))),
+  );
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div role="status" aria-live="polite" className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <BookingStatusBadge label={view.eyebrow} />
-            {payment && reference ? <BookingStatusBadge label={paymentBadge(paymentStatus, payment.state, bookingCopy)} /> : null}
-            {reference ? <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span> : null}
-          </div>
-          <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(30px,5vw,42px)] leading-[1.08] font-normal outline-none">
-            {view.heading}
-          </h2>
-          {view.note && <p className="m-0 text-[15px] text-ink-700">{view.note}</p>}
-          {payment && status !== "cancelled" && (status === "confirmed" || status === "completed" || payment.first || payment.rest) && (
-            <div className="flex flex-col gap-2">
-              {payment.first && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.paySecureNote}</p>}
-              {payment.state === "paid" && payment.due === 0 && (
-                <p className="m-0 text-[15px] font-semibold text-ink-950">
-                  {payment.rest
-                    ? interpolate(t.payRestOn, { amount: payment.rest.label, date: payment.rest.on })
-                    : payment.paidOn
-                      ? interpolate(t.paidOn, { date: payment.paidOn })
-                      : t.paidThanks}
-                </p>
-              )}
-              {payment.state === "progress" && <p className="m-0 text-[15px] text-ink-700">{t.payInProgress}</p>}
-              {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.payNotCompleted}</p>}
-              {payment.due > 0 && payment.state !== "progress" && (
-                <div className="flex flex-col items-start gap-2">
-                  {payBlocked && safeCheckout ? <p className="m-0 text-[13px] text-ink-700">{bookingCopy.payLiveBlocked}</p> : null}
-                  {payError ? <p role="alert" className="m-0 text-[13px] text-error">{payError}</p> : null}
-                  {safeCheckout ? (
-                    // The payment started at booking is still open at Mollie: back to that page, in its own tab
-                    <a href={safeCheckout} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800">
-                      {bookingCopy.payLiveNow}
-                    </a>
-                  ) : (
-                    // No open Mollie page (the payment failed, expired or was cancelled, a chat or phone booking not paid yet,
-                    // a booking paid after approval, a balance to pay by hand): the Pay button starts a new payment, with
-                    // the terms tick for a first payment (24 Nov 2026; it had been replaced by a link that stayed disabled)
-                    <PayButton
-                      who="guest"
-                      reference={reference}
-                      linkKey={linkKey}
-                      locale={locale}
-                      label={interpolate(payment.first ? t.paySecure : t.payNow, { amount: payment.dueLabel })}
-                      pendingLabel={t.payOpening}
-                      consent={payment.first ? consentText(t, payment) : undefined}
-                      className="self-start cursor-pointer rounded-full border-none bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70"
-                    />
-                  )}
-                  <button
-                    type="button"
-                    disabled={checking || !reference || !linkKey}
-                    onClick={() => {
-                      if (!reference || !linkKey) return;
-                      setChecking(true);
-                      setPayError(null);
-                      const params = new URLSearchParams({ ref: reference, k: linkKey, sync: "1" });
-                      fetch(`/api/booking/state?${params}`, { cache: "no-store" })
-                        .then((response) => (response.ok ? response.json() : null))
-                        .then((now: { payment?: string | null } | null) => {
-                          if (!now) {
-                            setPayError(bookingCopy.payLiveRetry);
-                            return;
-                          }
-                          if ((now.payment ?? null) !== (paymentStatus ?? null)) refreshOnce(router);
-                        })
-                        .catch(() => setPayError(bookingCopy.payLiveRetry))
-                        .finally(() => setChecking(false));
-                    }}
-                    className="inline-flex cursor-pointer rounded-full border border-solid border-ink-225 bg-white px-5 py-2.5 text-[12px] font-semibold tracking-[0.16em] text-ink-950 uppercase hover:border-ink-950 disabled:cursor-progress disabled:opacity-70"
-                  >
-                    {checking ? bookingCopy.payLiveChecking : bookingCopy.payLiveCheck}
-                  </button>
-                </div>
-              )}
+    <div className="flex w-full flex-col gap-8">
+      <div role="status" aria-live="polite" className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 max-w-[640px] flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <BookingStatusBadge label={view.eyebrow} />
+              {payment && reference && (settled || !payment.awaitingConfirmation) ? <BookingStatusBadge label={paymentBadge(paymentStatus, payment.state, bookingCopy)} /> : null}
+              {reference ? <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span> : null}
             </div>
-          )}
-          {invoice?.href && (status === "confirmed" || status === "completed") && (
-            <a
-              href={invoice.href}
-              target="_blank"
-              rel="noreferrer"
-              className={
-                payment
-                  ? "self-start text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4"
-                  : "self-start rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800"
-              }
-            >
-              {invoice.pay && !payment ? t.invoicePay : t.invoiceView}
-            </a>
-          )}
+            <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,4.2vw,46px)] leading-[1.08] font-normal outline-none">
+              {view.heading}
+            </h2>
+            {!paying && view.note ? <p className="m-0 text-[15px] text-ink-700">{view.note}</p> : null}
+            {payment?.awaitingConfirmation && !settled ? <p className="m-0 text-[15px] text-ink-700">{bookingCopy.payAwaitConfirm}</p> : null}
+          </div>
+          <DownloadableReceiptCard copy={bookingCopy} locale={locale} reference={reference} status={view.eyebrow} name={name} receipt={receipt} price={price} />
         </div>
-        <DownloadableReceiptCard copy={bookingCopy} locale={locale} reference={reference} status={view.eyebrow} name={name} receipt={receipt} price={price} />
+        {paying && payment && (
+          <div className="flex flex-col items-start gap-3">
+            {payment.state === "paid" && payment.due === 0 && (
+              <p className="m-0 text-[15px] font-semibold text-ink-950">
+                {payment.rest
+                  ? interpolate(t.payRestOn, { amount: payment.rest.label, date: payment.rest.on })
+                  : payment.paidOn
+                    ? interpolate(t.paidOn, { date: payment.paidOn })
+                    : t.paidThanks}
+              </p>
+            )}
+            {payment.state === "progress" && <p className="m-0 text-[15px] text-ink-700">{t.payInProgress}</p>}
+            {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.payNotCompleted}</p>}
+            {payment.due > 0 && payment.state !== "progress" && (
+              <div className="flex flex-row flex-wrap items-center gap-3">
+                {payBlocked && safeCheckout ? <p className="m-0 w-full text-[13px] text-ink-700">{bookingCopy.payLiveBlocked}</p> : null}
+                {payError ? <p role="alert" className="m-0 w-full text-[13px] text-error">{payError}</p> : null}
+                {safeCheckout ? (
+                  <a href={safeCheckout} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800">
+                    {bookingCopy.payLiveNow}
+                  </a>
+                ) : (
+                  <PayButton
+                    who="guest"
+                    reference={reference}
+                    linkKey={linkKey}
+                    locale={locale}
+                    label={interpolate(payment.first ? t.paySecure : t.payNow, { amount: payment.dueLabel })}
+                    pendingLabel={t.payOpening}
+                    consentGranted={payment.first && !payment.agreed}
+                    className="cursor-pointer rounded-full border-none bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70"
+                  />
+                )}
+                <button
+                  type="button"
+                  disabled={checking || !reference || !linkKey}
+                  onClick={() => {
+                    if (!reference || !linkKey) return;
+                    setChecking(true);
+                    setPayError(null);
+                    const params = new URLSearchParams({ ref: reference, k: linkKey, sync: "1" });
+                    fetch(`/api/booking/state?${params}`, { cache: "no-store" })
+                      .then((response) => (response.ok ? response.json() : null))
+                      .then((now: { payment?: string | null } | null) => {
+                        if (!now) {
+                          setPayError(bookingCopy.payLiveRetry);
+                          return;
+                        }
+                        if ((now.payment ?? null) !== (paymentStatus ?? null)) refreshOnce(router);
+                      })
+                      .catch(() => setPayError(bookingCopy.payLiveRetry))
+                      .finally(() => setChecking(false));
+                  }}
+                  className="inline-flex cursor-pointer rounded-full border border-solid border-ink-225 bg-white px-5 py-3 text-[12px] font-semibold tracking-[0.16em] text-ink-950 uppercase hover:border-ink-950 disabled:cursor-progress disabled:opacity-70"
+                >
+                  {checking ? bookingCopy.payLiveChecking : bookingCopy.payLiveCheck}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {invoice?.href && (status === "confirmed" || status === "completed") && (
+          <a
+            href={invoice.href}
+            target="_blank"
+            rel="noreferrer"
+            className={
+              payment
+                ? "self-start text-[12px] font-semibold tracking-[0.2em] text-ink-950 uppercase underline underline-offset-4"
+                : "self-start rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800"
+            }
+          >
+            {invoice.pay && !payment ? t.invoicePay : t.invoiceView}
+          </a>
+        )}
       </div>
 
       {reviewing && (
         <div className="flex items-center gap-3 rounded-[16px] border border-solid border-ink-150 bg-white px-4 py-3.5 text-ink-950">
           <span aria-hidden="true" className="size-5 shrink-0 animate-spin rounded-full border-[3px] border-solid border-ink-150 border-t-ink-950 motion-reduce:animate-none" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="m-0 text-[15px] font-semibold">{t.reviewChecking}</p>
-            <p className="m-0 text-[14px] text-ink-700">{t.reviewKeepOpen}</p>
-          </div>
+          <p className="m-0 text-[15px] font-semibold">{t.reviewChecking}</p>
         </div>
       )}
 

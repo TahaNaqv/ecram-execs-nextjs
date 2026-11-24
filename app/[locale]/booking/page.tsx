@@ -33,6 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The booking the link opens, or the same plain answer for anything else (a wrong key reveals nothing). */
 async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "searchParams">) {
+  await connection();
   const { ref, k, pay } = await searchParams;
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   const t = d.guestBooking;
@@ -150,7 +151,6 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
  * review, holds the conversation with the booking manager and, once approved, the payment. Opened from the private link.
  */
 export default async function BookingPage({ searchParams }: PageProps<"/[locale]/booking">) {
-  await connection();
   const [locale, d] = await Promise.all([currentLocale(), getDict()]);
   return (
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.6] text-ink-150">

@@ -3,6 +3,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ensureInitialStaff } from "@/lib/admin/staff";
 import { getAdmin } from "@/lib/auth/session";
 import { LockIcon } from "../_components/icons";
 import { LoginForm } from "./login-form";
@@ -119,11 +120,13 @@ async function LoginWrapper({ searchParams }: Pick<PageProps<"/admin/login">, "s
 }
 
 async function LoginContent({ searchParams, locale }: Pick<PageProps<"/admin/login">, "searchParams"> & { locale: Locale }) {
+  await ensureInitialStaff().catch(() => null);
   if (await getAdmin()) redirect("/admin");
   const resolvedSearchParams = await searchParams;
   const next = resolvedSearchParams.next;
   const { admin } = await getDictionary(locale);
   return (
+    <>
     <LoginForm
       next={typeof next === "string" ? next : undefined}
       copy={{
@@ -136,5 +139,9 @@ async function LoginContent({ searchParams, locale }: Pick<PageProps<"/admin/log
         hidePassword: admin.login.hidePassword,
       }}
     />
+    <p className="mt-4 text-center text-sm">
+      <Link href="/admin/forgot" className="text-zinc-600 underline-offset-2 hover:underline">{admin.account.forgot}</Link>
+    </p>
+    </>
   );
 }

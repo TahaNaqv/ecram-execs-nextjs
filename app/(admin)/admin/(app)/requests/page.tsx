@@ -290,20 +290,20 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               {t.requests.streamAll}
             </Link>
             <Link
-              href={href({ status, q, queue: "standard" })}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
-                queue === "standard" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
-              }`}
-            >
-              {t.requests.streamStandard}
-            </Link>
-            <Link
               href={href({ status, q, queue: "corporate" })}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 queue === "corporate" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
               }`}
             >
               {t.requests.streamCorporate}
+            </Link>
+            <Link
+              href={href({ status, q, queue: "standard" })}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                queue === "standard" ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
+              }`}
+            >
+              {t.requests.streamStandard}
             </Link>
           </div>
         </div>

@@ -92,6 +92,8 @@ export const quoteRequests = pgTable(
     // 30 days before, approved by itself), B = fee now, the rest 30 days before, C = 30 days or less (everything now).
     // Null for a booking made before these rules, or one with no date or price yet: it is paid in full after approval.
     paymentPlan: text("payment_plan", { enum: ["A", "B", "C"] }),
+    /** Corporate invoice terms for the balance (7, 14 or 30 days). Null: the saved card is charged. */
+    invoiceTermsDays: integer("invoice_terms_days"),
     /** Current payment status: "PAID", "OPEN", "UNPAID". Synchronized from online payments and test mode. */
     paymentStatus: text("payment_status").default("OPEN"),
     /** What the customer agreed to pay, in cents, when they ticked the terms: nothing above it is charged by itself. */
@@ -136,6 +138,7 @@ export const quoteRequests = pgTable(
     index("quote_requests_entity_trgm").using("gin", sql`${t.entity} gin_trgm_ops`),
     check("quote_requests_vehicle_count_positive", sql`${t.vehicleCount} >= 1`),
     check("quote_requests_quoted_nonneg", sql`${t.quotedAmount} is null or ${t.quotedAmount} >= 0`),
+    check("quote_requests_invoice_terms", sql`${t.invoiceTermsDays} is null or ${t.invoiceTermsDays} in (7, 14, 30)`),
     check(
       "quote_requests_journey_required",
       sql`${t.service} = 'bespoke' OR (${t.collection} IS NOT NULL AND ${t.pickupAt} IS NOT NULL AND (${t.destination} IS NOT NULL OR (${t.service} = 'hourly' AND ${t.durationHours} IS NOT NULL)))`,
@@ -415,7 +418,34 @@ export const adminUsers = pgTable("admin_users", {
   failedLogins: integer("failed_logins").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  /** owner sees every area. manager and staff are limited by `permissions`. */
+  role: text("role", { enum: ["owner", "manager", "staff"] }).notNull().default("staff"),
+  permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const adminPasswordResets = pgTable(
+  "admin_password_resets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminId: uuid("admin_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("admin_password_resets_admin_idx").on(t.adminId), index("admin_password_resets_expires_idx").on(t.expiresAt)],
+);
+
+/** Editable copy for the booking emails. A missing row keeps the built-in wording. */
+export const emailTemplates = pgTable("email_templates", {
+  key: text("key").primaryKey(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
 });
 
 export const adminSessions = pgTable(

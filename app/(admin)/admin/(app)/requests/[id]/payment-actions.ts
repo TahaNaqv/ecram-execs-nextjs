@@ -55,13 +55,27 @@ export async function refundAction(_prev: PaymentActionState, formData: FormData
   return { error: result.error === "mollie" && result.detail ? `${t.refundMollie} (${result.detail})` : (messages[result.error] ?? t.failed) };
 }
 
+/** Corporate invoice terms for the balance: 7, 14 or 30 days, or the saved card when the value is empty. */
+export async function setInvoiceTerms(_prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
+  await requireAdmin();
+  const t = (await adminDictionary()).admin.review;
+  const id = z.uuid().safeParse(formData.get("requestId"));
+  const raw = String(formData.get("terms") ?? "");
+  const terms = raw === "7" || raw === "14" || raw === "30" ? Number(raw) : null;
+  if (!id.success || (raw !== "" && terms === null)) return { error: t.failed };
+  await db.update(schema.quoteRequests).set({ invoiceTermsDays: terms, updatedAt: new Date() }).where(eq(schema.quoteRequests.id, id.data));
+  refresh();
+  return { ok: true };
+}
+
 /** "Decline and refund": the team cannot take a booking it has not approved, so everything paid goes back (lib/mollie/decline.ts). */
 export async function declineAction(_prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
   const admin = await requireAdmin();
   const t = (await adminDictionary()).admin.review;
   const id = z.uuid().safeParse(formData.get("requestId"));
   if (!id.success) return { error: t.failed };
-  const result = await declineBooking(id.data, admin.id);
+  const reason = String(formData.get("reason") ?? "");
+  const result = await declineBooking(id.data, admin.id, reason);
   refresh();
   if (result.status === "done") return { ok: true };
   return { error: result.error === "not_open" ? t.stale : t.failed };

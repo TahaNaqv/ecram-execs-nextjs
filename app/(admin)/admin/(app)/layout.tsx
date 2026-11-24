@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { Suspense } from "react";
+import { mayCreateAccounts } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { applicationCounts } from "@/lib/admin/applications";
 import { waitingEnquiries } from "@/lib/admin/sla";
@@ -31,10 +33,12 @@ export default function AdminAppLayout({ children }: { children: React.ReactNode
 }
 
 async function Chrome() {
-  const { admin: t } = await adminDictionary();
+  const [{ admin: t }, admin] = await Promise.all([adminDictionary(), requireAdmin()]);
+  const hidden = mayCreateAccounts(admin.role, admin.permissions) ? [] : ["/admin/staff"];
   return (
     <Suspense fallback={<ChromeFallback />}>
       <AdminChrome
+        hidden={hidden}
         copy={{ ...t.nav, openMenu: t.common.openMenu, closeMenu: t.common.closeMenu }}
         badges={{
           "/admin/enquiries": (
@@ -125,6 +129,7 @@ async function AccountMenu() {
       <div className="min-w-0 flex-1 leading-tight">
         <p className="truncate text-sm font-medium text-zinc-100">{admin.name}</p>
         <p className="break-all text-xs text-zinc-500">{admin.email}</p>
+        <Link href="/admin/account" className="text-xs text-zinc-300 underline-offset-2 hover:underline">{t.nav.account}</Link>
       </div>
       {/* Language preference: admin is not locale-routed, so it lives on the account (D3). */}
       <form action={setAdminLocale} className="flex items-center gap-0.5" aria-label={t.common.language}>

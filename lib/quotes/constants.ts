@@ -3,10 +3,10 @@ export const REQUEST_STATUSES = ["new", "contacted", "quoted", "confirmed", "com
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 /**
- * Statuses the dashboard offers. Every booking is reviewed by hand (the client, 8 Nov 2026): "new" is being reviewed,
- * "contacted" is in discussion with the customer, "confirmed" is approved. "quoted" stays on older rows only, so they can still be read.
+ * Statuses the dashboard offers, in the order the team moves a booking:
+ * new, in discussion (contacted), payment (quoted), confirmed, completed. Cancelled leaves the sequence.
  */
-export const ACTIVE_STATUSES = ["new", "contacted", "confirmed", "completed", "cancelled"] as const;
+export const ACTIVE_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"] as const;
 export type ActiveStatus = (typeof ACTIVE_STATUSES)[number];
 
 /** Statuses in which a website visitor can still write about their booking on its private page. */

@@ -32,20 +32,24 @@ import { DeleteRecord } from "../../../_components/delete-record";
 import { AdminReturnLink } from "../../../_components/return-link";
 import { MessagesCard } from "./messages-card";
 import { ReviewCard, type PayState } from "./review-card";
+import { UpdateForm } from "./update-form";
 import { CarsEditor } from "./cars-editor";
 import { MoneybirdCard, MoneybirdHeaderLink } from "./moneybird-card";
 import { invoiceBlocksDelete } from "@/lib/moneybird/sync";
 import { paidNet, paymentBlocksDelete } from "@/lib/mollie/pay";
 import { invoiceCents } from "@/lib/moneybird/invoice";
 import { mollieConfig } from "@/lib/mollie/config";
-import { balanceDueOn } from "@/lib/payments/schedule";
+import { can } from "@/lib/admin/access";
+import { requireAdmin } from "@/lib/auth/session";
+import { holdConflict } from "@/lib/fleet/availability";
+import { balanceDueOn, upfrontCents } from "@/lib/payments/schedule";
 import { PaymentCard } from "./payment-card";
 import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
 import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
+import { bookingTotalEuros, formatCents, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
 import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
@@ -134,6 +138,19 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
   const guestName = typeof r.name === "string" && r.name.trim() ? r.name : "—";
   const history = Array.isArray(events) ? events : [];
   const price = r.priceEstimate && typeof r.priceEstimate === "object" ? r.priceEstimate : null;
+  const admin = await requireAdmin();
+  const conflict = await holdConflict(r);
+  const totalCents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
+  const feeCents = r.paymentPlan ? upfrontCents(r.paymentPlan, totalCents, r.priceEstimate) : 0;
+  const windowView = r.paymentPlan
+    ? {
+        tier: r.paymentPlan === "A" ? ("six" as const) : r.paymentPlan === "C" ? ("month" as const) : ("mid" as const),
+        fee: formatCents(r.paymentPlan === "C" ? totalCents : feeCents, admin.locale),
+        balance: formatCents(Math.max(0, totalCents - feeCents), admin.locale),
+        balanceOn: balanceDueOn(r.paymentPlan, r.pickupAt),
+        terms: r.invoiceTermsDays,
+      }
+    : null;
   const waNumber = phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${guestName}, thank you for your request ${r.reference} with Ecram Execs.`);
   const mailto = `mailto:${email}?subject=${encodeURIComponent(`Your Ecram Execs booking ${r.reference}`)}`;
@@ -231,9 +248,17 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
       </div>
 
       {/* Every booking is approved by hand, or discussed with the customer first (the client, 8 Nov 2026) */}
-      {(r.status === "new" || r.status === "contacted") && r.source !== "website-corporate" && (
+      {(r.status === "new" || r.status === "contacted" || r.status === "quoted") && r.source !== "website-corporate" && (
         <div className="mt-6">
-          <ReviewCard requestId={r.id} status={r.status} copy={d.admin.review} pay={await payState(r)} />
+          <ReviewCard
+            requestId={r.id}
+            status={r.status}
+            copy={d.admin.review}
+            pay={await payState(r)}
+            window={windowView}
+            fulfilment={conflict ? { ok: false, reference: conflict.reference, pending: conflict.pending } : { ok: true }}
+            canApprove={can(admin.role, admin.permissions, "approve")}
+          />
         </div>
       )}
 
@@ -329,6 +354,31 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
                 <a className="hover:underline" href={tel}>{phone || "—"}</a>
               </ContactRow>
             </dl>
+          </Card>
+
+          <Card>
+            <CardHeader title={rd.manage} description={rd.manageNote} />
+            <div className="p-5">
+              <UpdateForm
+                id={r.id}
+                status={r.status}
+                quotedAmount={r.quotedAmount}
+                internalNotes={r.internalNotes}
+                statusLabels={d.admin.statuses}
+                copy={{
+                  save: d.admin.review.statusSave,
+                  saving: d.admin.review.statusSaving,
+                  status: rd.fieldStatus,
+                  quotedAmount: rd.fieldQuotedAmountEur,
+                  internalNotes: rd.fieldInternalNotes,
+                  amountPlaceholder: rd.amountPlaceholder,
+                  internalPlaceholder: rd.internalPlaceholder,
+                  cancelWarn: d.admin.review.cancelWarn,
+                  cancelGo: d.admin.review.cancelGo,
+                  cancelBack: d.admin.review.cancelBack,
+                }}
+              />
+            </div>
           </Card>
 
           <MoneybirdCard r={r} />

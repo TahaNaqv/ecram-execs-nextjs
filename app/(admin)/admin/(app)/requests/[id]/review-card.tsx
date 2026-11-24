@@ -9,7 +9,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, Card, CardHeader, field, fieldLabel } from "../../../_components/ui";
 import { discussBooking, type DiscussState } from "./portal-actions";
-import { declineAction, type PaymentActionState } from "./payment-actions";
+import { declineAction, setInvoiceTerms, type PaymentActionState } from "./payment-actions";
 
 type Copy = Dictionary["admin"]["review"];
 
@@ -21,15 +21,43 @@ type Copy = Dictionary["admin"]["review"];
 /** What the customer has paid online so far, on a booking paid at booking (null: not paid at booking). */
 export type PayState = { kind: "unpaid" | "fee" | "full"; paid: string; rest?: string; restOn?: string } | null;
 
-export function ReviewCard({ requestId, status, copy: t, pay }: { requestId: string; status: string; copy: Copy; pay?: PayState }) {
+export type WindowView = {
+  tier: "six" | "mid" | "month";
+  fee: string;
+  balance: string;
+  balanceOn: string | null;
+  terms: number | null;
+};
+
+export type FulfilmentView = { ok: true } | { ok: false; reference: string; pending: boolean };
+
+export function ReviewCard({
+  requestId,
+  status,
+  copy: t,
+  pay,
+  window,
+  fulfilment,
+  canApprove = true,
+}: {
+  requestId: string;
+  status: string;
+  copy: Copy;
+  pay?: PayState;
+  window?: WindowView | null;
+  fulfilment?: FulfilmentView | null;
+  canApprove?: boolean;
+}) {
   const router = useRouter();
   const [approving, setApproving] = useState(false);
+  const [askApprove, setAskApprove] = useState(false);
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discussing, setDiscussing] = useState(false);
   const [state, action, pending] = useActionState<DiscussState, FormData>(discussBooking, {});
   const [declining, setDeclining] = useState(false);
   const [declined, declineFormAction, declinePending] = useActionState<PaymentActionState, FormData>(declineAction, {});
+  const [termsState, termsAction, termsPending] = useActionState<PaymentActionState, FormData>(setInvoiceTerms, {});
 
   useEffect(() => {
     if (declined.ok) publishBookingStatus(requestId, "cancelled");
@@ -70,6 +98,34 @@ export function ReviewCard({ requestId, status, copy: t, pay }: { requestId: str
     <Card>
       <CardHeader title={t.title} description={t.note} />
       <div className="flex flex-col gap-4 p-5">
+        {window && (
+          <div className="rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800 ring-1 ring-inset ring-zinc-200">
+            <p className="m-0 font-medium text-zinc-950">{window.tier === "six" ? t.windowSix : window.tier === "month" ? t.windowMonth : t.windowMid}</p>
+            <p className="m-0 mt-1">{interpolate(t.windowFee, { amount: window.fee })}</p>
+            <p className="m-0">{window.terms ? interpolate(t.windowTerms, { days: String(window.terms), amount: window.balance }) : window.balanceOn ? interpolate(t.windowBalance, { amount: window.balance, date: window.balanceOn }) : interpolate(t.windowFull, { amount: window.fee })}</p>
+          </div>
+        )}
+        {fulfilment && (
+          <p className={`m-0 rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${fulfilment.ok ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-amber-50 text-amber-950 ring-amber-200"}`}>
+            {fulfilment.ok ? t.fulfilled : interpolate(fulfilment.pending ? t.unfulfilledPending : t.unfulfilled, { reference: fulfilment.reference })}
+          </p>
+        )}
+        {window?.tier !== "six" && (
+          <form action={termsAction} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="requestId" value={requestId} />
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600">
+              {t.termsLabel}
+              <select name="terms" defaultValue={window?.terms ? String(window.terms) : ""} className={`${field} h-10`}>
+                <option value="">{t.termsCard}</option>
+                <option value="7">{t.terms7}</option>
+                <option value="14">{t.terms14}</option>
+                <option value="30">{t.terms30}</option>
+              </select>
+            </label>
+            <button disabled={termsPending} className={`${btn.base} ${btn.secondary} ${btn.md}`}>{termsPending ? t.termsSaving : t.termsSave}</button>
+            {termsState.ok && <span className="text-xs text-emerald-700">{t.termsSaved}</span>}
+          </form>
+        )}
         {pay && (
           <p className={`m-0 rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${pay.kind === "unpaid" ? "bg-amber-50 text-amber-900 ring-amber-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200"}`}>
             {pay.kind === "unpaid"
@@ -80,9 +136,11 @@ export function ReviewCard({ requestId, status, copy: t, pay }: { requestId: str
           </p>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={approve} disabled={approving || approved} className={`${btn.base} ${btn.md} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60`}>
-            <CheckIcon size={14} /> {approving ? t.approving : t.approve}
-          </button>
+          {canApprove && (
+            <button type="button" onClick={() => setAskApprove(true)} disabled={approving || approved} className={`${btn.base} ${btn.md} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60`}>
+              <CheckIcon size={14} /> {approving ? t.approving : t.approve}
+            </button>
+          )}
           {!discussing && (
             <button type="button" onClick={() => setDiscussing(true)} disabled={approved} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
               {t.discuss}
@@ -102,6 +160,18 @@ export function ReviewCard({ requestId, status, copy: t, pay }: { requestId: str
             )}
           </span>
         </div>
+        {askApprove && !approved && (
+          <div className="flex flex-col gap-3 rounded-lg bg-emerald-50/70 p-4 ring-1 ring-inset ring-emerald-200" role="dialog" aria-modal="true" aria-labelledby="approve-title">
+            <p id="approve-title" className="m-0 text-sm font-medium text-emerald-950">{t.approveConfirm}</p>
+            <p className="m-0 text-sm text-emerald-900">{t.approveConfirmNote}</p>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={() => { setAskApprove(false); void approve(); }} disabled={approving} className={`${btn.base} ${btn.md} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60`}>
+                {approving ? t.approving : t.approveGo}
+              </button>
+              <button type="button" onClick={() => setAskApprove(false)} className={`${btn.base} ${btn.ghost} ${btn.md}`}>{t.cancel}</button>
+            </div>
+          </div>
+        )}
         {error && (
           <p role="alert" className="m-0 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-800 ring-1 ring-inset ring-red-200">
             <AlertIcon className="mt-0.5 shrink-0" />
@@ -112,6 +182,8 @@ export function ReviewCard({ requestId, status, copy: t, pay }: { requestId: str
           <form action={declineFormAction} className="flex flex-col gap-3 rounded-lg bg-red-50/60 p-4 ring-1 ring-inset ring-red-200">
             <input type="hidden" name="requestId" value={requestId} />
             <p className="m-0 text-sm text-red-900">{pay && pay.kind !== "unpaid" ? interpolate(t.declineConfirmRefund, { amount: pay.paid }) : t.declineConfirm}</p>
+            <label htmlFor="decline-reason" className={fieldLabel}>{t.declineReason}</label>
+            <textarea id="decline-reason" name="reason" rows={3} maxLength={500} placeholder={t.declineReasonPlaceholder} className={`${field} resize-y py-2.5 leading-relaxed`} />
             {declined.error && (
               <p role="alert" className="m-0 text-sm text-red-800">
                 {declined.error}

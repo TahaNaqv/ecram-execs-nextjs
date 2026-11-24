@@ -37,6 +37,9 @@ export type AdminNavCopy = {
   fleetOverview?: string;
   vehicleCosts?: string;
   financials?: string;
+  staff?: string;
+  templates?: string;
+  account?: string;
   openMenu: string;
   closeMenu: string;
 };
@@ -113,6 +116,8 @@ const SECTIONS: NavSection[] = [
     titleKey: "finance",
     items: [
       { href: "/admin/financials", key: "financials", defaultLabel: "Billing & Financials", icon: EuroIcon, match: (p: string) => p.startsWith("/admin/financials") },
+      { href: "/admin/staff", key: "staff", defaultLabel: "Staff", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/staff") },
+      { href: "/admin/templates", key: "templates", defaultLabel: "Email templates", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/templates") },
     ],
   },
 ];
@@ -136,10 +141,12 @@ export function AdminChrome({
   badges,
   account,
   copy,
+  hidden = [],
 }: {
   badges: Partial<Record<string, React.ReactNode>>;
   account: React.ReactNode;
   copy: AdminNavCopy;
+  hidden?: readonly string[];
 }) {
   const [opened, setOpened] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
@@ -217,7 +224,7 @@ export function AdminChrome({
                 {copy[section.titleKey]}
               </p>
               <div className="flex flex-col gap-0.5">
-                {section.items.map((l) => {
+                {section.items.filter((l) => !hidden.includes(l.href)).map((l) => {
                   const active = l.match(pathname, from);
                   const Icon = l.icon;
                   const label = copy[l.key] || l.defaultLabel;

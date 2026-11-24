@@ -47,30 +47,42 @@ export async function GET(req: NextRequest) {
         // Approved by itself (6 months or more ahead) and announced: after the customer is on their way to the page
     after(() => runPaymentSteps(booking.id));
   }
-  // Book and pay keeps Review your booking in the original tab. This tab is only Mollie's.
+  // Book and pay keeps the confirmation in the original tab. This tab stays here and only reports the payment.
   if (params.get("stay") === "1") {
-    // Says how the payment ended, so a failed card is not mistaken for done (24 Nov 2026); the booking's tab follows by itself
     const { status } = await openCheckoutFor(booking.id);
-    const failed = status === "failed" || status === "canceled" || status === "expired";
-    const note =
-      status === "paid"
-        ? locale === "nl"
-          ? "Betaling ontvangen. U kunt dit tabblad sluiten en teruggaan naar uw boeking."
-          : "Payment received. You can close this tab and return to your booking."
-        : failed
-          ? locale === "nl"
-            ? "De betaling is niet gelukt. Ga terug naar uw boeking en betaal daar opnieuw."
-            : "The payment did not go through. Go back to your booking and pay again from there."
-          : locale === "nl"
-            ? "U kunt dit tabblad sluiten en teruggaan naar uw boeking."
-            : "You can close this tab and return to your booking."
-    // Also the way back when this is the customer's only tab (a payment re-opened in the same tab)
-    const back = `${origin}${guestPath(booking, locale)}`;
-    const backLabel = locale === "nl" ? "Terug naar uw boeking" : "Back to your booking";
-    const html = `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escapeHtml(booking.reference)}</title></head><body style="font-family:Georgia,serif;margin:48px;color:#0a1942"><p>${escapeHtml(note)}</p><p>${escapeHtml(booking.reference)}</p><p><a href="${escapeHtml(back)}" style="color:#0a1942">${escapeHtml(backLabel)}</a></p></body></html>`;
+    const html = stayPage(locale, booking.reference, status);
     return new NextResponse(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" } });
   }
   return NextResponse.redirect(`${origin}${guestPath(booking, locale)}`, 303);
+}
+
+/** The payment tab's own result. No link back to the site: the booking tab follows the payment by itself. */
+function stayPage(locale: Locale, reference: string, status: string | null): string {
+  const kind = status === "paid" ? "paid" : status === "expired" ? "expired" : status === "failed" || status === "canceled" ? "failed" : "open";
+  const nl = locale === "nl";
+  const title =
+    kind === "paid"
+      ? nl ? "BETALING GELUKT" : "PAYMENT SUCCESSFUL"
+      : kind === "expired"
+        ? nl ? "BETALING VERLOPEN" : "PAYMENT EXPIRED"
+        : kind === "failed"
+          ? nl ? "BETALING MISLUKT" : "PAYMENT FAILED"
+          : nl ? "BETALING OPEN" : "PAYMENT OPEN";
+  const close = nl ? "Dit tabblad sluiten" : "Close this tab";
+  const tone = kind === "paid" ? "#1f8a4c" : kind === "expired" ? "#b7791f" : kind === "failed" ? "#b42318" : "#8d96bb";
+  const mark = kind === "paid"
+    ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : kind === "open"
+      ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="#fff" stroke-width="2"/><path d="M12 8v5l3 2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`
+      : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+  return `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title><style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#06133f;color:#f6f1e7;font-family:Georgia,"Times New Roman",serif}
+    main{width:min(420px,calc(100% - 48px));box-sizing:border-box;margin:24px;padding:40px 32px;text-align:center;background:#0c1d55;border:1px solid rgba(255,255,255,.14);border-radius:24px}
+    .mark{width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:50%;background:${tone}}
+    h1{margin:0 0 14px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:18px;font-weight:600;letter-spacing:.16em}
+    p{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;font-weight:600;letter-spacing:.18em}
+    button{margin-top:28px;border:0;border-radius:999px;padding:12px 22px;background:#f6f1e7;color:#10224f;font:600 12px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+  </style></head><body><main><div class="mark">${mark}</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(reference)}</p><button type="button" onclick="window.close()">${escapeHtml(close)}</button></main></body></html>`;
 }
 
 function escapeHtml(value: string): string {

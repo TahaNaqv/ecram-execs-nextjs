@@ -24,7 +24,7 @@ import { getCorporateContact } from "./access";
 import { MESSAGEABLE, REF_RE, partnerOwns } from "./bookings";
 import type { PortalState } from "./portal-state";
 import { syncAfter } from "@/lib/moneybird/after";
-import { consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
+import { confirmIfAutomatic, consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
 
 const q = schema.quoteRequests;
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
@@ -116,6 +116,11 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
     return fail(f.quoteServerError);
   }
   if (!created) return fail(f.quoteServerError);
+  try {
+    created = await confirmIfAutomatic(created);
+  } catch (err) {
+    console.error(`[portal] ${created.reference} automatic confirmation failed`, err);
+  }
   const payUrl = await payAtBooking(created, { consent: consentFromForm(formData, created), ipHash: createdIp, locale, who: "partner" });
   // Announced once the payment at booking is in (lib/mollie/schedule.ts), or now when there is none to make or no checkout
   // was opened (the partner pays on the booking's page then), and not again once paid

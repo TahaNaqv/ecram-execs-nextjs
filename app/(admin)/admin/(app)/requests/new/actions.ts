@@ -1,6 +1,6 @@
 "use server";
 
-import { markAnnounced, planForNewBooking } from "@/lib/mollie/booking";
+import { confirmIfAutomatic, markAnnounced, planForNewBooking } from "@/lib/mollie/booking";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -171,6 +171,7 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
     return fail("Could not create the booking. Please try again.");
   }
 
+  if (request.status === "new") request = await confirmIfAutomatic(request, false);
   if (request.paymentPlan) await markAnnounced(request.id);
 
   // The person the booking is for is told it exists. A partner whose booking is already quoted or confirmed gets that

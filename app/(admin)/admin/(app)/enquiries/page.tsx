@@ -98,8 +98,8 @@ async function Queues() {
   return (
     <>
       <div className="mt-6 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
-        <QueueCard summary={standard} nowMs={nowMs} locale={admin.locale} />
         <QueueCard summary={corporate} nowMs={nowMs} locale={admin.locale} />
+        <QueueCard summary={standard} nowMs={nowMs} locale={admin.locale} />
       </div>
       <Card className="mt-4" >
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" role="status" data-alert={level}>

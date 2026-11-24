@@ -13,7 +13,7 @@ import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { createQuoteRequest } from "./create";
-import { consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
+import { confirmIfAutomatic, consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
 import { guestPath } from "./guest-link";
 
 import { readStops } from "./stops";
@@ -151,6 +151,11 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     email: request.email,
   });
   // The terms tick came with the form (the website's review step; a chat booking has none and pays on its page)
+  try {
+    request = await confirmIfAutomatic(request);
+  } catch (err) {
+    console.error(`[booking] ${request.reference} automatic confirmation failed`, err);
+  }
   const payUrl = await payAtBooking(request, {
     consent: consentFromForm(formData, request),
     ipHash,
@@ -191,7 +196,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     map: routeMapLinks(request, browserMapKey()),
     href: safeGuestPath(request),
     payUrl,
-    payNow: formData.get("payWhen") !== "later" && Boolean(request.paymentPlan),
+    payNow: Boolean(payUrl),
     price: request.priceEstimate ? { total: request.priceEstimate.total, exact: request.priceEstimate.exact } : null,
   };
 }

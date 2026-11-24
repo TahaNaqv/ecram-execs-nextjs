@@ -167,16 +167,18 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
       </Suspense>
       {schedule.jobs === 0 && <p className="text-sm text-zinc-500">{t.empty}</p>}
       <p className="text-xs text-zinc-500">
-        {t.bufferNote} {t.legend}
+        {t.bufferNote} {t.legend} {t.holdLegend}
       </p>
     </div>
   );
 }
 
+const PENDING = "border-amber-300 bg-amber-50 text-amber-950 [background-image:repeating-linear-gradient(135deg,transparent_0,transparent_5px,rgb(253_230_138/0.7)_5px,rgb(253_230_138/0.7)_6px)]";
+
 const TONE: Record<Exclude<RequestStatus, "cancelled">, string> = {
-  new: "border-zinc-300 bg-white text-zinc-800",
-  contacted: "border-sky-300 bg-sky-50 text-sky-950",
-  quoted: "border-amber-300 bg-amber-50 text-amber-950",
+  new: PENDING,
+  contacted: PENDING,
+  quoted: PENDING,
   confirmed: "border-emerald-400 bg-emerald-50 text-emerald-950",
   completed: "border-zinc-300 bg-zinc-100 text-zinc-600",
 };
@@ -237,7 +239,8 @@ function Block({
         <span className="block font-semibold tabular-nums">
           {b.clipsStart ? "…" : clock(b.start)} – {b.clipsEnd && b.tripEnd >= 24 * 60 ? "…" : clock(b.tripEnd)}
           {b.leg === "return" && <span className="ml-1 font-medium opacity-80">· {t.returnLeg}</span>}
-          {b.status !== "confirmed" && <span className="ml-1 font-medium">· {statuses[b.status]}</span>}
+          {b.status !== "confirmed" && b.status !== "completed" && <span className="ml-1 font-medium">· {t.holdPending}</span>}
+          {b.status === "confirmed" && <span className="ml-1 font-medium">· {t.holdBooked}</span>}
         </span>
         {b.clash && <span className="sr-only">{t.clash}</span>}
         <span className="block truncate font-mono">{b.reference}</span>

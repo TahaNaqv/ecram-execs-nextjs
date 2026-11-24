@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { addMonths, balanceDueOn, feeWithVatCents, noticeOn, planFor, upfrontCents } from "../../lib/payments/schedule";
+import { addMonths, balanceDueOn, chargeAllowed, confirmsAutomatically, feeWithVatCents, noticeOn, planFor, requiresManualConfirmation, upfrontCents } from "../../lib/payments/schedule";
 
 /**
- * The plan rules of 15 Nov 2026 (lib/payments/schedule.ts), at their edges. Pure: no page, no database.
- * A: 6 calendar months or more ahead (fee now, rest 30 days before, approved by itself); B: in between (fee now, rest
- * 30 days before, by hand); C: 30 days or less (everything now, by hand).
+ * Launch payment rules (lib/payments/schedule.ts), at their edges. Pure: no page, no database.
+ * A: 6 calendar months or more ahead (confirmed on its own, then the service fee, rest 30 days before).
+ * B: 31 days up to 6 months (a person confirms first, then the fee, rest 30 days before).
+ * C: 30 days or less (a person confirms first, then the full amount).
+ * Nothing is collected before the booking is confirmed.
  */
 test.describe("payment plan", () => {
   test("30 days or less is C, 31 days is B", () => {
@@ -16,6 +18,29 @@ test.describe("payment plan", () => {
   test("exactly 6 calendar months ahead is A, a day less is B", () => {
     expect(planFor("2027-05-15T08:00", "2026-11-15")).toBe("A");
     expect(planFor("2027-05-14T08:00", "2026-11-15")).toBe("B");
+  });
+
+  test("two months ahead is still reviewed by hand, like every ride under six months", () => {
+    expect(planFor(`${addMonths("2026-11-15", 2)}T10:00`, "2026-11-15")).toBe("B");
+    expect(planFor("2027-01-14T10:00", "2026-11-15")).toBe("B"); // 60 days
+    expect(planFor("2027-01-13T10:00", "2026-11-15")).toBe("B"); // 59 days
+  });
+
+  test("only a ride six months ahead confirms itself, and nothing is charged before confirmation", () => {
+    expect(confirmsAutomatically("A")).toBe(true);
+    expect(confirmsAutomatically("B")).toBe(false);
+    expect(confirmsAutomatically("C")).toBe(false);
+    expect(requiresManualConfirmation("A")).toBe(false);
+    expect(requiresManualConfirmation("B")).toBe(true);
+    expect(requiresManualConfirmation("C")).toBe(true);
+    expect(chargeAllowed("A", "new")).toBe(false);
+    expect(chargeAllowed("A", "confirmed")).toBe(true);
+    expect(chargeAllowed("B", "new")).toBe(false);
+    expect(chargeAllowed("B", "quoted")).toBe(false);
+    expect(chargeAllowed("B", "confirmed")).toBe(true);
+    expect(chargeAllowed("C", "new")).toBe(false);
+    expect(chargeAllowed("C", "confirmed")).toBe(true);
+    expect(chargeAllowed("C", "cancelled")).toBe(false);
   });
 
   test("month ends and leap years clamp to the month's last day", () => {

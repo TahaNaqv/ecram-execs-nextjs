@@ -8,7 +8,7 @@ import { invoices, startFakeMoneybird } from "./fake-moneybird";
 import { mandates, mollieCalls, payments, refunds, startFakeMollie } from "./fake-mollie";
 
 /**
- * Paying at booking (the client's rules of 15 Nov 2026; lib/payments/schedule.ts, lib/mollie/schedule.ts), against the
+ * Paying at booking (launch rules; lib/payments/schedule.ts, lib/mollie/schedule.ts), against the
  * Mollie and Moneybird stand-ins. Bookings are seeded with their plan and a ride date that puts "today" where the test
  * needs it (before the notice, on the balance date), so no clock is moved. Run like payments.spec.ts:
  *
@@ -176,11 +176,24 @@ async function payAtBooking(page: Page, b: Booking, choice: "Pay" | "Fail" = "Pa
   await expect(page).toHaveURL(/\/booking\?/);
 }
 
+/** Under six months the Pay button stays hidden until a person confirms the booking. */
+async function payAfterConfirm(browser: Browser, page: Page, b: Booking, choice: "Pay" | "Fail" = "Pay") {
+  const admin = await signIn(browser);
+  await page.goto(guestPage(b));
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect((await setStatus(admin, b.id, "confirmed", false)).ok()).toBe(true);
+  await payAtBooking(page, b, choice);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
-test("plan A: the fee is paid with consent, the card is saved, and the booking approves itself with the fee on its invoice", async ({ browser, page }) => {
-  await signIn(browser);
+test("plan A: the booking confirms itself, then the fee is paid with consent and the card is saved", async ({ browser, page }) => {
+  const admin = await signIn(browser);
   const b = await seed("A", 300);
+  await page.goto(guestPage(b));
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect((await sweep(admin)).ok()).toBe(true);
+  await expect.poll(async () => (await bookingRow(b.id)).status, { timeout: 20_000 }).toBe("confirmed");
   await payAtBooking(page, b);
 
   const [fee] = await payRows(b.id);
@@ -206,8 +219,12 @@ test("plan A: the fee is paid with consent, the card is saved, and the booking a
   await expect(page.getByText(/^Service fee paid\. The remaining €\s?442,39 will be charged to your card on /)).toBeVisible();
 });
 
-test("the pay button needs the consent tick; without it the card is never saved", async ({ page }) => {
+test("the pay button needs the consent tick; without it the card is never saved", async ({ browser, page }) => {
+  const admin = await signIn(browser);
   const b = await seed("B", 90);
+  await page.goto(guestPage(b));
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect((await setStatus(admin, b.id, "confirmed", false)).ok()).toBe(true);
   await page.goto(guestPage(b));
   await page.getByRole("button", { name: /^Pay .+ to secure your booking$/ }).click();
   // The browser holds the form back (the tick is required): still on our page, nothing at Mollie
@@ -219,11 +236,9 @@ test("plan B: approved by hand, then on the balance date the rest is charged to 
   const admin = await signIn(browser);
   // The ride is 20 days away: the balance date (30 days before) has passed, as for a booking approved late
   const b = await seed("B", 20);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
-  expect((await bookingRow(b.id)).status).toBe("new");
-
-  expect((await setStatus(admin, b.id, "confirmed")).ok()).toBe(true);
+  expect((await bookingRow(b.id)).status).toBe("confirmed");
   await expect.poll(async () => (await invoiceRow(b.id))?.number ?? null, { timeout: 20_000 }).not.toBeNull();
   expect((await sweep(admin)).ok()).toBe(true);
   await expect.poll(async () => (await payRows(b.id)).find((p) => p.purpose === "balance")?.status ?? null, { timeout: 20_000 }).toBe("paid");
@@ -244,7 +259,7 @@ test("plan B: approved by hand, then on the balance date the rest is charged to 
 test("a failed balance charge is not retried: the customer pays it on the booking page", async ({ browser, page }) => {
   const admin = await signIn(browser);
   const b = await seed("B", 21);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
   expect((await setStatus(admin, b.id, "confirmed")).ok()).toBe(true);
   await expect.poll(async () => (await invoiceRow(b.id))?.number ?? null, { timeout: 20_000 }).not.toBeNull();
@@ -265,7 +280,7 @@ test("the customer is told five days before the charge, and nothing is charged b
   const admin = await signIn(browser);
   // The ride is 33 days away: the notice went out from 2 days ago, the charge is in 3 days
   const b = await seed("B", 33);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
   expect((await setStatus(admin, b.id, "confirmed")).ok()).toBe(true);
   expect((await sweep(admin)).ok()).toBe(true);
@@ -278,7 +293,7 @@ test("the customer is told five days before the charge, and nothing is charged b
 test("the automatic charge never goes above the total the customer agreed to", async ({ browser, page }) => {
   const admin = await signIn(browser);
   const b = await seed("B", 22);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
   // As if the price went up after the customer agreed to €300
   await setColumns(b.id, { consented_cents: 30000 });
@@ -295,11 +310,13 @@ test("plan C: the full amount is paid at booking", async ({ browser, page }) => 
   const admin = await signIn(browser);
   const b = await seed("C", 10);
   await page.goto(guestPage(b));
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect((await setStatus(admin, b.id, "confirmed", false)).ok()).toBe(true);
+  await page.goto(guestPage(b));
   await expect(page.getByRole("button", { name: /^Pay €\s?457,52 to secure your booking$/ })).toBeVisible();
   await payAtBooking(page, b);
   expect((await payRows(b.id))[0]).toMatchObject({ purpose: "upfront", status: "paid", amount_cents: TOTAL });
-  expect((await bookingRow(b.id)).status).toBe("new");
-  expect((await setStatus(admin, b.id, "confirmed")).ok()).toBe(true);
+  expect((await bookingRow(b.id)).status).toBe("confirmed");
   await expect.poll(async () => (await invoiceRow(b.id))?.number ?? null, { timeout: 20_000 }).not.toBeNull();
   const inv = invoices.get((await invoiceRow(b.id))!.moneybird_id!)!;
   await expect.poll(() => inv.total_unpaid, { timeout: 20_000 }).toMatch(/^0(\.0+)?$/);
@@ -309,7 +326,7 @@ test("plan C: the full amount is paid at booking", async ({ browser, page }) => 
 test("decline and refund: everything paid goes back, the card is removed, the booking is cancelled", async ({ browser, page }) => {
   const admin = await signIn(browser);
   const b = await seed("B", 120);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
   const mandateId = (await bookingRow(b.id)).mollie_mandate_id!;
 
@@ -331,30 +348,18 @@ test("decline and refund: everything paid goes back, the card is removed, the bo
   expect(await invoiceRow(b.id)).toBeUndefined();
 });
 
-test("cancelled by the customer before approval: the fee is kept, on an invoice of its own", async ({ browser, page }) => {
-  const admin = await signIn(browser);
+test("a ride under six months takes no payment until it is confirmed", async ({ page }) => {
   const b = await seed("B", 150);
-  await payAtBooking(page, b);
-  await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
-  const mandateId = (await bookingRow(b.id)).mollie_mandate_id!;
-
-  expect((await setStatus(admin, b.id, "cancelled", false)).ok()).toBe(true);
-  await expect.poll(async () => (await invoiceRow(b.id))?.number ?? null, { timeout: 20_000 }).not.toBeNull();
-  const row = (await invoiceRow(b.id))!;
-  expect(row.reference).toBe(`${b.reference}-FEE`);
-  const inv = invoices.get(row.moneybird_id!)!;
-  expect(inv.details).toHaveLength(1);
-  expect(inv.details[0].description).toMatch(/Service fee \(non-refundable, booking cancelled\)/);
-  await expect.poll(() => inv.total_unpaid, { timeout: 20_000 }).toMatch(/^0(\.0+)?$/);
-  await expect.poll(() => mandates.get(mandateId)?.status, { timeout: 20_000 }).toBe("invalid");
-  // Only the fee is invoiced: it cannot be confirmed again on that invoice alone
-  expect((await setStatus(admin, b.id, "confirmed")).status()).toBe(409);
+  await page.goto(guestPage(b));
+  await expect(page.getByText("Nothing is charged until our booking manager confirms your booking.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect(await payRows(b.id)).toHaveLength(0);
 });
 
 test("a balance charge Mollie refuses outright is reported, not left silent", async ({ browser, page }) => {
   const admin = await signIn(browser);
   const b = await seed("B", 23);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
   expect((await setStatus(admin, b.id, "confirmed")).ok()).toBe(true);
   await expect.poll(async () => (await invoiceRow(b.id))?.number ?? null, { timeout: 20_000 }).not.toBeNull();
@@ -370,7 +375,7 @@ test("a card Mollie still has as pending is not charged yet, nor reported failed
   const admin = await signIn(browser);
   // The balance date was yesterday: a card still pending two days after it is reported instead (chargeBalance)
   const b = await seed("B", 29);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await expect.poll(async () => (await bookingRow(b.id)).mollie_mandate_id, { timeout: 20_000 }).toMatch(/^mdt_/);
   const mandateId = (await bookingRow(b.id)).mollie_mandate_id!;
   expect((await setStatus(admin, b.id, "confirmed")).ok()).toBe(true);
@@ -392,20 +397,21 @@ test("a car already booked stops the automatic approval: the team is asked, once
   const first = await seed("A", 0, { pickup });
   expect((await setStatus(admin, first.id, "confirmed", false)).ok()).toBe(true);
   const b = await seed("A", 0, { pickup });
-  await payAtBooking(page, b);
+  await page.goto(guestPage(b));
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect((await sweep(admin)).ok()).toBe(true);
   await expect.poll(async () => (await bookingRow(b.id)).auto_approve_stopped_at, { timeout: 20_000 }).not.toBeNull();
   expect((await bookingRow(b.id)).status).toBe("new");
+  expect(await payRows(b.id)).toHaveLength(0);
   expect((await sweep(admin)).ok()).toBe(true);
   expect((await events(b.id)).filter((e) => e === "auto_approve_stopped")).toHaveLength(1);
-  // The fee is in, so it is announced like any booking
-  expect((await bookingRow(b.id)).paid_notified_at).not.toBeNull();
 });
 
 test("a card that expires before the balance date is flagged", async ({ browser, page }) => {
   await signIn(browser);
   await control(`/__card-expiry/${addDays(today, 60)}`);
   const b = await seed("B", 150);
-  await payAtBooking(page, b);
+  await payAfterConfirm(browser, page, b);
   await control("/__card-expiry/2035-12-31");
   await expect.poll(() => events(b.id), { timeout: 20_000 }).toContain("card_expires");
 });

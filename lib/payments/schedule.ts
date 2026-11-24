@@ -2,12 +2,15 @@ import type { Price } from "@/lib/pricing/rates";
 import { SERVICE_FEE_CENTS, SERVICE_FEE_VAT_RATE, centsOf } from "@/lib/pricing/rates";
 
 /**
- * When a booking is paid, and whether it is approved by itself (the client, 15 Nov 2026):
+ * When a booking is paid, and whether it is approved by itself (launch rules):
  *
- * | plan | the ride is…                  | at booking                         | later                               | approval  |
- * | A    | 6 calendar months or more away | the service fee (fee + its VAT)    | the rest, 30 days before the ride   | automatic |
- * | B    | 31 days to 6 months away       | the service fee                    | the rest, 30 days before the ride   | by hand   |
- * | C    | 30 days or less away           | the full amount                    | nothing                             | by hand   |
+ * | plan | the ride is…                         | confirmation                         | once confirmed                                      |
+ * | A    | 6 calendar months or more away       | automatic, as soon as it is booked   | the €12.50 service fee, then the rest 30 days before |
+ * | B    | 31 days up to 6 months away          | a person confirms it first           | the €12.50 service fee, then the rest 30 days before |
+ * | C    | 30 days or less away                 | a person confirms it first           | the full amount                                     |
+ *
+ * The amount due at booking is taken when the booking is made. Plan A is confirmed on its own.
+ * Plans B and C wait for a person to confirm them. A corporate booking can invoice the balance on 7, 14 or 30 day terms.
  *
  * The plan is fixed when the booking is made (stored on it). The dates that follow from it are worked out from the ride's
  * date each time, so a changed ride date moves them. All dates are Amsterdam calendar days, "YYYY-MM-DD"; pure, no clock.
@@ -67,6 +70,23 @@ export function upfrontCents(plan: PaymentPlan, totalCents: number, price: Pick<
 export function balanceDueOn(plan: PaymentPlan | null, pickupAt: string | null | undefined): string | null {
   if (!plan || plan === "C" || !pickupAt) return null;
   return addDays(rideDay(pickupAt), -BALANCE_DAYS_BEFORE);
+}
+
+/** Six months or more ahead: the booking confirms itself. Anything nearer waits for the team. */
+export function confirmsAutomatically(plan: PaymentPlan | null | undefined): boolean {
+  return plan === "A";
+}
+
+/** Under six months (plans B and C): no charge until a person confirms the booking. */
+export function requiresManualConfirmation(plan: PaymentPlan | null | undefined): boolean {
+  return plan === "B" || plan === "C";
+}
+
+/** A charge is allowed only after confirmation. The server checks this again; the page's total is not enough. */
+export function chargeAllowed(plan: PaymentPlan | null | undefined, status: string | null | undefined): boolean {
+  if (status === "cancelled") return false;
+  if (plan != null && !confirmsAutomatically(plan) && !requiresManualConfirmation(plan)) return false;
+  return status === "confirmed" || status === "completed";
 }
 
 /** The day the customer is told the charge is coming. */

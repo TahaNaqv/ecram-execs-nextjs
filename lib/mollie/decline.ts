@@ -13,7 +13,7 @@ export type DeclineResult = { status: "done"; refundedCents: number } | { status
  * so everything paid goes back, the service fee included, and the card is no longer charged. A customer who cancels
  * keeps no refund of the fee; that is the ordinary cancel, not this.
  */
-export async function declineBooking(requestId: string, adminId: string | null): Promise<DeclineResult> {
+export async function declineBooking(requestId: string, adminId: string | null, reason?: string | null): Promise<DeclineResult> {
   const q = schema.quoteRequests;
   const [before] = await db.select().from(q).where(eq(q.id, requestId)).limit(1);
   if (!before) return { status: "failed", error: "missing" };
@@ -46,7 +46,8 @@ export async function declineBooking(requestId: string, adminId: string | null):
     }
     await revokeCard(requestId);
   }
-  await db.insert(schema.requestEvents).values({ requestId, adminId, event: "declined", params: { amount: (refunded / 100).toFixed(2) } });
+  const note = reason?.trim().slice(0, 500) || null;
+  await db.insert(schema.requestEvents).values({ requestId, adminId, event: "declined", params: { amount: (refunded / 100).toFixed(2), ...(note ? { reason: note } : {}) } });
   // No invoice was made for a booking never approved; an unsent one being made is dropped
   await syncBooking(requestId).catch(() => null);
   await emailDeclined(row, refunded).catch((err) => console.error(`[decline] email for ${row.reference} failed:`, err instanceof Error ? err.message : err));

@@ -4,6 +4,7 @@ import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { permissionsFor, type StaffPermission, type StaffRole } from "@/lib/admin/access";
 import { db, schema } from "@/lib/db";
 import type { Locale } from "@/lib/i18n/config";
 
@@ -37,7 +38,7 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-export type Admin = { id: string; name: string; email: string; locale: Locale };
+export type Admin = { id: string; name: string; email: string; locale: Locale; role: StaffRole; permissions: StaffPermission[] };
 
 /** Returns the signed-in admin, or null. Deduplicated per request. */
 export const getAdmin = cache(async (): Promise<Admin | null> => {
@@ -49,12 +50,17 @@ export const getAdmin = cache(async (): Promise<Admin | null> => {
       name: schema.adminUsers.name,
       email: schema.adminUsers.email,
       locale: schema.adminUsers.locale,
+      role: schema.adminUsers.role,
+      permissions: schema.adminUsers.permissions,
     })
     .from(schema.adminSessions)
     .innerJoin(schema.adminUsers, eq(schema.adminUsers.id, schema.adminSessions.adminId))
     .where(and(eq(schema.adminSessions.id, hashToken(token)), gt(schema.adminSessions.expiresAt, sql`now()`)))
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  const storedRole = row.role.toLowerCase();
+  const role: StaffRole = storedRole === "owner" || storedRole === "manager" ? storedRole : "staff";
+  return { id: row.id, name: row.name, email: row.email, locale: row.locale, role, permissions: permissionsFor(role, row.permissions) };
 });
 
 /** Use in every admin page, Server Action and Route Handler. */
