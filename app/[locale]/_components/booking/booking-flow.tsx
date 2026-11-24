@@ -483,7 +483,7 @@ export function BookingFlow({
           onSend={(quoted, shown) => {
             if (sealedHref && sealed.current !== sealedHref) return;
             // Still inside the click: the only moment a browser lets this page open Mollie's tab
-            if (payInNewTab && shown) holdPayTab(t.payTabOpening);
+            if (payInNewTab && shown?.payNow) holdPayTab(t.payTabOpening);
             rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, addOns, locale }));
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
@@ -1333,9 +1333,10 @@ const CloseIcon = () => (
   </svg>
 );
 
-export function BookingStatusBadge({ label }: { label: string }) {
+export function BookingStatusBadge({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "confirmed" }) {
+  const confirmed = tone === "confirmed";
   return (
-    <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ink-950 px-3.5 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-white uppercase">
+    <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase ${confirmed ? "bg-emerald-700 text-white" : "bg-ink-950 text-white"}`}>
       <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />
       {label}
     </span>

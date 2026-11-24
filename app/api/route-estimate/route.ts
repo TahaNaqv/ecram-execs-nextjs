@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   try {
     const { meters, seconds } = await cachedDriveEstimate(from, to, stops);
-    return Response.json({ meters, seconds }, { headers: { "Cache-Control": "private, no-store" } });
+    return Response.json({ meters, seconds }, { headers: { "Cache-Control": "private, max-age=86400" } });
   } catch (err) {
     console.error("[route-estimate] failed", err);
     return Response.json({});

@@ -9,8 +9,9 @@ import { SERVICE_FEE_CENTS, SERVICE_FEE_VAT_RATE, centsOf } from "@/lib/pricing/
  * | B    | 31 days up to 6 months away          | a person confirms it first           | the €12.50 service fee, then the rest 30 days before |
  * | C    | 30 days or less away                 | a person confirms it first           | the full amount                                     |
  *
- * The amount due at booking is taken when the booking is made. Plan A is confirmed on its own.
- * Plans B and C wait for a person to confirm them. A corporate booking can invoice the balance on 7, 14 or 30 day terms.
+ * Nothing is taken until the booking is confirmed. Plan A confirms itself, then the fee is charged.
+ * Plans B and C wait for a person. The fee (B) or the full amount (C) is charged only after that.
+ * A corporate booking can invoice the balance on 7, 14 or 30 day terms.
  *
  * The plan is fixed when the booking is made (stored on it). The dates that follow from it are worked out from the ride's
  * date each time, so a changed ride date moves them. All dates are Amsterdam calendar days, "YYYY-MM-DD"; pure, no clock.
@@ -61,9 +62,46 @@ export function feeWithVatCents(price: Pick<Price, "fee" | "feeVat"> | null | un
   return fee + vat;
 }
 
-/** What is paid at booking: the fee (plans A and B), or everything (plan C). */
+/** What is paid once the booking is confirmed: the fee (plans A and B), or everything (plan C). Nothing is taken before that. */
 export function upfrontCents(plan: PaymentPlan, totalCents: number, price: Pick<Price, "fee" | "feeVat"> | null | undefined): number {
   return plan === "C" ? totalCents : Math.min(totalCents, feeWithVatCents(price));
+}
+
+export type LaunchSchedule = {
+  plan: PaymentPlan | null;
+  /** Six months or more ahead: confirmed as soon as it is booked. */
+  autoConfirmed: boolean;
+  /** Under six months: a person confirms it before any charge. */
+  requiresManualApproval: boolean;
+  /** Charged once confirmed. The fee, or the whole amount within 30 days. */
+  upfrontCents: number;
+  /** Charged on its own 30 days before the ride. Zero when the whole amount is taken up front. */
+  scheduledBalanceCents: number;
+  /** That day, at noon UTC, or null when there is no later charge. */
+  scheduledBalanceDate: Date | null;
+};
+
+/** Lead time from the ride's Amsterdam day. No date: a hand-quoted programme, with nothing to charge yet. */
+export function launchSchedule(
+  pickupAt: string | null | undefined,
+  today: string,
+  totalCents: number,
+  price: Pick<Price, "fee" | "feeVat"> | null | undefined,
+): LaunchSchedule {
+  const plan = planFor(pickupAt, today);
+  if (!plan) {
+    return { plan: null, autoConfirmed: false, requiresManualApproval: true, upfrontCents: 0, scheduledBalanceCents: 0, scheduledBalanceDate: null };
+  }
+  const upfront = upfrontCents(plan, totalCents, price);
+  const due = balanceDueOn(plan, pickupAt);
+  return {
+    plan,
+    autoConfirmed: confirmsAutomatically(plan),
+    requiresManualApproval: requiresManualConfirmation(plan),
+    upfrontCents: upfront,
+    scheduledBalanceCents: Math.max(0, totalCents - upfront),
+    scheduledBalanceDate: due ? new Date(`${due}T12:00:00Z`) : null,
+  };
 }
 
 /** The day the rest is charged: 30 days before the ride. Null for plan C (paid in full at booking). */

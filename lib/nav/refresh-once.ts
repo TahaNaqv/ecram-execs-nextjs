@@ -26,7 +26,16 @@ function run(router: { refresh: () => void }) {
   }
 }
 
-export function refreshOnce(router: { refresh: () => void }) {
+export function refreshOnce(router: { refresh: () => void }, immediate = false) {
+  if (immediate) {
+    if (pending) {
+      clearTimeout(pending);
+      pending = null;
+      pendingRouter = null;
+    }
+    run(router);
+    return;
+  }
   const wait = QUIET_MS - (Date.now() - lastRefresh);
   if (wait <= 0) {
     if (pending) {

@@ -10,6 +10,29 @@ import { db, schema } from "@/lib/db";
 
 export type AccountState = { ok?: boolean; error?: "wrong" | "taken" | "short" | "failed" };
 export type CreateAccountState = { ok?: boolean; error?: "taken" | "short" | "denied" | "failed" };
+export type SetPasswordState = { ok?: boolean; error?: "short" | "denied" | "failed" };
+
+const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Sets a team password without email. The person who sets it passes the password on. */
+export async function setTeamPassword(_prev: SetPasswordState, formData: FormData): Promise<SetPasswordState> {
+  const admin = await requireAdmin();
+  if (!mayCreateAccounts(admin.role, admin.permissions)) return { error: "denied" };
+  const id = String(formData.get("id") ?? "");
+  const password = String(formData.get("temporaryPassword") ?? "");
+  if (!ACCOUNT_ID.test(id)) return { error: "failed" };
+  if (password.length < 12) return { error: "short" };
+  const [user] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.id, id)).limit(1);
+  if (!user) return { error: "failed" };
+  await db
+    .update(schema.adminUsers)
+    .set({ passwordHash: await hashPassword(password), failedLogins: 0, lockedUntil: null })
+    .where(eq(schema.adminUsers.id, id));
+  await db.delete(schema.adminSessions).where(eq(schema.adminSessions.adminId, id));
+  if (id === admin.id) await destroySession();
+  refresh();
+  return { ok: true };
+}
 
 export async function saveAccount(_prev: AccountState, formData: FormData): Promise<AccountState> {
   const admin = await requireAdmin();

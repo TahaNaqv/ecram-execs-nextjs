@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+
+/** Same route asked again (back to review, or a re-render) reuses the drive already measured. */
+const routeEstimates = new Map<string, { meters: number; seconds: number }>();
 import {
   FLEET,
   MAX_GALLERY_IMAGES,
@@ -30,7 +33,7 @@ import { cleanPhoneInput } from "@/lib/phone";
 import { isPastWall } from "@/lib/time/amsterdam";
 import { formatRouteSpan, spanFromPrice } from "@/lib/pricing/route-span";
 import { PriceBreakdown, segmentOf, tripPrice, tripWaitMinutes } from "./price";
-import { amsterdamDay, balanceDueOn, planFor, upfrontCents } from "@/lib/payments/schedule";
+import { amsterdamDay, launchSchedule } from "@/lib/payments/schedule";
 import { formatCents } from "@/lib/pricing/rates";
 
 type EditableSection = "contact" | "ride" | "vehicle" | null;
@@ -334,7 +337,7 @@ export function ReviewStep({
   onUpdateTrip?: (nextTrip: Trip) => void;
   onUpdateDetails?: (nextDetails: DetailsEntry) => void;
   /** `shown`: the payment plan and total the customer agreed to on this screen (checked again by the server) */
-  onSend: (quoted: ReturnType<typeof tripPrice>, shown: { plan: string; totalCents: number } | null) => void;
+  onSend: (quoted: ReturnType<typeof tripPrice>, shown: { plan: string; totalCents: number; payNow?: boolean } | null) => void;
   /** After Book and pay: this screen stays, Mollie is the other tab, and the button follows the payment. */
   sentPayment?: { reference: string; checkoutUrl: string | null; guestKey: string | null; popupBlocked?: boolean } | null;
 }) {
@@ -574,11 +577,20 @@ export function ReviewStep({
 
   const routed = trip.mode === "oneway" && trip.from.text.trim() && trip.to.text.trim();
   const stopsKey = trip.stops.map((s) => s.place.trim()).filter(Boolean).join("|");
-  const [estimate, setEstimate] = useState<{ meters: number; seconds: number } | null | "pending">(routed ? "pending" : null);
+  const routeKey = routed ? `${trip.from.text.trim()}|${stopsKey}|${trip.to.text.trim()}` : "";
+  const [estimate, setEstimate] = useState<{ meters: number; seconds: number } | null | "pending">(() => {
+    if (!routeKey) return null;
+    return routeEstimates.get(routeKey) ?? "pending";
+  });
 
   useEffect(() => {
-    if (!routed) {
+    if (!routed || !routeKey) {
       setEstimate(null);
+      return;
+    }
+    const cached = routeEstimates.get(routeKey);
+    if (cached) {
+      setEstimate(cached);
       return;
     }
     setEstimate("pending");
@@ -587,12 +599,18 @@ export function ReviewStep({
     const controller = new AbortController();
     fetch(`/api/route-estimate?${query}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { meters?: number; seconds?: number } | null) =>
-        setEstimate(typeof data?.meters === "number" && typeof data?.seconds === "number" ? { meters: data.meters, seconds: data.seconds } : null),
-      )
+      .then((data: { meters?: number; seconds?: number } | null) => {
+        if (typeof data?.meters === "number" && typeof data.seconds === "number") {
+          const found = { meters: data.meters, seconds: data.seconds };
+          routeEstimates.set(routeKey, found);
+          setEstimate(found);
+          return;
+        }
+        setEstimate(null);
+      })
       .catch((err: Error) => err.name !== "AbortError" && setEstimate(null));
     return () => controller.abort();
-  }, [routed, trip.from.text, trip.to.text, stopsKey]);
+  }, [routed, routeKey, trip.from.text, trip.to.text, stopsKey]);
 
   const phone = (country: string, number: string) => (number ? `+${country} ${number}` : "");
   const kind =
@@ -632,10 +650,11 @@ export function ReviewStep({
   const drive = estimate && estimate !== "pending" ? estimate : null;
   const waits = tripWaitMinutes(trip);
   const price = tripPrice(trip, segment, drive?.seconds ?? null, drive?.meters ?? null);
-  const payPlan = payOnline && price && price.total > 0 ? planFor(trip.at, amsterdamDay()) : null;
-  const upfront = payPlan && price ? upfrontCents(payPlan, price.total, price) : null;
-  const restCents = payPlan && price && upfront != null ? price.total - upfront : 0;
-  const restOn = balanceDueOn(payPlan, trip.at);
+  const timing = payOnline && price && price.total > 0 ? launchSchedule(trip.at, amsterdamDay(), price.total, price) : null;
+  const payPlan = timing?.plan ?? null;
+  const upfront = timing && timing.upfrontCents > 0 ? timing.upfrontCents : null;
+  const restCents = timing?.scheduledBalanceCents ?? 0;
+  const restOn = timing?.scheduledBalanceDate ? timing.scheduledBalanceDate.toISOString().slice(0, 10) : null;
   const longDate = (iso: string) =>
     new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", {
       day: "numeric",
@@ -1199,7 +1218,7 @@ export function ReviewStep({
                           date: restOn ? longDate(restOn) : "",
                         })}
                   </p>
-                  <p className="m-0">{payPlan === "A" ? t.payAutoApproved : t.payReviewed}</p>
+                  <p className="m-0">{timing?.autoConfirmed ? t.payAutoApproved : t.payReviewed}</p>
                 </div>
               )}
               {mustAgree && (
@@ -1273,11 +1292,11 @@ export function ReviewStep({
                     document.getElementById(`${uid}-agree`)?.focus();
                     return;
                   }
-                  onSend(price, payPlan && price ? { plan: payPlan, totalCents: price.total } : null);
+                  onSend(price, payPlan && price ? { plan: payPlan, totalCents: price.total, payNow: Boolean(timing?.autoConfirmed) } : null);
                 }}
                 className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-ink-950 px-5 text-[13px] font-semibold tracking-wide text-white hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70 sm:flex-none"
               >
-                {result.pending ? t.sending : payPlan && upfront != null ? interpolate(t.submitPay, { amount: formatCents(upfront, locale) }) : t.submit}
+                {result.pending ? t.sending : timing?.autoConfirmed && upfront != null ? interpolate(t.submitPay, { amount: formatCents(upfront, locale) }) : t.submit}
                 {!result.pending && <ArrowRight />}
               </button>
               ))}

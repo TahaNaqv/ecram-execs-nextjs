@@ -238,7 +238,7 @@ const NOTHING: Due = { cents: 0, purpose: "pay", first: false };
 
 /**
  * What the customer can pay now on the booking's page, and how:
- * - the amount due at booking (the service fee, or the full amount within a month) is collected when the booking is made;
+ * - nothing is due until the booking is confirmed: the fee (six months or more, or after a person confirms a later ride) or the full amount (within 30 days, after a person confirms);
  * - a booking made before the client's rules of 15 Nov 2026 (no plan): everything still due, once it is approved;
  * - a corporate booking with 7, 14 or 30 day terms does not have its balance taken from the card;
  * - approved, plan C, or from the balance date on (a failed or capped charge, a raised price): what is still due;
@@ -254,6 +254,7 @@ export async function dueNow(requestId: string): Promise<Due> {
   const total = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
   const paid = await paidNet(requestId, config.mode);
   const upfront = upfrontCents(r.paymentPlan, Math.min(total, r.consentedCents ?? total), r.priceEstimate);
+  if (!chargeAllowed(r.paymentPlan, r.status)) return NOTHING;
   if (paid < upfront) return { cents: upfront - paid, purpose: "upfront", first: true };
   if (!payable(r.status)) return NOTHING;
   if (r.invoiceTermsDays) return NOTHING;
@@ -477,6 +478,21 @@ async function postBalance(row: Payment, r: Booking): Promise<ChargeResult> {
   const after = await refreshPayment(row.id).catch(() => null);
   const status = after?.status ?? m.status;
   return status === "paid" ? { status: "charged" } : ["failed", "canceled", "expired"].includes(status) ? { status: "failed" } : { status: "pending" };
+}
+
+/** After confirmation: charge the saved card for the fee or the full amount. With no card yet, the booking page offers Pay. */
+export async function collectConfirmedCharge(requestId: string): Promise<void> {
+  let due: Due;
+  try {
+    due = await dueNow(requestId);
+  } catch (err) {
+    console.error(`[mollie] confirmed charge for ${requestId} could not be priced:`, err instanceof Error ? err.message : err);
+    return;
+  }
+  if (due.cents <= 0) return;
+  const result = await chargeBalance(requestId, async () => due.cents);
+  if (result.status === "no_card" || result.status === "nothing" || result.status === "charged" || result.status === "pending") return;
+  console.error(`[mollie] confirmed charge for ${requestId}: ${result.status}${result.reason ? ` (${result.reason})` : ""}`);
 }
 
 /**

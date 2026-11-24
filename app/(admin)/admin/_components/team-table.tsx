@@ -1,4 +1,5 @@
 import { ACCOUNT_AREAS, type AccountArea, type StaffRole } from "@/lib/admin/access";
+import { SetPasswordForm } from "./set-password";
 
 const badge: Record<StaffRole, string> = {
   staff: "border-zinc-200 bg-zinc-50 text-zinc-800",
@@ -15,13 +16,24 @@ export function TeamTable({
   ownersAll,
   columns,
   empty,
+  passwordCopy,
 }: {
   people: Person[];
   labels: Record<AccountArea, string>;
   roleLabel: Record<StaffRole, string>;
   ownersAll: string;
-  columns: { name: string; email: string; role: string; permissions: string };
+  columns: { name: string; email: string; role: string; permissions: string; password: string };
   empty: string;
+  passwordCopy: {
+    setPassword: string;
+    passwordSet: string;
+    passwordHint: string;
+    showPassword: string;
+    hidePassword: string;
+    short: string;
+    denied: string;
+    invalid: string;
+  };
 }) {
   if (people.length === 0) return <p className="m-0 px-5 py-4 text-sm text-zinc-600">{empty}</p>;
   return (
@@ -33,6 +45,7 @@ export function TeamTable({
             <th className="px-5 py-2 font-medium">{columns.email}</th>
             <th className="px-5 py-2 font-medium">{columns.role}</th>
             <th className="px-5 py-2 font-medium">{columns.permissions}</th>
+            <th className="px-5 py-2 font-medium">{columns.password}</th>
           </tr>
         </thead>
         <tbody>
@@ -56,6 +69,9 @@ export function TeamTable({
                       ))}
                     </span>
                   )}
+                </td>
+                <td className="px-5 py-3">
+                  <SetPasswordForm id={person.id} copy={passwordCopy} />
                 </td>
               </tr>
             );

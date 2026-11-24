@@ -38,7 +38,7 @@ function paymentBadge(status: string | null, state: PaymentView["state"] | undef
 }
 
 /** How often the open page asks whether the booking manager has decided, in milliseconds. */
-const POLL_MS = 10_000;
+const POLL_MS = 3_000;
 
 /** Statuses the page keeps asking about: the review, and the conversation (the team may reply, or approve). */
 const WAITING = new Set(["new", "contacted", "quoted"]);
@@ -102,6 +102,8 @@ export function GuestBookingView({
   payBlocked?: boolean;
 }) {
   const router = useRouter();
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const displayStatus = liveStatus ?? status;
   const heading = useRef<HTMLHeadingElement>(null);
   const [checking, setChecking] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -114,22 +116,24 @@ export function GuestBookingView({
   // An open Mollie payment stays "none" until it is paid, so the confirmation tab keeps asking until that changes.
   useEffect(() => {
     const followPayment = payment != null && payment.state !== "paid" && paymentStatus !== "paid";
-    if (!WAITING.has(status) && !awaitingInvoice && !followPayment) return;
+    if (!WAITING.has(displayStatus) && !awaitingInvoice && !followPayment) return;
     let stopped = false;
     // Waiting for the invoice or a payment is short: stop asking after a while (the page shows the answer on a reload)
-    const until = WAITING.has(status) ? Infinity : Date.now() + (followPayment ? 15 : 5) * 60_000;
+    const until = WAITING.has(displayStatus) ? Infinity : Date.now() + (followPayment ? 15 : 5) * 60_000;
     const ask = async () => {
       if (Date.now() > until) return;
       try {
-        const sync = followPayment ? "&sync=1" : "";
+        const sync = followPayment && payment?.state === "progress" ? "&sync=1" : "";
         const res = await fetch(`/api/booking/state?ref=${encodeURIComponent(reference)}&k=${encodeURIComponent(linkKey)}${sync}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
         const now = (await res.json()) as { status: string; lastMessageAt: string | null; invoice: string | null; payment: string | null };
-        const moved = now.status !== status || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null);
+        const moved = now.status !== displayStatus || now.lastMessageAt !== lastMessageAt || (now.invoice ?? null) !== (invoice?.number ?? null);
         const paymentMoved = (now.payment ?? null) !== (paymentStatus ?? null);
-        if (moved || paymentMoved) refreshOnce(router);
+        if (now.status !== displayStatus) setLiveStatus(now.status);
+        if (moved || paymentMoved) refreshOnce(router, now.status !== displayStatus);
       } catch {}
     };
+    void ask();
     const timer = window.setInterval(ask, POLL_MS);
     const onShow = () => {
       if (document.visibilityState === "hidden") return;
@@ -143,15 +147,42 @@ export function GuestBookingView({
       document.removeEventListener("visibilitychange", onShow);
       window.removeEventListener("focus", onShow);
     };
-  }, [status, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment, paymentStatus]);
+  }, [displayStatus, lastMessageAt, reference, linkKey, router, awaitingInvoice, invoice?.number, payment, paymentStatus]);
+
+  // The Mollie tab reports the outcome here. This tab then asks for the booking again.
+  useEffect(() => {
+    const apply = (payload: { ref?: string } | null) => {
+      if (payload?.ref === reference) refreshOnce(router);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "ee-payment" || !event.newValue) return;
+      try {
+        apply(JSON.parse(event.newValue) as { ref?: string });
+      } catch {
+        /* ignore a value this page did not write */
+      }
+    };
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("ee-payment");
+      channel.onmessage = (event) => apply(event.data as { ref?: string });
+    } catch {
+      channel = null;
+    }
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      channel?.close();
+    };
+  }, [reference, router]);
 
   // A new status moves the focus to the new heading, so a screen reader reads the decision out
-  const seen = useRef(status);
+  const seen = useRef(displayStatus);
   useEffect(() => {
-    if (seen.current === status) return;
-    seen.current = status;
+    if (seen.current === displayStatus) return;
+    seen.current = displayStatus;
     heading.current?.focus({ preventScroll: true });
-  }, [status]);
+  }, [displayStatus]);
 
   const view = {
     new: { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote },
@@ -164,12 +195,13 @@ export function GuestBookingView({
     },
     completed: { eyebrow: t.completedEyebrow, heading: t.completedHeading, note: "" },
     cancelled: { eyebrow: t.cancelledEyebrow, heading: t.cancelledHeading, note: t.cancelledNote },
-  }[status] ?? { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote };
-  const reviewing = status === "new" || status === "quoted";
+  }[displayStatus] ?? { eyebrow: t.reviewEyebrow, heading: interpolate(t.reviewHeading, { name }), note: t.reviewNote };
+  const reviewing = displayStatus === "new" || displayStatus === "quoted";
+  const confirmedLook = displayStatus === "confirmed" || displayStatus === "completed";
   const settled = payment?.state === "paid" || paymentStatus === "paid";
 
   const paying = Boolean(
-    payment && status !== "cancelled" && (settled || (!payment.awaitingConfirmation && (status === "confirmed" || status === "completed" || payment.first || payment.rest))),
+    payment && displayStatus !== "cancelled" && (settled || (!payment.awaitingConfirmation && (displayStatus === "confirmed" || displayStatus === "completed" || payment.first || payment.rest))),
   );
 
   return (
@@ -178,7 +210,7 @@ export function GuestBookingView({
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 max-w-[640px] flex-col gap-5">
             <div className="flex flex-wrap items-center gap-3">
-              <BookingStatusBadge label={view.eyebrow} />
+              <BookingStatusBadge label={view.eyebrow} tone={confirmedLook ? "confirmed" : "neutral"} />
               {payment && reference && (settled || !payment.awaitingConfirmation) ? <BookingStatusBadge label={paymentBadge(paymentStatus, payment.state, bookingCopy)} /> : null}
               {reference ? <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span> : null}
             </div>
@@ -186,7 +218,7 @@ export function GuestBookingView({
               {view.heading}
             </h2>
             {!paying && view.note ? <p className="m-0 text-[15px] text-ink-700">{view.note}</p> : null}
-            {payment?.awaitingConfirmation && !settled ? <p className="m-0 text-[15px] text-ink-700">{bookingCopy.payAwaitConfirm}</p> : null}
+            {payment?.awaitingConfirmation && !settled && !confirmedLook ? <p className="m-0 text-[15px] text-ink-700">{bookingCopy.payAwaitConfirm}</p> : null}
           </div>
           <DownloadableReceiptCard copy={bookingCopy} locale={locale} reference={reference} status={view.eyebrow} name={name} receipt={receipt} price={price} />
         </div>
@@ -251,7 +283,7 @@ export function GuestBookingView({
             )}
           </div>
         )}
-        {invoice?.href && (status === "confirmed" || status === "completed") && (
+        {invoice?.href && (displayStatus === "confirmed" || displayStatus === "completed") && (
           <a
             href={invoice.href}
             target="_blank"

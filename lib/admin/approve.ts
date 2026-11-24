@@ -7,7 +7,7 @@ import { emailBookingRecorded, emailEnquiryStatus, emailPartnerBooking } from "@
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
 import { routeHold } from "@/lib/fleet/route";
 import { syncBooking } from "@/lib/moneybird/sync";
-import { cancelOpenPayments, flushPayments, revokeCard } from "@/lib/mollie/pay";
+import { cancelOpenPayments, collectConfirmedCharge, flushPayments, revokeCard } from "@/lib/mollie/pay";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
 import type { ActiveStatus } from "@/lib/quotes/constants";
 
@@ -130,6 +130,8 @@ export async function setBookingStatus(
     }
     // Cancelled: the saved card is never charged again (put back to confirmed, the balance is paid by hand)
     if (newStatus === "cancelled") await stopPaying(updated.id, updated.reference);
+    // Confirmed: charge the saved card when there is one. Otherwise the customer pays on the booking page.
+    if (newStatus === "confirmed" && updated.paymentPlan) await collectConfirmedCharge(updated.id);
   };
   console.info(`[status] ${updated.reference}: ${current.status} → ${newStatus}${sendMail ? " (customer told)" : ""}${adminId ? "" : " (automatic)"}`);
   return { status: "ok", request: updated, followUp };

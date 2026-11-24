@@ -55,9 +55,8 @@ export function returnUrlFor(request: Pick<QuoteRequest, "id" | "reference">, lo
 }
 
 /**
- * Right after a booking with a plan is saved: records the customer's agreement (the terms tick, sent with the form) and
- * opens the payment at booking, a first card payment that saves the card. Mollie's page, or nothing when it cannot be
- * opened now (the booking's page then offers the payment, with the tick).
+ * After a booking is confirmed (by itself, when the ride is six months or more ahead): records the customer's agreement
+ * and opens the fee payment. A nearer ride is not confirmed yet, so this opens nothing and no checkout is started.
  */
 export async function payAtBooking(
   request: QuoteRequest,

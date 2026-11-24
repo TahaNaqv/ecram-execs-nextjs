@@ -37,7 +37,17 @@ export async function TeamManagement() {
           roleLabel={roleLabel}
           ownersAll={t.staffDesk.ownersAll}
           empty={t.staffDesk.peopleEmpty}
-          columns={{ name: t.staffDesk.colName, email: t.staffDesk.colEmail, role: t.staffDesk.role, permissions: t.staffDesk.permissions }}
+          columns={{ name: t.staffDesk.colName, email: t.staffDesk.colEmail, role: t.staffDesk.role, permissions: t.staffDesk.permissions, password: t.staffDesk.passwordColumn }}
+          passwordCopy={{
+            setPassword: t.staffDesk.setPassword,
+            passwordSet: t.staffDesk.passwordSet,
+            passwordHint: t.staffDesk.passwordHint,
+            showPassword: t.account.showPassword,
+            hidePassword: t.account.hidePassword,
+            short: t.account.short,
+            denied: t.staffDesk.denied,
+            invalid: t.staffDesk.invalid,
+          }}
         />
       </Card>
       <Card className="overflow-hidden">

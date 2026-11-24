@@ -35,13 +35,12 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
   try {
     const hourly = b.service === "hourly" && Boolean(b.durationHours);
     const stops = (b.destinations ?? []).map(clean).filter(Boolean);
-    let driveSeconds: number | null = null;
-    let distanceMeters: number | null = null;
-    if (!hourly && b.collection && b.destination) {
-      const found = await cachedDriveEstimate(clean(b.collection), clean(b.destination), stops).catch(() => null);
-      driveSeconds = found?.seconds ?? null;
-      distanceMeters = found?.meters ?? null;
-    }
+    const [found, rates] = await Promise.all([
+      !hourly && b.collection && b.destination
+        ? cachedDriveEstimate(clean(b.collection), clean(b.destination), stops).catch(() => null)
+        : Promise.resolve(null),
+      customRates(),
+    ]);
     // Each stop's wait, as the form sent them with the stops (blank stops are dropped with their waits)
     const waitMinutes = hourly ? 0 : (b.destinationWaits ?? []).slice(0, stops.length).reduce((sum, w) => sum + (Number.isFinite(w) && w > 0 ? w : 0), 0);
     const { cars, suggested } = carsToPrice(b);
@@ -50,13 +49,13 @@ export async function priceForRequest(b: Priced, segment: Segment): Promise<Pric
       pickupAt: b.pickupAt,
       returnAt: b.returnAt,
       hours: hourly ? b.durationHours : null,
-      driveSeconds,
-      distanceMeters,
+      driveSeconds: found?.seconds ?? null,
+      distanceMeters: found?.meters ?? null,
       waitMinutes,
       cars,
       suggested,
       extras: cleanExtras(b.extras),
-      customRates: await customRates(),
+      customRates: rates,
     });
   } catch (err) {
     console.error("[pricing] could not price a booking", err);

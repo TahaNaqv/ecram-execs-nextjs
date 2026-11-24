@@ -31,7 +31,7 @@ const TRANSIENT_MESSAGE =
   /connection (?:ended|closed|reset|terminated)|CONNECT_TIMEOUT|CONNECTION_CLOSED|CONNECTION_ENDED|CONNECTION_DESTROYED|ECONNRESET|socket hang up|Client has encountered a connection error|too many clients|remaining connection slots|timeout expired/i;
 
 /** Bump when the wrapper changes so a hot reload drops a client that was wrapped by an older version. */
-export const DB_RETRY_VERSION = 3;
+export const DB_RETRY_VERSION = 4;
 
 type Pending = {
   then: Promise<unknown>["then"];
