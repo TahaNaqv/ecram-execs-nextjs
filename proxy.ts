@@ -37,7 +37,9 @@ export function proxy(request: NextRequest) {
 
   // ── Admin: never locale-prefixed; locale comes from admin_users.locale instead.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    if (pathname === "/admin/login") return;
+    // Signed out by nature: the login, and the password reset (request a link, then the link's page). Without these two
+    // a new team account, created with a random password, could never set its own (25 Nov 2026)
+    if (pathname === "/admin/login" || pathname === "/admin/forgot" || pathname === "/admin/reset") return;
     // Optimistic check only: every admin page, query and Server Action re-verifies the session.
     if (!request.cookies.has(ADMIN_SESSION_COOKIE)) {
       const url = new URL("/admin/login", request.url);
