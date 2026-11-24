@@ -1,17 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ForgotForm } from "./forgot-form";
+import { Suspense } from "react";
 import { ensureInitialStaff } from "@/lib/admin/staff";
-import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { ForgotForm } from "./forgot-form";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { admin } = await adminDictionary();
+  const { admin } = await getDictionary(DEFAULT_LOCALE);
   return { title: admin.account.forgot };
 }
 
-export default async function ForgotPage() {
-  await ensureInitialStaff();
-  const { admin: t } = await adminDictionary();
+export default function ForgotPage() {
+  return (
+    <Suspense fallback={<main className="min-h-dvh" />}>
+      <ForgotScreen />
+    </Suspense>
+  );
+}
+
+async function ForgotScreen() {
+  await ensureInitialStaff().catch(() => null);
+  const { admin: t } = await getDictionary(DEFAULT_LOCALE);
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-16">
       <h1 className="text-2xl font-semibold text-zinc-950">{t.account.forgot}</h1>

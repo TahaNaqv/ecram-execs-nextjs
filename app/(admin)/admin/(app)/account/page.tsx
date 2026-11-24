@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { mayCreateAccounts } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
-import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { adminDictionary, getDictionary } from "@/lib/i18n/get-dictionary";
 import { TeamManagement } from "../../_components/team-management";
 import { Card, CardHeader, PageBody, PageHeader } from "../../_components/ui";
 import { AccountForm } from "./account-form";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { admin } = await adminDictionary();
+  const { admin } = await getDictionary(DEFAULT_LOCALE);
   return { title: admin.account.title };
 }
 

@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { can } from "@/lib/admin/access";
 import { listTemplates, type TemplateKey } from "@/lib/admin/templates";
 import { requireAdmin } from "@/lib/auth/session";
-import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { adminDictionary, getDictionary } from "@/lib/i18n/get-dictionary";
 import { Card, PageBody, PageHeader } from "../../_components/ui";
 import { TemplateForm } from "./template-form";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { admin } = await adminDictionary();
+  const { admin } = await getDictionary(DEFAULT_LOCALE);
   return { title: admin.templatesDesk.title };
 }
 
