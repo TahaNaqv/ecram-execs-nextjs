@@ -10,6 +10,8 @@ import { refreshOnce } from "@/lib/nav/refresh-once";
 import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-actions";
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
+import { PayButton } from "../pay-button";
+import { consentText } from "@/lib/mollie/consent-text";
 import type { PaymentView } from "@/lib/mollie/pay";
 
 type Copy = Dictionary["guestBooking"];
@@ -191,17 +193,27 @@ export function GuestBookingView({
               {payment.state === "failed" && payment.due > 0 && <p className="m-0 text-[15px] text-ink-700">{t.payNotCompleted}</p>}
               {payment.due > 0 && payment.state !== "progress" && (
                 <div className="flex flex-col items-start gap-2">
-                  {payBlocked ? <p className="m-0 text-[13px] text-ink-700">{bookingCopy.payLiveBlocked}</p> : null}
-                  {!safeCheckout ? <p className="m-0 text-[13px] text-ink-700">{bookingCopy.payLiveMissing}</p> : null}
+                  {payBlocked && safeCheckout ? <p className="m-0 text-[13px] text-ink-700">{bookingCopy.payLiveBlocked}</p> : null}
                   {payError ? <p role="alert" className="m-0 text-[13px] text-error">{payError}</p> : null}
                   {safeCheckout ? (
+                    // The payment started at booking is still open at Mollie: back to that page, in its own tab
                     <a href={safeCheckout} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase no-underline hover:bg-ink-800">
                       {bookingCopy.payLiveNow}
                     </a>
                   ) : (
-                    <button type="button" disabled className="inline-flex cursor-not-allowed rounded-full bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase opacity-60">
-                      {bookingCopy.payLiveNow}
-                    </button>
+                    // No open Mollie page (the payment failed, expired or was cancelled, a chat or phone booking not paid yet,
+                    // a booking paid after approval, a balance to pay by hand): the Pay button starts a new payment, with
+                    // the terms tick for a first payment (24 Nov 2026; it had been replaced by a link that stayed disabled)
+                    <PayButton
+                      who="guest"
+                      reference={reference}
+                      linkKey={linkKey}
+                      locale={locale}
+                      label={interpolate(payment.first ? t.paySecure : t.payNow, { amount: payment.dueLabel })}
+                      pendingLabel={t.payOpening}
+                      consent={payment.first ? consentText(t, payment) : undefined}
+                      className="self-start cursor-pointer rounded-full border-none bg-ink-950 px-6 py-3 text-[12px] font-semibold tracking-[0.2em] text-white uppercase hover:bg-ink-800 disabled:cursor-progress disabled:opacity-70"
+                    />
                   )}
                   <button
                     type="button"

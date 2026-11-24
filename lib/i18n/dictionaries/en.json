@@ -2622,6 +2622,7 @@
     "payNowFee": "You pay the {amount} service fee now, by card (not refundable). The remaining {rest} is charged to the same card on {date}.",
     "payAutoApproved": "Booked this far ahead, your booking is confirmed as soon as the service fee is paid.",
     "payReviewed": "Our booking manager then checks the cars and confirms your booking. If we cannot take it, everything you paid is refunded.",
+    "payTabOpening": "Opening the secure payment page… If nothing happens, go back to the booking tab.",
     "submitPay": "Book and pay {amount}"
   },
   "guestBooking": {

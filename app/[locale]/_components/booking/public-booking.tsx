@@ -9,6 +9,7 @@ import { submitQuote, type QuoteFormState } from "@/lib/quotes/actions";
 import { BookingDone, BookingFlow, claimRideReceipt, clearBookingDraft, startsAtCar, type BookingStep, type OfferedVehicle } from "./booking-flow";
 import type { BookingCopy, TripMessages } from "./copy";
 import { markBookingSent, useResetAfterBooking } from "./sent";
+import { dropPayTab, sendPayTab } from "./pay-tab";
 import { tripFromParams } from "./trip";
 import type { FleetDictionary } from "./vehicle-details";
 import type { AddOnsCopy } from "./copy";
@@ -107,16 +108,32 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
     markBookingSent();
     claimRideReceipt(sentReference);
     // This tab opens the confirmation. Mollie is only the other tab, and it does not replace this one.
+    // The tab was opened at the click (pay-tab.ts); now it goes to Mollie, or closes when there is nothing to pay
     if (payingNow) {
-      let blocked = !payUrl;
-      if (payUrl) {
-        const opened = window.open(payUrl, "_blank", "noopener,noreferrer");
-        if (opened) opened.opener = null;
-        else blocked = true;
-      }
-      if (href) router.push(blocked ? `${href}${href.includes("?") ? "&" : "?"}pay=blocked` : href);
-    } else if (href) router.push(href);
+      const sent = payUrl ? sendPayTab(payUrl) : false;
+      if (!sent) dropPayTab();
+      if (href) router.push(sent ? href : `${href}${href.includes("?") ? "&" : "?"}pay=blocked`);
+    } else {
+      dropPayTab();
+      if (href) router.push(href);
+    }
   }, [sentReference, href, payUrl, payingNow, router]);
+
+  // Not sent (a field to fix, the server said no): the tab opened at the click is closed again
+  const failed = state.status === "error";
+  useEffect(() => {
+    if (failed) dropPayTab();
+  }, [failed, state]);
+  // Nor left waiting when this page goes away or the send itself breaks (no answer, so no error state): after a send the
+  // tab has already been handed to Mollie and there is nothing to close
+  useEffect(() => {
+    const drop = () => dropPayTab();
+    window.addEventListener("pagehide", drop);
+    return () => {
+      window.removeEventListener("pagehide", drop);
+      dropPayTab();
+    };
+  }, []);
 
   if (state.status === "success" && !again && payingNow) {
     return <div className="min-h-[60svh]" aria-busy="true" />;
@@ -143,6 +160,7 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
       initialStep={initialStep}
       sealedHref={sentReference || null}
       payOnline={payOnline}
+      payInNewTab
       result={{
         pending,
         message: state.status === "error" ? state.message : null,

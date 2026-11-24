@@ -483,40 +483,36 @@ async function postBalance(row: Payment, r: Booking): Promise<ChargeResult> {
  * Sets to "PAID" if any paid payment exists in the current mode,
  * "UNPAID" if the latest attempt failed/canceled/expired,
  * or "OPEN" if a payment is in progress or pending.
+ *
+ * Worked out from our own payment rows only, which hold what Mollie's API said. A status in a request (the return link,
+ * the webhook) is never trusted: Mollie sends neither, and anyone can type or post one (fixed 24 Nov 2026).
  */
-export async function syncBookingPaymentStatus(requestId: string, explicitStatus?: string | null): Promise<string> {
+export async function syncBookingPaymentStatus(requestId: string): Promise<string> {
   const config = mollieConfig();
   const mode = config?.mode ?? "test";
 
   let nextStatus: "PAID" | "OPEN" | "UNPAID" = "OPEN";
 
-  if (explicitStatus) {
-    const norm = explicitStatus.toUpperCase();
-    if (norm === "PAID") nextStatus = "PAID";
-    else if (norm === "UNPAID" || norm === "FAILED" || norm === "CANCELED" || norm === "CANCELLED" || norm === "EXPIRED") nextStatus = "UNPAID";
-    else nextStatus = "OPEN";
+  const [paidRow] = await db
+    .select({ id: p.id })
+    .from(p)
+    .where(and(eq(p.requestId, requestId), eq(p.mode, mode), eq(p.status, "paid")))
+    .limit(1);
+
+  if (paidRow) {
+    nextStatus = "PAID";
   } else {
-    const [paidRow] = await db
-      .select({ id: p.id })
+    const [latest] = await db
+      .select({ status: p.status })
       .from(p)
-      .where(and(eq(p.requestId, requestId), eq(p.mode, mode), eq(p.status, "paid")))
+      .where(and(eq(p.requestId, requestId), eq(p.mode, mode)))
+      .orderBy(desc(p.createdAt))
       .limit(1);
 
-    if (paidRow) {
-      nextStatus = "PAID";
+    if (latest && ["canceled", "expired", "failed"].includes(latest.status)) {
+      nextStatus = "UNPAID";
     } else {
-      const [latest] = await db
-        .select({ status: p.status })
-        .from(p)
-        .where(and(eq(p.requestId, requestId), eq(p.mode, mode)))
-        .orderBy(desc(p.createdAt))
-        .limit(1);
-
-      if (latest && ["canceled", "expired", "failed"].includes(latest.status)) {
-        nextStatus = "UNPAID";
-      } else {
-        nextStatus = "OPEN";
-      }
+      nextStatus = "OPEN";
     }
   }
 
@@ -570,7 +566,9 @@ export async function openCheckoutFor(requestId: string): Promise<{ url: string 
     .orderBy(desc(p.createdAt))
     .limit(1);
   if (!latest) return { url: null, status: null };
-  const url = latest.status === "paid" ? null : safeCheckoutUrl(latest.checkoutUrl);
+  // Only a payment still open has a Mollie page to go back to. A failed, expired or cancelled one has none: the page then
+  // offers the Pay button, which starts a new payment (24 Nov 2026)
+  const url = latest.status === "open" ? safeCheckoutUrl(latest.checkoutUrl) : null;
   return { url, status: latest.status };
 }
 

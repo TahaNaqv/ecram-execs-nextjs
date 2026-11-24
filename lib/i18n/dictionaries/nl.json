@@ -2623,6 +2623,7 @@
     "payNowFee": "U betaalt nu de servicekosten van {amount}, per kaart (niet restitueerbaar). Het resterende bedrag van {rest} wordt op {date} van dezelfde kaart afgeschreven.",
     "payAutoApproved": "Omdat u zo ver vooruit boekt, is uw boeking bevestigd zodra de servicekosten zijn betaald.",
     "payReviewed": "Onze boekingsmanager controleert daarna de auto's en bevestigt uw boeking. Kunnen wij de rit niet aannemen, dan krijgt u alles terug wat u hebt betaald.",
+    "payTabOpening": "De beveiligde betaalpagina wordt geopend… Gebeurt er niets, ga dan terug naar het tabblad met uw boeking.",
     "submitPay": "Boek en betaal {amount}"
   },
   "guestBooking": {

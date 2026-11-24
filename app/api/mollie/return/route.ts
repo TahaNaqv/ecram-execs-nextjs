@@ -7,7 +7,7 @@ import { db, schema } from "@/lib/db";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { siteOrigin } from "@/lib/mollie/config";
-import { refreshOnReturn, syncBookingPaymentStatus } from "@/lib/mollie/pay";
+import { openCheckoutFor, refreshOnReturn } from "@/lib/mollie/pay";
 import { getGuestBooking } from "@/lib/quotes/guest";
 import { guestPath } from "@/lib/quotes/guest-link";
 import { withinLimit } from "@/lib/rate-limit";
@@ -32,10 +32,9 @@ export async function GET(req: NextRequest) {
     const q = schema.quoteRequests;
     const [booking] = await db.select({ id: q.id }).from(q).where(and(eq(q.reference, ref), partnerOwns(contact.id))).limit(1);
     if (booking && withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) {
-      const explicitStatus = params.get("status") ?? params.get("paymentStatus");
+      // Asks Mollie; a status in this link is never trusted (anyone with the link could type one); refreshOnReturn also updates the booking's payment status
       await refreshOnReturn(booking.id);
-      if (explicitStatus) await syncBookingPaymentStatus(booking.id, explicitStatus);
-      after(() => runPaymentSteps(booking.id));
+            after(() => runPaymentSteps(booking.id));
     }
     return NextResponse.redirect(target, 303);
   }
@@ -43,16 +42,32 @@ export async function GET(req: NextRequest) {
   const booking = await getGuestBooking(ref, params.get("k"));
   if (!booking) return home;
   if (withinLimit(`paid-return:${booking.id}`, 6, 10 * 60_000)) {
-    const explicitStatus = params.get("status") ?? params.get("paymentStatus");
+    // Asks Mollie; a status in this link is never trusted (anyone with the link could type one); refreshOnReturn also updates the booking's payment status
     await refreshOnReturn(booking.id);
-    if (explicitStatus) await syncBookingPaymentStatus(booking.id, explicitStatus);
-    // Approved by itself (6 months or more ahead) and announced: after the customer is on their way to the page
+        // Approved by itself (6 months or more ahead) and announced: after the customer is on their way to the page
     after(() => runPaymentSteps(booking.id));
   }
   // Book and pay keeps Review your booking in the original tab. This tab is only Mollie's.
   if (params.get("stay") === "1") {
-    const note = locale === "nl" ? "U kunt dit tabblad sluiten en teruggaan naar uw boeking." : "You can close this tab and return to your booking.";
-    const html = `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escapeHtml(booking.reference)}</title></head><body style="font-family:Georgia,serif;margin:48px;color:#0a1942"><p>${escapeHtml(note)}</p><p>${escapeHtml(booking.reference)}</p></body></html>`;
+    // Says how the payment ended, so a failed card is not mistaken for done (24 Nov 2026); the booking's tab follows by itself
+    const { status } = await openCheckoutFor(booking.id);
+    const failed = status === "failed" || status === "canceled" || status === "expired";
+    const note =
+      status === "paid"
+        ? locale === "nl"
+          ? "Betaling ontvangen. U kunt dit tabblad sluiten en teruggaan naar uw boeking."
+          : "Payment received. You can close this tab and return to your booking."
+        : failed
+          ? locale === "nl"
+            ? "De betaling is niet gelukt. Ga terug naar uw boeking en betaal daar opnieuw."
+            : "The payment did not go through. Go back to your booking and pay again from there."
+          : locale === "nl"
+            ? "U kunt dit tabblad sluiten en teruggaan naar uw boeking."
+            : "You can close this tab and return to your booking."
+    // Also the way back when this is the customer's only tab (a payment re-opened in the same tab)
+    const back = `${origin}${guestPath(booking, locale)}`;
+    const backLabel = locale === "nl" ? "Terug naar uw boeking" : "Back to your booking";
+    const html = `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escapeHtml(booking.reference)}</title></head><body style="font-family:Georgia,serif;margin:48px;color:#0a1942"><p>${escapeHtml(note)}</p><p>${escapeHtml(booking.reference)}</p><p><a href="${escapeHtml(back)}" style="color:#0a1942">${escapeHtml(backLabel)}</a></p></body></html>`;
     return new NextResponse(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" } });
   }
   return NextResponse.redirect(`${origin}${guestPath(booking, locale)}`, 303);

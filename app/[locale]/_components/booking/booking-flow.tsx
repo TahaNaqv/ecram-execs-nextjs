@@ -23,6 +23,7 @@ import { CarMixPreview, convoySentence, previewCars, ReviewStep, RouteOutline, s
 import { buildReceiptPdf, downloadReceiptPdf } from "./receipt-pdf";
 import { bookingsSent } from "./sent";
 import { VehicleDetails, type FleetDictionary } from "./vehicle-details";
+import { holdPayTab } from "./pay-tab";
 import { ExtrasStep } from "./extras-step";
 
 /** Collection, each intermediate stop, then destination. An hourly trip is the collection and the hours. */
@@ -181,10 +182,13 @@ export function BookingFlow({
   /** Set once a booking has been sent. The wizard drops that trip and returns to Journey. */
   sealedHref,
   payOnline = false,
+  payInNewTab = false,
   sentPayment = null,
 }: {
   /** Online payment is on: the booking is paid at booking (the client's rules of 15 Nov 2026) */
   payOnline?: boolean;
+  /** The website's Book and pay: Mollie opens in a tab of its own, opened at the click (pay-tab.ts). */
+  payInNewTab?: boolean;
   variant: "public" | "portal";
   locale: Locale;
   copy: BookingCopy;
@@ -478,6 +482,8 @@ export function BookingFlow({
           sentPayment={sentPayment}
           onSend={(quoted, shown) => {
             if (sealedHref && sealed.current !== sealedHref) return;
+            // Still inside the click: the only moment a browser lets this page open Mollie's tab
+            if (payInNewTab && shown) holdPayTab(t.payTabOpening);
             rememberRideReceipt(buildRideReceipt({ trip, entered, booker, quoted, copy: t, addOns, locale }));
             const data = new FormData();
             for (const [k, v] of sentFields(entered, variant)) data.append(k, v);
