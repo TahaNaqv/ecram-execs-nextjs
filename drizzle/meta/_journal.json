@@ -246,6 +246,20 @@
       "when": 1795560000000,
       "tag": "0034_admin_staff_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795646400000,
+      "tag": "0035_ops_desk",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795646460000,
+      "tag": "0036_ops_desk_shifts",
+      "breakpoints": true
     }
   ]
 }
