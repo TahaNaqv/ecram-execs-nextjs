@@ -1,16 +1,18 @@
 "use client";
 
-import { useTransition, useState, useEffect, useLayoutEffect, useRef } from "react";
+import Link from "next/link";
+import { useTransition, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AdminDateField, AdminSelect, type AdminDateCopy } from "../../_components/admin-fields";
 import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
-import type { VehicleRow } from "@/lib/admin/live-queries";
+import type { FleetUsage, VehicleRow } from "@/lib/admin/live-queries";
 import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
 import { refreshOnce } from "@/lib/nav/refresh-once";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { amsterdamToday } from "@/lib/admin/financials-shared";
+import { formatCents, formatCurrency } from "@/lib/pricing/rates";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
 
@@ -99,6 +101,103 @@ function PhotographField({
   );
 }
 
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : (parts[0]?.slice(0, 2) ?? "?");
+  return letters.toUpperCase();
+}
+
+function VehiclePhoto({ name, src, className, fit = "cover" }: { name: string; src?: string | null; className: string; fit?: "cover" | "contain" }) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) {
+    return (
+      <span className={`grid place-items-center bg-zinc-100 font-semibold tracking-wide text-zinc-500 ${className}`} aria-hidden="true">
+        {initialsOf(name)}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className={`bg-zinc-100 ${fit === "contain" ? "object-contain" : "object-cover"} ${className}`} onError={() => setBroken(true)} />
+  );
+}
+
+function rateFigure(cents: number | null, weekday: number | null, weekend: boolean, copy: VehicleCopy) {
+  if (!weekend) return weekday == null ? "—" : `${formatCents(weekday, "nl")}${copy.ratePerHour}`;
+  if (weekday == null) return "—";
+  if (cents == null || cents === 0 || cents === weekday) return copy.rateFallback;
+  return `${formatCents(cents, "nl")}${copy.ratePerHour}`;
+}
+
+function AvailabilitySwitch({ on, onClick, onLabel, offLabel }: { on: boolean; onClick: () => void; onLabel: string; offLabel: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${on ? "bg-emerald-600" : "bg-zinc-300 hover:bg-zinc-400"}`}
+      title={on ? onLabel : offLabel}
+    >
+      <span className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${on ? "translate-x-5" : "translate-x-0"}`} />
+    </button>
+  );
+}
+
+function ShowcaseStage({
+  vehicle,
+  copy,
+  usage,
+  onToggle,
+}: {
+  vehicle: VehicleRow;
+  copy: VehicleCopy;
+  usage: FleetUsage | undefined;
+  onToggle: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const photos = vehicle.images.length > 0 ? vehicle.images : [null];
+  const current = photos[Math.min(index, photos.length - 1)];
+  return (
+    <div className="flex h-[36rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="flex h-64 shrink-0 items-center justify-center bg-zinc-100 px-4">
+        <VehiclePhoto name={vehicle.name} src={current} fit="contain" className="max-h-full max-w-full rounded-xl text-4xl" />
+      </div>
+      <div className="flex min-w-0 gap-2 overflow-x-auto border-t border-zinc-100 px-3 py-2">
+        {photos.map((src, photo) => (
+          <button
+            key={src ?? `${vehicle.id}-empty`}
+            type="button"
+            onClick={() => setIndex(photo)}
+            className={`shrink-0 cursor-pointer overflow-hidden rounded-lg ring-2 ring-offset-2 ${photo === index ? "ring-zinc-950" : "ring-transparent"}`}
+          >
+            <VehiclePhoto name={vehicle.name} src={src} className="h-16 w-28" />
+          </button>
+        ))}
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-100 px-4 py-3">
+        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{copy.labelSeats} {vehicle.seats ?? "—"}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{copy.labelLuggage} {vehicle.luggage ?? "—"}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{rateFigure(vehicle.rateWeekday, vehicle.rateWeekday, false, copy)}</span>
+        <Link href="/admin/requests/schedule" className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white">{copy.calendarLink}</Link>
+        <span className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-2 py-1">
+          <AvailabilitySwitch on={vehicle.status === "available"} onClick={onToggle} onLabel={copy.setUnavailable} offLabel={copy.setAvailable} />
+        </span>
+      </div>
+      <div className="mt-auto grid grid-cols-1 gap-px border-t border-zinc-100 bg-zinc-100 sm:grid-cols-3">
+        {[
+          { label: copy.metricJourneys, value: String(usage?.completed ?? 0) },
+          { label: copy.metricBookings, value: String(usage?.active ?? 0) },
+          { label: copy.metricRevenue, value: formatCurrency(usage?.revenue ?? 0) },
+        ].map((metric) => (
+          <div key={metric.label} className="bg-white px-5 py-4">
+            <p className="m-0 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{metric.label}</p>
+            <p className="m-0 mt-1 text-xl font-semibold tabular-nums text-zinc-950">{metric.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const dateTag = (locale: Locale) => (locale === "nl" ? "nl-NL" : "en-GB");
 
 function formatStoredDate(value: string | null | undefined, locale: Locale) {
@@ -112,44 +211,32 @@ function formatStoredDate(value: string | null | undefined, locale: Locale) {
 
 export function FleetComplianceSentinel({
   vehicles,
+  usage,
   copy,
   locale,
   dateCopy,
 }: {
   vehicles: VehicleRow[];
+  usage: Record<string, FleetUsage>;
   copy: VehicleCopy;
   locale: Locale;
   dateCopy: AdminDateCopy;
 }) {
   const router = useRouter();
   const [vehicleList, setVehicleList] = useState<VehicleRow[]>(vehicles);
-  const [activeTab, setActiveTab] = useState<"snapshot" | "reminders">("snapshot");
+  const [vehicleSource, setVehicleSource] = useState(vehicles);
+  if (vehicleSource !== vehicles) {
+    setVehicleSource(vehicles);
+    setVehicleList(vehicles);
+  }
+  const [view, setView] = useState<"table" | "showcase" | "apk">("table");
+  const [selectedId, setSelectedId] = useState<string | null>(vehicles[0]?.id ?? null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editor, setEditor] = useState<VehicleRow | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
-  
-  // Inline editing state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{
-    name: string;
-    licensePlate: string;
-    batterySoC: number;
-    evRangeKm: number;
-    apkExpiry: string;
-    insuranceExpiry: string;
-    iltPermitStatus: string;
-  }>({
-    name: "",
-    licensePlate: "",
-    batterySoC: 100,
-    evRangeKm: 400,
-    apkExpiry: "",
-    insuranceExpiry: "",
-    iltPermitStatus: "Valid",
-  });
 
   const [isPending, startTransition] = useTransition();
   const [serviceType, setServiceType] = useState(copy.serviceApk);
@@ -160,20 +247,7 @@ export function FleetComplianceSentinel({
   ];
   const permitLabel = (status: string) => permitOptions.find((option) => option.value === status)?.label ?? status;
   const [serviceDate, setServiceDate] = useState("");
-  // Today's Dutch calendar day, read after mount so a prerendered page does not lock in a stale or UTC day.
-  useLayoutEffect(() => {
-    setServiceDate(amsterdamToday());
-  }, []);
-
-  useEffect(() => {
-    setVehicleList(vehicles);
-  }, [vehicles]);
-
-  const available = vehicleList.filter((v) => v.status === "available").length;
-  const maintenance = vehicleList.filter((v) => v.status === "maintenance" || v.status === "unavailable").length;
-  const total = vehicleList.length;
-  const compliant = vehicleList.filter((vehicle) => vehicle.iltPermitStatus === "Valid").length;
-  const complianceRate = total > 0 ? Math.round((compliant / total) * 100) : 0;
+  const selected = vehicleList.find((vehicle) => vehicle.id === selectedId) ?? vehicleList[0] ?? null;
 
   const handleToggle = (vehId: string, currentStatus: string) => {
     const nextStatus = currentStatus === "available" ? "unavailable" : "available";
@@ -223,41 +297,6 @@ export function FleetComplianceSentinel({
     setIsAddModalOpen(true);
   };
 
-  const handleStartEdit = (veh: VehicleRow) => {
-    openEditor(veh);
-    setEditingId(null);
-    setEditForm({
-      name: veh.name ?? "",
-      licensePlate: veh.licensePlate ?? "",
-      batterySoC: veh.batterySoC ?? 100,
-      evRangeKm: veh.evRangeKm ?? 400,
-      apkExpiry: veh.apkExpiry ?? "",
-      insuranceExpiry: veh.insuranceExpiry ?? "",
-      iltPermitStatus: veh.iltPermitStatus ?? "Valid",
-    });
-  };
-
-  const handleSaveEdit = (vehId: string) => {
-    setVehicleList((prev) =>
-      prev.map((v) => (v.id === vehId ? { ...v, ...editForm } : v))
-    );
-    setEditingId(null);
-
-    const formData = new FormData();
-    formData.append("id", vehId);
-    formData.append("name", editForm.name);
-    formData.append("licensePlate", editForm.licensePlate);
-    formData.append("batterySoC", String(editForm.batterySoC));
-    formData.append("evRangeKm", String(editForm.evRangeKm));
-    formData.append("apkExpiry", editForm.apkExpiry);
-    formData.append("insuranceExpiry", editForm.insuranceExpiry);
-    formData.append("iltPermitStatus", editForm.iltPermitStatus);
-
-    startTransition(async () => {
-      refreshOnce(router);
-    });
-  };
-
   const handleDownloadReport = () => {
     setReportStatus(copy.compilingReport);
     const headers =
@@ -280,21 +319,6 @@ export function FleetComplianceSentinel({
 
   return (
     <div className="space-y-6 relative w-full">
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: copy.totalRegistered, value: total, color: "text-zinc-950" },
-          { label: copy.availableNow, value: available, color: "text-emerald-600" },
-          { label: copy.unavailableMaint, value: maintenance, color: "text-amber-600" },
-          { label: copy.iltCompliance, value: `${complianceRate}%`, color: "text-zinc-950" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm flex flex-col justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
-            <p className={`text-3xl font-bold font-mono mt-2 ${color}`}>{value}</p>
-          </div>
-        ))}
-      </div>
-
       {reportStatus && (
         <div className="bg-zinc-900 text-white px-4 py-3 rounded-xl text-xs font-mono flex items-center gap-2 shadow-lg">
           <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
@@ -302,38 +326,98 @@ export function FleetComplianceSentinel({
         </div>
       )}
 
-      {/* Main grid */}
-      <div className="grid w-full grid-cols-1 items-stretch gap-6 xl:grid-cols-3">
-        <div className="flex h-full min-h-[32rem] w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm xl:col-span-2">
-          <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.telemetryTitle}</h3>
-              <p className="text-[11px] text-zinc-500">{copy.telemetryNote}</p>
-            </div>
-            <div className="flex gap-1 bg-zinc-200/60 p-1 rounded-lg text-xs">
-              {(["snapshot", "reminders"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 rounded-md font-semibold transition cursor-pointer ${activeTab === tab ? "bg-white text-zinc-950 shadow-xs" : "text-zinc-600"}`}
-                >
-                  {tab === "snapshot" ? copy.tabSnapshot : copy.tabReminders}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 rounded-lg bg-zinc-200/60 p-1 text-xs">
+          {([
+            ["table", copy.viewTable],
+            ["showcase", copy.viewShowcase],
+            ["apk", copy.tabReminders],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              className={`cursor-pointer rounded-md px-3 py-1.5 font-semibold transition ${view === id ? "bg-white text-zinc-950 shadow-xs" : "text-zinc-600"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => openEditor(null)} className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+            <PlusIcon size={14} />
+            {copy.addVehicleAction}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setServiceDate(amsterdamToday());
+              setIsServiceModalOpen(true);
+            }}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
+          >
+            <ClockIcon size={14} />
+            {copy.scheduleService}
+          </button>
+          <button type="button" onClick={handleDownloadReport} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50">
+            {copy.exportCsv}
+          </button>
+        </div>
+      </div>
 
+      <div className="flex min-h-[32rem] w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           {vehicleList.length === 0 ? (
             <p className="p-8 text-center text-sm text-zinc-400">{copy.emptyFleet}</p>
-          ) : activeTab === "snapshot" ? (
+          ) : view === "showcase" && selected ? (
+            <div className="grid items-stretch gap-4 bg-zinc-50 p-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+              <div className="flex h-[36rem] flex-col overflow-y-auto rounded-2xl border border-zinc-200 bg-white">
+                {vehicleList.map((veh) => {
+                  const on = veh.status === "available";
+                  const active = veh.id === selected.id;
+                  return (
+                    <button
+                      key={veh.id}
+                      type="button"
+                      onClick={() => setSelectedId(veh.id)}
+                      className={`flex w-full cursor-pointer items-center gap-3 border-b border-zinc-100 px-3 py-3 text-left last:border-b-0 ${active ? "bg-zinc-50" : "hover:bg-zinc-50/80"}`}
+                    >
+                      <VehiclePhoto name={veh.name} src={veh.images[0]} className="size-16 shrink-0 rounded-xl" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="min-w-0 text-sm font-semibold leading-5 text-zinc-950">{veh.name}</span>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
+                            {on ? copy.statusOn : copy.statusOff}
+                          </span>
+                        </span>
+                        <span className="mt-1 block text-[11px] leading-4 text-zinc-500">
+                          {veh.seats != null ? `${veh.seats} ${copy.labelSeats}` : "—"}
+                          {" · "}
+                          {veh.luggage != null ? `${veh.luggage} ${copy.labelLuggage}` : "—"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <ShowcaseStage
+                key={selected.id}
+                vehicle={selected}
+                copy={copy}
+                usage={usage[selected.id]}
+                onToggle={() => handleToggle(selected.id, selected.status)}
+              />
+            </div>
+          ) : view === "table" ? (
             <div className="max-h-[70vh] w-full overflow-y-auto">
               <table className="w-full text-left text-xs">
-                <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
+                <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                   <tr>
-                    <th className="px-4 py-3">{copy.colName}</th>
-                    <th className="px-3 py-3">{copy.colPlate}</th>
+                    <th className="px-4 py-3">{copy.colVehicle}</th>
                     <th className="px-3 py-3">{copy.colBattery}</th>
                     <th className="px-3 py-3">{copy.colRange}</th>
+                    <th className="px-3 py-3">{copy.colWeekday}</th>
+                    <th className="px-3 py-3">{copy.colSaturday}</th>
+                    <th className="px-3 py-3">{copy.colSunday}</th>
                     <th className="px-4 py-3 text-center">{copy.colAvailability}</th>
                     <th className="px-4 py-3 text-right">{copy.colAction}</th>
                   </tr>
@@ -341,114 +425,46 @@ export function FleetComplianceSentinel({
                 <tbody className="divide-y divide-zinc-100">
                   {vehicleList.map((veh) => {
                     const isAvailable = veh.status === "available";
-                    const isEditing = editingId === veh.id;
                     return (
-                      <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-medium text-zinc-950">
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              value={editForm.name}
-                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                              className="w-full max-w-[130px] bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
-                            />
-                          ) : (
-                            veh.name
-                          )}
-                        </td>
-                        <td className="px-3 py-3.5 font-mono text-zinc-700">
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              value={editForm.licensePlate}
-                              onChange={(e) => setEditForm({ ...editForm, licensePlate: e.target.value })}
-                              className="w-full max-w-[100px] bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
-                            />
-                          ) : (
-                            veh.licensePlate ?? "—"
-                          )}
+                      <tr key={veh.id} className="transition-colors hover:bg-zinc-50/60">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <VehiclePhoto name={veh.name} src={veh.images[0]} className="size-12 shrink-0 rounded-lg" />
+                            <div className="min-w-0">
+                              <p className="m-0 truncate font-medium text-zinc-950">{veh.name}</p>
+                              <p className="m-0 mt-0.5 font-mono text-[11px] text-zinc-500">{veh.licensePlate ?? "—"}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-3 py-3.5 font-mono">
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              value={editForm.batterySoC}
-                              onChange={(e) => setEditForm({ ...editForm, batterySoC: Number(e.target.value) })}
-                              className="w-16 bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
-                            />
-                          ) : (
-                            <span className={veh.batterySoC < 25 ? "text-rose-600 font-bold" : "text-zinc-900"}>
-                              {veh.batterySoC}%
-                            </span>
-                          )}
+                          <span className={veh.batterySoC < 25 ? "font-bold text-rose-600" : "text-zinc-900"}>{veh.batterySoC}%</span>
                         </td>
-                        <td className="px-3 py-3.5 font-mono text-zinc-700">
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              value={editForm.evRangeKm}
-                              onChange={(e) => setEditForm({ ...editForm, evRangeKm: Number(e.target.value) })}
-                              className="w-20 bg-white border border-zinc-300 rounded px-2 py-1 text-xs"
-                            />
-                          ) : (
-                            `${veh.evRangeKm} km`
-                          )}
-                        </td>
-                        
+                        <td className="px-3 py-3.5 font-mono text-zinc-700">{`${veh.evRangeKm} km`}</td>
+                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-900">{rateFigure(veh.rateWeekday, veh.rateWeekday, false, copy)}</td>
+                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">{rateFigure(veh.rateSaturday, veh.rateWeekday, true, copy)}</td>
+                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">{rateFigure(veh.rateSunday, veh.rateWeekday, true, copy)}</td>
                         <td className="px-4 py-3.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleToggle(veh.id, veh.status)}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                              isAvailable ? "bg-emerald-600" : "bg-zinc-300 hover:bg-zinc-400"
-                            }`}
-                            title={isAvailable ? copy.setUnavailable : copy.setAvailable}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${
-                                isAvailable ? "translate-x-5" : "translate-x-0"
-                              }`}
-                            />
-                          </button>
+                          <AvailabilitySwitch on={isAvailable} onClick={() => handleToggle(veh.id, veh.status)} onLabel={copy.setUnavailable} offLabel={copy.setAvailable} />
                         </td>
 
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          {isEditing ? (
-                            <div className="inline-flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleSaveEdit(veh.id)}
-                                className="text-emerald-600 font-semibold hover:underline cursor-pointer"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingId(null)}
-                                className="text-zinc-500 hover:underline cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEdit(veh)}
-                                className="text-blue-600 font-medium hover:underline cursor-pointer"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(veh.id, veh.name)}
-                                className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                                title={copy.deleteVehicle}
-                              >
-                                <TrashIcon size={15} />
-                              </button>
-                            </div>
-                          )}
+                          <div className="inline-flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => openEditor(veh)}
+                              className="text-blue-600 font-medium hover:underline cursor-pointer"
+                            >
+                              {copy.editTitle}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(veh.id, veh.name)}
+                              className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
+                              title={copy.deleteVehicle}
+                            >
+                              <TrashIcon size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -469,154 +485,43 @@ export function FleetComplianceSentinel({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicleList.map((veh) => {
-                    const isEditing = editingId === veh.id;
-                    return (
-                      <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-medium text-zinc-950">{veh.name}</td>
-                        <td className="px-3 py-3.5 font-mono text-zinc-700">
-                          {isEditing ? (
-                            <AdminDateField
-                              compact
-                              placement="above"
-                              locale={locale}
-                              copy={dateCopy}
-                              value={editForm.apkExpiry}
-                              onChange={(apkExpiry) => setEditForm({ ...editForm, apkExpiry })}
-                            />
-                          ) : (
-                            formatStoredDate(veh.apkExpiry, locale)
-                          )}
-                        </td>
-                        <td className="px-3 py-3.5 font-mono text-zinc-700">
-                          {isEditing ? (
-                            <AdminDateField
-                              compact
-                              placement="above"
-                              locale={locale}
-                              copy={dateCopy}
-                              value={editForm.insuranceExpiry}
-                              onChange={(insuranceExpiry) => setEditForm({ ...editForm, insuranceExpiry })}
-                            />
-                          ) : (
-                            formatStoredDate(veh.insuranceExpiry, locale)
-                          )}
-                        </td>
-                        <td className="px-3 py-3.5">
-                          {isEditing ? (
-                            <AdminSelect
-                              compact
-                              placement="above"
-                              value={editForm.iltPermitStatus}
-                              onChange={(iltPermitStatus) => setEditForm({ ...editForm, iltPermitStatus })}
-                              options={permitOptions}
-                            />
-                          ) : (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
-                            >
-                              {permitLabel(veh.iltPermitStatus ?? "")}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          {isEditing ? (
-                            <div className="inline-flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleSaveEdit(veh.id)}
-                                className="text-emerald-600 font-semibold hover:underline cursor-pointer"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingId(null)}
-                                className="text-zinc-500 hover:underline cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEdit(veh)}
-                                className="text-blue-600 font-medium hover:underline cursor-pointer"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(veh.id, veh.name)}
-                                className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                                title={copy.deleteVehicle}
-                              >
-                                <TrashIcon size={15} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {vehicleList.map((veh) => (
+                    <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
+                      <td className="px-4 py-3.5 font-medium text-zinc-950">{veh.name}</td>
+                      <td className="px-3 py-3.5 font-mono text-zinc-700">{formatStoredDate(veh.apkExpiry, locale)}</td>
+                      <td className="px-3 py-3.5 font-mono text-zinc-700">{formatStoredDate(veh.insuranceExpiry, locale)}</td>
+                      <td className="px-3 py-3.5">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${veh.iltPermitStatus === "Valid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}
+                        >
+                          {permitLabel(veh.iltPermitStatus ?? "")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => openEditor(veh)}
+                            className="text-blue-600 font-medium hover:underline cursor-pointer"
+                          >
+                            {copy.editTitle}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(veh.id, veh.name)}
+                            className="text-zinc-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
+                            title={copy.deleteVehicle}
+                          >
+                            <TrashIcon size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
-
-        {/* Quick actions first, summary underneath — fills the column without a blank gap. */}
-        <div className="flex h-full min-h-0 flex-col gap-6">
-          <div className="flex flex-1 flex-col space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.quickActions}</h3>
-            <div className="space-y-2 text-xs">
-              <button
-                type="button"
-                onClick={() => openEditor(null)}
-                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white transition hover:bg-black"
-              >
-                <span>{copy.addVehicleAction}</span>
-                <PlusIcon size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setServiceDate(amsterdamToday());
-                  setIsServiceModalOpen(true);
-                }}
-                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-100 px-4 py-2.5 font-semibold text-zinc-900 transition hover:bg-zinc-200"
-              >
-                <span>{copy.scheduleService}</span>
-                <ClockIcon size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadReport}
-                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-zinc-100 px-4 py-2.5 font-semibold text-zinc-900 transition hover:bg-zinc-200"
-              >
-                <span>{copy.exportCsv}</span>
-                <span className="size-2 animate-pulse rounded-full bg-amber-500" />
-              </button>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-900">{copy.summaryTitle}</h3>
-            <div className="space-y-2 rounded-xl border border-zinc-100 bg-zinc-50 p-4 font-mono text-xs">
-              {[
-                { label: copy.totalRegistered, value: total },
-                { label: copy.availableNow, value: available, cls: "text-emerald-700" },
-                { label: copy.unavailableMaint, value: maintenance, cls: "text-amber-700" },
-                { label: copy.iltCompliance, value: `${complianceRate}%` },
-              ].map(({ label, value, cls }) => (
-                <div key={label} className="flex justify-between border-t border-zinc-200 pt-2 first:border-0 first:pt-0">
-                  <span className="font-sans text-zinc-500">{label}</span>
-                  <span className={`font-bold text-zinc-950 ${cls ?? ""}`}>{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Add Vehicle Modal */}
@@ -629,8 +534,7 @@ export function FleetComplianceSentinel({
             >
               <XIcon size={18} />
             </button>
-            <h3 className="text-base font-semibold text-zinc-950 mb-1">{editor ? copy.editTitle : copy.registerTitle}</h3>
-            <p className="text-xs text-zinc-500 mb-4">{copy.registerNote}</p>
+            <h3 className="text-base font-semibold text-zinc-950 mb-4">{editor ? copy.editTitle : copy.registerTitle}</h3>
             <form
               key={editor?.id ?? "new"}
               onSubmit={(e) => {
@@ -714,21 +618,22 @@ export function FleetComplianceSentinel({
                   <input id="vehicle-luggage" name="luggage" type="number" min={0} max={30} defaultValue={editor?.luggage ?? ""} className={fieldClass} />
                 </div>
               </div>
-              <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-3">
+              <div className="grid min-w-0 grid-cols-1 items-start gap-4 sm:grid-cols-3">
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-weekday">{copy.labelRateWeekday}</label>
-                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" defaultValue={editor?.rateWeekday == null ? "" : editor.rateWeekday / 100} className={fieldClass} />
+                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" placeholder="85.00" defaultValue={editor?.rateWeekday == null ? "" : editor.rateWeekday / 100} className={fieldClass} />
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-saturday">{copy.labelRateSaturday}</label>
-                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" defaultValue={editor?.rateSaturday == null ? "" : editor.rateSaturday / 100} className={fieldClass} />
+                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" placeholder="95.00" defaultValue={editor?.rateSaturday == null ? "" : editor.rateSaturday / 100} className={fieldClass} />
+                  <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{copy.rateHint}</p>
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-sunday">{copy.labelRateSunday}</label>
-                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" defaultValue={editor?.rateSunday == null ? "" : editor.rateSunday / 100} className={fieldClass} />
+                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" placeholder="95.00" defaultValue={editor?.rateSunday == null ? "" : editor.rateSunday / 100} className={fieldClass} />
+                  <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{copy.rateHint}</p>
                 </div>
               </div>
-              <p className="-mt-2 m-0 text-[12px] leading-5 text-zinc-500">{copy.rateHint}</p>
               <PhotographField
                 label={copy.labelImages}
                 hint={copy.imagesHint}
@@ -768,8 +673,7 @@ export function FleetComplianceSentinel({
             >
               <XIcon size={18} />
             </button>
-            <h3 className="text-base font-semibold text-zinc-950 mb-1">{copy.serviceTitle}</h3>
-            <p className="text-xs text-zinc-500 mb-4">{copy.serviceNote}</p>
+            <h3 className="mb-4 text-base font-semibold text-zinc-950">{copy.serviceTitle}</h3>
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block font-medium text-zinc-700 mb-1">{copy.serviceType}</label>

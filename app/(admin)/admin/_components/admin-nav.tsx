@@ -39,6 +39,9 @@ export type AdminNavCopy = {
   financials?: string;
   staff?: string;
   templates?: string;
+  introducers?: string;
+  addons?: string;
+  desk?: string;
   account?: string;
   openMenu: string;
   closeMenu: string;
@@ -91,6 +94,8 @@ const SECTIONS: NavSection[] = [
     titleKey: "fleetPartners",
     items: [
       { href: "/admin/corporate", key: "corporate", defaultLabel: "Corporate Partners", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
+      { href: "/admin/introducers", key: "introducers", defaultLabel: "Introducers", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/introducers") },
+      { href: "/admin/addons", key: "addons", defaultLabel: "Add-ons", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/addons") },
       {
         href: "/admin/vehicles",
         key: "vehicles",
@@ -118,6 +123,7 @@ const SECTIONS: NavSection[] = [
       { href: "/admin/financials", key: "financials", defaultLabel: "Billing & Financials", icon: EuroIcon, match: (p: string) => p.startsWith("/admin/financials") },
       { href: "/admin/staff", key: "staff", defaultLabel: "Staff", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/staff") },
       { href: "/admin/templates", key: "templates", defaultLabel: "Email templates", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/templates") },
+      { href: "/admin/desk", key: "desk", defaultLabel: "Settings", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/desk") },
     ],
   },
 ];

@@ -11,6 +11,7 @@ import { normalizePassword, PASSWORD_MIN } from "@/lib/corporate/validation";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { Honeypot, PasswordInput, Status, ghostClass, submitFullClass } from "./corporate-ui";
+import { CityField } from "./city-field";
 import { control, Field } from "./form-field";
 import { PhoneDialField } from "./phone-dial-field";
 
@@ -293,8 +294,15 @@ function RequestForm({
                 defaultValue={v.billingPostcode} aria-invalid={!!err.billingPostcode} aria-describedby={err.billingPostcode ? "c-billingPostcode-error" : undefined} className={fieldInput} />
             </Field>
             <Field idPrefix="c" label={t.labelBillingCity} name="billingCity" error={err.billingCity}>
-              <input id="c-billingCity" name="billingCity" type="text" required maxLength={100} autoComplete="off" placeholder={t.phBillingCity}
-                defaultValue={v.billingCity} aria-invalid={!!err.billingCity} aria-describedby={err.billingCity ? "c-billingCity-error" : undefined} className={fieldInput} />
+              <CityField
+                id="c-billingCity"
+                name="billingCity"
+                placeholder={t.phBillingCity}
+                defaultValue={v.billingCity}
+                invalid={!!err.billingCity}
+                describedBy={err.billingCity ? "c-billingCity-error" : undefined}
+                className={fieldInput}
+              />
             </Field>
             <Field idPrefix="c" label={t.labelPhone} name="phone" error={err.phone} className="relative z-30 md:col-span-2">
               <PhoneDialField

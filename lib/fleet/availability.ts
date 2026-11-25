@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { carKey, heldKeys } from "@/lib/fleet/held";
+import { fleetPicks, normalizeVehicleKey, VEHICLE_KEYS } from "@/lib/fleet/vehicles";
 import { blocksOf, overlaps, wallText, windowBlocks, type Block, type Window } from "@/lib/fleet/schedule";
 
 export { carKey, heldKeys };
@@ -104,4 +105,112 @@ export async function clashingReference(
     if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return row.reference;
   }
   return null;
+}
+
+const ACTIVE = ["new", "contacted", "quoted", "confirmed"] as const;
+
+type SlotBooking = {
+  id?: string;
+  vehicle?: string | null;
+  vehicles?: unknown;
+  vehicleCount?: number | null;
+  pickupAt?: string | null;
+  returnAt?: string | null;
+  service: string;
+  durationHours?: number | null;
+  blockMinutes?: number | null;
+  driveBackMinutes?: number | null;
+};
+
+/** Cars of each class that can be booked. A printed model with no row yet counts as one car. An unavailable row does not. */
+async function classCapacity(tx: Db): Promise<Map<string, number>> {
+  const rows = await tx.select({ id: schema.vehicles.id, status: schema.vehicles.status }).from(schema.vehicles);
+  const known = new Set<string>();
+  const free = new Map<string, number>();
+  for (const row of rows) {
+    const key = normalizeVehicleKey(row.id) ?? row.id;
+    known.add(key);
+    if (row.status !== "available") continue;
+    free.set(key, (free.get(key) ?? 0) + 1);
+  }
+  for (const key of VEHICLE_KEYS) if (!known.has(key)) free.set(key, 1);
+  return free;
+}
+
+/** How many of each class this booking needs. No chosen class means one car from the whole fleet. */
+function classDemand(booking: SlotBooking): Map<string, number> | null {
+  const picks = fleetPicks(booking.vehicles);
+  if (picks.length > 0) {
+    const need = new Map<string, number>();
+    for (const pick of picks) need.set(pick.key, (need.get(pick.key) ?? 0) + Math.max(1, pick.count));
+    return need;
+  }
+  const key = carKey(booking.vehicle);
+  if (!key) return null;
+  return new Map([[key, Math.max(1, booking.vehicleCount ?? 1)]]);
+}
+
+/**
+ * Whether the fleet still has a car for this trip. Overlapping bookings that are not cancelled already hold their cars,
+ * including ones still waiting to be confirmed. The window includes the trip and the handover buffer.
+ */
+export async function fleetSlotFree(tx: Db, booking: SlotBooking): Promise<boolean> {
+  if (!booking.pickupAt) return true;
+  const mine = blocksOf({
+    id: booking.id ?? "new",
+    status: "confirmed",
+    service: booking.service,
+    pickupAt: booking.pickupAt,
+    returnAt: booking.returnAt ?? null,
+    durationHours: booking.durationHours ?? null,
+    blockMinutes: booking.blockMinutes ?? null,
+    driveBackMinutes: booking.driveBackMinutes ?? null,
+  });
+  if (mine.length === 0) return true;
+  const lo = wallText(Math.min(...mine.map((b) => b.start)) - 2 * 24 * 60);
+  const hi = wallText(Math.max(...mine.map((b) => b.end)));
+  const rows = await tx
+    .select({
+      id: q.id,
+      vehicle: q.vehicle,
+      vehicles: q.vehicles,
+      vehicleCount: q.vehicleCount,
+      service: q.service,
+      pickupAt: q.pickupAt,
+      returnAt: q.returnAt,
+      durationHours: q.durationHours,
+      blockMinutes: q.blockMinutes,
+      driveBackMinutes: q.driveBackMinutes,
+    })
+    .from(q)
+    .where(
+      and(
+        inArray(q.status, [...ACTIVE]),
+        or(sql`${q.pickupAt} between ${lo}::timestamp and ${hi}::timestamp`, sql`${q.returnAt} between ${lo}::timestamp and ${hi}::timestamp`),
+        booking.id ? ne(q.id, booking.id) : undefined,
+      ),
+    );
+  const used = new Map<string, number>();
+  let any = 0;
+  for (const row of rows) {
+    const theirs = blocksOf({ ...row, id: row.id, status: "confirmed" });
+    if (!theirs.some((block) => mine.some((slot) => overlaps(block, slot)))) continue;
+    const need = classDemand(row);
+    if (!need) {
+      any += Math.max(1, row.vehicleCount ?? 1);
+      continue;
+    }
+    for (const [key, count] of need) used.set(key, (used.get(key) ?? 0) + count);
+  }
+  const caps = await classCapacity(tx);
+  const totalCap = [...caps.values()].reduce((sum, n) => sum + n, 0);
+  const totalUsed = [...used.values()].reduce((sum, n) => sum + n, 0) + any;
+  const requested = classDemand(booking);
+  const asking = requested ? [...requested.values()].reduce((sum, n) => sum + n, 0) : Math.max(1, booking.vehicleCount ?? 1);
+  if (totalUsed + asking > totalCap) return false;
+  if (!requested) return true;
+  for (const [key, count] of requested) {
+    if ((used.get(key) ?? 0) + count > (caps.get(key) ?? 0)) return false;
+  }
+  return true;
 }

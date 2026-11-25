@@ -70,14 +70,14 @@ type PanelBox = { top?: number; bottom?: number; left: number; width: number; ma
  * Admin: left edge and width follow the field (never narrower than 320px).
  * Both always open directly below the field.
  */
-function placePanel(anchor: HTMLElement, admin: boolean): PanelBox {
+function placePanel(anchor: HTMLElement, admin: boolean, matchField: boolean): PanelBox {
   const margin = 16;
   const rect = anchor.getBoundingClientRect();
   const gap = admin ? 8 : 6;
-  const width = admin
+  const width = admin || matchField
     ? Math.min(Math.max(rect.width, 320), window.innerWidth - margin * 2)
     : Math.min(340, window.innerWidth - margin * 2);
-  const left = admin
+  const left = admin || matchField
     ? Math.min(Math.max(margin, rect.left), window.innerWidth - margin - width)
     : Math.min(Math.max(margin, rect.left + (rect.width - width) / 2), window.innerWidth - margin - width);
   const spaceBelow = window.innerHeight - rect.bottom - margin - gap;
@@ -89,7 +89,7 @@ function placePanel(anchor: HTMLElement, admin: boolean): PanelBox {
  * Passengers, large suitcases and small hand luggage, behind one button in the booking bar.
  * Escape, Done or a click outside closes it.
  */
-export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, tone, labelledBy, describedBy, appearance = "site" }: {
+export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, tone, labelledBy, describedBy, appearance = "site", matchField = false }: {
   id: string;
   pax: number;
   bags: number;
@@ -103,6 +103,8 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
   describedBy?: string;
   /** The booking bar uses the site palette. The admin form uses the light zinc panel. */
   appearance?: "site" | "admin";
+  /** The stacked booking form: the panel is as wide as the field and lines up with its left edge. */
+  matchField?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<PanelBox | null>(null);
@@ -123,7 +125,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
       trigger.current.scrollIntoView({ block: "center" });
     }
     const place = () => {
-      if (trigger.current) setBox(placePanel(trigger.current, admin));
+      if (trigger.current) setBox(placePanel(trigger.current, admin, matchField));
     };
     place();
     window.addEventListener("resize", place);
@@ -132,7 +134,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [open, admin]);
+  }, [open, admin, matchField]);
 
   useEffect(() => {
     if (!open) return;
@@ -166,7 +168,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
   };
   const done = close;
   // Admin panel gets roomier rows; the site panel keeps its compact spacing
-  const row = `flex items-center justify-between gap-2 ${admin ? "py-3" : "py-1"}`;
+  const row = `flex items-center justify-between gap-3 ${admin || matchField ? "py-3" : "py-1"}`;
 
   return (
     // Not `relative`: the press area of the button and the dialog are positioned against the cell around it
@@ -219,7 +221,9 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
             className={`guests-landing-modal fixed z-[80] box-border overflow-y-auto overscroll-contain rounded-xl border border-solid font-sans shadow-lg ${
               admin
                 ? "border-zinc-200 bg-white px-5 py-4 text-zinc-950 shadow-pop [color-scheme:light]"
-                : "border-ink-300 bg-white px-3 py-2 text-ink-950 sm:px-3.5 sm:py-2.5"
+                : matchField
+                  ? "border-ink-300 bg-white px-5 py-4 text-ink-950 [color-scheme:light]"
+                  : "border-ink-300 bg-white px-3 py-2 text-ink-950 sm:px-3.5 sm:py-2.5"
             }`}
           >
             <div ref={first} className={row}>
@@ -234,7 +238,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
                 max={MAX_GROUP}
                 less={t.fewerPassengers}
                 more={t.morePassengers}
-                admin={admin}
+                admin={admin || matchField}
                 onChange={(n) => onChange({ pax: n, bags, small })}
               />
             </div>
@@ -243,14 +247,14 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
                 <strong className="text-xs font-semibold sm:text-sm">{t.suitcases}</strong>
                 <small className={`leading-tight ${admin ? "mt-0.5 text-xs text-zinc-500" : "text-[11px] text-ink-600"}`}>{t.suitcasesHint}</small>
               </span>
-              <Stepper admin={admin} value={Math.min(bags, MAX_GROUP_BAGS)} label={t.suitcases} min={0} max={MAX_GROUP_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_GROUP_BAGS, n), small })} />
+              <Stepper admin={admin || matchField} value={Math.min(bags, MAX_GROUP_BAGS)} label={t.suitcases} min={0} max={MAX_GROUP_BAGS} less={t.fewerSuitcases} more={t.moreSuitcases} onChange={(n) => onChange({ pax, bags: Math.min(MAX_GROUP_BAGS, n), small })} />
             </div>
             <div className={row}>
               <span className="flex min-w-0 flex-col">
                 <strong className="text-xs font-semibold sm:text-sm">{t.smallBags}</strong>
                 <small className={`leading-tight ${admin ? "mt-0.5 text-xs text-zinc-500" : "text-[11px] text-ink-600"}`}>{t.smallBagsHint}</small>
               </span>
-              <Stepper admin={admin} value={Math.min(small, MAX_SMALL_BAGS)} label={t.smallBags} min={0} max={MAX_SMALL_BAGS} less={t.fewerSmallBags} more={t.moreSmallBags} onChange={(n) => onChange({ pax, bags, small: Math.min(MAX_SMALL_BAGS, n) })} />
+              <Stepper admin={admin || matchField} value={Math.min(small, MAX_SMALL_BAGS)} label={t.smallBags} min={0} max={MAX_SMALL_BAGS} less={t.fewerSmallBags} more={t.moreSmallBags} onChange={(n) => onChange({ pax, bags, small: Math.min(MAX_SMALL_BAGS, n) })} />
             </div>
             <p className={`m-0 leading-snug ${admin ? "mt-2 text-xs text-zinc-500" : "mt-1 text-[11px] text-ink-600"}`}>{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
             <button

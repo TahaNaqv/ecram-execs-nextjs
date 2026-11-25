@@ -1,12 +1,14 @@
+import { can } from "@/lib/admin/access";
 import { exportFinancialCsv } from "@/lib/admin/financials";
 import { amsterdamToday, parseFinancialQuery } from "@/lib/admin/financials-shared";
-import { getAdmin } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = parseFinancialQuery(Object.fromEntries(url.searchParams.entries()));
-  const [dict, admin] = await Promise.all([adminDictionary(), getAdmin()]);
+  const [dict, admin] = await Promise.all([adminDictionary(), requireAdmin()]);
+  if (!can(admin.role, admin.permissions, "financials")) return new Response("Forbidden", { status: 403 });
   const copy = dict.admin.financials;
   const csv = await exportFinancialCsv(
     query,

@@ -94,6 +94,14 @@ export const quoteRequests = pgTable(
     paymentPlan: text("payment_plan", { enum: ["A", "B", "C"] }),
     /** Corporate invoice terms for the balance (7, 14 or 30 days). Null: the saved card is charged. */
     invoiceTermsDays: integer("invoice_terms_days"),
+    /** How the guest said they found Ecram Execs. */
+    hearAbout: text("hear_about"),
+    marketingConsent: boolean("marketing_consent").notNull().default(false),
+    /** Terms & Conditions version the guest accepted with this booking. */
+    termsVersion: text("terms_version"),
+    closeProtection: boolean("close_protection").notNull().default(false),
+    /** Restricted. Shown only to staff allowed to approve bookings. */
+    securityNotes: text("security_notes"),
     /** Current payment status: "PAID", "OPEN", "UNPAID". Synchronized from online payments and test mode. */
     paymentStatus: text("payment_status").default("OPEN"),
     /** What the customer agreed to pay, in cents, when they ticked the terms: nothing above it is charged by itself. */
@@ -418,6 +426,9 @@ export const adminUsers = pgTable("admin_users", {
   failedLogins: integer("failed_logins").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  /** Base64url TOTP secret. Set only after the person confirms a code from their authenticator. */
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").notNull().default(false),
   /** owner sees every area. manager and staff are limited by `permissions`. */
   role: text("role", { enum: ["owner", "manager", "staff"] }).notNull().default("staff"),
   permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
@@ -485,6 +496,10 @@ export const driverShifts = pgTable(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     startedBy: uuid("started_by").references(() => adminUsers.id, { onDelete: "set null" }),
     endedBy: uuid("ended_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    /** The car this shift is responsible for. */
+    vehicleId: text("vehicle_id"),
+    /** Minutes the team marked as a break, on top of gaps between jobs. */
+    breakMinutes: integer("break_minutes").notNull().default(0),
   },
   (t) => [
     uniqueIndex("driver_shifts_one_open_idx").on(t.driverId).where(isNull(t.endedAt)),
@@ -574,6 +589,12 @@ export const corporateContacts = pgTable(
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     marketingConsent: boolean("marketing_consent").notNull().default(false),
+    preferredContact: text("preferred_contact"),
+    paymentTermsDays: integer("payment_terms_days"),
+    preferences: text("preferences"),
+    accountManagerId: uuid("account_manager_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    introducerId: uuid("introducer_id").references((): AnyPgColumn => introducers.id, { onDelete: "set null" }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     consentTextVersion: text("consent_text_version"),
     consentedAt: timestamp("consented_at", { withTimezone: true }),
     source: text("source").notNull().default("website"),
@@ -590,8 +611,70 @@ export const corporateContacts = pgTable(
     index("corporate_contacts_domain_idx").on(t.emailDomain),
     index("corporate_contacts_company_trgm").using("gin", sql`${t.companyName} gin_trgm_ops`),
     index("corporate_contacts_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
+    check("corporate_contacts_payment_terms", sql`${t.paymentTermsDays} is null or ${t.paymentTermsDays} in (7, 14, 30)`),
+    check("corporate_contacts_preferred", sql`${t.preferredContact} is null or ${t.preferredContact} in ('email', 'phone', 'whatsapp')`),
   ],
 );
+
+/** Someone who introduces corporate partners and is paid commission on their bookings. */
+export const introducers = pgTable("introducers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  email: text("email"),
+  /** Percent of the net (ex-VAT) payments received from introduced partners. */
+  commissionPercent: integer("commission_percent").notNull().default(10),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Extra people who may book for one corporate partner. The login itself stays on corporate_contacts. */
+export const corporateBookers = pgTable(
+  "corporate_bookers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => corporateContacts.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    position: text("position"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("corporate_bookers_contact_idx").on(t.contactId)],
+);
+
+/** Who changed a corporate partner record, and which field. */
+export const corporateAudit = pgTable(
+  "corporate_audit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => corporateContacts.id, { onDelete: "cascade" }),
+    adminId: uuid("admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    field: text("field").notNull(),
+    before: text("before"),
+    after: text("after"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("corporate_audit_contact_idx").on(t.contactId, t.createdAt)],
+);
+
+export const addonSuppliers = pgTable("addon_suppliers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  notes: text("notes"),
+});
+
+/** Stock for the booking add-ons. Low when on_hand is under 5. */
+export const addonStock = pgTable("addon_stock", {
+  key: text("key").primaryKey(),
+  onHand: integer("on_hand").notNull().default(0),
+  supplierId: uuid("supplier_id").references(() => addonSuppliers.id, { onDelete: "set null" }),
+});
 
 export const corporateChallenges = pgTable(
   "corporate_challenges",
@@ -650,6 +733,11 @@ export const conciergeConversations = pgTable(
     messageCount: integer("message_count").notNull().default(0),
     draft: jsonb("draft").$type<Record<string, unknown>>(),
     requestId: uuid("request_id").references(() => quoteRequests.id, { onDelete: "cascade" }),
+    visitorName: text("visitor_name"),
+    visitorEmail: text("visitor_email"),
+    followUp: boolean("follow_up").notNull().default(false),
+    /** web or whatsapp */
+    channel: text("channel").notNull().default("web"),
   },
   (t) => [
     index("concierge_conversations_last_message_idx").on(t.lastMessageAt),

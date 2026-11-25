@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 import { db, schema } from "@/lib/db";
 import { CORPORATE_TERM_DAYS, amsterdamToday } from "@/lib/admin/financials-shared";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
-import type { Locale } from "@/lib/i18n/config";
+import { spokenLocale, type Locale } from "@/lib/i18n/config";
 import { isCorporateBooking } from "@/lib/quotes/audience";
 import { formatCurrency } from "@/lib/pricing/rates";
 import { centsFromMoney, invoiceWorkflows, moneybird, moneyFromCents, MoneybirdError, salesTaxRates, type MoneybirdContact, type MoneybirdSalesInvoice } from "./client";
@@ -18,7 +18,7 @@ import {
   partnerCustomerId,
   splitName,
 } from "./invoice";
-import { INVOICE_WORDS } from "./words";
+import { INVOICE_MAIL, INVOICE_WORDS } from "./words";
 import { balanceDueOn, daysBetween, feeWithVatCents } from "@/lib/payments/schedule";
 import { hasOnlinePayment, hasUnrecordedPayment, recordingOn } from "./recording";
 
@@ -324,7 +324,7 @@ async function deleteDraft(id: string): Promise<void> {
 
 async function createDraft(r: Booking, partner: Partner | null, row: Row, cents: number): Promise<MoneybirdSalesInvoice> {
   const config = moneybirdConfig()!;
-  const locale: Locale = (r.locale as Locale) === "nl" ? "nl" : "en";
+  const locale = spokenLocale(r.locale);
   const [rates, dict, workflows] = await Promise.all([
     salesTaxRates(),
     getDictionary(locale),
@@ -382,9 +382,35 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
   });
 }
 
-async function send(inv: MoneybirdSalesInvoice, delivery: Delivery, email: string): Promise<MoneybirdSalesInvoice> {
+function invoiceEmail(r: Booking, partner: Partner | null, reference: string, cents: number): string {
+  const locale = spokenLocale(r.locale);
+  const mail = INVOICE_MAIL[locale];
+  const today = amsterdamToday();
+  const balanceOn = balanceDueOn(r.paymentPlan, r.pickupAt);
+  const due = balanceOn ?? today;
+  const who = partner?.name || r.name;
+  return [
+    mail.subject(reference),
+    "",
+    mail.greeting(who),
+    mail.intro,
+    "",
+    `${mail.invoice}: ${reference}`,
+    `${mail.sender}: Ecram Execs`,
+    `${mail.reference}: ${reference}`,
+    `${mail.invoiceDate}: ${longDay(today, locale)}`,
+    `${mail.dueDate}: ${longDay(due, locale)}`,
+    `${mail.outstanding}: ${formatCurrency(cents / 100)}`,
+    mail.view,
+  ].join("\n");
+}
+
+async function send(inv: MoneybirdSalesInvoice, delivery: Delivery, email: string, message?: string): Promise<MoneybirdSalesInvoice> {
   return moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${inv.id}/send_invoice.json`, {
-    sales_invoice_sending: delivery === "Email" ? { delivery_method: "Email", email_address: email } : { delivery_method: "Manual" },
+    sales_invoice_sending:
+      delivery === "Email"
+        ? { delivery_method: "Email", email_address: email, ...(message ? { email_message: message } : {}) }
+        : { delivery_method: "Manual" },
   });
 }
 
@@ -436,7 +462,7 @@ async function issue(row: Row, r: Booking, partner: Partner | null): Promise<Syn
       await release(row.id, { state: "void", creditedAt: new Date(), lastError: null });
       return { status: "done" };
     }
-    const sent = await send(inv, (row.delivery as Delivery) ?? "Email", recipient(r, partner));
+    const sent = await send(inv, (row.delivery as Delivery) ?? "Email", recipient(r, partner), invoiceEmail(r, partner, row.reference, cents));
     await release(row.id, { ...fromInvoice(sent), lastError: null });
     await logEvent(row.requestId, "mb_invoice", sent.invoice_id);
     return { status: "done" };
@@ -473,7 +499,7 @@ async function voidUnsent(row: Row): Promise<SyncResult> {
  * or "Manual" (numbered and booked, but not emailed) when the team chose not to notify them. `force` invoices a booking
  * confirmed before Moneybird went live, when the team asks for it.
  */
-export async function syncBooking(requestId: string, opts: { deliver?: Delivery; force?: boolean } = {}): Promise<SyncResult> {
+export async function syncBooking(requestId: string, opts: { deliver?: Delivery; force?: boolean; locale?: Locale } = {}): Promise<SyncResult> {
   if (!moneybirdConfig()) return { status: "off" };
   const status = await bookingStatus(requestId);
   if (status == null) return { status: "missing" };
@@ -551,7 +577,7 @@ export async function syncBooking(requestId: string, opts: { deliver?: Delivery;
     await release(leased.id);
     return { status: "waiting" };
   }
-  return issue(leased, loaded.r, loaded.partner);
+  return issue(leased, opts.locale ? { ...loaded.r, locale: opts.locale } : loaded.r, loaded.partner);
 }
 
 /** One sync after the other, for several bookings at once (a partner's billing details arriving). */
@@ -571,9 +597,11 @@ const FEE_WORDS = new Set([INVOICE_WORDS.en.fee, INVOICE_WORDS.nl.fee]);
  * Moneybird stops sending reminders (only the fee, if any, stays open). When it was paid, the money is refunded by hand.
  * Until the credit has gone out, the team may change their mind about the fee: the unsent credit is made again.
  */
-export async function creditBooking(requestId: string, feeCents: number, adminId: string | null, opts: { keepFeeLine?: boolean } = {}): Promise<SyncResult> {
+export async function creditBooking(requestId: string, feeCents: number, adminId: string | null, opts: { keepFeeLine?: boolean; reissue?: boolean } = {}): Promise<SyncResult> {
   if (!moneybirdConfig()) return { status: "off" };
-  if ((await bookingStatus(requestId)) !== "cancelled") return { status: "failed", error: "not_cancelled" };
+  const status = await bookingStatus(requestId);
+  if (status !== "cancelled" && !opts.reissue) return { status: "failed", error: "not_cancelled" };
+  if (opts.reissue && status !== "confirmed" && status !== "completed") return { status: "failed", error: "not_cancelled" };
   const live = await liveInvoice(requestId);
   if (!live || !isSent(live) || !live.moneybirdId) return { status: "failed", error: "nothing_to_credit" };
   // A payment taken online but not yet recorded on the invoice: record it first (lib/mollie), or the credit would
@@ -655,7 +683,7 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
           groups.set(key, group);
         }
         const [booking] = await db.select({ locale: schema.quoteRequests.locale }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
-        const creditLocale: Locale = (booking?.locale as Locale) === "nl" ? "nl" : "en";
+        const creditLocale = spokenLocale(booking?.locale);
         const words = INVOICE_WORDS[creditLocale];
         const label = `${words.credit(live.number ?? live.reference)} (${words.cancellationFee}: ${formatCurrency(keep / 100)})`;
         cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}.json`, {
@@ -675,7 +703,7 @@ export async function creditBooking(requestId: string, feeCents: number, adminId
         });
       } else if (!invoiceSent(cr)) {
         const [booking] = await db.select({ locale: schema.quoteRequests.locale }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, requestId)).limit(1);
-        const creditLocale: Locale = (booking?.locale as Locale) === "nl" ? "nl" : "en";
+        const creditLocale = spokenLocale(booking?.locale);
         cr = await moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${cr.id}.json`, {
           sales_invoice: { language: creditLocale },
         });
@@ -749,8 +777,10 @@ export async function sweepMoneybird(limit = 40): Promise<{ retried: number; pic
     .limit(limit);
   for (const row of stuck) {
     retried++;
-    if (row.kind === "credit") await creditBooking(row.requestId!, row.feeCents ?? 0, null);
-    else await syncBooking(row.requestId!);
+    if (row.kind === "credit" && row.requestId) {
+      const open = await bookingStatus(row.requestId);
+      await creditBooking(row.requestId, row.feeCents ?? 0, null, { reissue: open !== "cancelled" });
+    } else await syncBooking(row.requestId!);
   }
 
   // Credits that went out while the invoice they credit was not yet marked: settle it and mark it
@@ -790,6 +820,15 @@ export async function sweepMoneybird(limit = 40): Promise<{ retried: number; pic
     await refresh(row);
   }
   return { retried, picked, refreshed };
+}
+
+/**
+ * The sent invoice no longer matches the booking. Credit it in full, then make and email a new invoice in English.
+ */
+export async function reissueBooking(requestId: string, adminId: string | null): Promise<SyncResult> {
+  const credited = await creditBooking(requestId, 0, adminId, { reissue: true });
+  if (credited.status !== "done") return credited;
+  return syncBooking(requestId, { deliver: "Email", locale: "en" });
 }
 
 /** The booking's invoices for the admin, newest first. */

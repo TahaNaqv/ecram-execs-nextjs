@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
-import { creditBooking, syncBooking } from "@/lib/moneybird/sync";
+import { creditBooking, reissueBooking, syncBooking } from "@/lib/moneybird/sync";
 import { flushPayments } from "@/lib/mollie/pay";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
@@ -59,5 +59,19 @@ export async function creditInvoice(_prev: MoneybirdState, formData: FormData): 
   if (result.status === "failed") {
     return { error: result.error === "not_cancelled" ? t.notCancelled : result.error === "fee_too_high" ? t.feeTooHigh : result.error === "payment_not_recorded" ? t.paymentNotRecorded : result.error === "no_fee_line" ? t.noFeeLine : t.failed };
   }
+  return { ok: true };
+}
+
+/** Credits the sent invoice and emails a new one in English for the booking's current total. */
+export async function reissueInvoice(_prev: MoneybirdState, formData: FormData): Promise<MoneybirdState> {
+  const admin = await requireAdmin();
+  const t = (await adminDictionary()).admin.moneybird;
+  const id = z.uuid().safeParse(formData.get("requestId"));
+  if (!id.success) return { error: t.failed };
+  await flushPayments(id.data).catch(() => null);
+  const result = await reissueBooking(id.data, admin.id);
+  refresh();
+  if (result.status === "busy") return { error: t.busy };
+  if (result.status === "failed") return { error: result.error === "payment_not_recorded" ? t.paymentNotRecorded : t.failed };
   return { ok: true };
 }

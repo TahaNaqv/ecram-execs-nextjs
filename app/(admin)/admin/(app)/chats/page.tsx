@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { formatRelative } from "@/lib/admin/format";
 import { chatList, CHAT_PAGE_SIZE, type ChatRow } from "@/lib/admin/chats";
-import { RETENTION } from "@/lib/retention";
 import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -18,10 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.chats.title };
 }
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  if (part === "title") return admin.chats.title;
-  return interpolate(admin.chats.description, { days: RETENTION.chatDays });
+  return admin.chats.title;
 }
 
 const Fallback = () => <span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />;
@@ -32,12 +30,7 @@ export default function ChatsPage({ searchParams }: PageProps<"/admin/chats">) {
       <PageHeader
         title={
           <Suspense fallback={<Fallback />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<Fallback />}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
       />
@@ -156,6 +149,9 @@ async function Row({ row, nowMs, locale }: { row: ChatRow; nowMs: number; locale
       <Link href={`/admin/chats/${row.id}`} className="flex flex-col gap-1.5 px-5 py-4 transition-colors hover:bg-zinc-50">
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
           <span>{formatRelative(new Date(row.lastMs), nowMs, locale)}</span>
+          {row.visitorName ? <span>{row.visitorName}</span> : null}
+          {row.visitorEmail ? <span>{row.visitorEmail}</span> : null}
+          {row.followUp ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 ring-1 ring-inset ring-amber-200">Follow-up required</span> : null}
           <span aria-hidden="true">·</span>
           <span>{row.messages === 1 ? c.messageOne : interpolate(c.messageMany, { count: row.messages })}</span>
           <span aria-hidden="true">·</span>

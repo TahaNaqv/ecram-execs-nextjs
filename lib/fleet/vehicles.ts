@@ -288,6 +288,7 @@ export type VehicleChoice = (typeof VEHICLE_CHOICES)[number];
 const slug = (key: string) => key.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const ID_ALIASES: Record<string, VehicleKey> = {
   mercedes_benz_vle_300: "mercedes_vle_300",
+  audi_e_tron: "audi",
   audi_e_tron_gt: "audi",
   audi_etron_gt: "audi",
   cadillac_escalade: "cadillac_escalade",

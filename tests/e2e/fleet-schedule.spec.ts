@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { blocksOf, BUFFER_MINUTES, layOut, overlaps, tripMinutes, wallMinutes, wallText, windowBlocks } from "../../lib/fleet/schedule";
+import { blocksOf, BUFFER_MINUTES, HANDOVER_MINUTES, layOut, overlaps, tripMinutes, wallMinutes, wallText, windowBlocks } from "../../lib/fleet/schedule";
 import en from "../../lib/i18n/dictionaries/en.json";
 import { carChoice, fillJourney } from "./booking-helpers";
 import { fillAdminLogin } from "./helpers";
@@ -77,7 +77,7 @@ test("a trip holds its car for its length and the turnaround after it, and a ret
   const [one] = blocksOf({ id: "a", status: "confirmed", service: "airport_transfer", pickupAt: "2031-03-14 08:30:00", returnAt: null, durationHours: null, blockMinutes: null });
   expect(one.start).toBe(at);
   expect(one.tripEnd - one.start).toBe(tripMinutes({ service: "airport_transfer", durationHours: null, blockMinutes: null }));
-  expect(one.end - one.tripEnd).toBe(BUFFER_MINUTES);
+  expect(one.end - one.tripEnd).toBe(BUFFER_MINUTES + HANDOVER_MINUTES);
 
   // An hourly booking is as long as its hours; the team's own figure wins over both
   expect(tripMinutes({ service: "hourly", durationHours: 4, blockMinutes: null })).toBe(240);
@@ -105,11 +105,11 @@ test("after the outward trip the car is held for its drive home, or the turnarou
   const start = wallMinutes(at)!;
   expect(blocksOf({ ...base, driveBackMinutes: 240 })[0]).toMatchObject({ tripEnd: start + 60, end: start + 60 + 240 });
   // A short drive home is covered by the turnaround; none known is the turnaround
-  expect(blocksOf({ ...base, driveBackMinutes: 10 })[0].end).toBe(start + 60 + BUFFER_MINUTES);
-  expect(blocksOf({ ...base, driveBackMinutes: null })[0].end).toBe(start + 60 + BUFFER_MINUTES);
+  expect(blocksOf({ ...base, driveBackMinutes: 10 })[0].end).toBe(start + 60 + BUFFER_MINUTES + HANDOVER_MINUTES);
+  expect(blocksOf({ ...base, driveBackMinutes: null })[0].end).toBe(start + 60 + BUFFER_MINUTES + HANDOVER_MINUTES);
   // A return journey ends where the trip started: it has only the turnaround
   const [, back] = blocksOf({ ...base, driveBackMinutes: 240, returnAt: `${DAY}T18:00` });
-  expect(back.end - back.tripEnd).toBe(BUFFER_MINUTES);
+  expect(back.end - back.tripEnd).toBe(BUFFER_MINUTES + HANDOVER_MINUTES);
 });
 
 test("a trip asked about clashes with a confirmed booking only while that booking holds its car", () => {

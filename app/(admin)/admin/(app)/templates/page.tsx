@@ -37,10 +37,11 @@ async function TemplatesScreen() {
     payment_notice: t.templatesDesk.payment_notice,
     booking_alternative: t.templatesDesk.booking_alternative,
     booking_cancelled: t.templatesDesk.booking_cancelled,
+    introducer_commission: t.templatesDesk.introducer_commission,
   };
   return (
     <PageBody>
-      <PageHeader title={t.templatesDesk.title} description={t.templatesDesk.note} />
+      <PageHeader title={t.templatesDesk.title} />
       <div className="mt-6 flex flex-col gap-4">
         {rows.map((row) => (
           <Card key={row.key}>

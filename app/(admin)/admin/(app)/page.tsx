@@ -7,35 +7,28 @@ import { systemHealth, type HealthKey, type HealthState } from "@/lib/admin/heal
 import { unseenPartnerMessages } from "@/lib/admin/portal";
 import { requireAdmin } from "@/lib/auth/session";
 import { normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
-import { adminDictionary } from "@/lib/i18n/get-dictionary";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { adminDictionary, getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { serviceLabel } from "@/lib/quotes/constants";
 import { ActivityIcon, BatteryIcon, BriefcaseIcon, CalendarIcon, CarIcon, EuroIcon, InboxIcon, MapIcon } from "../_components/icons";
 import { StatusBadge } from "../_components/status-badge";
 import { Card, CardHeader, EmptyState, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
+import { QUICK_LINKS } from "@/lib/admin/quick-links";
+import { operationsTodos } from "@/lib/admin/todos";
 import { amsterdamToday, daySchedule } from "@/lib/admin/schedule";
 import { DayMap } from "./requests/schedule/day-map";
 
 export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { admin } = await adminDictionary();
+  const { admin } = await getDictionary(DEFAULT_LOCALE);
   return { title: admin.dashboard.title };
 }
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  if (part === "title") return admin.dashboard.title;
-  const { locale } = await requireAdmin();
-  const date = new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", {
-    timeZone: "Europe/Amsterdam",
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date());
-  return `${admin.dashboard.description} ${interpolate(admin.dashboard.asOf, { date })}`;
+  return admin.dashboard.title;
 }
 
 const Fallback = () => <span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />;
@@ -46,17 +39,15 @@ export default function DashboardPage() {
       <PageHeader
         title={
           <Suspense fallback={<Fallback />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<Fallback />}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
       />
       <Suspense fallback={<FiguresSkeleton />}>
         <Figures />
+      </Suspense>
+      <Suspense fallback={<PanelSkeleton rows={3} />}>
+        <TodoList />
       </Suspense>
       <div className="mt-4 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Suspense fallback={<PanelSkeleton rows={4} />}>
@@ -84,6 +75,32 @@ export default function DashboardPage() {
         </Suspense>
       </div>
     </PageBody>
+  );
+}
+
+async function TodoList() {
+  const items = await operationsTodos();
+  return (
+    <Card className="mt-4">
+      <CardHeader title="To do" />
+      {items.length === 0 ? <p className="px-5 py-4 text-sm text-zinc-500">Nothing outstanding.</p> : (
+        <ul className="m-0 list-none divide-y divide-zinc-100">
+          {items.map((item) => (
+            <li key={`${item.href}-${item.title}`}>
+              <Link href={item.href} className="block px-5 py-3 hover:bg-zinc-50">
+                <span className="block text-sm font-medium text-zinc-950">{item.title}</span>
+                <span className="block text-[13px] text-zinc-500">{item.detail}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap gap-3 border-t border-zinc-100 px-5 py-3">
+        {QUICK_LINKS.map(([label, href]) => (
+          <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="text-[13px] text-zinc-950 underline underline-offset-2">{label}</a>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -168,7 +185,6 @@ async function ScheduleMap() {
     <Card className="flex h-full min-h-[16rem] flex-col overflow-hidden">
       <CardHeader
         title={d.mapLiveTitle}
-        description={d.mapLiveDescription}
         icon={<MapIcon size={16} />}
         actions={
           <Link href="/admin/requests/schedule" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 underline whitespace-nowrap">
@@ -329,7 +345,7 @@ async function SystemHealthStatus() {
 
   return (
     <Card className="flex h-full max-h-[420px] min-h-[16rem] flex-col overflow-hidden">
-      <CardHeader title={d.healthTitle} description={d.healthDescription} icon={<ActivityIcon size={16} />} />
+      <CardHeader title={d.healthTitle} icon={<ActivityIcon size={16} />} />
       <ul className="m-0 flex max-h-[420px] min-h-0 flex-1 list-none flex-col divide-y divide-zinc-100 overflow-y-auto overscroll-contain p-0 px-5">
         {items.map((item) => (
           <li key={item.key} data-health={item.key} data-state={item.state} className="flex items-center justify-between gap-3 py-3">
@@ -343,7 +359,6 @@ async function SystemHealthStatus() {
           </li>
         ))}
       </ul>
-      <p className="m-0 mt-auto shrink-0 border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">{d.healthNote}</p>
     </Card>
   );
 }

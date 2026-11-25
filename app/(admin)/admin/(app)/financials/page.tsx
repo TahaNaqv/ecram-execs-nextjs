@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { formatDate } from "@/lib/admin/format";
 import { getFinancialPage } from "@/lib/admin/financials";
 import { FINANCIAL_PAGE_SIZE, amsterdamToday, financialHref, isCanonicalFinancialUrl, parseFinancialQuery, type FinancialQuery } from "@/lib/admin/financials-shared";
-import { getAdmin } from "@/lib/auth/session";
+import { can } from "@/lib/admin/access";
+import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { Card, PageBody, PageHeader, Skeleton, StatCardSkeleton } from "../../_components/ui";
 import { FinancialFilters } from "./FinancialFilters";
@@ -36,7 +37,10 @@ async function Financials({ searchParams }: { searchParams: Promise<Search> }) {
   const query = parseFinancialQuery(raw);
   if (!isCanonicalFinancialUrl(raw, query)) redirect(financialHref(query));
 
-  const [dict, admin] = await Promise.all([adminDictionary(), getAdmin()]);
+  const [dict, admin] = await Promise.all([adminDictionary(), requireAdmin()]);
+  if (!can(admin.role, admin.permissions, "financials")) {
+    return <p className="mt-6 text-sm text-zinc-600">Only someone with financial access can open this page.</p>;
+  }
   const locale = admin?.locale ?? "en";
   const copy = dict.admin.financials;
   const { summary, rows, total } = await getFinancialPage(query, locale, {
@@ -104,9 +108,9 @@ function FinancialsSkeleton() {
   );
 }
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  return admin.financials[part];
+  return admin.financials.title;
 }
 
 export default function FinancialsPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -115,12 +119,7 @@ export default function FinancialsPage({ searchParams }: { searchParams: Promise
       <PageHeader
         title={
           <Suspense fallback={<span className="inline-block h-[1em] w-64 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<span className="inline-block h-[1em] w-96 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
       />

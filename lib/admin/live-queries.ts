@@ -276,6 +276,34 @@ export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
   }));
 });
 
+export type FleetUsage = { completed: number; active: number; revenue: number };
+
+/** Completed journeys, open bookings, and confirmed revenue for each assigned vehicle. */
+export const getFleetUsage = cache(async (): Promise<Record<string, FleetUsage>> => {
+  await requireAdmin();
+  const rows = await db
+    .select({
+      vehicle: q.vehicle,
+      completed: sql<number>`count(*) filter (where ${q.status} = 'completed')`.mapWith(Number),
+      active: sql<number>`count(*) filter (where ${q.status} in ('new', 'contacted', 'quoted', 'confirmed'))`.mapWith(Number),
+      revenue: sql<string>`coalesce(round(sum(${bookingEuros()}) filter (where ${q.status} in ('confirmed', 'completed')), 2), 0)`,
+    })
+    .from(q)
+    .where(isNotNull(q.vehicle))
+    .groupBy(q.vehicle);
+
+  const usage: Record<string, FleetUsage> = {};
+  for (const row of rows) {
+    if (!row.vehicle) continue;
+    usage[row.vehicle] = {
+      completed: Number(row.completed ?? 0),
+      active: Number(row.active ?? 0),
+      revenue: Number(row.revenue ?? 0),
+    };
+  }
+  return usage;
+});
+
 // --- Corporate Partners ---
 export type PartnerBookingSummary = {
   id: string;

@@ -34,6 +34,16 @@ export async function addDriver(_prev: AddDriverState, formData: FormData): Prom
   return { ok: true };
 }
 
+export async function updateDriver(formData: FormData) {
+  await requireAdmin();
+  const id = driverId(formData);
+  if (!id.success) return;
+  const parsed = addSchema.safeParse({ name: formData.get("name") ?? "", phone: formData.get("phone") ?? "", phoneCountry: "31" });
+  if (!parsed.success) return;
+  await db.update(drivers).set(parsed.data).where(eq(drivers.id, id.data));
+  refresh();
+}
+
 const driverId = (formData: FormData) => z.uuid().safeParse(formData.get("driverId"));
 
 export async function startShift(formData: FormData) {
@@ -41,9 +51,10 @@ export async function startShift(formData: FormData) {
   const id = driverId(formData);
   if (!id.success) return;
   // The partial unique index makes a double tap a no-op instead of a second open shift
+  const vehicleId = String(formData.get("vehicleId") ?? "").trim() || null;
   await db
     .insert(driverShifts)
-    .values({ driverId: id.data, startedBy: admin.id })
+    .values({ driverId: id.data, startedBy: admin.id, vehicleId })
     .onConflictDoNothing({ target: driverShifts.driverId, where: isNull(driverShifts.endedAt) });
   refresh();
 }
@@ -54,7 +65,7 @@ export async function endShift(formData: FormData) {
   if (!id.success) return;
   await db
     .update(driverShifts)
-    .set({ endedAt: sql`now()`, endedBy: admin.id })
+    .set({ endedAt: sql`least(now(), started_at + interval '10 hours')`, endedBy: admin.id })
     .where(and(eq(driverShifts.driverId, id.data), isNull(driverShifts.endedAt)));
   refresh();
 }

@@ -74,11 +74,11 @@ for (const locale of LOCALES) {
   }
 }
 
-test("the bare domain sends a Dutch browser to /nl and an English one to /en, and anyone else to the default (Dutch)", async ({ browser }) => {
+test("the bare domain opens in English until the visitor chooses Dutch", async ({ browser }) => {
   for (const [browserLocale, expected] of [
-    ["nl-NL", "/nl"],
+    ["nl-NL", "/en"],
     ["en-GB", "/en"],
-    ["de-DE", `/${DEFAULT_LOCALE}`], // an unsupported language falls back to the default language
+    ["de-DE", `/${DEFAULT_LOCALE}`],
   ] as const) {
     // `locale` sets Accept-Language properly; `extraHTTPHeaders` loses to Chromium's own header.
     const context = await browser.newContext({ locale: browserLocale, storageState: CONSENTED_STATE });

@@ -148,6 +148,7 @@ function Run({ search, onAgain, locale, copy, addOns, dateTimeCopy, messages, fl
   return (
     <BookingFlow
       variant="public"
+      persistKey="book"
       locale={locale}
       copy={copy}
       addOns={addOns}

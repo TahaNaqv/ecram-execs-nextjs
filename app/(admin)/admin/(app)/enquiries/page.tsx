@@ -19,9 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.enquiries.title };
 }
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  return admin.enquiries[part];
+  return admin.enquiries.title;
 }
 
 const Fallback = () => <span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />;
@@ -32,12 +32,7 @@ export default function EnquiriesPage() {
       <PageHeader
         title={
           <Suspense fallback={<Fallback />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<Fallback />}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
       />
@@ -171,7 +166,7 @@ async function QueueCard({ summary, nowMs, locale }: { summary: QueueSummary; no
               <span>{e.colLeft}</span>
             </div>
             {/* Open Enquiries Container with Explicit Scrollbars */}
-            <div className="min-h-0 max-h-[320px] flex-1 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
+            <div className="min-h-0 max-h-[70vh] flex-1 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400">
               <ul className="m-0 flex list-none flex-col divide-y divide-zinc-100 p-0 px-5" aria-label={interpolate(e.queueLabel, { name })}>
                 {summary.open.map((r) => (
                   <Row key={r.id} row={r} nowMs={nowMs} targetMs={targetMs} dueSoonMs={dueSoonMs} locale={locale} overdueLabel={e.overdue} timeLeftLabel={e.colLeft} />

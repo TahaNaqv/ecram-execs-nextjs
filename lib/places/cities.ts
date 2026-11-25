@@ -1,0 +1,70 @@
+/** Standard billing cities. Signup accepts one of these spellings, not free text. */
+export const BILLING_CITIES = [
+  "Amsterdam",
+  "Rotterdam",
+  "The Hague",
+  "Utrecht",
+  "Eindhoven",
+  "Groningen",
+  "Tilburg",
+  "Almere",
+  "Breda",
+  "Nijmegen",
+  "Haarlem",
+  "Arnhem",
+  "Zaanstad",
+  "Amersfoort",
+  "Apeldoorn",
+  "Haarlemmermeer",
+  "Enschede",
+  "Leiden",
+  "Maastricht",
+  "Dordrecht",
+  "Zoetermeer",
+  "Zwolle",
+  "Deventer",
+  "Delft",
+  "Alkmaar",
+  "Leeuwarden",
+  "Schiphol",
+  "Brussels",
+  "Antwerp",
+  "Ghent",
+  "Luxembourg",
+  "Paris",
+  "Lyon",
+  "London",
+  "Manchester",
+  "Berlin",
+  "Munich",
+  "Frankfurt",
+  "Hamburg",
+  "Cologne",
+  "Düsseldorf",
+  "Madrid",
+  "Barcelona",
+  "Rome",
+  "Milan",
+  "Vienna",
+  "Zurich",
+  "Geneva",
+  "Prague",
+  "Warsaw",
+  "Copenhagen",
+  "Stockholm",
+  "Oslo",
+  "Helsinki",
+  "Dublin",
+  "Lisbon",
+  "Athens",
+] as const;
+
+const known = new Set(BILLING_CITIES.map((city) => city.toLocaleLowerCase("en")));
+
+export const isBillingCity = (value: string) => known.has(value.trim().toLocaleLowerCase("en"));
+
+/** The stored spelling for a chosen city, or null when it is not on the list. */
+export function billingCityName(value: string): string | null {
+  const needle = value.trim().toLocaleLowerCase("en");
+  return BILLING_CITIES.find((city) => city.toLocaleLowerCase("en") === needle) ?? null;
+}

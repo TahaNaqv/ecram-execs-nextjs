@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { amsterdamParts } from "@/lib/time/amsterdam";
 
 export type DateTimeCopy = Record<
@@ -126,7 +127,7 @@ export function DateTimeField({
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   // Nudge left only when a left-aligned card would leave the screen, and cap its height to the room below the field.
-  const [fit, setFit] = useState<{ nudge: number; maxH: number | null }>({ nudge: 0, maxH: null });
+  const [fit, setFit] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
   // Closed when Next hides the page (it keeps pages mounted), so it is not still open on the way back
   useLayoutEffect(() => () => setOpen(false), []);
 
@@ -233,24 +234,21 @@ export function DateTimeField({
     if (host instanceof HTMLElement) host.style.zIndex = "80";
     let lifted = false;
     const place = () => {
-      const popup = dialogRef.current;
       const fieldEl = root.current;
       const field = fieldEl?.getBoundingClientRect();
-      if (!popup || !field || !fieldEl) return;
-      const width = popup.offsetWidth;
+      if (!field || !fieldEl) return;
+      const width = Math.min(Math.max(field.width, 360), window.innerWidth - 16);
       let left = field.left;
       if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
       if (left < 8) left = 8;
-      const nudge = Math.round(left - field.left);
       const spaceBelow = Math.floor(window.innerHeight - field.bottom - 16);
-      if (!lifted && spaceBelow < popup.scrollHeight && field.top > 96) {
+      if (!lifted && spaceBelow < 320 && field.top > 96) {
         lifted = true;
-        const delta = field.top - 96;
-        window.scrollTo({ top: Math.max(0, window.scrollY + delta) });
+        window.scrollTo({ top: Math.max(0, window.scrollY + field.top - 96) });
       }
-      const room = Math.floor(window.innerHeight - fieldEl.getBoundingClientRect().bottom - 16);
-      const maxH = room > 0 && popup.scrollHeight > room ? room : null;
-      setFit((prev) => (prev.nudge === nudge && prev.maxH === maxH ? prev : { nudge, maxH }));
+      const room = Math.max(280, Math.floor(window.innerHeight - fieldEl.getBoundingClientRect().bottom - 16));
+      const next = { top: Math.round(field.bottom + 6), left: Math.round(left), width: Math.round(width), maxH: room };
+      setFit((prev) => (prev && prev.top === next.top && prev.left === next.left && prev.width === next.width && prev.maxH === next.maxH ? prev : next));
     };
     place();
     window.addEventListener("resize", place);
@@ -259,7 +257,7 @@ export function DateTimeField({
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
       if (host instanceof HTMLElement) host.style.zIndex = previous;
-      setFit({ nudge: 0, maxH: null });
+      setFit(null);
     };
   }, [open]);
 
@@ -353,7 +351,7 @@ export function DateTimeField({
     : "grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-[#f4f4f5] hover:bg-white/10 disabled:cursor-default disabled:opacity-25";
   const column = "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const optionCls = (selected: boolean) =>
-    `block w-full max-w-full min-h-5 cursor-pointer overflow-hidden rounded border-0 px-0 py-0.5 text-center text-[11px] font-medium tabular-nums leading-none disabled:cursor-not-allowed disabled:hover:bg-transparent ${
+    `block h-7 w-full max-w-full cursor-pointer overflow-visible rounded border-0 px-0 text-center text-[13px] font-medium tabular-nums leading-7 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
       admin
         ? selected
           ? "bg-zinc-950 text-white [-webkit-text-fill-color:#ffffff] disabled:bg-zinc-100 disabled:text-zinc-300 disabled:[-webkit-text-fill-color:#d4d4d8]"
@@ -435,17 +433,14 @@ export function DateTimeField({
         <CalendarIcon />
       </button>
 
-      {open && (
+      {open && fit && createPortal(
         <div
           ref={dialogRef}
           id={dialogId}
           role="dialog"
           aria-label={copy.dialog}
-          style={{
-            transform: fit.nudge ? `translateX(${fit.nudge}px)` : undefined,
-            maxHeight: fit.maxH ? `${fit.maxH}px` : undefined,
-          }}
-          className={`absolute top-full left-0 z-50 mt-1.5 box-border max-h-[min(20rem,calc(100svh-1rem))] w-[min(17.5rem,calc(100vw-1rem))] max-w-[17.5rem] overflow-x-hidden overflow-y-auto rounded-xl border border-solid px-2.5 py-2 text-left text-[13px] normal-case shadow-lg tracking-normal [scrollbar-width:thin] ${
+          style={{ top: fit.top, left: fit.left, width: fit.width, maxHeight: fit.maxH }}
+          className={`fixed z-[80] box-border overflow-x-hidden overflow-y-auto rounded-xl border border-solid px-3 py-3 text-left text-[13px] normal-case shadow-lg tracking-normal [scrollbar-width:thin] ${
             admin
               ? "border-zinc-200 bg-white text-zinc-950 shadow-pop [color-scheme:light] [scrollbar-color:#d4d4d8_transparent]"
               : "border-[#3f5192] bg-[#081b62] text-[#f4f4f5] [color-scheme:dark] [scrollbar-color:#3f5192_transparent]"
@@ -503,7 +498,7 @@ export function DateTimeField({
                                 if (next.h !== time.h || next.min !== time.min) timeChosen.current = true;
                                 commit(cell, next);
                               }}
-                              className={`mx-auto grid size-6 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[11px] tabular-nums disabled:cursor-not-allowed ${
+                              className={`mx-auto grid size-8 max-w-full cursor-pointer place-items-center rounded-md border-0 p-0 text-[13px] tabular-nums disabled:cursor-not-allowed ${
                                 admin
                                   ? chosen
                                     ? "bg-zinc-950 font-semibold text-white [-webkit-text-fill-color:#ffffff] disabled:bg-zinc-200 disabled:text-zinc-400 disabled:[-webkit-text-fill-color:#a1a1aa]"
@@ -523,7 +518,7 @@ export function DateTimeField({
                 </tbody>
               </table>
             </div>
-            <div className={`grid h-[8.75rem] w-[4.6rem] shrink-0 grid-cols-3 gap-px overflow-hidden border-0 border-l border-solid pl-1.5 ${admin ? "border-zinc-200" : "border-[#3f5192]"}`}>
+            <div className={`grid h-44 w-[6.75rem] shrink-0 grid-cols-3 gap-0.5 overflow-hidden border-0 border-l border-solid pl-2 ${admin ? "border-zinc-200" : "border-[#3f5192]"}`}>
               <div role="listbox" aria-label={copy.hour} className={column}>
                 {Array.from({ length: 12 }, (_, i) => {
                   const h12 = i + 1;
@@ -602,7 +597,8 @@ export function DateTimeField({
           >
             {copy.done}
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

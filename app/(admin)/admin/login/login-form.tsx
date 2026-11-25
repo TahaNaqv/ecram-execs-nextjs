@@ -60,6 +60,10 @@ export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }
           </button>
         </div>
       </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="login-code" className={fieldLabel}>Authenticator code</label>
+        <input id="login-code" name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="Only if this account uses one" className={`${field} h-11`} />
+      </div>
       {state.error && (
         <p role="alert" className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-800 ring-1 ring-inset ring-red-200">
           <AlertIcon className="mt-0.5 shrink-0" />

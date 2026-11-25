@@ -22,9 +22,9 @@ export function SetPasswordForm({ id, copy }: { id: string; copy: Copy }) {
   const error = state.error === "short" ? copy.short : state.error === "denied" ? copy.denied : state.error === "failed" ? copy.invalid : null;
 
   return (
-    <form action={submit} className="flex min-w-56 flex-col gap-1.5">
+    <form action={submit} className="flex w-full min-w-0 flex-col gap-1.5">
       <input type="hidden" name="id" value={id} />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           name="temporaryPassword"
           type={visible ? "text" : "password"}

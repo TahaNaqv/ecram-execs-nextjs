@@ -7,6 +7,7 @@ import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
 import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { PartnerProfileClient } from "./partner-profile-client";
+import { PartnerOps } from "./partner-ops";
 
 export async function generateMetadata({
   params,
@@ -78,5 +79,12 @@ export default async function CorporatePartnerProfilePage({
     initialNotes: [],
   };
 
-  return <PartnerProfileClient partner={mappedPartner} copy={admin.corporate.hub} />;
+  return (
+    <>
+      <PartnerProfileClient partner={mappedPartner} copy={admin.corporate.hub} />
+      <div className="mx-auto w-full max-w-6xl px-4 pb-10">
+        <PartnerOps contactId={p.id} />
+      </div>
+    </>
+  );
 }

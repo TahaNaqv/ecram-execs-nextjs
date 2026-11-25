@@ -22,6 +22,47 @@ export type InvoiceWords = {
   balanceByCard: (date: string) => string;
 };
 
+/** The invoice email Moneybird sends. English bookings must not inherit the Dutch workflow labels. */
+export type InvoiceMail = {
+  subject: (number: string) => string;
+  greeting: (name: string) => string;
+  intro: string;
+  invoice: string;
+  sender: string;
+  reference: string;
+  invoiceDate: string;
+  dueDate: string;
+  outstanding: string;
+  view: string;
+};
+
+export const INVOICE_MAIL: Record<Locale, InvoiceMail> = {
+  en: {
+    subject: (number) => `Invoice ${number}`,
+    greeting: (name) => `Dear ${name},`,
+    intro: "Please find your invoice for this booking below.",
+    invoice: "Invoice",
+    sender: "Sender",
+    reference: "Reference",
+    invoiceDate: "Invoice date",
+    dueDate: "Due date",
+    outstanding: "Outstanding amount",
+    view: "View invoice",
+  },
+  nl: {
+    subject: (number) => `Factuur ${number}`,
+    greeting: (name) => `Geachte ${name},`,
+    intro: "Hieronder vindt u de factuur voor deze boeking.",
+    invoice: "Factuur",
+    sender: "Afzender",
+    reference: "Kenmerk",
+    invoiceDate: "Factuurdatum",
+    dueDate: "Vervaldatum",
+    outstanding: "Openstaand bedrag",
+    view: "Bekijk factuur",
+  },
+};
+
 export const INVOICE_WORDS: Record<Locale, InvoiceWords> = {
   en: {
     rides: "Chauffeur service",

@@ -73,8 +73,7 @@ export function proxy(request: NextRequest) {
 
   const tail = rest.join("/");
 
-  // ── A language that is not shown at the moment (Dutch, until it is translated): the same page in the landing
-  //    language. Temporary (307), so search engines keep the URL for when the language comes back.
+  // ── A language that is not public: the same page in English. Temporary (307).
   if (!isPublicLocale(first)) {
     const route = routeFromSlug(tail, first) ?? routeFromPhysical(tail);
     const url = new URL(route ? localizedPath(route, LANDING_LOCALE) : localizedPath("/", LANDING_LOCALE), request.url);

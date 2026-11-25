@@ -26,7 +26,9 @@ import {
 } from "../../../_components/icons";
 import { LivePipeline, LiveStatusBadge } from "../../../_components/booking-status";
 import { UrgentBadge } from "../../../_components/status-badge";
-import { Avatar, btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
+import { Avatar, btn, Card, CardHeader, PageBody, Skeleton, field } from "../../../_components/ui";
+import { PaymentStatusBadge } from "../../../_components/payment-status";
+import { saveSecurityNotes } from "./security-actions";
 import { deleteRequest } from "../../../actions";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { AdminReturnLink } from "../../../_components/return-link";
@@ -109,13 +111,12 @@ async function RequestDetail({ params, fromEnquiries }: Pick<PageProps<"/admin/r
 }
 
 /** On a booking paid at booking: what is in so far, for the review card (null for one paid the old way, after approval). */
-async function payState(r: QuoteRequest): Promise<PayState> {
+async function payState(r: QuoteRequest, totalCents: number): Promise<PayState> {
   const config = mollieConfig();
   if (!r.paymentPlan || !config) return null;
   const paid = await paidNet(r.id, config.mode);
   if (paid <= 0) return { kind: "unpaid", paid: formatEuro("0") };
-  // Not yet approved, so nothing is "due" yet: the rest is the total less what is in
-  const rest = Math.max(0, (invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0) - paid);
+  const rest = Math.max(0, totalCents - paid);
   const restOn = balanceDueOn(r.paymentPlan, r.pickupAt);
   return rest > 0
     ? { kind: "fee", paid: formatEuro((paid / 100).toFixed(2)), rest: formatEuro((rest / 100).toFixed(2)), restOn: restOn ? formatDate(restOn) : "" }
@@ -182,17 +183,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{guestName}</h1>
               <LiveStatusBadge requestId={r.id} status={r.status} labels={d.admin.statuses} size="md" />
               <UrgentBadge request={r} size="md" />
-              {r.paymentStatus && (
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${
-                  r.paymentStatus.toUpperCase() === "PAID"
-                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                    : r.paymentStatus.toUpperCase() === "UNPAID"
-                      ? "bg-amber-100 text-amber-900 ring-amber-200"
-                      : "bg-sky-50 text-sky-700 ring-sky-200"
-                }`}>
-                  {r.paymentStatus.toUpperCase()}
-                </span>
-              )}
+              {r.paymentStatus ? <PaymentStatusBadge status={r.paymentStatus} size="md" /> : null}
               <span className="inline-flex items-center gap-1.5 text-sm text-zinc-700">
                 {bookingServiceName(r, d.services)}
                 <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
@@ -254,7 +245,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
             requestId={r.id}
             status={r.status}
             copy={d.admin.review}
-            pay={await payState(r)}
+            pay={await payState(r, totalCents)}
             window={windowView}
             fulfilment={conflict ? { ok: false, reference: conflict.reference, pending: conflict.pending } : { ok: true }}
             canApprove={can(admin.role, admin.permissions, "approve")}
@@ -277,14 +268,43 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               ? `${process.env.SITE_URL ?? ""}${localizedPath("/corporate-partner/account/booking", r.locale)}?ref=${encodeURIComponent(r.reference)}`
               : guestUrl(r, r.locale)
           }
-          activity={history.map((e) => ({
-            id: e.id,
-            text: renderEvent(e.event, e.params, eventLabels(d.admin.events, d.admin.statuses), formatEuro),
-            at: formatTimestamp(e.createdAt),
-            by: e.by,
-          }))}
         >
           {!isBespoke(r) && <RateCardPrice price={price} finalEuros={bookingTotalEuros(r)} copy={rd} names={d.addOns} />}
+          <div className="border-t border-zinc-100 px-5 py-4">
+            <UpdateForm
+              id={r.id}
+              status={r.status}
+              quotedAmount={r.quotedAmount}
+              internalNotes={r.internalNotes}
+              statusLabels={d.admin.statuses}
+              copy={{
+                save: d.admin.review.statusSave,
+                saving: d.admin.review.statusSaving,
+                status: rd.fieldStatus,
+                quotedAmount: rd.fieldQuotedAmountEur,
+                internalNotes: rd.fieldInternalNotes,
+                amountPlaceholder: rd.amountPlaceholder,
+                internalPlaceholder: rd.internalPlaceholder,
+                cancelWarn: d.admin.review.cancelWarn,
+                cancelGo: d.admin.review.cancelGo,
+                cancelBack: d.admin.review.cancelBack,
+              }}
+            />
+            {can(admin.role, admin.permissions, "approve") ? (
+              <form action={saveSecurityNotes} className="mt-4 flex flex-col gap-2 border-t border-zinc-100 pt-4">
+                <p className="m-0 text-sm font-medium text-zinc-950">Close protection</p>
+                <label className="flex items-center gap-2 text-sm text-zinc-800">
+                  <input type="checkbox" name="closeProtection" defaultChecked={r.closeProtection} />
+                  This booking includes close protection
+                </label>
+                <textarea name="securityNotes" rows={3} defaultValue={r.securityNotes ?? ""} placeholder="Security notes. Visible only to staff who can approve bookings." className={`${field} py-2`} />
+                <input type="hidden" name="id" value={r.id} />
+                <button className={`${btn.base} ${btn.secondary} ${btn.sm} self-start`}>Save security notes</button>
+              </form>
+            ) : r.closeProtection ? (
+              <p className="mt-4 border-t border-zinc-100 pt-4 text-sm text-zinc-600">Close protection is on this booking. The notes are limited to staff who can approve bookings.</p>
+            ) : null}
+          </div>
         </AutoPricingGateway>
       </div>
 
@@ -354,31 +374,6 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
                 <a className="hover:underline" href={tel}>{phone || "—"}</a>
               </ContactRow>
             </dl>
-          </Card>
-
-          <Card>
-            <CardHeader title={rd.manage} description={rd.manageNote} />
-            <div className="p-5">
-              <UpdateForm
-                id={r.id}
-                status={r.status}
-                quotedAmount={r.quotedAmount}
-                internalNotes={r.internalNotes}
-                statusLabels={d.admin.statuses}
-                copy={{
-                  save: d.admin.review.statusSave,
-                  saving: d.admin.review.statusSaving,
-                  status: rd.fieldStatus,
-                  quotedAmount: rd.fieldQuotedAmountEur,
-                  internalNotes: rd.fieldInternalNotes,
-                  amountPlaceholder: rd.amountPlaceholder,
-                  internalPlaceholder: rd.internalPlaceholder,
-                  cancelWarn: d.admin.review.cancelWarn,
-                  cancelGo: d.admin.review.cancelGo,
-                  cancelBack: d.admin.review.cancelBack,
-                }}
-              />
-            </div>
           </Card>
 
           <MoneybirdCard r={r} />

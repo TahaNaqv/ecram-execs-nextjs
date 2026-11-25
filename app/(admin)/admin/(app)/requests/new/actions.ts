@@ -13,7 +13,7 @@ import { capacityProblem, MAX_GROUP, MAX_GROUP_BAGS, MAX_SMALL_BAGS, samePlace }
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import type { QuoteRequest } from "@/lib/db/schema";
-import { CarClashError, createQuoteRequest } from "@/lib/quotes/create";
+import { CarClashError, createQuoteRequest, NoVehicleError } from "@/lib/quotes/create";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { asWait, MAX_STOPS } from "@/lib/quotes/stops";
 import { REQUEST_STATUSES } from "@/lib/quotes/constants";
@@ -166,6 +166,7 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
       ],
     );
   } catch (err) {
+    if (err instanceof NoVehicleError) return fail("No vehicles available for this time slot.");
     if (err instanceof CarClashError) return fail(`That car is already booked at that time (${err.reference}). Choose another car, or save the booking as quoted until one is free.`);
     console.error("[admin] booking create failed", err);
     return fail("Could not create the booking. Please try again.");

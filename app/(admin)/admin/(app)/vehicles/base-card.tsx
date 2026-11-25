@@ -32,7 +32,7 @@ export function FleetBaseCard({
 
   return (
     <Card>
-      <CardHeader title={t.baseTitle} description={t.baseNote} />
+      <CardHeader title={t.baseTitle} />
       <form action={action} className="flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="fleet-base" className="text-sm font-medium text-zinc-900">

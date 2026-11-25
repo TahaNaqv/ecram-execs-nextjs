@@ -151,6 +151,9 @@ export const quoteSchema = (t: QuoteMessages, stops: readonly string[] = []) =>
     phoneCountry: countryCode(t.phoneCountryInvalid),
     phone: z.string().trim().regex(PHONE_DIGITS, t.phoneNumberInvalid),
     notes: z.string().trim().max(2000, t.notesTooLong).optional(),
+    hearAbout: z.string().trim().max(120).optional(),
+    marketingConsent: z.preprocess((value) => value === "on" || value === "true" || value === true, z.boolean()).optional(),
+    closeProtection: z.preprocess((value) => value === "on" || value === "true" || value === true, z.boolean()).optional(),
     // `next/root-params` is unavailable in Server Actions, so the form carries the locale.
     locale: z.enum(LOCALES).catch("en"),
   }).superRefine((v, ctx) => {

@@ -81,7 +81,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   const from = shiftDay(date, -2);
 
   const [cars, rows] = await Promise.all([
-    db.select({ id: v.id, name: v.name, status: v.status }).from(v).orderBy(asc(v.name)),
+    db.select({ id: v.id, name: v.name, status: v.status, plate: v.licensePlate }).from(v).orderBy(asc(v.name)),
     db
       .select({
         id: q.id,
@@ -122,7 +122,8 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   const columns = new Map<string, DayColumn>();
   for (const car of cars) {
     const key = carKey(car.id) ?? car.id;
-    if (!columns.has(key)) columns.set(key, { key, name: vehicleByKey(key)?.name ?? car.name, state: car.status, blocks: [] });
+    const label = [vehicleByKey(key)?.name ?? car.name, car.plate].filter(Boolean).join(" · ");
+    if (!columns.has(key)) columns.set(key, { key, name: label, state: car.status, blocks: [] });
   }
   const unassigned: DayColumn = { key: UNASSIGNED, name: "", state: null, blocks: [] };
 

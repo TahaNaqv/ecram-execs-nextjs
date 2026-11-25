@@ -18,8 +18,8 @@ import {
   UsersIcon,
   XIcon,
 } from "../../_components/icons";
-import { Avatar, btn, Card, CardHeader, EmptyState, PageBody, PageHeader, StatCard } from "../../_components/ui";
-import { endShift, setDriverActive, startShift } from "./actions";
+import { Avatar, btn, Card, CardHeader, EmptyState, PageBody, PageHeader, StatCard, field } from "../../_components/ui";
+import { endShift, setDriverActive, startShift, updateDriver } from "./actions";
 import { AddDriverForm } from "./add-driver-form";
 import { ShiftCountdown } from "./shift-countdown";
 import { SubmitButton } from "./submit-button";
@@ -60,14 +60,13 @@ function DriverName({ name, phone, partner, vehicle, partnerBadge }: { name: str
   );
 }
 
-export function DriversClient({ onShift, offShift, archived, apps, partners, pending, dict, t, description }: any) {
+export function DriversClient({ onShift, offShift, archived, apps, partners, pending, dict, t }: any) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   return (
     <PageBody>
       <PageHeader
         title={t.title}
-        description={description}
         actions={
           <Link href="/admin/drivers/applications" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <NoteIcon className="text-zinc-500" />
@@ -177,7 +176,8 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
               ) : (
                 <ul className="divide-y divide-zinc-100">
                   {offShift.map((r: any) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <li key={r.id} className="flex flex-col gap-2 px-5 py-3">
+                      <div className="flex items-center justify-between gap-3">
                       <DriverName {...r} partnerBadge={t.partnerBadge} />
                       <div className="flex shrink-0 items-center gap-1">
                         <form action={setDriverActive}>
@@ -195,6 +195,13 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
                           </SubmitButton>
                         </form>
                       </div>
+                      </div>
+                      <form action={updateDriver} className="flex flex-wrap items-center gap-2">
+                        <input type="hidden" name="driverId" value={r.id} />
+                        <input name="name" required defaultValue={r.name} aria-label="Name" className={`${field} h-9 min-w-40 flex-1`} />
+                        <input name="phone" required defaultValue={r.phone ?? ""} aria-label="Phone" className={`${field} h-9 w-36`} />
+                        <button className={`${btn.base} ${btn.secondary} ${btn.sm}`}>Save</button>
+                      </form>
                     </li>
                   ))}
                 </ul>

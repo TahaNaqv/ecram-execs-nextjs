@@ -83,8 +83,8 @@ export async function listRequests({ status, search, page = 1, queue }: ListFilt
       .from(q)
       .leftJoin(contacts, eq(contacts.id, q.corporateContactId))
       .where(filter)
-      // Corporate bookings sit ahead of standard ones. Within each group, the newest request is first.
-      .orderBy(sql`case when ${corporate} then 0 else 1 end`, desc(q.createdAt))
+      // Newest request first, so the most recent booking is at the top of the list.
+      .orderBy(desc(q.createdAt))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(q).where(filter),

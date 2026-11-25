@@ -2,7 +2,7 @@ import "server-only";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { isUniqueViolation, makeReference } from "@/lib/request-meta";
-import { clashingReference, lockFleet } from "@/lib/fleet/availability";
+import { clashingReference, fleetSlotFree, lockFleet } from "@/lib/fleet/availability";
 import { routeHold } from "@/lib/fleet/route";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
 
@@ -10,6 +10,13 @@ import { storedQuoteEuros } from "@/lib/pricing/rates";
 export class CarClashError extends Error {
   constructor(readonly reference: string) {
     super(`The car is already booked on ${reference}`);
+  }
+}
+
+/** Every car of the requested class is already held for this pickup, including by bookings that are not confirmed yet. */
+export class NoVehicleError extends Error {
+  constructor() {
+    super("No vehicles available for this time slot.");
   }
 }
 
@@ -38,8 +45,9 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
   for (let attempt = 1; ; attempt++) {
     try {
       return await db.transaction(async (tx) => {
+        await lockFleet(tx);
+        if (!(await fleetSlotFree(tx, values))) throw new NoVehicleError();
         if (values.status === "confirmed") {
-          await lockFleet(tx);
           const clash = await clashingReference(tx, {
             vehicle: values.vehicle ?? null,
             vehicles: values.vehicles ?? null,
@@ -57,6 +65,8 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
           .values({ ...values, reference: makeReference("EE") })
           .returning();
         if (events.length > 0) await tx.insert(schema.requestEvents).values(events.map((e) => ({ ...e, requestId: request.id })));
+        const { allocateAddons } = await import("@/app/(admin)/admin/(app)/addons/actions");
+        await allocateAddons(request.extras).catch((err) => console.error("[addons] allocate", err));
         return request;
       });
     } catch (err) {

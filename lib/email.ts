@@ -4,6 +4,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import type { DriverApplication, QuoteRequest } from "@/lib/db/schema";
 import { colourLabel, makeLabel } from "@/lib/partners/criteria";
 import { serviceLabel } from "@/lib/quotes/constants";
+import { spokenLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath } from "@/lib/i18n/pathnames";
@@ -14,6 +15,7 @@ import { stopsWithWaits } from "@/lib/quotes/stops";
 import { siteConfig } from "@/lib/site-config";
 import { bookingTotalEuros, formatCents, formatCurrency, lineDay, priceNet, type Price } from "@/lib/pricing/rates";
 import { extrasLine, type ExtraNames } from "@/lib/pricing/extras";
+import { fillTemplate } from "@/lib/admin/template-tags";
 import { templateOverride, type TemplateKey } from "@/lib/admin/templates";
 import { mollieConfigured } from "@/lib/mollie/config";
 
@@ -111,7 +113,7 @@ export async function confirmToClient(q: QuoteRequest) {
   const first = q.name.split(" ")[0];
   const { phone, email } = siteConfig.contact;
   // The confirmation goes out in the language the visitor filled the form in (stored on the row).
-  const { email: t, services, addOns, booking: b } = await getDictionary(q.locale);
+  const { email: t, services, addOns, booking: b } = await getDictionary(spokenLocale(q.locale));
   const row = (label: string, value: string) =>
     `<tr><td style="color:#71717a">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const bespoke = q.service === "bespoke";
@@ -414,14 +416,14 @@ export async function notifyTeamPaid(q: QuoteRequest, cents: number, method: str
 /** A short email to the customer about their booking's payment, with a link to the booking's page. */
 async function customerNote(q: QuoteRequest, kind: string, subjectKey: string, introKey: string, values: Record<string, string>) {
   if (!q.email) return false;
-  const { email: t } = await getDictionary(q.locale);
+  const { email: t } = await getDictionary(spokenLocale(q.locale));
   const copy = t as unknown as Record<string, string>;
   const all = { reference: q.reference, ...values };
   const link = customerLink(q);
   const templateKey: TemplateKey | null = kind === "declined" ? "booking_alternative" : kind === "balance notice" || kind === "balance failed" ? "payment_notice" : null;
   const saved = templateKey ? await templateOverride(templateKey) : null;
-  const subject = interpolate(saved?.subject ?? copy[subjectKey], all);
-  const intro = interpolate(saved?.body ?? copy[introKey], all);
+  const subject = fillTemplate(saved?.subject ?? copy[subjectKey], all);
+  const intro = fillTemplate(saved?.body ?? copy[introKey], all);
   const html = `
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
@@ -508,7 +510,7 @@ export async function notifyTeamChargeback(q: QuoteRequest, cents: number) {
 /** Thanks the customer for their online payment, with the amount and a link to their booking. Mollie sends no receipt of its own. */
 export async function emailPaymentReceived(q: QuoteRequest, cents: number) {
   if (!q.email) return false;
-  const { email: t } = await getDictionary(q.locale);
+  const { email: t } = await getDictionary(spokenLocale(q.locale));
   const values = { reference: q.reference, amount: formatCurrency(cents / 100) };
   const saved = await templateOverride("payment_notice");
   const link = customerLink(q);
@@ -516,11 +518,11 @@ export async function emailPaymentReceived(q: QuoteRequest, cents: number) {
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
-      <p>${esc(interpolate(saved?.body ?? t.paymentReceivedIntro, values))}</p>
+      <p>${esc(fillTemplate(saved?.body ?? t.paymentReceivedIntro, values))}</p>
       ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
       <p>${esc(t.signoff)}<br>Ecram Execs</p>
     </div>`;
-  return send("quote", q.reference, "payment received", { from: mailFrom(), to: [q.email], subject: interpolate(saved?.subject ?? t.paymentReceivedSubject, values), html });
+  return send("quote", q.reference, "payment received", { from: mailFrom(), to: [q.email], subject: fillTemplate(saved?.subject ?? t.paymentReceivedSubject, values), html });
 }
 
 export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
@@ -549,7 +551,7 @@ export async function emailPartnerBooking({
   message?: string | null;
 }) {
   const { SITE_URL } = process.env;
-  const { email: t } = await getDictionary(to.locale);
+  const { email: t } = await getDictionary(spokenLocale(to.locale));
   const copy: Record<PartnerEmailKind, [string, string]> = {
     contacted: [t.bookingSubjectContacted, message ? t.bookingIntroContacted : t.bookingIntroContactedPlain],
     quoted: [t.bookingSubjectQuoted, t.bookingIntroQuoted],
@@ -585,7 +587,7 @@ export type EnquiryEmailKind = Exclude<PartnerEmailKind, "invoice">;
 export async function emailEnquiryStatus({ request: q, kind, message }: { request: QuoteRequest; kind: EnquiryEmailKind; message?: string | null }) {
   if (!q.email) return false;
   const { phone, email } = siteConfig.contact;
-  const d = await getDictionary(q.locale);
+  const d = await getDictionary(spokenLocale(q.locale));
   const { email: t, services, quoteForm } = d;
   const copy: Record<EnquiryEmailKind, [string, string]> = {
     // Set from the status menu there is no message to quote: then the plain intro
@@ -611,7 +613,7 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
-      <p>${esc(interpolate(intro, values))}</p>
+      <p>${esc(fillTemplate(intro, values))}</p>
       ${message ? `<blockquote style="margin:16px 0;padding:0 0 0 14px;border-left:3px solid #d4d4d8;color:#27272a">${esc(message).replace(/\n/g, "<br>")}</blockquote>` : ""}
       ${message ? `<p>${esc(t.enquiryReplyHere)}</p>` : ""}
       ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
@@ -625,7 +627,7 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
     from: mailFrom(),
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
-    subject: interpolate(subject, values),
+    subject: fillTemplate(subject, values),
     html,
   });
 }
@@ -638,7 +640,7 @@ export async function emailEnquiryStatus({ request: q, kind, message }: { reques
 export async function emailBookingRecorded(q: QuoteRequest) {
   const { SITE_URL } = process.env;
   const { phone, email } = siteConfig.contact;
-  const { email: t, services, quoteForm, addOns, booking: b } = await getDictionary(q.locale);
+  const { email: t, services, quoteForm, addOns, booking: b } = await getDictionary(spokenLocale(q.locale));
   const saved = await templateOverride("booking_received");
   const row: Row = (label, value) => `<tr><td style="color:#71717a;vertical-align:top">${esc(label)}</td><td>${esc(value)}</td></tr>`;
   const details = summaryRows(q, t, services, quoteForm, row, addOns, b);
@@ -647,7 +649,7 @@ export async function emailBookingRecorded(q: QuoteRequest) {
     <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
       <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
       <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
-      <p>${esc(interpolate(saved?.body ?? t.bookingRecordedIntro, { reference: q.reference, name: q.name, amount: "" }))}</p>
+      <p>${esc(fillTemplate(saved?.body ?? t.bookingRecordedIntro, { reference: q.reference, name: q.name, amount: "" }))}</p>
       <table cellpadding="4" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;margin:16px 0">
         ${details.join("")}
       </table>
@@ -659,7 +661,7 @@ export async function emailBookingRecorded(q: QuoteRequest) {
     from: mailFrom(),
     to: [q.email],
     ...(email || process.env.NOTIFY_EMAIL_TO ? { reply_to: email || process.env.NOTIFY_EMAIL_TO!.split(",")[0].trim() } : {}),
-    subject: interpolate(saved?.subject ?? t.bookingRecordedSubject, { reference: q.reference, name: q.name, amount: "" }),
+    subject: fillTemplate(saved?.subject ?? t.bookingRecordedSubject, { reference: q.reference, name: q.name, amount: "" }),
     html,
   });
 }
@@ -763,7 +765,7 @@ function provider(): "resend" | "smtp" | null {
 
 let smtp: Transporter | undefined;
 
-type Payload = { from: string; to: string[]; reply_to?: string; subject: string; html: string };
+type Payload = { from: string; to: string[]; cc?: string[]; reply_to?: string; subject: string; html: string };
 
 async function sendSmtp(tag: string, reference: string, kind: string, payload: Payload): Promise<boolean> {
   try {
@@ -775,8 +777,8 @@ async function sendSmtp(tag: string, reference: string, kind: string, payload: P
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       connectionTimeout: 10_000,
     });
-    const { reply_to, ...rest } = payload;
-    await smtp.sendMail({ ...rest, replyTo: reply_to });
+    const { reply_to, cc, ...rest } = payload;
+    await smtp.sendMail({ ...rest, cc, replyTo: reply_to });
     console.info(`[${tag}] ${reference} ${kind} sent via SMTP`);
     return true;
   } catch (err) {
@@ -925,4 +927,15 @@ async function send(tag: string, reference: string, kind: string, payload: Paylo
 
   logEmail(tag, reference, kind, payload, "not sent");
   return false;
+}
+
+/** Tells an introducer the month's commission and copies the bookkeeper. */
+export async function sendIntroducerCommission(input: { to: string; subject: string; body: string; cc: string[]; fromName: string }) {
+  return send("admin", input.to, "introducer commission", {
+    from: mailFrom(),
+    to: [input.to],
+    cc: input.cc,
+    subject: input.subject,
+    html: `<p>${esc(input.body)}</p><p>${esc(input.fromName)}<br>Ecram Execs</p>`,
+  });
 }

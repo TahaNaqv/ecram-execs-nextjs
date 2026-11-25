@@ -1,13 +1,12 @@
 import { type AccountArea, type StaffRole } from "@/lib/admin/access";
 import { ensureInitialStaff, listStaff } from "@/lib/admin/staff";
+import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
-import { CreateAccountForm } from "../(app)/account/create-account";
-import { Card, CardHeader } from "./ui";
-import { TeamTable } from "./team-table";
+import { TeamDesk } from "./team-desk";
 
-/** Team list and the one create-account form, shared by Staff and My account. */
+/** Team cards and the create-account dialog, shared by Staff and My account. */
 export async function TeamManagement() {
-  const { admin: t } = await adminDictionary();
+  const [{ admin: t }, admin] = await Promise.all([adminDictionary(), requireAdmin()]);
   await ensureInitialStaff();
   const people = await listStaff();
   const labels: Record<AccountArea, string> = {
@@ -28,32 +27,18 @@ export async function TeamManagement() {
     hidePassword: t.account.hidePassword,
   };
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.8fr)]">
-      <Card className="overflow-hidden">
-        <CardHeader title={t.staffDesk.people} />
-        <TeamTable
-          people={people}
-          labels={labels}
-          roleLabel={roleLabel}
-          ownersAll={t.staffDesk.ownersAll}
-          empty={t.staffDesk.peopleEmpty}
-          columns={{ name: t.staffDesk.colName, email: t.staffDesk.colEmail, role: t.staffDesk.role, permissions: t.staffDesk.permissions, password: t.staffDesk.passwordColumn }}
-          passwordCopy={{
-            setPassword: t.staffDesk.setPassword,
-            passwordSet: t.staffDesk.passwordSet,
-            passwordHint: t.staffDesk.passwordHint,
-            showPassword: t.account.showPassword,
-            hidePassword: t.account.hidePassword,
-            short: t.account.short,
-            denied: t.staffDesk.denied,
-            invalid: t.staffDesk.invalid,
-          }}
-        />
-      </Card>
-      <Card className="overflow-hidden">
-        <CardHeader title={t.staffDesk.sectionTitle} description={t.staffDesk.sectionNote} />
-        <CreateAccountForm copy={copy} labels={labels} />
-      </Card>
-    </div>
+    <TeamDesk
+      viewerId={admin.id}
+      people={people.map((person) => ({
+        id: person.id,
+        name: person.name,
+        email: person.email,
+        role: person.role,
+        permissions: person.permissions,
+      }))}
+      labels={labels}
+      roleLabel={roleLabel}
+      copy={copy}
+    />
   );
 }

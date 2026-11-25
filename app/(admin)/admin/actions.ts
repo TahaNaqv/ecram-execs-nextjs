@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 import { DUMMY_HASH, verifyPassword } from "@/lib/auth/password";
+import { verifyTotp } from "@/lib/auth/totp";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
@@ -53,6 +54,10 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
       )
       .where(eq(schema.adminUsers.id, user.id));
     return generic;
+  }
+
+  if (user.totpEnabled && !verifyTotp(user.totpSecret ?? "", String(formData.get("code") ?? ""))) {
+    return { error: "Enter the 6-digit code from your authenticator.", email };
   }
 
   await db

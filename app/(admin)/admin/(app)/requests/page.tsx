@@ -25,6 +25,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mollieConfig } from "@/lib/mollie/config";
 import { moneybirdInvoiceLink } from "@/lib/moneybird/config";
+import { PaymentStatusBadge, paymentStanding } from "../../_components/payment-status";
 import { ClickableRow } from "./clickable-row";
 import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../../_components/ui";
@@ -39,9 +40,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Search = { status?: string; q?: string; page?: string; queue?: string };
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  return admin.requests[part];
+  return admin.requests.title;
 }
 
 async function NewBookingLink() {
@@ -66,12 +67,7 @@ export default function RequestsPage({ searchParams }: PageProps<"/admin/request
       <PageHeader
         title={
           <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
         actions={
@@ -180,29 +176,22 @@ async function moneybirdLinks(ids: string[]): Promise<Map<string, string>> {
   return links;
 }
 
-/** The listed bookings that are to be paid at booking and have nothing paid yet (in the current Mollie mode). */
-async function unpaidAtBooking(rows: QuoteRequest[]): Promise<Set<string>> {
-  const mode = mollieConfig()?.mode;
-  const planned = rows.filter((r) => r.paymentPlan && (r.status === "new" || r.status === "contacted" || r.status === "confirmed")).map((r) => r.id);
-  if (!mode || planned.length === 0) return new Set();
-  const paid = await db
-    .selectDistinct({ id: schema.payments.requestId })
-    .from(schema.payments)
-    .where(and(inArray(schema.payments.requestId, planned), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")));
-  const done = new Set(paid.map((p) => p.id));
-  return new Set(planned.filter((id) => !done.has(id)));
-}
-
-/** The listed bookings that have at least one paid payment in the current Mollie mode. */
-async function paidAtBooking(rows: QuoteRequest[]): Promise<Set<string>> {
+/** Paid bookings on this page, and the ones still waiting on a payment plan. One lookup covers both. */
+async function paymentSets(rows: QuoteRequest[]) {
   const mode = mollieConfig()?.mode;
   const ids = rows.map((r) => r.id);
-  if (!mode || ids.length === 0) return new Set();
-  const paid = await db
-    .selectDistinct({ id: schema.payments.requestId })
-    .from(schema.payments)
-    .where(and(inArray(schema.payments.requestId, ids), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")));
-  return new Set(paid.map((p) => p.id).filter(Boolean) as string[]);
+  const paid = new Set<string>();
+  if (mode && ids.length > 0) {
+    const found = await db
+      .selectDistinct({ id: schema.payments.requestId })
+      .from(schema.payments)
+      .where(and(inArray(schema.payments.requestId, ids), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")));
+    for (const row of found) if (row.id) paid.add(row.id);
+  }
+  const waiting = new Set(
+    rows.filter((r) => r.paymentPlan && (r.status === "new" || r.status === "contacted" || r.status === "confirmed") && !paid.has(r.id)).map((r) => r.id),
+  );
+  return { paid, waiting };
 }
 
 async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
@@ -219,33 +208,13 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
   // Paid at booking, but the payment never came in (the checkout was left, or the booking came by chat or phone)
-  const [unpaid, paid, invoices] = await Promise.all([
-    unpaidAtBooking(rows as QuoteRequest[]),
-    paidAtBooking(rows as QuoteRequest[]),
+  const [{ paid, waiting }, invoices] = await Promise.all([
+    paymentSets(rows as QuoteRequest[]),
     moneybirdLinks(rows.map((r: QuoteRequest) => r.id)),
   ]);
-  const paymentStatusBadge = (r: QuoteRequest) => {
-    const st = r.paymentStatus?.toUpperCase() || (paid.has(r.id) ? "PAID" : unpaid.has(r.id) ? "UNPAID" : "OPEN");
-    if (st === "PAID") {
-      return (
-        <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-          PAID
-        </span>
-      );
-    }
-    if (st === "UNPAID") {
-      return (
-        <span title={t.requests.notPaidNote} className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
-          UNPAID
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
-        OPEN
-      </span>
-    );
-  };
+  const paymentStatusBadge = (r: QuoteRequest) => (
+    <PaymentStatusBadge status={paymentStanding(r.paymentStatus, paid.has(r.id), waiting.has(r.id))} title={waiting.has(r.id) ? t.requests.notPaidNote : undefined} />
+  );
   const partnerBadge = (id: string) => {
     const n = unseen.get(id) ?? 0;
     if (!n) return null;

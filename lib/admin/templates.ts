@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
-export const TEMPLATE_KEYS = ["booking_received", "booking_confirmed", "payment_notice", "booking_alternative", "booking_cancelled"] as const;
+export const TEMPLATE_KEYS = ["booking_received", "booking_confirmed", "payment_notice", "booking_alternative", "booking_cancelled", "introducer_commission"] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
 export const TEMPLATE_DEFAULTS: Record<TemplateKey, { subject: string; body: string }> = {
@@ -25,6 +25,10 @@ export const TEMPLATE_DEFAULTS: Record<TemplateKey, { subject: string; body: str
   booking_cancelled: {
     subject: "Booking {reference} is cancelled",
     body: "Booking {reference} is cancelled. If a payment is due back, it is handled separately and you will see it on your statement.",
+  },
+  introducer_commission: {
+    subject: "Commission this month: {amount}",
+    body: "Hello {name}, your commission this month is {amount}, worked out on payments received excluding VAT. Please email the bookkeeper an invoice for that amount. A copy of this note goes to the bookkeeper.",
   },
 };
 

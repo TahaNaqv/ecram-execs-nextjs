@@ -12,7 +12,7 @@ import { invoiceCents } from "@/lib/moneybird/invoice";
 import { billingComplete, invoiceEligible, invoicesFor, isSent } from "@/lib/moneybird/sync";
 import { AlertIcon, EuroIcon } from "../../../_components/icons";
 import { btn, Card, CardHeader } from "../../../_components/ui";
-import { CreditForm, RetryButton } from "./moneybird-controls";
+import { CreditForm, ReissueButton, RetryButton } from "./moneybird-controls";
 
 const euros = (cents: number | null | undefined) => (cents == null ? "—" : formatEuro((cents / 100).toFixed(2)));
 
@@ -25,6 +25,7 @@ const TONE: Record<string, string> = {
   reminded: "bg-amber-50 text-amber-800 ring-amber-200",
   uncollectible: "bg-red-50 text-red-700 ring-red-200",
   failed: "bg-red-50 text-red-700 ring-red-200",
+  credited: "bg-zinc-100 text-zinc-800 ring-zinc-200",
 };
 
 /**
@@ -127,7 +128,7 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
 
   return (
     <Card>
-      <CardHeader title={t.title} description={connected ? t.description : t.notConnected} icon={<EuroIcon />} />
+      <CardHeader title={t.title} icon={<EuroIcon />} />
       <div className="flex flex-col gap-4 p-5 text-sm">
         {!live && confirmed && (
           <div className="flex flex-col gap-3">
@@ -142,17 +143,7 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
               <span className="font-semibold text-zinc-950">{live.number ? interpolate(t.number, { number: live.number }) : t.notSent}</span>
               {badge(live.state)}
             </div>
-            <dl className="m-0 grid grid-cols-2 gap-y-1 text-[13px]">
-              <dt className="text-zinc-500">{t.total}</dt>
-              <dd className="m-0 text-right tabular-nums text-zinc-900">{euros(live.totalCents ?? bookingCents)}</dd>
-              {sent && (
-                <>
-                  <dt className="text-zinc-500">{t.open}</dt>
-                  <dd className="m-0 text-right tabular-nums text-zinc-900">{euros(live.unpaidCents)}</dd>
-                </>
-              )}
-              {live.delivery === "Manual" && sent && <dd className="col-span-2 m-0 text-xs text-zinc-500">{t.notEmailed}</dd>}
-            </dl>
+            <p className="m-0 text-right text-[15px] font-semibold tabular-nums text-zinc-950">{euros(live.totalCents ?? bookingCents)}</p>
             {links(live)}
           </div>
         )}
@@ -172,11 +163,11 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
           </div>
         )}
 
-        {differs && live && (
-          <p className="m-0 flex gap-2 rounded-lg bg-amber-50 p-3 text-[13px] text-amber-900 ring-1 ring-inset ring-amber-200">
-            <AlertIcon className="mt-0.5 shrink-0 text-amber-600" />
-            <span>{interpolate(t.differs, { invoice: euros(live.totalCents), booking: euros(bookingCents) })}</span>
-          </p>
+        {differs && live && connected && (
+          <div className="flex flex-col gap-3 rounded-lg bg-amber-50 p-3 text-[13px] text-amber-950 ring-1 ring-inset ring-amber-200">
+            <p className="m-0 font-medium">{interpolate(t.priceChanged, { booking: euros(bookingCents), invoice: euros(live.totalCents) })}</p>
+            <ReissueButton requestId={r.id} copy={t} />
+          </div>
         )}
 
         {live && sent && r.status === "cancelled" && connected && (
@@ -189,7 +180,7 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
           />
         )}
 
-        {credits.map((row) => {
+        {credits.filter((row) => Boolean(row.number) || (row.totalCents != null && row.totalCents !== 0) || Boolean(row.lastError)).map((row) => {
           // Money owed back: the credit is still open (negative), which happens only when the customer had already paid.
           // An unpaid invoice is settled against its credit instead, which leaves both "paid" and nothing to refund.
           const paidBack = row.unpaidCents != null && row.unpaidCents < 0 ? -row.unpaidCents : 0;
@@ -197,7 +188,7 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
             <div key={row.id} className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-semibold text-zinc-950">{row.number ? interpolate(t.credit, { number: row.number }) : t.creditNotSent}</span>
-                {badge(row.state)}
+                {row.number ? badge("credited") : null}
               </div>
               <p className="m-0 text-[13px] text-zinc-600">
                 {interpolate(t.creditAmount, { amount: euros(row.totalCents == null ? null : -row.totalCents) })}
@@ -215,16 +206,16 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
         })}
 
         {earlier.length > 0 && (
-          <div className="border-t border-zinc-100 pt-4 text-[13px] text-zinc-600">
-            <p className="m-0 font-medium text-zinc-800">{t.earlier}</p>
-            <ul className="m-0 mt-1 list-none p-0">
+          <details className="border-t border-zinc-100 pt-4 text-[13px] text-zinc-600">
+            <summary className="cursor-pointer font-medium text-zinc-800">{t.earlier}</summary>
+            <ul className="m-0 mt-2 list-none p-0">
               {earlier.map((row) => (
                 <li key={row.id}>
                   {row.number ?? row.reference} · {stateLabel(row.state)} · {euros(row.totalCents)}
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         )}
       </div>
     </Card>

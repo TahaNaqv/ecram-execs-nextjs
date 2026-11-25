@@ -509,6 +509,7 @@ export function JourneyBar({
         copy={t}
         tone={tone}
         describedBy={describedBy("guests")}
+        matchField={stacked}
       />
     </>,
   );

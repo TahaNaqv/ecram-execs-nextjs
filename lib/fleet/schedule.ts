@@ -17,6 +17,8 @@ export const DEFAULT_TRIP_MINUTES = {
 
 /** The least time after a job before the car can start another: cleaning, charging, a short drive. A longer drive home replaces it. */
 export const BUFFER_MINUTES = 30;
+/** Extra hold around a driver change so the car cannot be booked during the handover. */
+export const HANDOVER_MINUTES = 15;
 
 /** The most a trip can be set to last, in minutes (a long day of hourly work plus travel). */
 export const MAX_TRIP_MINUTES = 16 * 60;
@@ -61,7 +63,7 @@ export function tripMinutes(b: Pick<ScheduledBooking, "service" | "durationHours
 export function turnaroundMinutes(b: Pick<ScheduledBooking, "driveBackMinutes">, leg: "outward" | "return"): number {
   // A return journey ends where the trip started, so only the outward leg has the drive home
   const back = leg === "outward" && b.driveBackMinutes && b.driveBackMinutes > 0 ? Math.min(b.driveBackMinutes, MAX_TRIP_MINUTES) : 0;
-  return Math.max(BUFFER_MINUTES, back);
+  return Math.max(BUFFER_MINUTES, back) + HANDOVER_MINUTES;
 }
 
 /** The stretches a booking holds its car: the outward journey, and the return journey when it has one. */

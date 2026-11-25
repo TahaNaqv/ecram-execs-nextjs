@@ -103,9 +103,9 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
     seats,
     luggage,
     rateWeekday,
-    rateSaturday: rateSaturday ?? rateWeekday,
-    rateSunday: rateSunday ?? rateWeekday,
-    listed: existingId ? saved.urls.length > 0 || seats != null || luggage != null || rateWeekday != null : true,
+    rateSaturday: rateSaturday || rateWeekday,
+    rateSunday: rateSunday || rateWeekday,
+    listed: existingId ? saved.urls.length > 0 || seats != null || luggage != null || rateWeekday != null : false,
     updatedAt: new Date(),
     ...(saved.urls.length > 0 ? { images: saved.urls } : {}),
   };
@@ -114,7 +114,7 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
     if (existingId) {
       await db.update(vehicles).set(catalog).where(eq(vehicles.id, existingId));
     } else {
-      await db.insert(vehicles).values({ id, status: "available", ...catalog });
+      await db.insert(vehicles).values({ id, status: "unavailable", ...catalog });
     }
   } catch (error) {
     console.error("Error saving vehicle:", error);

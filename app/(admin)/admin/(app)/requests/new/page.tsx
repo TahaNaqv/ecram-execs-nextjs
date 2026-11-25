@@ -17,9 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.newBooking.title };
 }
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  return admin.newBooking[part];
+  return admin.newBooking.title;
 }
 
 async function Back() {
@@ -77,12 +77,7 @@ export default function NewBookingPage() {
       <PageHeader
         title={
           <Suspense fallback={bar}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={bar}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
       />

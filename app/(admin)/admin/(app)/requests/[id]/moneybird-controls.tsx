@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { btn, field, fieldLabel } from "../../../_components/ui";
-import { creditInvoice, retryInvoice, type MoneybirdState } from "./moneybird-actions";
+import { creditInvoice, reissueInvoice, retryInvoice, type MoneybirdState } from "./moneybird-actions";
 
 type Copy = Dictionary["admin"]["moneybird"];
 
@@ -173,6 +173,20 @@ export function MockInvoiceReceiptActions({
         </div>
       )}
     </>
+  );
+}
+
+export function ReissueButton({ requestId, copy: t }: { requestId: string; copy: Copy }) {
+  const [state, action, pending] = useActionState<MoneybirdState, FormData>(reissueInvoice, {});
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <input type="hidden" name="requestId" value={requestId} />
+      <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.md} self-start`}>
+        {pending ? t.syncing : t.syncInvoice}
+      </button>
+      {state.ok && <p className="m-0 text-xs text-emerald-700">{t.synced}</p>}
+      {state.error && <p className="m-0 text-xs text-red-700">{state.error}</p>}
+    </form>
   );
 }
 

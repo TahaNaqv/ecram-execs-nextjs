@@ -16,11 +16,6 @@ async function Heading() {
   return admin.corporate.hub.title;
 }
 
-async function Description() {
-  const { admin } = await adminDictionary();
-  return admin.corporate.hub.description;
-}
-
 async function CorporateContent() {
   const [{ admin }, partners] = await Promise.all([adminDictionary(), getCorporatePartners()]);
   return <CorporateDirectoryHub initialPartners={partners} copy={admin.corporate.hub} statuses={admin.statuses} />;
@@ -33,11 +28,6 @@ export default function CorporatePage() {
         title={
           <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
             <Heading />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Description />
           </Suspense>
         }
       />

@@ -31,7 +31,7 @@ async function StaffScreen() {
   }
   return (
     <PageBody>
-      <PageHeader title={t.staffDesk.title} description={t.staffDesk.note} />
+      <PageHeader title={t.staffDesk.title} />
       <div className="mt-6">
         <TeamManagement />
       </div>

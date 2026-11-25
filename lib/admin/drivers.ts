@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 
@@ -8,6 +8,10 @@ const { drivers: d, driverShifts: s } = schema;
 /** Drivers with their open shift (if any), on-shift drivers first. */
 export async function listDrivers() {
   await requireAdmin();
+  await db
+    .update(s)
+    .set({ endedAt: sql`least(now(), ${s.startedAt} + interval '10 hours')` })
+    .where(and(isNull(s.endedAt), sql`${s.startedAt} <= now() - interval '10 hours'`));
   const rows = await db
     .select({
       id: d.id,

@@ -325,7 +325,13 @@ export function NewBookingForm({ partners, services, statuses, vehicles, copy, l
       {/* Status field in column 2 on the same row */}
       <Select values={{}} name="status" label={copy.status} options={statuses} empty={copy.phStatus} />
 
-      <Select values={{}} name="locale" label={copy.language} options={[{ value: "nl", label: "Nederlands" }, { value: "en", label: "English" }]} empty={copy.phLanguage} />
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="nb-locale" className={fieldLabel}>{copy.language}</label>
+        <select id="nb-locale" name="locale" defaultValue="en" className={`${field} h-10 cursor-pointer w-full`}>
+          <option value="en">English</option>
+          <option value="nl">Nederlands</option>
+        </select>
+      </div>
       <label className="flex items-start gap-2.5 self-end pb-2 text-sm text-zinc-900">
         <input type="checkbox" name="notifyClient" defaultChecked={true} className="mt-0.5 size-4 accent-zinc-950" />
         <span>

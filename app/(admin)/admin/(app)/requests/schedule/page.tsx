@@ -29,9 +29,9 @@ const GRID_PX = 24 * HOUR_PX;
 const clock = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const validDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
-async function Heading({ part }: { part: "title" | "description" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  return admin.schedule[part];
+  return admin.schedule.title;
 }
 
 async function BackToBookings() {
@@ -49,12 +49,7 @@ export default function SchedulePage({ searchParams }: PageProps<"/admin/request
       <PageHeader
         title={
           <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="description" />
+            <Heading />
           </Suspense>
         }
         actions={
@@ -86,7 +81,7 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
     : new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`));
   const first = schedule.columns.flatMap((c) => c.blocks).reduce<number | null>((min, b) => (min === null || b.start < min ? b.start : min), null);
   const link = (day: string) => `/admin/requests/schedule?date=${day}`;
-  const cols = `4rem repeat(${schedule.columns.length}, minmax(11.5rem, 1fr))`;
+  const cols = `4rem repeat(${schedule.columns.length}, minmax(18rem, 1fr))`;
 
   return (
     <div className="mt-6 flex flex-col gap-4">
@@ -124,7 +119,7 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
               id="schedule-date"
               name="date"
               defaultValue={date}
-              locale={who?.locale === "en" ? "en" : "nl"}
+              locale={who?.locale === "nl" ? "nl" : "en"}
               copy={{ chooseDate: admin.common.chooseDate, previousMonth: admin.common.previousMonth, nextMonth: admin.common.nextMonth }}
               submitOnChange
             />
@@ -223,7 +218,7 @@ function Block({
   statuses: Record<RequestStatus, string>;
 }) {
   const top = (b.start / 60) * HOUR_PX;
-  const height = Math.max(((b.tripEnd - b.start) / 60) * HOUR_PX, 30);
+  const height = Math.max(((b.tripEnd - b.start) / 60) * HOUR_PX, 52);
   const bufferHeight = ((b.end - b.tripEnd) / 60) * HOUR_PX;
   const width = 100 / lanes;
   const route = [b.from, b.to].filter(Boolean).join(" → ");

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
 import type { Locale } from "@/lib/i18n/config";
+import { switchPath } from "@/lib/i18n/pathnames";
 
 type Option = { locale: Locale; href: string; aria: string };
 
@@ -44,6 +45,49 @@ function subscribeToLocation(onChange: () => void) {
 
 /** Where the visitor was on the page when they switched, so the new language opens at the same spot. */
 const SCROLL_KEY = "ecram:language-scroll";
+/** Field values from the page being left, restored on the same route in the other language. */
+const FORM_KEY = "ecram:language-form";
+
+function routeKey() {
+  return switchPath(window.location.pathname, "en");
+}
+
+function rememberForm() {
+  const fields: { name: string; value: string; type: string }[] = [];
+  const nodes = document.querySelectorAll("input, textarea, select");
+  nodes.forEach((node) => {
+    if (!(node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement)) return;
+    if (!node.name || node.type === "password" || node.type === "file" || node.type === "hidden") return;
+    if ((node.type === "checkbox" || node.type === "radio") && node instanceof HTMLInputElement && !node.checked) return;
+    fields.push({ name: node.name, value: node.value, type: node.type });
+  });
+  window.sessionStorage.setItem(FORM_KEY, JSON.stringify({ route: routeKey(), fields }));
+}
+
+function restoreForm() {
+  const raw = window.sessionStorage.getItem(FORM_KEY);
+  if (!raw) return;
+  window.sessionStorage.removeItem(FORM_KEY);
+  const saved = JSON.parse(raw) as { route?: string; fields?: { name: string; value: string; type: string }[] };
+  if (saved.route !== routeKey() || !saved.fields) return;
+  for (const field of saved.fields) {
+    const nodes = document.getElementsByName(field.name);
+    for (const node of nodes) {
+      if (node instanceof HTMLInputElement && field.type === "radio") {
+        if (node.value === field.value) node.checked = true;
+        continue;
+      }
+      if (node instanceof HTMLInputElement && field.type === "checkbox") {
+        node.checked = true;
+        continue;
+      }
+      if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement) {
+        node.value = field.value;
+        node.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+  }
+}
 
 /**
  * Renders as plain links (one flag per language), so switching works with JavaScript disabled.
@@ -63,9 +107,11 @@ export function LanguageSwitcherLinks({
 }) {
   // The page's own query (a booking's ?ref=…) goes along, so the other language opens the same page, not its start
   const search = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
+  const hash = useSyncExternalStore(subscribeToLocation, () => window.location.hash, () => "");
 
   useEffect(() => {
     try {
+      restoreForm();
       const saved = window.sessionStorage.getItem(SCROLL_KEY);
       if (saved === null) return;
       window.sessionStorage.removeItem(SCROLL_KEY);
@@ -95,13 +141,14 @@ export function LanguageSwitcherLinks({
           ) : (
             <Link
               className="inline-flex h-11 w-9 items-center justify-center opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-4px] focus-visible:outline-white"
-              href={`${option.href}${search}`}
+              href={`${option.href}${search}${hash}`}
               hrefLang={option.locale}
               aria-label={option.aria}
               scroll={false}
               onClick={() => {
                 try {
                   window.sessionStorage.setItem(SCROLL_KEY, String(window.scrollY / document.documentElement.scrollHeight));
+                  rememberForm();
                 } catch {
                   // see above
                 }

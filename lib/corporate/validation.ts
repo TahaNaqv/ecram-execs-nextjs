@@ -4,6 +4,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import type { Dictionary } from "@/lib/i18n/types";
 import { phoneLengthOk } from "@/lib/phone";
 import { capacityProblem, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, samePlace } from "@/app/[locale]/_components/booking/trip";
+import { billingCityName, isBillingCity } from "@/lib/places/cities";
 
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 128;
@@ -58,6 +59,7 @@ type CorporateMessages = Pick<
   | "billingStreetRequired"
   | "billingPostcodeRequired"
   | "billingCityRequired"
+  | "billingCityInvalid"
   | "billingCountryInvalid"
   | "billingVatInvalid"
   | "billingEmailInvalid"
@@ -83,7 +85,13 @@ export const requestSchema = (f: FormMessages, c: CorporateMessages) =>
     pointOfCall: z.string().trim().min(1, c.pointOfCallRequired).max(120, c.fieldTooLong),
     billingStreet: z.string().trim().min(2, c.billingStreetRequired).max(200, c.fieldTooLong),
     billingPostcode: z.string().trim().min(2, c.billingPostcodeRequired).max(20, c.fieldTooLong),
-    billingCity: z.string().trim().min(1, c.billingCityRequired).max(100, c.fieldTooLong),
+    billingCity: z
+      .string()
+      .trim()
+      .min(1, c.billingCityRequired)
+      .max(100, c.fieldTooLong)
+      .refine(isBillingCity, c.billingCityInvalid)
+      .transform((city) => billingCityName(city) ?? city),
     billingCountry: z
       .string()
       .trim()

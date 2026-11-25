@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { PUBLIC_LOCALES } from "@/lib/i18n/config";
+import { LanguageSwitcher } from "../_components/language-switcher";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -13,7 +14,7 @@ import { CookieTable } from "../_components/cookie-table";
 // NOTE: Describes how this website actually handles data (see lib/quotes, lib/email).
 // Have it reviewed before launch, and update it whenever a new processor or feature is added.
 /** ISO date; rendered in the reader's language. */
-const LAST_UPDATED = "2026-10-27";
+const LAST_UPDATED = "2026-11-25";
 
 function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   // Anchors already stop below the sticky header (scroll-padding-top on html). Extra
@@ -46,10 +47,13 @@ export default async function PrivacyPage() {
     <div className="min-h-svh bg-ink-950 font-sans leading-[1.7] text-ink-150">
       <header className="sticky top-0 z-40 border-b border-ink-850 bg-ink-950/95 backdrop-blur-md">
         <div className="mx-auto max-w-[820px] px-4 py-4 sm:px-6 md:px-8 md:py-[22px]">
-          <Link href={localizedPath("/", locale)} className="inline-flex items-center gap-3 whitespace-nowrap chrome font-display text-[20px] tracking-[0.32em] no-underline">
-            <Image className="h-10 w-10" src="/assets/logo-mark.png" alt="" width={48} height={48} />
-            ECRAM EXECS
-          </Link>
+          <div className="flex items-center justify-between gap-4">
+            <Link href={localizedPath("/", locale)} className="inline-flex items-center gap-3 whitespace-nowrap chrome font-display text-[20px] tracking-[0.32em] no-underline">
+              <Image className="h-10 w-10" src="/assets/logo-mark.png" alt="" width={48} height={48} />
+              ECRAM EXECS
+            </Link>
+            <LanguageSwitcher route="/privacy" />
+          </div>
         </div>
       </header>
       <main id="main" className="mx-auto flex max-w-[820px] flex-col gap-8 px-4 pt-12 pb-16 sm:px-6 md:gap-10 md:px-8 md:pt-14 md:pb-20">
@@ -76,6 +80,7 @@ export default async function PrivacyPage() {
           <p className="m-0">{t.s2p2}</p>
           <p className="m-0">{t.s2p3}</p>
           <p className="m-0">{t.s2p4}</p>
+          <p className="m-0">{t.s2p5}</p>
         </Section>
 
         <Section title={t.s3Title} id="cookies">
@@ -91,6 +96,9 @@ export default async function PrivacyPage() {
             <li>{t.s4Hosting}</li>
             <li>{t.s4Resend}</li>
             <li>{t.s4Anthropic}</li>
+            <li>{t.s4Moneybird}</li>
+            <li>{t.s4Mollie}</li>
+            <li>{t.s4Whatsapp}</li>
           </ul>
           <p className="m-0">{t.s4Google}</p>
           <p className="m-0">{t.s4p3}</p>

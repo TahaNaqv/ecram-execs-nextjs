@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { can } from "@/lib/admin/access";
+import { toPlaceholders } from "@/lib/admin/template-tags";
 import { isTemplateKey, saveTemplate } from "@/lib/admin/templates";
 import { requireAdmin } from "@/lib/auth/session";
 
@@ -11,8 +12,8 @@ export async function saveEmailTemplate(_prev: TemplateState, formData: FormData
   const admin = await requireAdmin();
   if (!can(admin.role, admin.permissions, "templates")) return { error: true };
   const key = String(formData.get("key") ?? "");
-  const subject = String(formData.get("subject") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
+  const subject = toPlaceholders(String(formData.get("subject") ?? "")).trim();
+  const body = toPlaceholders(String(formData.get("body") ?? "")).trim();
   if (!isTemplateKey(key) || !subject || !body) return { error: true };
   await saveTemplate(key, subject.slice(0, 200), body.slice(0, 2000), admin.id);
   refresh();

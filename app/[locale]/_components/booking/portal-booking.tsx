@@ -136,6 +136,7 @@ export function PortalBooking({
       <BookingFlow
         key={round}
         variant="portal"
+        persistKey="portal"
         locale={locale}
         copy={copy}
         addOns={addOns}

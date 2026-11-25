@@ -27,8 +27,8 @@ export const DUE_SOON_MINUTES = 15;
 
 /** The averages and the compliance figure look back this far. */
 const WINDOW_DAYS = 30;
-/** How many waiting enquiries a queue lists (the rest are counted). */
-const LIST_LIMIT = 25;
+/** Waiting enquiries listed in each queue. High enough that a new submission is not dropped behind the oldest 25. */
+const LIST_LIMIT = 500;
 
 export type OpenEnquiry = {
   id: string;

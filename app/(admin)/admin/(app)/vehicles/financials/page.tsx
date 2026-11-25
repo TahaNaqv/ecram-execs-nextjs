@@ -11,9 +11,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.vehicles.ev.title };
 }
 
-async function Heading({ part }: { part: "title" | "note" }) {
+async function Heading() {
   const { admin } = await adminDictionary();
-  return admin.vehicles.ev[part];
+  return admin.vehicles.ev.title;
 }
 
 export default function VehicleCostsPage() {
@@ -22,12 +22,7 @@ export default function VehicleCostsPage() {
       <PageHeader
         title={
           <Suspense fallback={<span className="inline-block h-[1em] w-48 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="title" />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<span className="inline-block h-[1em] w-96 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Heading part="note" />
+            <Heading />
           </Suspense>
         }
       />

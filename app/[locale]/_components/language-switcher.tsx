@@ -3,8 +3,8 @@ import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, type AppRoute } from "@/lib/i18n/pathnames";
 import { LanguageSwitcherLinks } from "./language-switcher-links";
 
-/** Dutch first, English second — the order the flags are shown in. */
-const DISPLAY_ORDER: readonly Locale[] = ["nl", "en"];
+/** English first, then Dutch. */
+const DISPLAY_ORDER: readonly Locale[] = ["en", "nl"];
 
 /**
  * `route` is passed in rather than read from the pathname: a Server Component cannot read the
@@ -12,7 +12,6 @@ const DISPLAY_ORDER: readonly Locale[] = ["nl", "en"];
  * route it is.
  */
 export async function LanguageSwitcher({ route }: { route: AppRoute }) {
-  // One language on show (English at launch): no flags
   if (PUBLIC_LOCALES.length < 2) return null;
   const locale = await currentLocale();
   const d = await getDict();

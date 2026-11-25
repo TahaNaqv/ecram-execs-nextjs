@@ -79,7 +79,7 @@ export function PhoneDialField({
         <ul
           role="listbox"
           aria-label={countryLabel}
-          className="phone-menu absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#d5d8e6] bg-[#ffffff] p-1 text-[#10224f] shadow-[0_18px_48px_rgba(0,0,0,0.28)] [scrollbar-width:thin] [scrollbar-color:#c5c9d6_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c5c9d6]"
+          className="absolute top-full left-0 z-50 m-0 mt-2 max-h-60 w-[min(11rem,calc(100vw-2.5rem))] list-none overflow-y-auto rounded-xl border border-solid border-[#c5d4ff] bg-[#ffffff] p-1 text-[#10224f] shadow-lg [color-scheme:light] [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent]"
         >
           {COUNTRY_CODES.map(([code, iso]) => (
             <li key={code} role="option" aria-selected={code === country}>
@@ -91,7 +91,7 @@ export function PhoneDialField({
                   if (typed instanceof HTMLInputElement) typed.value = cleanPhoneInput(typed.value, code);
                   setOpen(false);
                 }}
-                className={`flex w-full cursor-pointer items-center rounded-lg border-0 px-3 py-2 text-left text-[14px] text-[#10224f] ${code === country ? "bg-[#e7edff] font-semibold" : "bg-transparent hover:bg-[#f2f5ff]"}`}
+                className={`flex w-full cursor-pointer items-center rounded-lg border-0 px-3 py-2 text-left text-[14px] text-[#10224f] ${code === country ? "bg-[#e8eeff] font-semibold" : "bg-[#ffffff] hover:bg-[#f4f7ff]"}`}
               >
                 {iso} +{code}
               </button>

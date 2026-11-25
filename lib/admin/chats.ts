@@ -19,6 +19,9 @@ export type ChatRow = {
   preview: string | null;
   /** The visitor was offered the hand-over to WhatsApp */
   handedOver: boolean;
+  visitorName: string | null;
+  visitorEmail: string | null;
+  followUp: boolean;
   /** The booking the chat recorded was complete at the last reply */
   ready: boolean;
   /** The booking request sent from this chat */
@@ -36,6 +39,7 @@ export const chatList = cache(async (page = 1): Promise<{ nowMs: number; rows: C
   const rows = Array.from(
     await db.execute<Raw>(sql`
       select c.id, c.locale::text as locale, c.message_count as messages,
+             c.visitor_name as "visitorName", c.visitor_email as "visitorEmail", c.follow_up as "followUp",
              (extract(epoch from c.started_at) * 1000)::float8 as "startedMs",
              (extract(epoch from c.last_message_at) * 1000)::float8 as "lastMs",
              (select m.content from concierge_messages m where m.conversation_id = c.id and m.role = 'visitor' order by m.position limit 1) as preview,

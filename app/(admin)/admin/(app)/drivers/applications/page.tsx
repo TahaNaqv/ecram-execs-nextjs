@@ -15,19 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.applications.title };
 }
 
-async function Description() {
-  const { admin } = await adminDictionary();
-  return (
-    <>
-      {admin.applications.applicationsDescBefore}
-      <a href="/drive-with-us" target="_blank" className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-950">
-        {admin.common.driveWithUs}
-      </a>
-      {admin.applications.applicationsDescAfter}
-    </>
-  );
-}
-
 async function DriveWithUsButton() {
   const { admin } = await adminDictionary();
   return (
@@ -56,11 +43,6 @@ export default function ApplicationsPage({ searchParams }: PageProps<"/admin/dri
         title={
           <Suspense fallback={<span className="inline-block h-[1em] w-40 animate-pulse rounded bg-zinc-100 align-middle" />}>
             <Heading />
-          </Suspense>
-        }
-        description={
-          <Suspense fallback={<span className="inline-block h-[1em] w-28 animate-pulse rounded bg-zinc-100 align-middle" />}>
-            <Description />
           </Suspense>
         }
         actions={

@@ -17,7 +17,7 @@ import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { visitor } from "@/lib/request-meta";
 import { SERVICES } from "@/lib/quotes/constants";
-import { createQuoteRequest } from "@/lib/quotes/create";
+import { createQuoteRequest, NoVehicleError } from "@/lib/quotes/create";
 import { readStops } from "@/lib/quotes/stops";
 import { quoteSchema, type QuoteField } from "@/lib/quotes/validation";
 import { getCorporateContact } from "./access";
@@ -112,6 +112,7 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
     created = request;
     createdIp = ipHash;
   } catch (err) {
+    if (err instanceof NoVehicleError) return fail(f.quoteNoVehicle);
     console.error("[portal] booking failed", err);
     return fail(f.quoteServerError);
   }

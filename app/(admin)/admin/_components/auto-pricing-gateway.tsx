@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { QuoteRequest } from "@/lib/db/schema";
@@ -74,7 +74,6 @@ import { formatEuro, formatTimestamp, pickupParts } from "@/lib/admin/format";
 import { bookingTotalEuros, centsOf, hasHighRateExtras, VAT_RATE, vatByRate, type Price } from "@/lib/pricing/rates";
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { convoyTitle, FLEET, fleetPicks, suggestVehicle, vehicleByKey } from "@/lib/fleet/vehicles";
-import { publishBookingStatus, useBookingStatus } from "./booking-status";
 import { refreshOnce } from "./refresh-once";
 import { 
   ShieldIcon,
@@ -94,7 +93,6 @@ export type RouteMapProps = { embed: string | null; open: string; openLabel: str
 export function AutoPricingGateway({
   request,
   copy,
-  statuses,
   routeMap,
   routeLabel,
   routeLine,
@@ -119,24 +117,11 @@ export function AutoPricingGateway({
   activity?: { id: string; text: string; at: string; by: string | null }[];
   /** Where the customer follows this booking: their private page, or a partner's portal page */
   bookingLink?: string;
-  /** Sits above Authorisation in the left column, usually the rate-card price */
+  /** The rate-card price and the booking controls, above Authorisation */
   children?: React.ReactNode;
 }) {
   const router = useRouter();
-  const liveStatus = useBookingStatus(request.id, request.status);
-  // Confirmed status stored from the request/backend
-  const [status, setStatus] = useState<StatusChoice>(asStatus(liveStatus));
-  // Temporary dropdown choice before confirmation button is clicked
-  const [selectedStatus, setSelectedStatus] = useState<StatusChoice>(asStatus(liveStatus));
-
-  useEffect(() => {
-    setStatus(asStatus(request.status));
-  }, [request.status]);
-
-  useEffect(() => {
-    setSelectedStatus(asStatus(liveStatus));
-  }, [liveStatus]);
-  
+  const status = asStatus(request.status);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
   const toastTimer = useRef<number | null>(null);
@@ -161,13 +146,7 @@ export function AutoPricingGateway({
     .filter((stop) => stop.place);
   const pickup = typeof request.pickupAt === "string" && request.pickupAt ? pickupParts(request.pickupAt) : null;
 
-  function chooseStatus(next: StatusChoice) {
-    setSelectedStatus(next);
-    publishBookingStatus(request.id, next);
-  }
-
-  // Notify Client Button: Commits the selected status and dispatches email (including on cancel).
-  // The amount is not sent: the server keeps the total stored when the booking was submitted.
+  // Emails the status already saved on the booking. Status and price are changed on the rate card, not here.
   async function handleSend() {
     setLoading(true);
     try {
@@ -176,9 +155,9 @@ export function AutoPricingGateway({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          status: selectedStatus,
+          status,
           sendMail: true,
-          ...(selectedStatus === "cancelled" ? { sendCancellationEmail: true } : {}),
+          ...(status === "cancelled" ? { sendCancellationEmail: true } : {}),
         }),
       });
       let data: { error?: unknown; warning?: unknown } = {};
@@ -190,14 +169,10 @@ export function AutoPricingGateway({
 
       // Refused (e.g. the car is already booked at that time): nothing was saved, so the status stays as it was
       if (!res.ok) {
-        setSelectedStatus(status);
-        publishBookingStatus(request.id, status);
         showNotice(typeof data.error === "string" ? data.error : "Could not notify the client. The booking was not changed.", false);
         return;
       }
 
-      setStatus(selectedStatus);
-      publishBookingStatus(request.id, selectedStatus);
       try {
         refreshOnce(router);
       } catch (refreshError) {
@@ -206,7 +181,7 @@ export function AutoPricingGateway({
       if (data.warning || data.error) {
         showNotice("The client was notified, with a note. Check the server logs for the email result.", true);
       } else {
-        showNotice(selectedStatus === "cancelled" ? "Cancellation email dispatched." : "The client was notified.", true);
+        showNotice(status === "cancelled" ? "Cancellation email dispatched." : "The client was notified.", true);
       }
     } catch (err) {
       console.error("Resend Mail Dispatch Error:", err);
@@ -494,11 +469,6 @@ export function AutoPricingGateway({
           {/* Authorisation & Dispatch — same box as the rate card */}
           <div className={children ? "shrink-0 border-t border-zinc-100 px-5 py-5" : "shrink-0 px-5 py-5"}>
             <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-2.5">{copy.authTitle}</h3>
-            
-            {/* Status Dropdown Selector */}
-            <div className="mb-3">
-              <StatusMenu value={selectedStatus} labels={statuses} disabled={loading} onChange={chooseStatus} />
-            </div>
 
             {toast && (
               <p
@@ -696,82 +666,6 @@ function Waypoint({ place, label, wait }: { place: string; label: string; wait?:
         ) : null}
         <span className="text-[11px] text-zinc-400">{label}</span>
       </span>
-    </div>
-  );
-}
-
-function StatusMenu({
-  value,
-  labels,
-  disabled,
-  onChange,
-}: {
-  value: StatusChoice;
-  labels: StatusCopy;
-  disabled: boolean;
-  onChange: (value: StatusChoice) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: MouseEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div ref={root} className="relative">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
-        className="flex h-9 w-full cursor-pointer items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 text-left text-[13px] font-medium text-gray-900 transition duration-200 hover:bg-gray-50 disabled:cursor-default disabled:opacity-50"
-      >
-        <span>{labels[value]}</span>
-        <span aria-hidden="true" className={`text-[10px] text-slate-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
-          ▾
-        </span>
-      </button>
-      <ul
-        role="listbox"
-        aria-label={labels[value]}
-        className={`absolute z-30 mt-1 w-full origin-top overflow-hidden rounded-lg border border-gray-100 bg-white py-0.5 shadow-lg transition duration-200 ${
-          open ? "visible scale-y-100 opacity-100" : "pointer-events-none invisible scale-y-95 opacity-0"
-        }`}
-      >
-        {STATUSES.map((status) => {
-          const selected = status === value;
-          return (
-            <li key={status} role="option" aria-selected={selected}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(status);
-                  setOpen(false);
-                }}
-                className={`w-full cursor-pointer px-2.5 py-1.5 text-left text-[13px] font-medium text-gray-900 transition-colors duration-150 hover:bg-gray-100 ${
-                  selected ? "bg-gray-100" : ""
-                }`}
-              >
-                {labels[status]}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }

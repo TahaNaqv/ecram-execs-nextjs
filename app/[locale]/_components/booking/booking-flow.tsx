@@ -86,12 +86,13 @@ const DRAFT_STEPS: BookingStep[] = ["journey", "car", "extras", "details", "revi
 
 type BookingDraft = { sent: number; step: BookingStep; trip: Trip; draft: Trip; entered: DetailsEntry | null };
 
-const draftKey = () => `ee-booking-draft:${window.location.pathname}${window.location.search}`;
+const DRAFT_PREFIX = "ee-booking-draft:";
+const draftKey = (scope: string) => `${DRAFT_PREFIX}${scope}`;
 
-/** Drop the saved wizard for this page so a sent booking cannot be submitted again from the review step. */
-export function clearBookingDraft() {
+/** Drop a saved wizard. With no scope, every booking draft in this tab goes. */
+export function clearBookingDraft(scope?: string) {
   try {
-    const prefix = `ee-booking-draft:${window.location.pathname}`;
+    const prefix = scope ? draftKey(scope) : DRAFT_PREFIX;
     const keys: string[] = [];
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
@@ -109,10 +110,11 @@ const isTrip = (value: unknown): value is Trip => {
   return (trip.mode === "oneway" || trip.mode === "hourly") && !!trip.from && typeof trip.from.text === "string" && !!trip.to && Array.isArray(trip.stops) && Array.isArray(trip.cars);
 };
 
-const readDraft = (): BookingDraft | null => {
-  const key = draftKey();
+const readDraft = (scope: string): BookingDraft | null => {
+  const key = draftKey(scope);
+  const legacy = `${DRAFT_PREFIX}${window.location.pathname}${window.location.search}`;
   try {
-    const raw = sessionStorage.getItem(key);
+    const raw = sessionStorage.getItem(key) ?? sessionStorage.getItem(legacy);
     if (!raw) return null;
     let data: BookingDraft;
     try {
@@ -184,6 +186,7 @@ export function BookingFlow({
   payOnline = false,
   payInNewTab = false,
   sentPayment = null,
+  persistKey,
 }: {
   /** Online payment is on: the booking is paid at booking (the client's rules of 15 Nov 2026) */
   payOnline?: boolean;
@@ -213,6 +216,8 @@ export function BookingFlow({
   sealedHref?: string | null;
   /** Book and pay finished: stay on Review your booking and follow the Mollie tab. */
   sentPayment?: { reference: string; checkoutUrl: string | null; guestKey: string | null; popupBlocked?: boolean } | null;
+  /** Same key in both languages, so switching EN/NL keeps the trip the visitor already entered. */
+  persistKey: string;
 }) {
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [draft, setDraft] = useState<Trip>(initialTrip);
@@ -237,22 +242,22 @@ export function BookingFlow({
   useLayoutEffect(() => {
     if (!sealedHref || sealed.current === sealedHref) return;
     sealed.current = sealedHref;
-    clearBookingDraft();
+    clearBookingDraft(persistKey);
     setTrip(seed.current);
     setDraft(seed.current);
     setEntered(null);
     setStep("journey");
     setJourneyEdit((n) => n + 1);
     focused.current = "journey";
-  }, [sealedHref]);
+  }, [sealedHref, persistKey]);
   useEffect(() => {
     if (sealedHref) {
-      clearBookingDraft();
+      clearBookingDraft(persistKey);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setReady(true);
       return;
     }
-    const saved = readDraft();
+    const saved = readDraft(persistKey);
     if (saved) {
       setTrip(saved.trip);
       setDraft(saved.draft);
@@ -262,15 +267,15 @@ export function BookingFlow({
       focused.current = saved.step;
     }
     setReady(true);
-  }, [sealedHref]);
+  }, [sealedHref, persistKey]);
   useEffect(() => {
     // A send in flight, or one that has already gone, must not write the review step back. That saved step is what a second submit sends again.
     if (!ready || sealedHref || result.pending) return;
     try {
       const saved: BookingDraft = { sent: bookingsSent(), step, trip, draft, entered };
-      sessionStorage.setItem(draftKey(), JSON.stringify(saved));
+      sessionStorage.setItem(draftKey(persistKey), JSON.stringify(saved));
     } catch {}
-  }, [ready, sealedHref, result.pending, step, trip, draft, entered]);
+  }, [ready, sealedHref, result.pending, step, trip, draft, entered, persistKey]);
   const go = setStep;
 
 
@@ -1043,6 +1048,17 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           )}
 
           {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} defaultValue={typed("notes", defaults?.notes)} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
+          {field("hearAbout", t.hearAbout, <input {...aria("hearAbout")} name="hearAbout" maxLength={120} defaultValue={typed("hearAbout")} placeholder={t.hearAboutPlaceholder} className={input} />)}
+          {!portal && (
+            <label className="flex items-start gap-2 text-[13px] text-ink-800">
+              <input type="checkbox" name="marketingConsent" className="mt-1" />
+              <span>{t.marketingConsent}</span>
+            </label>
+          )}
+          <label className="flex items-start gap-2 text-[13px] text-ink-800">
+            <input type="checkbox" name="closeProtection" className="mt-1" />
+            <span>{t.closeProtection}</span>
+          </label>
 
           {!portal && (
             <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">

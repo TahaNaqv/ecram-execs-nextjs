@@ -11,8 +11,9 @@ import { allocationFor } from "@/lib/fleet/vehicles";
 import { browserMapKey, routeMapLinks, type RouteMapLinks } from "@/lib/fleet/map";
 import { visitor } from "@/lib/request-meta";
 import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
+import { bookingRules, currentTerms } from "@/lib/admin/booking-rules";
 import { priceForRequest } from "@/lib/pricing/quote";
-import { createQuoteRequest } from "./create";
+import { createQuoteRequest, NoVehicleError } from "./create";
 import { confirmIfAutomatic, consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
 import { guestPath } from "./guest-link";
 
@@ -56,7 +57,7 @@ const FIELDS = [
   // No "returnAt": the client takes no return journeys, so one sent anyway is not read
   "collection", "destination", "pickupAt", "service", "durationHours", "passengers", "luggage", "handLuggage", "flightNumber",
   "pickupPlaceId", "destinationPlaceId", "name", "email", "phoneCountry", "phone", "passengerName", "passengerPhoneCountry",
-  "passengerPhone", "vehicle", "vehicles", "extras", "notes", "locale", "entity", "entityKvk",
+  "passengerPhone", "vehicle", "vehicles", "extras", "notes", "hearAbout", "locale", "entity", "entityKvk",
 ] as const;
 const RATE_LIMIT = { max: 5, windowMinutes: 15 };
 
@@ -120,8 +121,17 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     // The website's rates: a corporate partner books (at the corporate rates) from the portal
     const priceEstimate = await priceForRequest({ ...parsed.data, ...stops }, "public");
     if (priceEstimate) priceEstimate.purpose = tripPurpose === "private" ? "private" : "business";
+    const rules = await bookingRules();
+    const pickup = new Date(parsed.data.pickupAt);
+    if (!Number.isNaN(pickup.getTime()) && pickup.getTime() < Date.now() + rules.minNoticeHours * 3_600_000) {
+      return fail(t.quoteServerError);
+    }
+    const terms = await currentTerms();
     request = await createQuoteRequest({
       ...parsed.data,
+      marketingConsent: Boolean(parsed.data.marketingConsent),
+      closeProtection: Boolean(parsed.data.closeProtection),
+      termsVersion: terms.version,
       ...(fleet.vehicle ? { vehicle: fleet.vehicle } : {}),
       ...stops,
       priceEstimate,
@@ -134,6 +144,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
       userAgent,
     });
   } catch (err) {
+    if (err instanceof NoVehicleError) return fail(t.quoteNoVehicle);
     console.error("[quote] insert failed", err);
     return fail(t.quoteServerError);
   }
