@@ -9,6 +9,13 @@ import { btn, Card, PageBody, PageHeader, field } from "../../_components/ui";
 import { addSupplier, deleteSupplier, saveAddonStock } from "./actions";
 import { PendingSubmit } from "./pending-submit";
 
+const ADDON_LABELS: Record<string, string> = {
+  champagne: "Champagne",
+  chocolates: "Chocolates",
+  flowers: "Flowers",
+  newspapers: "Newspapers",
+};
+
 export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -80,10 +87,19 @@ async function Addons() {
         </form>
         {suppliers.length > 0 && (
           <ul className="m-0 list-none border-t border-zinc-100">
-            {suppliers.map((supplier) => (
+            {suppliers.map((supplier) => {
+              const linked = stock.filter((row) => row.supplierId === supplier.id).map((row) => ADDON_LABELS[row.key] ?? row.key);
+              return (
               <li key={supplier.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3 last:border-0">
                 <div className="min-w-0 text-sm text-zinc-800">
-                  <p className="m-0 font-medium text-zinc-950">{supplier.name}</p>
+                  <p className="m-0 flex flex-wrap items-center gap-2 font-medium text-zinc-950">
+                    <span>{supplier.name}</span>
+                    {linked.length > 0 ? linked.map((label) => (
+                      <span key={label} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">{label}</span>
+                    )) : (
+                      <span className="rounded-full bg-zinc-50 px-2 py-0.5 text-[11px] font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200">Unlinked</span>
+                    )}
+                  </p>
                   <p className="m-0 text-[13px] text-zinc-500">{[supplier.email, supplier.phone, supplier.notes].filter(Boolean).join(" · ") || "No contact details"}</p>
                 </div>
                 <form action={deleteSupplier}>
@@ -91,7 +107,8 @@ async function Addons() {
                   <button className={`${btn.base} ${btn.danger} ${btn.sm}`}>Remove supplier</button>
                 </form>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </Card>

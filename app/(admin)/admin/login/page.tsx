@@ -123,12 +123,14 @@ async function LoginContent({ searchParams, locale }: Pick<PageProps<"/admin/log
   await ensureInitialStaff().catch(() => null);
   if (await getAdmin()) redirect("/admin");
   const resolvedSearchParams = await searchParams;
-  const next = resolvedSearchParams.next;
+  const next = typeof resolvedSearchParams.next === "string" ? resolvedSearchParams.next : undefined;
+  const totpReset = "totp" in resolvedSearchParams && (resolvedSearchParams as { totp?: string | string[] }).totp === "cleared";
   const { admin } = await getDictionary(locale);
   return (
     <>
+    {totpReset ? <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-200">Authenticator reset. Sign in with the account password.</p> : null}
     <LoginForm
-      next={typeof next === "string" ? next : undefined}
+      next={next}
       copy={{
         email: admin.common.email,
         password: admin.login.password,

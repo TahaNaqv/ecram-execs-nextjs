@@ -11,7 +11,9 @@ const INITIAL = [
   { email: "d.talbert@ecramexecs.com", name: "David", role: "manager" as const },
 ];
 
-/** Creates the three launch accounts when they are missing. They set a password through Forgot password. */
+const INITIAL_PASSWORD = "Password@1234";
+
+/** Creates the three launch accounts when they are missing, with the launch password. Existing passwords are left alone. */
 export async function ensureInitialStaff() {
   for (const person of INITIAL) {
     const [existing] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.email, person.email)).limit(1);
@@ -21,7 +23,11 @@ export async function ensureInitialStaff() {
       name: person.name,
       role: person.role,
       permissions: permissionsFor(person.role, []),
-      passwordHash: await hashPassword(randomBytes(32).toString("base64url")),
+      passwordHash: await hashPassword(INITIAL_PASSWORD),
+      failedLogins: 0,
+      lockedUntil: null,
+      totpSecret: null,
+      totpEnabled: false,
     });
   }
 }

@@ -78,7 +78,7 @@ export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }
           <input type="hidden" name="email" value={kept.current.email} />
           <input type="hidden" name="password" value={kept.current.password} />
           <label htmlFor="login-code" className={fieldLabel}>Authenticator code</label>
-          <input id="login-code" name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required pattern="\d{6}" maxLength={6} placeholder="6-digit code" className={`${field} h-11`} />
+          <input id="login-code" name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required maxLength={8} placeholder="6-digit code" className={`${field} h-11`} />
         </div>
       ) : null}
       {state.error && (

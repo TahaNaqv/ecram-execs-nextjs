@@ -41,6 +41,8 @@ async function AccountScreen({ searchParams }: { searchParams: Promise<{ totp?: 
           {query.totp === "rejected" ? <p className="m-0 text-red-700">That code did not match. Wait for the next code and try again.</p> : null}
           {query.totp === "cleared" ? <p className="m-0 text-emerald-700">Authenticator reset. That account signs in with its password.</p> : null}
           {query.totp === "missing" ? <p className="m-0 text-red-700">No account uses that email.</p> : null}
+          {query.totp === "denied" ? <p className="m-0 text-red-700">Only an owner can reset an authenticator.</p> : null}
+          {query.totp === "failed" ? <p className="m-0 text-red-700">The authenticator could not be reset. Try again.</p> : null}
           {signIn?.enabled ? (
             <>
               <p className="m-0">Two-factor login is on for this account.</p>
@@ -53,7 +55,7 @@ async function AccountScreen({ searchParams }: { searchParams: Promise<{ totp?: 
                   <p className="m-0 break-all font-mono text-[13px]">{signIn.secret}</p>
                   <p className="m-0 break-all text-[12px] text-zinc-500">{totpUri(admin.email, signIn.secret)}</p>
                   <form action={confirmTotp} className="flex flex-wrap items-center gap-2">
-                    <input name="code" inputMode="numeric" required pattern="\d{6}" placeholder="6-digit code" className={`${field} h-10 w-40`} />
+                    <input name="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={8} placeholder="6-digit code" className={`${field} h-10 w-40`} />
                     <button className={`${btn.base} ${btn.primary} ${btn.md}`}>Confirm code</button>
                   </form>
                 </>

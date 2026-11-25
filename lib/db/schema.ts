@@ -426,7 +426,7 @@ export const adminUsers = pgTable("admin_users", {
   failedLogins: integer("failed_logins").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
-  /** Base64url TOTP secret. Set only after the person confirms a code from their authenticator. */
+  /** Base32 authenticator secret (older rows may be base64url). Empty until a secret is generated. */
   totpSecret: text("totp_secret"),
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   /** owner sees every area. manager and staff are limited by `permissions`. */
