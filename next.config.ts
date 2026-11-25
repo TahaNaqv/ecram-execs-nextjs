@@ -20,7 +20,7 @@ const BASE_DIRECTIVES: Record<string, string> = {
   "frame-ancestors": "'none'",
   "object-src": "'none'",
   "base-uri": "'self'",
-  "form-action": "'self'",
+  "form-action": "'self' https://www.mollie.com https://*.mollie.com",
 };
 
 /** The policy as one line: the base, with each extra source added to its directive (a directive the base lacks is added whole). */

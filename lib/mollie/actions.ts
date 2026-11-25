@@ -1,7 +1,6 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
 import { getCorporateContact } from "@/lib/corporate/access";
 import { partnerOwns, REF_RE } from "@/lib/corporate/bookings";
@@ -10,10 +9,10 @@ import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { getGuestBooking } from "@/lib/quotes/guest";
 import { withinLimit } from "@/lib/rate-limit";
 import { visitor } from "@/lib/request-meta";
-import { siteOrigin } from "./config";
+import { publicOrigin } from "./origin";
 import { recordConsent, startPayment } from "./pay";
 
-export type PayState = { error?: string; notice?: string };
+export type PayState = { error?: string; notice?: string; checkout?: string };
 
 const localeOf = (formData: FormData): Locale => {
   const value = formData.get("locale");
@@ -33,7 +32,7 @@ async function go(requestId: string, returnUrl: string, formData: FormData): Pro
   if (formData.get("consent") === "1") await recordConsent(requestId, (await visitor()).ipHash);
   const result = await startPayment(requestId, returnUrl);
   if (result.status === "needs_consent") return { error: t.payConsentNeeded };
-  if (result.status === "redirect") redirect(result.url);
+  if (result.status === "redirect") return { checkout: result.url };
   if (result.status === "in_progress") return { notice: t.payInProgress };
   if (result.status === "nothing_due") return { notice: t.payNothingDue };
   return { error: t.payFailed };
@@ -46,7 +45,7 @@ export async function payBooking(_prev: PayState, formData: FormData): Promise<P
   const booking = await getGuestBooking(formData.get("ref"), formData.get("k"));
   if (!booking) return { error: t.payFailed };
   if (bookingLimited(booking.id)) return { error: t.payTooMany };
-  const origin = siteOrigin();
+  const origin = await publicOrigin();
   if (!origin) return { error: t.payFailed };
   const locale = localeOf(formData);
   const back = new URLSearchParams({ ref: booking.reference, k: String(formData.get("k")), locale });
@@ -64,7 +63,7 @@ export async function payPartnerBooking(_prev: PayState, formData: FormData): Pr
   const [booking] = await db.select({ id: q.id }).from(q).where(and(eq(q.reference, reference), partnerOwns(contact.id))).limit(1);
   if (!booking) return { error: t.payFailed };
   if (bookingLimited(booking.id)) return { error: t.payTooMany };
-  const origin = siteOrigin();
+  const origin = await publicOrigin();
   if (!origin) return { error: t.payFailed };
   const locale = localeOf(formData);
   const back = new URLSearchParams({ for: "partner", ref: reference, locale });

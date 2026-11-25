@@ -22,7 +22,7 @@ const quote = (label: string) => `"${label}"`;
  */
 /** Paying at booking (the client's rules of 15 Nov 2026), while online payment is on. */
 const PAY_AT_BOOKING =
-  "Payment is by card when booking, on the secure payment page of Mollie, our payment provider. For a ride more than 30 days ahead the visitor pays the service fee of €15.13 (€12.50 plus VAT) now, which is not refundable; the rest of the price is charged to the same card 30 days before the ride, and the visitor is emailed 5 days before that. For a ride 30 days or less ahead the full price is paid when booking. If the team cannot take a booking, everything paid is refunded, the service fee too.";
+  "Payment is by card when booking, on the secure payment page of Mollie, our payment provider. For a ride more than 30 days ahead the visitor pays the service fee of €12.50 now, which is not refundable; the rest of the price is charged to the same card 30 days before the ride, and the visitor is emailed 5 days before that. For a ride 30 days or less ahead the full price is paid when booking. If the team cannot take a booking, everything paid is refunded, the service fee too.";
 const PAY_AFTER_APPROVAL =
   "Payment comes after approval: the details follow once the booking is approved. There is no payment before the booking manager has reviewed it.";
 

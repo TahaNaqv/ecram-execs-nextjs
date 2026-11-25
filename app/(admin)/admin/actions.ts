@@ -27,7 +27,7 @@ const LOCK_MINUTES = 15;
 
 const INVOICE_BLOCKS = "This booking's invoice has been sent from Moneybird. Cancel the booking to credit it instead.";
 
-export type LoginState = { error?: string; email?: string };
+export type LoginState = { error?: string; email?: string; needsCode?: boolean };
 
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -56,8 +56,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return generic;
   }
 
+  // Only a confirmed authenticator is required. A secret that was generated but never confirmed must not lock the account out.
   if (user.totpEnabled && !verifyTotp(user.totpSecret ?? "", String(formData.get("code") ?? ""))) {
-    return { error: "Enter the 6-digit code from your authenticator.", email };
+    return { error: "Enter the 6-digit code from your authenticator.", email, needsCode: true };
   }
 
   await db

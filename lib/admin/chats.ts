@@ -30,9 +30,18 @@ export type ChatRow = {
 
 type Raw = Omit<ChatRow, "request"> & { request_id: string | null; request_reference: string | null };
 
-export const chatList = cache(async (page = 1): Promise<{ nowMs: number; rows: ChatRow[]; total: number; booked: number; days: number; page: number; pages: number }> => {
+export const chatList = cache(async (page = 1, query = "", follow = ""): Promise<{ nowMs: number; rows: ChatRow[]; total: number; booked: number; days: number; page: number; pages: number }> => {
   await requireAdmin();
-  const [totals] = Array.from(await db.execute<{ total: number; booked: number }>(sql`select count(*)::int as total, count(request_id)::int as booked from concierge_conversations`));
+  const needle = query.trim().slice(0, 120).replace(/[%_\\]/g, "");
+  const like = needle ? `%${needle}%` : "";
+  const followSql = follow === "needed" ? sql`and c.follow_up = true` : follow === "resolved" ? sql`and c.follow_up = false` : sql``;
+  const searchSql = like ? sql`and (c.visitor_name ilike ${like} or c.visitor_email ilike ${like})` : sql``;
+  const [totals] = Array.from(
+    await db.execute<{ total: number; booked: number }>(sql`
+      select count(*)::int as total, count(request_id)::int as booked
+      from concierge_conversations c
+      where true ${searchSql} ${followSql}`),
+  );
   const total = totals?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / CHAT_PAGE_SIZE));
   const current = Math.min(Math.max(1, Math.floor(page) || 1), pages);
@@ -48,6 +57,7 @@ export const chatList = cache(async (page = 1): Promise<{ nowMs: number; rows: C
              q.id as request_id, q.reference as request_reference
       from concierge_conversations c
       left join quote_requests q on q.id = c.request_id
+      where true ${searchSql} ${followSql}
       order by c.last_message_at desc
       limit ${CHAT_PAGE_SIZE}
       offset ${(current - 1) * CHAT_PAGE_SIZE}`),
@@ -74,6 +84,9 @@ export const chatDetail = cache(async (id: string) => {
       lastMessageAt: schema.conciergeConversations.lastMessageAt,
       messageCount: schema.conciergeConversations.messageCount,
       draft: schema.conciergeConversations.draft,
+      visitorName: schema.conciergeConversations.visitorName,
+      visitorEmail: schema.conciergeConversations.visitorEmail,
+      followUp: schema.conciergeConversations.followUp,
       requestId: schema.quoteRequests.id,
       reference: schema.quoteRequests.reference,
       requestStatus: schema.quoteRequests.status,

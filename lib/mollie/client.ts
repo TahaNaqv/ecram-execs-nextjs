@@ -28,6 +28,8 @@ export type MolliePayment = {
   metadata?: { requestId?: string } | null;
   sequenceType?: "oneoff" | "first" | "recurring";
   customerId?: string | null;
+  /** Where Mollie sends the customer after they pay. */
+  redirectUrl?: string | null;
   /** The card mandate a paid first payment made (or a recurring payment used). */
   mandateId?: string | null;
   details?: { failureReason?: string; failureMessage?: string } | null;

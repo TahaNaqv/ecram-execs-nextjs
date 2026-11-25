@@ -34,6 +34,44 @@ export function mayCreateAccounts(role: StaffRole, stored: readonly string[] | n
   return role === "owner" || permissionsFor(role, stored).includes("staff_accounts");
 }
 
+/** Whether this sign-in may open an admin path. Account and the dashboard stay available. */
+export function canOpenAdminPath(role: StaffRole, stored: readonly string[] | null | undefined, pathname: string) {
+  if (pathname === "/admin" || pathname.startsWith("/admin/account") || pathname.startsWith("/admin/login")) return true;
+  if (pathname.startsWith("/admin/enquiries")) return can(role, stored, "enquiries");
+  if (pathname.startsWith("/admin/requests")) return can(role, stored, "bookings");
+  if (pathname.startsWith("/admin/chats")) return can(role, stored, "enquiries") || can(role, stored, "bookings");
+  if (pathname.startsWith("/admin/corporate") || pathname.startsWith("/admin/introducers")) return can(role, stored, "corporate");
+  if (pathname.startsWith("/admin/addons")) return can(role, stored, "bookings");
+  if (pathname.startsWith("/admin/vehicles")) return can(role, stored, "fleet");
+  if (pathname.startsWith("/admin/drivers")) return can(role, stored, "drivers");
+  if (pathname.startsWith("/admin/financials")) return can(role, stored, "financials");
+  if (pathname.startsWith("/admin/staff")) return mayCreateAccounts(role, stored);
+  if (pathname.startsWith("/admin/templates")) return can(role, stored, "templates");
+  if (pathname.startsWith("/admin/desk")) return role === "owner";
+  return false;
+}
+
+const NAV_HREFS = [
+  "/admin/enquiries",
+  "/admin/requests",
+  "/admin/chats",
+  "/admin/corporate",
+  "/admin/introducers",
+  "/admin/addons",
+  "/admin/vehicles",
+  "/admin/drivers",
+  "/admin/drivers/applications",
+  "/admin/financials",
+  "/admin/staff",
+  "/admin/templates",
+  "/admin/desk",
+] as const;
+
+/** Menu entries this sign-in must not see. */
+export function hiddenAdminHrefs(role: StaffRole, stored: readonly string[] | null | undefined) {
+  return NAV_HREFS.filter((href) => !canOpenAdminPath(role, stored, href));
+}
+
 export function readTeamAccount(input: { name: string; email: string; password: string; role: string; permissions: readonly string[] }):
   | { ok: false; error: "short" | "failed" }
   | { ok: true; name: string; email: string; password: string; role: StaffRole; permissions: StaffPermission[] } {

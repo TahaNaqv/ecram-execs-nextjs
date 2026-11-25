@@ -14,7 +14,7 @@ type Props = {
   scheduleHref: string | null;
   /** How long the trip holds the car, and where that figure comes from (already worded) */
   tripNote: string;
-  cars: { key: string; name: string }[];
+  cars: { key: string; name: string; driver?: string | null }[];
   copy: { carNote: string; carLabel: string; carNone: string; carAdvise: string; carSave: string; carSaving: string; carSaved: string; carHeld: string; carSeeSchedule: string };
 };
 
@@ -36,7 +36,7 @@ export function AssignVehicle({ id, vehicle, confirmed, scheduleHref, tripNote, 
             <option value="advise">{copy.carAdvise}</option>
             {cars.map((c) => (
               <option key={c.key} value={c.key}>
-                {c.name}
+                {c.driver ? `${c.name} → ${c.driver}` : c.name}
               </option>
             ))}
           </select>

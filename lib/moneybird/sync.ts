@@ -19,7 +19,7 @@ import {
   splitName,
 } from "./invoice";
 import { INVOICE_MAIL, INVOICE_WORDS } from "./words";
-import { balanceDueOn, daysBetween, feeWithVatCents } from "@/lib/payments/schedule";
+import { balanceDueOn, daysBetween, serviceFeeCents } from "@/lib/payments/schedule";
 import { hasOnlinePayment, hasUnrecordedPayment, recordingOn } from "./recording";
 
 /**
@@ -423,7 +423,7 @@ async function rowHasId(id: string): Promise<boolean> {
 
 /** Makes (or finishes) the booking's invoice on a leased row. */
 async function issue(row: Row, r: Booking, partner: Partner | null): Promise<SyncResult> {
-  const cents = isFeeRow(row) ? feeWithVatCents(r.priceEstimate) : invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null });
+  const cents = isFeeRow(row) ? serviceFeeCents(r.priceEstimate) : invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null });
   if (cents == null) {
     await release(row.id, { state: row.moneybirdId ? row.state : "failed", lastError: "no_amount" });
     return { status: "failed", error: "no_amount" };

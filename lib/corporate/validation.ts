@@ -22,6 +22,7 @@ export const CORPORATE_VEHICLES = [
   { key: "cadillac_escalade_iq", name: "Cadillac Escalade IQ", fleetKey: "cadillac_escalade" },
   { key: "range_rover_ev", name: "Range Rover EV", fleetKey: "range_rover" },
   { key: "hongqi_e_hs9", name: "Hongqi E-HS9", fleetKey: "hongqi_e_hs9" },
+  { key: "mercedes_esprinter", name: "Mercedes-Benz eSprinter 420 RWD PRO", fleetKey: "mercedes_esprinter" },
 ] as const;
 export const CORPORATE_VEHICLE_KEYS = CORPORATE_VEHICLES.map((v) => v.key) as [
   (typeof CORPORATE_VEHICLES)[number]["key"],

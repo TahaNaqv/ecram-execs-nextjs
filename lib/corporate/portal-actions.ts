@@ -25,6 +25,7 @@ import { MESSAGEABLE, REF_RE, partnerOwns } from "./bookings";
 import type { PortalState } from "./portal-state";
 import { syncAfter } from "@/lib/moneybird/after";
 import { confirmIfAutomatic, consentFromForm, markAnnounced, payAtBooking, planForNewBooking } from "@/lib/mollie/booking";
+import { invoiceTerms } from "@/lib/payments/schedule";
 
 const q = schema.quoteRequests;
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
@@ -103,6 +104,7 @@ export async function createBooking(_prev: PortalState, formData: FormData): Pro
       entity: parsed.data.entity || contact.companyName,
       entityKvk: parsed.data.entityKvk || contact.kvkNumber,
       corporateContactId: contact.id,
+      invoiceTermsDays: invoiceTerms(contact.paymentTermsDays),
       source: "portal",
       ipHash,
       userAgent,

@@ -38,8 +38,8 @@ export type Trip = {
   extras: ExtraPick[];
 };
 
-/** The Cadillac Escalade IQ seats 7, the most in the fleet. The forms that book one car (the partner introduction, the team's own form, the concierge) never take more. */
-export const MAX_PASSENGERS = 7;
+/** One-car forms never take more passengers than the largest car seats. */
+export const MAX_PASSENGERS = LARGEST_CAR_SEATS;
 /** Large suitcases those one-car forms take, before the chosen car's boot is checked. */
 export const MAX_BAGS = 6;
 /** Hand luggage and backpacks. They ride in the cabin, so the boot does not cap them. */

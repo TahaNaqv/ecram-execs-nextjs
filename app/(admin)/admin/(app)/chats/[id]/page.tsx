@@ -12,6 +12,7 @@ import { ArrowLeftIcon } from "../../../_components/icons";
 import { DeleteRecord } from "../../../_components/delete-record";
 import { btn, Card, CardHeader, PageBody, Skeleton } from "../../../_components/ui";
 import { deleteChat } from "../../../actions";
+import { setChatFollowUp } from "../actions";
 
 // Allow blocking dynamic rendering under cacheComponents for this route
 export const instant = false;
@@ -73,7 +74,16 @@ async function Detail({ params }: Pick<PageProps<"/admin/chats/[id]">, "params">
         </span>
         <span aria-hidden="true">·</span>
         <span className="uppercase">{chat.locale}</span>
+        {chat.visitorName ? <span>{c.visitorName}: {chat.visitorName}</span> : null}
+        {chat.visitorEmail ? <span className="break-all">{c.visitorEmail}: {chat.visitorEmail}</span> : null}
       </p>
+      <form action={setChatFollowUp} className="mt-3">
+        <input type="hidden" name="id" value={chat.id} />
+        <input type="hidden" name="followUp" value={chat.followUp ? "0" : "1"} />
+        <button className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${chat.followUp ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-zinc-50 text-zinc-600 ring-zinc-200"}`}>
+          {chat.followUp ? c.followNeeded : c.followResolved}
+        </button>
+      </form>
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>

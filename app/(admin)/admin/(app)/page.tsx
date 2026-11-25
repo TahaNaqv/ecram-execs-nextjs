@@ -6,6 +6,7 @@ import { dashboardFigures, fleetStatus, recentRequests, upcomingPickups } from "
 import { formatEuro, formatRelative, pickupParts } from "@/lib/admin/format";
 import { systemHealth, type HealthKey, type HealthState } from "@/lib/admin/health";
 import { unseenPartnerMessages } from "@/lib/admin/portal";
+import { can, canOpenAdminPath } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { normalizeVehicleKey, vehicleByKey } from "@/lib/fleet/vehicles";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
@@ -80,7 +81,8 @@ export default function DashboardPage() {
 }
 
 async function TodoList() {
-  const items = await operationsTodos();
+  const admin = await requireAdmin();
+  const items = (await operationsTodos()).filter((item) => canOpenAdminPath(admin.role, admin.permissions, item.href));
   return (
     <Card className="mt-4">
       <CardHeader title="To do" />
@@ -97,7 +99,7 @@ async function TodoList() {
         </ul>
       )}
       <div className="flex flex-wrap gap-3 border-t border-zinc-100 px-5 py-3">
-        {QUICK_LINKS.map(([label, href]) => (
+        {can(admin.role, admin.permissions, "financials") && QUICK_LINKS.map(([label, href]) => (
           <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="text-[13px] text-zinc-950 underline underline-offset-2">{label}</a>
         ))}
       </div>
@@ -131,32 +133,43 @@ function PanelSkeleton({ rows }: { rows: number }) {
 }
 
 async function Figures() {
-  const { admin: t } = await adminDictionary();
+  const [{ admin: t }, admin] = await Promise.all([adminDictionary(), requireAdmin()]);
   const d = t.dashboard;
+  const fleetOn = can(admin.role, admin.permissions, "fleet");
+  const bookingsOn = can(admin.role, admin.permissions, "bookings");
+  const corporateOn = can(admin.role, admin.permissions, "corporate");
+  const moneyOn = can(admin.role, admin.permissions, "financials");
+  if (!fleetOn && !bookingsOn && !corporateOn && !moneyOn) return null;
   const { fleet, jobs, partners, revenue } = await dashboardFigures();
   const switchedOff = fleet.total - fleet.available;
   return (
     <div className="mt-6 grid grid-cols-2 items-stretch gap-3 sm:gap-4 xl:grid-cols-4">
-      <StatCard
-        tone="accent"
-        label={d.fleetLabel}
-        value={`${fleet.available}/${fleet.total}`}
-        hint={switchedOff > 0 ? interpolate(d.fleetHintSwitchedOff, { count: switchedOff }) : d.fleetHint}
-        icon={<CarIcon />}
-      />
-      <StatCard
-        label={d.jobsLabel}
-        value={jobs.today}
-        hint={`${d.jobsHint} · ${jobs.nextAt ? interpolate(d.jobsNext, { time: jobs.nextAt }) : d.jobsNone}`}
-        icon={<CalendarIcon />}
-      />
-      <StatCard label={d.partnersLabel} value={partners.total} hint={d.partnersHint} icon={<BriefcaseIcon />} />
-      <StatCard
-        label={d.revenueLabel}
-        value={formatEuro(revenue.amount)}
-        hint={d.revenueHint}
-        icon={<EuroIcon />}
-      />
+      {fleetOn ? (
+        <StatCard
+          tone="accent"
+          label={d.fleetLabel}
+          value={`${fleet.available}/${fleet.total}`}
+          hint={switchedOff > 0 ? interpolate(d.fleetHintSwitchedOff, { count: switchedOff }) : d.fleetHint}
+          icon={<CarIcon />}
+        />
+      ) : null}
+      {bookingsOn ? (
+        <StatCard
+          label={d.jobsLabel}
+          value={jobs.today}
+          hint={`${d.jobsHint} · ${jobs.nextAt ? interpolate(d.jobsNext, { time: jobs.nextAt }) : d.jobsNone}`}
+          icon={<CalendarIcon />}
+        />
+      ) : null}
+      {corporateOn ? <StatCard label={d.partnersLabel} value={partners.total} hint={d.partnersHint} icon={<BriefcaseIcon />} /> : null}
+      {moneyOn ? (
+        <StatCard
+          label={d.revenueLabel}
+          value={formatEuro(revenue.amount)}
+          hint={d.revenueHint}
+          icon={<EuroIcon />}
+        />
+      ) : null}
     </div>
   );
 }
@@ -179,6 +192,8 @@ function Pill({ tone, children }: { tone: "good" | "warn" | "bad" | "muted"; chi
 
 async function ScheduleMap() {
   await connection();
+  const admin = await requireAdmin();
+  if (!can(admin.role, admin.permissions, "bookings")) return null;
   const { admin: t, locale } = await dashboardCopy();
   const d = t.dashboard;
   const today = await daySchedule(amsterdamToday());
@@ -208,6 +223,8 @@ async function ScheduleMap() {
 }
 
 async function Incoming() {
+  const admin = await requireAdmin();
+  if (!can(admin.role, admin.permissions, "bookings")) return null;
   const { admin: t, locale } = await dashboardCopy();
   const d = t.dashboard;
   const [rows, fleet] = await Promise.all([upcomingPickups(), fleetStatus()]);
@@ -275,6 +292,8 @@ async function Incoming() {
 }
 
 async function Fleet() {
+  const admin = await requireAdmin();
+  if (!can(admin.role, admin.permissions, "fleet")) return null;
   const { admin: t } = await dashboardCopy();
   const d = t.dashboard;
   const rows = await fleetStatus();

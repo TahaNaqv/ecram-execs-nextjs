@@ -15,12 +15,20 @@ type Copy = {
   tagReference: string;
   tagName: string;
   tagAmount: string;
+  tagIntroducer: string;
+  tagMonth: string;
+  tagCommission: string;
+  tagNet: string;
 };
 
-const TOKENS: { token: TemplateToken; labelKey: keyof Pick<Copy, "tagReference" | "tagName" | "tagAmount"> }[] = [
+const TOKENS: { token: TemplateToken; labelKey: keyof Pick<Copy, "tagReference" | "tagName" | "tagAmount" | "tagIntroducer" | "tagMonth" | "tagCommission" | "tagNet"> }[] = [
   { token: "reference", labelKey: "tagReference" },
   { token: "name", labelKey: "tagName" },
   { token: "amount", labelKey: "tagAmount" },
+  { token: "introducerName", labelKey: "tagIntroducer" },
+  { token: "monthYear", labelKey: "tagMonth" },
+  { token: "commission", labelKey: "tagCommission" },
+  { token: "netTotal", labelKey: "tagNet" },
 ];
 
 export function TemplateForm({
@@ -32,7 +40,15 @@ export function TemplateForm({
   title: string;
   copy: Copy;
 }) {
-  const labels = { reference: copy.tagReference, name: copy.tagName, amount: copy.tagAmount };
+  const labels = {
+    reference: copy.tagReference,
+    name: copy.tagName,
+    amount: copy.tagAmount,
+    introducerName: copy.tagIntroducer,
+    monthYear: copy.tagMonth,
+    commission: copy.tagCommission,
+    netTotal: copy.tagNet,
+  };
   const [subject, setSubject] = useState(() => toFriendly(row.subject, labels));
   const [body, setBody] = useState(() => toFriendly(row.body, labels));
   const [focus, setFocus] = useState<"subject" | "body">("subject");

@@ -2,14 +2,14 @@
 
 import { eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireArea } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { EXTRA_KEYS, type ExtraPick } from "@/lib/pricing/extras";
 
 const known = (key: string) => (EXTRA_KEYS as readonly string[]).includes(key);
 
 export async function saveAddonStock(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/addons");
   const key = String(formData.get("key") ?? "");
   if (!known(key)) return;
   const onHand = Math.max(0, Math.round(Number(formData.get("onHand") ?? 0)));
@@ -20,19 +20,28 @@ export async function saveAddonStock(formData: FormData) {
 }
 
 export async function addSupplier(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/addons");
   const name = String(formData.get("name") ?? "").trim();
   if (name.length < 2) return;
-  const [supplier] = await db
-    .insert(schema.addonSuppliers)
-    .values({
-      name,
-      email: String(formData.get("email") ?? "").trim() || null,
-      phone: String(formData.get("phone") ?? "").trim() || null,
-      notes: String(formData.get("notes") ?? "").trim() || null,
-    })
-    .returning({ id: schema.addonSuppliers.id });
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
   const key = String(formData.get("key") ?? "");
+  // One submission can reach the server more than once. The lock makes those retries share a single supplier.
+  const supplier = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`addon-supplier:${name.toLowerCase()}:${email ?? ""}`}))`);
+    const [existing] = await tx
+      .select({ id: schema.addonSuppliers.id })
+      .from(schema.addonSuppliers)
+      .where(sql`lower(${schema.addonSuppliers.name}) = ${name.toLowerCase()} and ${schema.addonSuppliers.email} is not distinct from ${email}`)
+      .limit(1);
+    if (existing) return existing;
+    const [created] = await tx
+      .insert(schema.addonSuppliers)
+      .values({ name, email, phone, notes })
+      .returning({ id: schema.addonSuppliers.id });
+    return created;
+  });
   if (supplier && known(key)) {
     await db.insert(schema.addonStock).values({ key, onHand: 0, supplierId: supplier.id }).onConflictDoUpdate({
       target: schema.addonStock.key,
@@ -43,7 +52,7 @@ export async function addSupplier(formData: FormData) {
 }
 
 export async function updateSupplier(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/addons");
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   if (!/^[0-9a-f-]{36}$/i.test(id) || name.length < 2) return;
@@ -60,7 +69,7 @@ export async function updateSupplier(formData: FormData) {
 }
 
 export async function deleteSupplier(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/addons");
   const id = String(formData.get("id") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return;
   await db.delete(schema.addonSuppliers).where(eq(schema.addonSuppliers.id, id));

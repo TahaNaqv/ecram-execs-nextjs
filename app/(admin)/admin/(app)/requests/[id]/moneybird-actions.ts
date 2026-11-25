@@ -8,7 +8,7 @@ import { creditBooking, reissueBooking, syncBooking } from "@/lib/moneybird/sync
 import { flushPayments } from "@/lib/mollie/pay";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { feeWithVatCents } from "@/lib/payments/schedule";
+import { serviceFeeCents } from "@/lib/payments/schedule";
 
 export type MoneybirdState = { ok?: boolean; error?: string };
 
@@ -45,7 +45,7 @@ export async function creditInvoice(_prev: MoneybirdState, formData: FormData): 
   if (input.data.mode === "serviceFee") {
     // Keep the service fee paid at booking (non-refundable): exactly the fee's own invoice line is kept
     const [r] = await db.select({ price: schema.quoteRequests.priceEstimate }).from(schema.quoteRequests).where(eq(schema.quoteRequests.id, input.data.requestId)).limit(1);
-    feeCents = feeWithVatCents(r?.price ?? null);
+    feeCents = serviceFeeCents(r?.price ?? null);
   } else if (input.data.mode === "fee") {
     const euros = Number((input.data.fee ?? "").replace(",", "."));
     if (!Number.isFinite(euros) || euros <= 0) return { error: t.feeInvalid };

@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { sendAccountDeleted } from "@/lib/email";
+import { vehicleByKey } from "@/lib/fleet/vehicles";
 import { digitsOnly, phoneLengthOk } from "@/lib/phone";
 
 const phoneError = "Enter a phone number with 8 to 15 digits for the selected country.";
@@ -187,6 +188,14 @@ export async function updateCorporatePartner(formData: FormData) {
   const rawPhone = (formData.get("phone") as string)?.trim() || "";
   const parsedPhone = nationalPhone(rawPhone);
   const status = (formData.get("status") as string)?.trim();
+  const preferredRaw = String(formData.get("preferredContact") ?? "");
+  const preferredContact = preferredRaw === "email" || preferredRaw === "phone" || preferredRaw === "whatsapp" ? preferredRaw : null;
+  const termsRaw = Number(formData.get("paymentTermsDays") ?? 0);
+  const paymentTermsDays = termsRaw === 7 || termsRaw === 14 || termsRaw === 30 ? termsRaw : null;
+  const vehicleRaw = String(formData.get("preferredVehicle") ?? "");
+  const preferredVehicle = vehicleByKey(vehicleRaw) ? vehicleRaw : null;
+  const introducerRaw = String(formData.get("introducerId") ?? "");
+  const introducerId = /^[0-9a-f-]{36}$/i.test(introducerRaw) ? introducerRaw : null;
 
   if (!id || !companyName || !name) {
     return { ok: false, error: "Missing required fields" };
@@ -205,6 +214,10 @@ export async function updateCorporatePartner(formData: FormData) {
         position: position || undefined,
         ...(email ? { email, emailDomain: email.split("@")[1] || undefined } : {}),
         phone,
+        ...(formData.has("preferredContact") ? { preferredContact } : {}),
+        ...(formData.has("paymentTermsDays") ? { paymentTermsDays } : {}),
+        ...(formData.has("preferredVehicle") ? { preferredVehicle } : {}),
+        ...(formData.has("introducerId") ? { introducerId } : {}),
         ...(lockedUntil !== undefined ? { lockedUntil } : {}),
         updatedAt: new Date(),
       })

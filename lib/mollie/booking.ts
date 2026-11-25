@@ -7,7 +7,8 @@ import type { Locale } from "@/lib/i18n/config";
 import { amsterdamDay, confirmsAutomatically, planFor, type PaymentPlan } from "@/lib/payments/schedule";
 import type { Price } from "@/lib/pricing/rates";
 import { guestKey } from "@/lib/quotes/guest-link";
-import { mollieConfigured, siteOrigin } from "./config";
+import { mollieConfigured } from "./config";
+import { publicOrigin } from "./origin";
 import { recordConsent, startPayment } from "./pay";
 
 /**
@@ -42,8 +43,8 @@ export async function confirmIfAutomatic(request: QuoteRequest, mail = true): Pr
 }
 
 /** Where Mollie sends the customer back to: the return route, which asks Mollie and then opens the booking's page. */
-export function returnUrlFor(request: Pick<QuoteRequest, "id" | "reference">, locale: Locale, who: "guest" | "partner", stay = false): string | null {
-  const origin = siteOrigin();
+export async function returnUrlFor(request: Pick<QuoteRequest, "id" | "reference">, locale: Locale, who: "guest" | "partner", stay = false): Promise<string | null> {
+  const origin = await publicOrigin();
   if (!origin) return null;
   const params =
     who === "partner"
@@ -65,7 +66,7 @@ export async function payAtBooking(
   if (!request.paymentPlan || !consent) return undefined;
   try {
     await recordConsent(request.id, ipHash);
-    const back = returnUrlFor(request, locale, who, stay);
+    const back = await returnUrlFor(request, locale, who, stay);
     if (!back) return undefined;
     const result = await startPayment(request.id, back);
     return result.status === "redirect" ? result.url : undefined;

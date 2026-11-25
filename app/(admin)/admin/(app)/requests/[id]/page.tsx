@@ -7,6 +7,8 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { formatDate, formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { chatForRequest } from "@/lib/admin/chats";
+import { linkedDriversAt } from "@/lib/admin/driver-board";
+import { parseInstant } from "@/lib/drivers/time";
 import { getRequest } from "@/lib/admin/queries";
 import { bookingServiceName, isCorporateBooking } from "@/lib/quotes/audience";
 import { eventLabels, renderEvent } from "@/lib/admin/events";
@@ -36,7 +38,7 @@ import { MessagesCard } from "./messages-card";
 import { ReviewCard, type PayState } from "./review-card";
 import { UpdateForm } from "./update-form";
 import { CarsEditor } from "./cars-editor";
-import { MoneybirdCard, MoneybirdHeaderLink } from "./moneybird-card";
+import { MoneybirdCard, MoneybirdHeaderActions } from "./moneybird-card";
 import { invoiceBlocksDelete } from "@/lib/moneybird/sync";
 import { paidNet, paymentBlocksDelete } from "@/lib/mollie/pay";
 import { invoiceCents } from "@/lib/moneybird/invoice";
@@ -44,14 +46,14 @@ import { mollieConfig } from "@/lib/mollie/config";
 import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { holdConflict } from "@/lib/fleet/availability";
-import { balanceDueOn, upfrontCents } from "@/lib/payments/schedule";
+import { balanceDueOn } from "@/lib/payments/schedule";
 import { PaymentCard } from "./payment-card";
 import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
 import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { bookingTotalEuros, formatCents, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
+import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
 import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
@@ -132,7 +134,12 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
     events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
   };
   const d = await adminDictionary();
-  const [chatId, invoiceOpen, paidOnline] = await Promise.all([chatForRequest(r.id), invoiceBlocksDelete(r.id), paymentBlocksDelete(r.id)]);
+  const [chatId, invoiceOpen, paidOnline, linked] = await Promise.all([
+    chatForRequest(r.id),
+    invoiceBlocksDelete(r.id),
+    paymentBlocksDelete(r.id),
+    linkedDriversAt(parseInstant(r.pickupAt)),
+  ]);
   const deleteBlocked = invoiceOpen || paidOnline;
   const phone = typeof r.phone === "string" ? r.phone : "";
   const email = typeof r.email === "string" ? r.email : "";
@@ -142,16 +149,8 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
   const admin = await requireAdmin();
   const conflict = await holdConflict(r);
   const totalCents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
-  const feeCents = r.paymentPlan ? upfrontCents(r.paymentPlan, totalCents, r.priceEstimate) : 0;
-  const windowView = r.paymentPlan
-    ? {
-        tier: r.paymentPlan === "A" ? ("six" as const) : r.paymentPlan === "C" ? ("month" as const) : ("mid" as const),
-        fee: formatCents(r.paymentPlan === "C" ? totalCents : feeCents, admin.locale),
-        balance: formatCents(Math.max(0, totalCents - feeCents), admin.locale),
-        balanceOn: balanceDueOn(r.paymentPlan, r.pickupAt),
-        terms: r.invoiceTermsDays,
-      }
-    : null;
+  const paidSoFar = await payState(r, totalCents);
+  const paymentBadgeStatus = paidSoFar?.kind === "fee" ? "PARTIAL" : paidSoFar?.kind === "full" ? "PAID" : r.paymentStatus;
   const waNumber = phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${guestName}, thank you for your request ${r.reference} with Ecram Execs.`);
   const mailto = `mailto:${email}?subject=${encodeURIComponent(`Your Ecram Execs booking ${r.reference}`)}`;
@@ -183,7 +182,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{guestName}</h1>
               <LiveStatusBadge requestId={r.id} status={r.status} labels={d.admin.statuses} size="md" />
               <UrgentBadge request={r} size="md" />
-              {r.paymentStatus ? <PaymentStatusBadge status={r.paymentStatus} size="md" /> : null}
+              {paymentBadgeStatus ? <PaymentStatusBadge status={paymentBadgeStatus} size="md" title={paidSoFar?.kind === "fee" ? interpolate(d.admin.review.payFee, { amount: paidSoFar.paid, rest: paidSoFar.rest ?? "" }) : undefined} /> : null}
               <span className="inline-flex items-center gap-1.5 text-sm text-zinc-700">
                 {bookingServiceName(r, d.services)}
                 <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
@@ -202,7 +201,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
         </div>
         <div className="grid grid-cols-3 gap-2 sm:flex">
           <Suspense fallback={null}>
-            <MoneybirdHeaderLink requestId={r.id} />
+            <MoneybirdHeaderActions r={r} />
           </Suspense>
           <a href={mailto} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
             <MailIcon /> {rd.emailAction}
@@ -227,6 +226,11 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
           )}
         </div>
       </div>
+      {paidSoFar?.kind === "fee" && (r.status === "confirmed" || r.status === "completed") && (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-950 ring-1 ring-inset ring-amber-200">
+          {interpolate(d.admin.review.payFee, { amount: paidSoFar.paid, rest: paidSoFar.rest ?? "" })}
+        </p>
+      )}
 
       <div className="mt-6">
         <LivePipeline
@@ -245,8 +249,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
             requestId={r.id}
             status={r.status}
             copy={d.admin.review}
-            pay={await payState(r, totalCents)}
-            window={windowView}
+            pay={paidSoFar}
             fulfilment={conflict ? { ok: false, reference: conflict.reference, pending: conflict.pending } : { ok: true }}
             canApprove={can(admin.role, admin.permissions, "approve")}
           />
@@ -347,7 +350,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               key={r.status}
               requestId={r.id}
               status={r.status}
-              cars={FLEET.map((v) => ({ key: v.key, name: v.name, seats: v.specs?.passengers ?? null }))}
+              cars={FLEET.map((v) => ({ key: v.key, name: v.name, seats: v.specs?.passengers ?? null, driver: linked[v.key] ?? null }))}
               initial={Object.fromEntries(
                 (fleetPicks(r.vehicles).length > 0 ? fleetPicks(r.vehicles) : r.vehicle && normalizeVehicleKey(r.vehicle) ? [{ key: normalizeVehicleKey(r.vehicle)!, count: r.vehicleCount }] : []).map((p) => [p.key, p.count]),
               )}
@@ -373,6 +376,11 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               <ContactRow icon={<PhoneIcon />} label={d.admin.common.phone}>
                 <a className="hover:underline" href={tel}>{phone || "—"}</a>
               </ContactRow>
+              {r.hearAbout ? (
+                <ContactRow icon={<UsersIcon />} label={d.admin.requestDetail.heardAbout}>
+                  {heardAboutLabel(r.hearAbout, d.booking)}
+                </ContactRow>
+              ) : null}
             </dl>
           </Card>
 
@@ -396,6 +404,18 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
       </div>
     </div>
   );
+}
+
+function heardAboutLabel(value: string, copy: { hearGoogle: string; hearRecommendation: string; hearSocial: string; hearCorporate: string; hearOther: string }) {
+  if (value.startsWith("other:")) return `${copy.hearOther}: ${value.slice(6).trim()}`;
+  const labels: Record<string, string> = {
+    google: copy.hearGoogle,
+    recommendation: copy.hearRecommendation,
+    social: copy.hearSocial,
+    corporate: copy.hearCorporate,
+    other: copy.hearOther,
+  };
+  return labels[value] ?? value;
 }
 
 function DetailSkeleton() {

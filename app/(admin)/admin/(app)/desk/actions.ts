@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth/session";
+import { requireArea } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 
 async function saveSetting(key: string, value: unknown, adminId: string) {
@@ -11,7 +11,7 @@ async function saveSetting(key: string, value: unknown, adminId: string) {
 }
 
 export async function saveBookingRules(formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireArea("/admin/desk");
   const value = {
     minNoticeHours: Number(formData.get("minNoticeHours") ?? 2),
     waitingMinutes: Number(formData.get("waitingMinutes") ?? 15),
@@ -21,7 +21,7 @@ export async function saveBookingRules(formData: FormData) {
 }
 
 export async function saveTerms(formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireArea("/admin/desk");
   const version = String(formData.get("version") ?? "").trim() || "1";
   const body = String(formData.get("body") ?? "");
   await saveSetting("terms_en", { version, body }, admin.id);

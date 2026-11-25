@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { payBooking, payPartnerBooking, type PayState } from "@/lib/mollie/actions";
 
 /**
@@ -31,6 +31,20 @@ export function PayButton({
   consentGranted?: boolean;
 }) {
   const [state, action, pending] = useActionState<PayState, FormData>(who === "guest" ? payBooking : payPartnerBooking, {});
+  useEffect(() => {
+    if (!state.checkout) return;
+    try {
+      const next = new URL(state.checkout);
+      const here = window.location.hostname;
+      const local = (host: string) => host === "localhost" || host === "127.0.0.1";
+      const mollie = next.protocol === "https:" && (next.hostname === "mollie.com" || next.hostname.endsWith(".mollie.com"));
+      const sameSite = next.origin === window.location.origin;
+      const localCheckout = (next.protocol === "http:" || next.protocol === "https:") && local(next.hostname) && local(here);
+      if (mollie || sameSite || localCheckout) window.location.assign(next.toString());
+    } catch {
+      /* a checkout address that is not a URL is not opened */
+    }
+  }, [state.checkout]);
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name={who === "guest" ? "ref" : "reference"} value={reference} />

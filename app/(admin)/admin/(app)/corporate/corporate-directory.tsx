@@ -12,6 +12,7 @@ import { formatEuro, formatPickup, STATUS_STYLE } from "@/lib/admin/format";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { RequestStatus } from "@/lib/quotes/constants";
+import { FLEET } from "@/lib/fleet/vehicles";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -90,10 +91,12 @@ export function CorporateDirectoryHub({
   initialPartners = [],
   copy,
   statuses,
+  introducers = [],
 }: {
   initialPartners: CorporatePartnerRow[];
   copy: HubCopy;
   statuses: Dictionary["admin"]["statuses"];
+  introducers?: { id: string; name: string; active: boolean }[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -140,8 +143,6 @@ export function CorporateDirectoryHub({
 
   const totalActive = partners.filter((p) => p.status === "Active").length;
   const totalPending = partners.filter((p) => p.status === "Pending 2FA").length;
-  const statusLabel = (status: string) =>
-    status === "Active" ? copy.statusActive : status === "Pending 2FA" ? copy.statusPending : status === "Suspended" ? copy.statusSuspended : status;
 
   const handleAddPartner = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -264,10 +265,9 @@ export function CorporateDirectoryHub({
               <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
                 <tr>
                   <th className="px-6 py-4">{copy.colCompany}</th>
-                  <th className="px-5 py-4">{copy.colKvk}</th>
-                  <th className="px-5 py-4">{copy.colBooker}</th>
-                  <th className="px-5 py-4">{copy.colStatus}</th>
-                  <th className="px-6 py-4">{copy.colSpend}</th>
+                  <th className="px-6 py-4">{copy.colKvk}</th>
+                  <th className="px-6 py-4">{copy.colBooker}</th>
+                  <th className="px-6 py-4 text-right">{copy.colSpend}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -288,8 +288,8 @@ export function CorporateDirectoryHub({
                         <span className="text-sm">{partner.companyName}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 font-mono text-zinc-600">{partner.kvk}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-6 py-4 font-mono text-zinc-600">{partner.kvk}</td>
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="size-8 shrink-0 rounded-full bg-zinc-200 flex items-center justify-center text-[11px] font-bold text-zinc-700">
                           {partner.bookerName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
@@ -300,19 +300,7 @@ export function CorporateDirectoryHub({
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
-                          partner.status === "Active"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-amber-50 text-amber-700 border border-amber-200"
-                        }`}
-                      >
-                        <span className="size-1.5 rounded-full bg-emerald-500" />
-                        {statusLabel(partner.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-mono font-medium text-zinc-900">
+                    <td className="px-6 py-4 text-right font-mono font-medium text-zinc-900">
                       {formatEuro(partner.totalSpend)}
                     </td>
                   </tr>
@@ -491,12 +479,58 @@ export function CorporateDirectoryHub({
                     </div>
                     <div>
                       <label className="mb-1.5 block font-medium text-zinc-800">{copy.preferredVehicle}</label>
-                      <input
-                        type="text"
-                        defaultValue={selectedPartner.preferredVehicle}
-                        readOnly
-                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none"
-                      />
+                      <select
+                        name="preferredVehicle"
+                        defaultValue={selectedPartner.preferredVehicleKey ?? ""}
+                        className="h-10 w-full cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                      >
+                        <option value="">{copy.vehicleUnset}</option>
+                        {FLEET.map((vehicle) => (
+                          <option key={vehicle.key} value={vehicle.key}>{vehicle.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.preferredMethod}</label>
+                      <select
+                        name="preferredContact"
+                        defaultValue={selectedPartner.preferredContact ?? ""}
+                        className="h-10 w-full cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                      >
+                        <option value="">{copy.notSet}</option>
+                        <option value="email">{copy.methodEmail}</option>
+                        <option value="phone">{copy.methodPhone}</option>
+                        <option value="whatsapp">{copy.methodWhatsapp}</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="mb-1.5 block font-medium text-zinc-800">Introducer</label>
+                      <select
+                        name="introducerId"
+                        defaultValue={selectedPartner.introducerId ?? ""}
+                        className="h-10 w-full cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                      >
+                        <option value="">{copy.notSet}</option>
+                        {introducers.filter((person) => person.active || person.id === selectedPartner.introducerId).map((person) => (
+                          <option key={person.id} value={person.id}>{person.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block font-medium text-zinc-800">{copy.paymentWindow}</label>
+                      <select
+                        name="paymentTermsDays"
+                        defaultValue={selectedPartner.paymentTermsDays ?? ""}
+                        className="h-10 w-full cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/5"
+                      >
+                        <option value="">{copy.notSet}</option>
+                        <option value="7">{copy.days7}</option>
+                        <option value="14">{copy.days14}</option>
+                        <option value="30">{copy.days30}</option>
+                      </select>
                     </div>
                   </div>
 
@@ -614,9 +648,29 @@ export function CorporateDirectoryHub({
                         <span className="text-zinc-500">{copy.email}</span>
                         <span className="font-mono text-zinc-700">{selectedPartner.email}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between gap-4">
                         <span className="text-zinc-500">{copy.phoneLabel}</span>
                         <span className="font-mono text-zinc-700">{selectedPartner.phone}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-zinc-500">{copy.preferredMethod}</span>
+                        <span className="font-semibold text-zinc-900">
+                          {selectedPartner.preferredContact === "email" ? copy.methodEmail : selectedPartner.preferredContact === "phone" ? copy.methodPhone : selectedPartner.preferredContact === "whatsapp" ? copy.methodWhatsapp : copy.notSet}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-zinc-500">{copy.paymentWindow}</span>
+                        <span className="font-semibold text-zinc-900">
+                          {selectedPartner.paymentTermsDays === 7 ? copy.days7 : selectedPartner.paymentTermsDays === 14 ? copy.days14 : selectedPartner.paymentTermsDays === 30 ? copy.days30 : copy.notSet}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-zinc-500">{copy.preferredVehicle}</span>
+                        <span className="font-semibold text-zinc-900">{selectedPartner.preferredVehicle === "—" ? copy.vehicleUnset : selectedPartner.preferredVehicle}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-zinc-500">Introducer</span>
+                        <span className="font-semibold text-zinc-900">{selectedPartner.introducerName ?? copy.notSet}</span>
                       </div>
                     </div>
                   </div>

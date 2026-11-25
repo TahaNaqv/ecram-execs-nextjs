@@ -492,8 +492,12 @@ export const driverShifts = pgTable(
     driverId: uuid("driver_id")
       .notNull()
       .references(() => drivers.id, { onDelete: "cascade" }),
+    /** Shift start. Stored as an absolute instant; the board edits it in Europe/Amsterdam local time. */
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Shift end. An open shift is closed at start + 10 hours when nobody ends it first. */
     endedAt: timestamp("ended_at", { withTimezone: true }),
+    /** active while the clock is running, completed when the team ends it, auto_closed at the 10-hour cap. */
+    status: text("status").notNull().default("active"),
     startedBy: uuid("started_by").references(() => adminUsers.id, { onDelete: "set null" }),
     endedBy: uuid("ended_by").references(() => adminUsers.id, { onDelete: "set null" }),
     /** The car this shift is responsible for. */
@@ -506,6 +510,52 @@ export const driverShifts = pgTable(
     index("driver_shifts_driver_started_idx").on(t.driverId, t.startedAt),
     index("driver_shifts_started_by_idx").on(t.startedBy),
     index("driver_shifts_ended_by_idx").on(t.endedBy),
+    check("driver_shifts_status_known", sql`${t.status} in ('active', 'completed', 'auto_closed')`),
+  ],
+);
+
+/** A driver responsible for one car between two instants, or for the whole 10-hour shift. */
+export const driverAssignments = pgTable(
+  "driver_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => drivers.id, { onDelete: "cascade" }),
+    vehicleId: text("vehicle_id")
+      .notNull()
+      .references(() => vehicles.id, { onDelete: "cascade" }),
+    startTime: timestamp("start_time", { withTimezone: true }).notNull(),
+    endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+    isEntireShift: boolean("is_entire_shift").notNull().default(false),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("driver_assignments_driver_start_idx").on(t.driverId, t.startTime),
+    index("driver_assignments_vehicle_start_idx").on(t.vehicleId, t.startTime),
+    check("driver_assignments_window", sql`${t.endTime} > ${t.startTime}`),
+  ],
+);
+
+/** A break the team recorded by hand. Gaps between jobs are detected and are not stored here. */
+export const driverBreakBlocks = pgTable(
+  "driver_break_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => drivers.id, { onDelete: "cascade" }),
+    shiftId: uuid("shift_id").references(() => driverShifts.id, { onDelete: "set null" }),
+    startTime: timestamp("start_time", { withTimezone: true }).notNull(),
+    endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("driver_break_blocks_driver_start_idx").on(t.driverId, t.startTime),
+    index("driver_break_blocks_shift_idx").on(t.shiftId),
+    check("driver_break_blocks_window", sql`${t.endTime} > ${t.startTime}`),
   ],
 );
 
@@ -591,6 +641,8 @@ export const corporateContacts = pgTable(
     marketingConsent: boolean("marketing_consent").notNull().default(false),
     preferredContact: text("preferred_contact"),
     paymentTermsDays: integer("payment_terms_days"),
+    /** Fleet vehicle key the partner prefers, or null when none is assigned. */
+    preferredVehicle: text("preferred_vehicle"),
     preferences: text("preferences"),
     accountManagerId: uuid("account_manager_id").references(() => adminUsers.id, { onDelete: "set null" }),
     introducerId: uuid("introducer_id").references((): AnyPgColumn => introducers.id, { onDelete: "set null" }),
@@ -624,6 +676,8 @@ export const introducers = pgTable("introducers", {
   /** Percent of the net (ex-VAT) payments received from introduced partners. */
   commissionPercent: integer("commission_percent").notNull().default(10),
   active: boolean("active").notNull().default(true),
+  /** When the monthly invoice request was last emailed to this introducer. */
+  lastInvoiceRequestedAt: timestamp("last_invoice_requested_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -796,6 +850,9 @@ export type RequestEvent = typeof requestEvents.$inferSelect;
 export type Vehicle = typeof vehicles.$inferSelect;
 export type VehicleFinancial = typeof vehicleFinancials.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
+export type DriverShift = typeof driverShifts.$inferSelect;
+export type DriverAssignment = typeof driverAssignments.$inferSelect;
+export type DriverBreakBlock = typeof driverBreakBlocks.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;
 export type CorporateContact = typeof corporateContacts.$inferSelect;
 export type BookingMessage = typeof bookingMessages.$inferSelect;

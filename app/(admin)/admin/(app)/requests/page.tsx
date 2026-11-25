@@ -11,6 +11,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import type { QuoteRequest } from "@/lib/db/schema";
 import { bookingTotalEuros } from "@/lib/pricing/rates";
 import {
+  BellIcon,
   CalendarIcon,
   CheckCircleIcon,
   ChevronLeftIcon,
@@ -25,7 +26,9 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mollieConfig } from "@/lib/mollie/config";
 import { moneybirdInvoiceLink } from "@/lib/moneybird/config";
-import { PaymentStatusBadge, paymentStanding } from "../../_components/payment-status";
+import { invoiceCents } from "@/lib/moneybird/invoice";
+import { serviceFeeCents } from "@/lib/payments/schedule";
+import { PaymentStatusBadge, paymentStanding, type PaymentStanding } from "../../_components/payment-status";
 import { ClickableRow } from "./clickable-row";
 import { LiveSearchInput } from "./live-search-input";
 import { Avatar, btn, Card, EmptyState, field, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../../_components/ui";
@@ -180,18 +183,23 @@ async function moneybirdLinks(ids: string[]): Promise<Map<string, string>> {
 async function paymentSets(rows: QuoteRequest[]) {
   const mode = mollieConfig()?.mode;
   const ids = rows.map((r) => r.id);
-  const paid = new Set<string>();
+  const paidCents = new Map<string, number>();
   if (mode && ids.length > 0) {
     const found = await db
-      .selectDistinct({ id: schema.payments.requestId })
+      .select({
+        id: schema.payments.requestId,
+        cents: sql<number>`coalesce(sum(${schema.payments.amountCents} - ${schema.payments.refundedCents} - ${schema.payments.chargedBackCents}), 0)::int`,
+      })
       .from(schema.payments)
-      .where(and(inArray(schema.payments.requestId, ids), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")));
-    for (const row of found) if (row.id) paid.add(row.id);
+      .where(and(inArray(schema.payments.requestId, ids), eq(schema.payments.mode, mode), eq(schema.payments.status, "paid")))
+      .groupBy(schema.payments.requestId);
+    for (const row of found) if (row.id) paidCents.set(row.id, Number(row.cents));
   }
+  const paid = new Set([...paidCents.entries()].filter(([, cents]) => cents > 0).map(([id]) => id));
   const waiting = new Set(
     rows.filter((r) => r.paymentPlan && (r.status === "new" || r.status === "contacted" || r.status === "confirmed") && !paid.has(r.id)).map((r) => r.id),
   );
-  return { paid, waiting };
+  return { paidCents, waiting };
 }
 
 async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
@@ -208,25 +216,41 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
   // Paid at booking, but the payment never came in (the checkout was left, or the booking came by chat or phone)
-  const [{ paid, waiting }, invoices] = await Promise.all([
+  const [{ paidCents, waiting }, invoices] = await Promise.all([
     paymentSets(rows as QuoteRequest[]),
     moneybirdLinks(rows.map((r: QuoteRequest) => r.id)),
   ]);
-  const paymentStatusBadge = (r: QuoteRequest) => (
-    <PaymentStatusBadge status={paymentStanding(r.paymentStatus, paid.has(r.id), waiting.has(r.id))} title={waiting.has(r.id) ? t.requests.notPaidNote : undefined} />
-  );
-  const partnerBadge = (id: string) => {
+  const paymentStandingFor = (r: QuoteRequest): { status: PaymentStanding; title?: string } => {
+    const received = paidCents.get(r.id) ?? 0;
+    const total = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate }) ?? 0;
+    if (received > 0 && total > received) {
+      const rest = formatEuro(((total - received) / 100).toFixed(2));
+      const paidLabel = formatEuro((received / 100).toFixed(2));
+      const feeOnly = received === serviceFeeCents(r.priceEstimate);
+      const title = interpolate(feeOnly ? t.requests.feePaidNote : t.requests.partPaidNote, { paid: paidLabel, rest });
+      return { status: "PARTIAL", title };
+    }
+    if (received > 0 && total > 0 && received >= total) return { status: "PAID" };
+    return { status: paymentStanding(r.paymentStatus, false, waiting.has(r.id)), title: waiting.has(r.id) ? t.requests.notPaidNote : undefined };
+  };
+  const paymentStatusBadge = (r: QuoteRequest) => {
+    const standing = paymentStandingFor(r);
+    return <PaymentStatusBadge status={standing.status} title={standing.title} />;
+  };
+  const messageBell = (id: string) => {
     const n = unseen.get(id) ?? 0;
     if (!n) return null;
     const label = n === 1 ? t.requests.partnerMessage : interpolate(t.requests.partnerMessages, { count: n });
     return (
-      <span
-        className="mt-1 inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-950 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white"
+      <Link
+        href={`/admin/requests/${id}#messages`}
+        className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-950 ring-1 ring-inset ring-amber-300"
         title={label}
         aria-label={label}
       >
-        {n}
-      </span>
+        <BellIcon size={14} />
+        <span className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-zinc-950 px-1 text-[10px] font-semibold tabular-nums text-white">{n}</span>
+      </Link>
     );
   };
   // Where a journey ends: its destination, or for an hourly booking without one, how long the chauffeur is booked
@@ -354,7 +378,8 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
               const pickup = r.pickupAt ? pickupParts(r.pickupAt) : null;
               const destinationsArray = [...(r.destinations ?? []), journeyEnd(r)].filter(Boolean);
               return (
-                <li key={r.id}>
+                <li key={r.id} className="relative">
+                  {messageBell(r.id) ? <div className="absolute top-4 right-4 z-10">{messageBell(r.id)}</div> : null}
                   {invoices.get(r.id) && (
                     <div className="flex justify-end px-4 pt-3">
                       <a href={invoices.get(r.id)} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.sm}`}>
@@ -369,7 +394,6 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                         <div className="min-w-0">
                           <p className={`truncate text-sm ${r.status === "new" ? "font-semibold" : "font-medium"} text-zinc-950`}>{r.name}</p>
                           <p className="truncate text-xs text-zinc-500">{r.email}</p>
-                          {partnerBadge(r.id)}
                         </div>
                         <span className="flex flex-col items-end gap-1">
                           <StatusBadge status={r.status} />
@@ -448,7 +472,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
                               {r.name}
                             </Link>
                             <span className="block max-w-44 truncate text-xs text-zinc-500" title={r.email}>{r.email}</span>
-                            {partnerBadge(r.id)}
+                            {messageBell(r.id)}
                           </div>
                         </div>
                       </td>

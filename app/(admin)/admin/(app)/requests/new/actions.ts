@@ -1,6 +1,7 @@
 "use server";
 
 import { confirmIfAutomatic, markAnnounced, planForNewBooking } from "@/lib/mollie/booking";
+import { invoiceTerms } from "@/lib/payments/schedule";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -98,7 +99,7 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
 
   const [partner] = input.contactId
     ? await db
-        .select({ id: schema.corporateContacts.id, name: schema.corporateContacts.name, email: schema.corporateContacts.email, locale: schema.corporateContacts.locale, companyName: schema.corporateContacts.companyName, kvkNumber: schema.corporateContacts.kvkNumber })
+        .select({ id: schema.corporateContacts.id, name: schema.corporateContacts.name, email: schema.corporateContacts.email, locale: schema.corporateContacts.locale, companyName: schema.corporateContacts.companyName, kvkNumber: schema.corporateContacts.kvkNumber, paymentTermsDays: schema.corporateContacts.paymentTermsDays })
         .from(schema.corporateContacts)
         .where(and(eq(schema.corporateContacts.id, input.contactId), isNotNull(schema.corporateContacts.passwordSetAt)))
         .limit(1)
@@ -154,6 +155,7 @@ export async function createBookingForPartner(_prev: NewBookingState, formData: 
         entity: input.entity ?? partner?.companyName ?? null,
         entityKvk: input.entityKvk ?? partner?.kvkNumber ?? null,
         corporateContactId: partner?.id ?? null,
+        invoiceTermsDays: invoiceTerms(partner?.paymentTermsDays),
         locale: partner?.locale ?? input.locale,
         source: "admin",
         // Paid at booking too (the client, 15 Nov 2026): the customer consents and pays on the booking's page, which the

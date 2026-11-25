@@ -57,6 +57,8 @@ export default async function CorporatePartnerProfilePage({
     totalSpend,
     topVehicle: p.preferredVehicle,
     billing: p.billing,
+    preferredContact: contact.preferredContact ?? "",
+    paymentTermsDays: contact.paymentTermsDays ?? "",
     recentBookings: bookings.slice(0, 10).map((b) => ({
       id: b.id,
       reference: b.reference,

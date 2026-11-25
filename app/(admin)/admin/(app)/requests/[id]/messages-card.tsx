@@ -49,6 +49,7 @@ export async function MessagesCard({ requestId, guest }: { requestId: string; gu
   }));
 
   return (
+    <div id="messages">
     <Card className="flex h-[378px] max-h-[378px] min-h-0 flex-col overflow-hidden">
       <CardHeader
         title={t.title}
@@ -88,5 +89,6 @@ export async function MessagesCard({ requestId, guest }: { requestId: string; gu
         }}
       />
     </Card>
+    </div>
   );
 }

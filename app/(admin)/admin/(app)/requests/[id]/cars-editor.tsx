@@ -20,7 +20,7 @@ export function CarsEditor({
 }: {
   requestId: string;
   status: string;
-  cars: { key: string; name: string; seats: number | null }[];
+  cars: { key: string; name: string; seats: number | null; driver?: string | null }[];
   initial: Record<string, number>;
   max: number;
   copy: Copy;
@@ -46,9 +46,10 @@ export function CarsEditor({
             const n = counts[c.key] ?? 0;
             return (
               <li key={c.key} className="flex items-center justify-between gap-3">
-                <span className="min-w-0 text-sm text-zinc-900">
+                <span className={`min-w-0 text-sm ${c.driver ? "text-emerald-900" : "text-zinc-900"}`}>
                   {c.name}
                   {c.seats !== null && <span className="text-zinc-500"> · {c.seats}</span>}
+                  {c.driver && <span className="mt-0.5 block text-xs font-medium text-emerald-700">{c.driver}</span>}
                 </span>
                 <span className="flex items-center gap-2">
                   <button type="button" aria-label={interpolate(t.carsFewer, { car: c.name })} disabled={n === 0} onClick={() => set(c.key, n - 1)} className={qty}>

@@ -7,6 +7,7 @@ import { createStaff } from "@/lib/admin/staff";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { newTotpSecret, verifyTotp } from "@/lib/auth/totp";
 import { destroySession, requireAdmin } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
 
 export type AccountState = { ok?: boolean; error?: "wrong" | "taken" | "short" | "failed" };
@@ -127,7 +128,39 @@ export async function beginTotp() {
 export async function confirmTotp(formData: FormData) {
   const admin = await requireAdmin();
   const [user] = await db.select({ secret: schema.adminUsers.totpSecret }).from(schema.adminUsers).where(eq(schema.adminUsers.id, admin.id)).limit(1);
-  if (!user?.secret || !verifyTotp(user.secret, String(formData.get("code") ?? ""))) return;
+  if (!user?.secret || !verifyTotp(user.secret, String(formData.get("code") ?? ""))) {
+    redirect("/admin/account?totp=rejected");
+  }
   await db.update(schema.adminUsers).set({ totpEnabled: true }).where(eq(schema.adminUsers.id, admin.id));
   refresh();
+}
+
+/** Turns the authenticator off and ends every session for this account, so a locked-out owner can sign in with the password. */
+export async function disableTotp() {
+  const admin = await requireAdmin();
+  if (admin.role !== "owner") return;
+  await clearTotp(admin.id);
+  await destroySession();
+  redirect("/admin/login");
+}
+
+/** An owner clears another account's authenticator and its sessions. The password is unchanged. */
+export async function resetTotpFor(formData: FormData) {
+  const admin = await requireAdmin();
+  if (admin.role !== "owner") return;
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const [user] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.email, email)).limit(1);
+  if (!user) redirect("/admin/account?totp=missing");
+  await clearTotp(user.id);
+  if (user.id === admin.id) {
+    await destroySession();
+    redirect("/admin/login");
+  }
+  refresh();
+  redirect("/admin/account?totp=cleared");
+}
+
+async function clearTotp(adminId: string) {
+  await db.update(schema.adminUsers).set({ totpSecret: null, totpEnabled: false }).where(eq(schema.adminUsers.id, adminId));
+  await db.delete(schema.adminSessions).where(eq(schema.adminSessions.adminId, adminId));
 }

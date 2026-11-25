@@ -136,6 +136,7 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
             {schedule.columns.map((c) => (
               <div key={c.key} className="sticky top-0 z-20 border-b border-r border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center last:border-r-0">
                 <p className="text-sm font-semibold text-zinc-950">{c.key === UNASSIGNED ? t.unassigned : c.name}</p>
+                {c.driverLabel && <p className="text-[11px] font-medium text-zinc-800">{c.driverLabel}</p>}
                 <p className={`text-xs ${c.state === "available" ? "text-emerald-700" : c.state === null ? "text-zinc-500" : "text-amber-700"}`}>
                   {c.key === UNASSIGNED ? t.unassignedNote : c.state === "available" ? t.available : c.state === "maintenance" ? t.maintenance : c.state === null ? "" : t.switchedOff}
                 </p>

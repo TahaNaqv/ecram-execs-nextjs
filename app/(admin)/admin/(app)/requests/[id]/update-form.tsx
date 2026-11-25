@@ -39,7 +39,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
         </label>
         <div className="relative">
           <select id="req-status" name="status" defaultValue={(ACTIVE_STATUSES as readonly string[]).includes(status) ? status : "new"} onChange={(event) => setWarn(event.target.value === "cancelled" && status !== "cancelled" ? warn : false)} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
-            {ACTIVE_STATUSES.map((s) => (
+            {ACTIVE_STATUSES.filter((s) => s !== "cancelled" || s === status).map((s) => (
               <option key={s} value={s}>
                 {statusLabels[s]}
               </option>

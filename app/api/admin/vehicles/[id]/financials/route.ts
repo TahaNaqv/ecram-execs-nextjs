@@ -1,5 +1,6 @@
 import { unstable_rethrow } from "next/navigation";
 import { NextResponse } from "next/server";
+import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { evFinancialInputSchema } from "@/lib/financials/ev-input";
 import {
@@ -33,7 +34,8 @@ async function readBody(request: Request) {
 
 export async function GET(_request: Request, { params }: Params) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+    if (!can(admin.role, admin.permissions, "fleet")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const { id } = await params;
     if (!(await vehicleExists(id))) return NextResponse.json({ error: "Vehicle not found." }, { status: 404 });
     const row = await getVehicleFinancial(id);
@@ -47,7 +49,8 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function POST(request: Request, { params }: Params) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+    if (!can(admin.role, admin.permissions, "fleet")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const { id } = await params;
     if (!(await vehicleExists(id))) return NextResponse.json({ error: "Vehicle not found." }, { status: 404 });
     if (await getVehicleFinancial(id)) return NextResponse.json({ error: "This vehicle already has financial details. Update them instead." }, { status: 409 });
@@ -65,7 +68,8 @@ export async function POST(request: Request, { params }: Params) {
 
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+    if (!can(admin.role, admin.permissions, "fleet")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const { id } = await params;
     if (!(await vehicleExists(id))) return NextResponse.json({ error: "Vehicle not found." }, { status: 404 });
     const parsed = evFinancialInputSchema.safeParse(await readBody(request));

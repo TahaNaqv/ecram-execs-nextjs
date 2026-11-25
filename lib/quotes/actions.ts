@@ -65,6 +65,12 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
   // The visitor's language came in with the form; every message below is theirs to read.
   const { forms: t } = await dictionaryFromForm(formData);
   const values = Object.fromEntries(FIELDS.map((f) => [f, String(formData.get(f) ?? "")]));
+  if (values.hearAbout === "other") {
+    const detail = String(formData.get("hearAboutOther") ?? "").trim();
+    values.hearAbout = detail ? `other: ${detail.slice(0, 100)}` : "other";
+  } else if (values.hearAbout && !["google", "recommendation", "social", "corporate"].includes(values.hearAbout)) {
+    values.hearAbout = "";
+  }
   
   // The stops on the way, each with the minutes to wait there (at most five; see lib/quotes/stops.ts)
   const { destinations, destinationWaits } = readStops(formData);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { login, type LoginState } from "../actions";
 import { AlertIcon, EyeIcon, EyeOffIcon } from "../_components/icons";
 import { btn, field, fieldLabel } from "../_components/ui";
@@ -8,11 +8,21 @@ import { btn, field, fieldLabel } from "../_components/ui";
 export type LoginFormCopy = { email: string; password: string; signIn: string; signingIn: string; emailPlaceholder: string; showPassword: string; hidePassword: string };
 
 export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }) {
-  const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
+  const kept = useRef({ email: "", password: "" });
+  const [state, action, pending] = useActionState<LoginState, FormData>(async (prev, formData) => {
+    kept.current = {
+      email: String(formData.get("email") ?? kept.current.email),
+      password: String(formData.get("password") ?? kept.current.password),
+    };
+    return login(prev, formData);
+  }, {});
   const [reveal, setReveal] = useState(false);
   return (
     <form action={action} className="flex flex-col gap-5">
       <input type="hidden" name="next" value={next ?? ""} />
+      {state.needsCode ? (
+        <p className="m-0 text-sm text-zinc-600">{kept.current.email}</p>
+      ) : (
       <div className="flex flex-col gap-1.5">
         <label htmlFor="login-email" className={fieldLabel}>
           {copy.email}
@@ -32,6 +42,8 @@ export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }
           className={`${field} h-11`}
         />
       </div>
+      )}
+      {!state.needsCode ? (
       <div className="flex flex-col gap-1.5">
         <label htmlFor="login-password" className={fieldLabel}>
           {copy.password}
@@ -60,10 +72,15 @@ export function LoginForm({ next, copy }: { next?: string; copy: LoginFormCopy }
           </button>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="login-code" className={fieldLabel}>Authenticator code</label>
-        <input id="login-code" name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="Only if this account uses one" className={`${field} h-11`} />
-      </div>
+      ) : null}
+      {state.needsCode ? (
+        <div className="flex flex-col gap-1.5">
+          <input type="hidden" name="email" value={kept.current.email} />
+          <input type="hidden" name="password" value={kept.current.password} />
+          <label htmlFor="login-code" className={fieldLabel}>Authenticator code</label>
+          <input id="login-code" name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required pattern="\d{6}" maxLength={6} placeholder="6-digit code" className={`${field} h-11`} />
+        </div>
+      ) : null}
       {state.error && (
         <p role="alert" className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-800 ring-1 ring-inset ring-red-200">
           <AlertIcon className="mt-0.5 shrink-0" />

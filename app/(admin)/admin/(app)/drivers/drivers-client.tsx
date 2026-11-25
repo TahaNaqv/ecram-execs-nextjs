@@ -60,7 +60,7 @@ function DriverName({ name, phone, partner, vehicle, partnerBadge }: { name: str
   );
 }
 
-export function DriversClient({ onShift, offShift, archived, apps, partners, pending, dict, t }: any) {
+export function DriversClient({ onShift, offShift, archived, apps, partners, pending, dict, t, board }: any) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   return (
@@ -94,6 +94,8 @@ export function DriversClient({ onShift, offShift, archived, apps, partners, pen
         />
         <StatCard label={t.statApplications} value={pending} hint={`${apps.new} ${t.newCount} · ${apps.reviewing} ${t.inReview}`} icon={<NoteIcon />} />
       </div>
+
+      {board}
 
       <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
         {/* Left Column: On Shift Drivers */}

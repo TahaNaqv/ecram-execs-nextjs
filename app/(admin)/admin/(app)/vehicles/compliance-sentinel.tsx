@@ -12,7 +12,7 @@ import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { amsterdamToday } from "@/lib/admin/financials-shared";
-import { formatCents, formatCurrency } from "@/lib/pricing/rates";
+import { customerHourly, formatCents, formatCurrency, type DayKind } from "@/lib/pricing/rates";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
 
@@ -129,6 +129,16 @@ function rateFigure(cents: number | null, weekday: number | null, weekend: boole
   return `${formatCents(cents, "nl")}${copy.ratePerHour}`;
 }
 
+function shownRate(id: string, day: DayKind, stored: number | null): number | null {
+  return customerHourly(id, "public", day) ?? stored;
+}
+
+function corporateRate(id: string, day: DayKind, copy: VehicleCopy) {
+  const cents = customerHourly(id, "corporate", day);
+  if (cents == null) return null;
+  return interpolate(copy.rateCorporate, { price: formatCents(cents, "nl") });
+}
+
 function AvailabilitySwitch({ on, onClick, onLabel, offLabel }: { on: boolean; onClick: () => void; onLabel: string; offLabel: string }) {
   return (
     <button
@@ -176,7 +186,7 @@ function ShowcaseStage({
       <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-100 px-4 py-3">
         <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{copy.labelSeats} {vehicle.seats ?? "—"}</span>
         <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{copy.labelLuggage} {vehicle.luggage ?? "—"}</span>
-        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{rateFigure(vehicle.rateWeekday, vehicle.rateWeekday, false, copy)}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{rateFigure(shownRate(vehicle.id, "weekday", vehicle.rateWeekday), shownRate(vehicle.id, "weekday", vehicle.rateWeekday), false, copy)}</span>
         <Link href="/admin/requests/schedule" className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white">{copy.calendarLink}</Link>
         <span className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-2 py-1">
           <AvailabilitySwitch on={vehicle.status === "available"} onClick={onToggle} onLabel={copy.setUnavailable} offLabel={copy.setAvailable} />
@@ -440,9 +450,18 @@ export function FleetComplianceSentinel({
                           <span className={veh.batterySoC < 25 ? "font-bold text-rose-600" : "text-zinc-900"}>{veh.batterySoC}%</span>
                         </td>
                         <td className="px-3 py-3.5 font-mono text-zinc-700">{`${veh.evRangeKm} km`}</td>
-                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-900">{rateFigure(veh.rateWeekday, veh.rateWeekday, false, copy)}</td>
-                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">{rateFigure(veh.rateSaturday, veh.rateWeekday, true, copy)}</td>
-                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">{rateFigure(veh.rateSunday, veh.rateWeekday, true, copy)}</td>
+                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-900">
+                          <span className="block">{rateFigure(shownRate(veh.id, "weekday", veh.rateWeekday), shownRate(veh.id, "weekday", veh.rateWeekday), false, copy)}</span>
+                          {corporateRate(veh.id, "weekday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(veh.id, "weekday", copy)}</span> : null}
+                        </td>
+                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">
+                          <span className="block">{rateFigure(shownRate(veh.id, "saturday", veh.rateSaturday), shownRate(veh.id, "weekday", veh.rateWeekday), true, copy)}</span>
+                          {corporateRate(veh.id, "saturday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(veh.id, "saturday", copy)}</span> : null}
+                        </td>
+                        <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">
+                          <span className="block">{rateFigure(shownRate(veh.id, "sunday", veh.rateSunday), shownRate(veh.id, "weekday", veh.rateWeekday), true, copy)}</span>
+                          {corporateRate(veh.id, "sunday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(veh.id, "sunday", copy)}</span> : null}
+                        </td>
                         <td className="px-4 py-3.5 text-center">
                           <AvailabilitySwitch on={isAvailable} onClick={() => handleToggle(veh.id, veh.status)} onLabel={copy.setUnavailable} offLabel={copy.setAvailable} />
                         </td>
@@ -611,7 +630,7 @@ export function FleetComplianceSentinel({
               <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-2">
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-seats">{copy.labelSeats}</label>
-                  <input id="vehicle-seats" name="seats" type="number" min={1} max={14} defaultValue={editor?.seats ?? ""} className={fieldClass} />
+                  <input id="vehicle-seats" name="seats" type="number" min={1} max={16} defaultValue={editor?.seats ?? ""} className={fieldClass} />
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-luggage">{copy.labelLuggage}</label>
@@ -621,16 +640,19 @@ export function FleetComplianceSentinel({
               <div className="grid min-w-0 grid-cols-1 items-start gap-4 sm:grid-cols-3">
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-weekday">{copy.labelRateWeekday}</label>
-                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" placeholder="85.00" defaultValue={editor?.rateWeekday == null ? "" : editor.rateWeekday / 100} className={fieldClass} />
+                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" placeholder="165.00" defaultValue={editor && shownRate(editor.id, "weekday", editor.rateWeekday) != null ? shownRate(editor.id, "weekday", editor.rateWeekday)! / 100 : ""} className={fieldClass} />
+                  {editor && corporateRate(editor.id, "weekday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(editor.id, "weekday", copy)}</p> : null}
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-saturday">{copy.labelRateSaturday}</label>
-                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" placeholder="95.00" defaultValue={editor?.rateSaturday == null ? "" : editor.rateSaturday / 100} className={fieldClass} />
+                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" placeholder="185.00" defaultValue={editor ? (shownRate(editor.id, "saturday", editor.rateSaturday) == null ? "" : shownRate(editor.id, "saturday", editor.rateSaturday)! / 100) : ""} className={fieldClass} />
+                  {editor && corporateRate(editor.id, "saturday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(editor.id, "saturday", copy)}</p> : null}
                   <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{copy.rateHint}</p>
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-sunday">{copy.labelRateSunday}</label>
-                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" placeholder="95.00" defaultValue={editor?.rateSunday == null ? "" : editor.rateSunday / 100} className={fieldClass} />
+                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" placeholder="195.00" defaultValue={editor ? (shownRate(editor.id, "sunday", editor.rateSunday) == null ? "" : shownRate(editor.id, "sunday", editor.rateSunday)! / 100) : ""} className={fieldClass} />
+                  {editor && corporateRate(editor.id, "sunday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(editor.id, "sunday", copy)}</p> : null}
                   <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{copy.rateHint}</p>
                 </div>
               </div>

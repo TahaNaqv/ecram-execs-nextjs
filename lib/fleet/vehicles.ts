@@ -8,7 +8,7 @@
  * renders without the specification Q&A rather than with a guess.
  */
 
-export const VEHICLE_KEYS = ["mercedes_vle_300", "audi", "cadillac_escalade", "range_rover", "hongqi_e_hs9"] as const;
+export const VEHICLE_KEYS = ["mercedes_vle_300", "audi", "cadillac_escalade", "range_rover", "hongqi_e_hs9", "mercedes_esprinter"] as const;
 export type VehicleKey = (typeof VEHICLE_KEYS)[number];
 
 export type Amenity = "executive_seating" | "in_car_screens" | "entertainment" | "climate_control" | "refreshments";
@@ -260,6 +260,37 @@ export const FLEET: FleetVehicle[] = [
       },
     },
   },
+  {
+    key: "mercedes_esprinter",
+    name: "Mercedes-Benz eSprinter 420 RWD PRO",
+    images: [
+      "/assets/Black_van_studio_render_1f48a4a8.jpg",
+      "/assets/Black_high-roof_Sprinter_van_022d1a11.jpg",
+      "/assets/Black_Sprinter_van_studio_render_00dc9925.jpg",
+      "/assets/Sprinter_van_studio_render_5ce5b996.jpg",
+      "/assets/Sprinter_van_studio_render_715456cc.jpg",
+      "/assets/Luxury_Sprinter_van_interior_render_aeb794b0.jpg",
+    ],
+    drivetrain: "bev",
+    specs: {
+      passengers: 16,
+      rangeKm: 440,
+      rangeStandard: "WLTP",
+      luggage: {
+        en: "Passenger windows, passenger air conditioning, and an electric passenger sliding door.",
+        nl: "Ramen voor de passagiers, airconditioning voor de passagiers en een elektrische schuifdeur voor de passagiers.",
+      },
+      amenities: COMMON_AMENITIES,
+      verified: {
+        status: "draft",
+        source: "Mercedes-Benz eSprinter, 113 kWh battery, published WLTP range",
+        url: "https://www.mercedes-benz-vans.com/en/vans/models/esprinter.html",
+        checkedOn: "2026-11-25",
+        by: "Fleet register",
+        caveat: "420 RWD PRO, fully electric, optional 113 kWh battery. Range is the published figure for that battery, not a measured fleet car. Confirm the exact body and seat layout before marking verified.",
+      },
+    },
+  },
 ];
 
 /**
@@ -297,6 +328,9 @@ const ID_ALIASES: Record<string, VehicleKey> = {
   range_rover_ev: "range_rover",
   hongqi_ehs9: "hongqi_e_hs9",
   hongqi_e_hs9: "hongqi_e_hs9",
+  mercedes_benz_esprinter_420_rwd_pro: "mercedes_esprinter",
+  mercedes_esprinter_420: "mercedes_esprinter",
+  esprinter: "mercedes_esprinter",
 };
 
 export function normalizeVehicleKey(key: string | null | undefined): VehicleKey | undefined {

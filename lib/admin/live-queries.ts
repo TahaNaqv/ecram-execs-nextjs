@@ -334,6 +334,11 @@ export type CorporatePartnerRow = {
   email: string;
   phone: string;
   preferredVehicle: string;
+  preferredVehicleKey: string | null;
+  preferredContact: "email" | "phone" | "whatsapp" | null;
+  paymentTermsDays: 7 | 14 | 30 | null;
+  introducerId: string | null;
+  introducerName: string | null;
   status: "Active" | "Pending 2FA" | "Suspended";
   totalSpend: number;
   activeBookings: number;
@@ -392,7 +397,11 @@ function asBookingSummary(row: {
 
 export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[]> => {
   await requireAdmin();
-  const contacts = await db.select().from(c).orderBy(asc(c.companyName));
+  const [contacts, introducerRows] = await Promise.all([
+    db.select().from(c).orderBy(asc(c.companyName)),
+    db.select({ id: schema.introducers.id, name: schema.introducers.name }).from(schema.introducers),
+  ]);
+  const introducerNames = new Map(introducerRows.map((person) => [person.id, person.name]));
 
   if (contacts.length === 0) {
     return [];
@@ -426,8 +435,8 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
     );
     const activeBookings = contactQuotes.filter((item) => OPEN_BOOKING.includes(item.status)).length;
     const latestPhone = contact.phone?.trim() || contactQuotes.find((item) => item.phone?.trim())?.phone || "—";
-    const preferredKey = contactQuotes.find((item) => Boolean(item.vehicle))?.vehicle;
-    const preferredVehicle = preferredKey ? (vehicleByKey(preferredKey)?.name ?? preferredKey) : "—";
+    const preferredVehicleKey = contact.preferredVehicle && vehicleByKey(contact.preferredVehicle) ? contact.preferredVehicle : null;
+    const preferredVehicle = preferredVehicleKey ? (vehicleByKey(preferredVehicleKey)?.name ?? preferredVehicleKey) : "—";
     const bookings = contactQuotes
       .slice()
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -455,6 +464,11 @@ export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[
       email: contact.email,
       phone: latestPhone,
       preferredVehicle,
+      preferredVehicleKey,
+      preferredContact: contact.preferredContact === "email" || contact.preferredContact === "phone" || contact.preferredContact === "whatsapp" ? contact.preferredContact : null,
+      paymentTermsDays: contact.paymentTermsDays === 7 || contact.paymentTermsDays === 14 || contact.paymentTermsDays === 30 ? contact.paymentTermsDays : null,
+      introducerId: contact.introducerId,
+      introducerName: contact.introducerId ? (introducerNames.get(contact.introducerId) ?? null) : null,
       status: (contact.lockedUntil && contact.lockedUntil > new Date()
         ? "Suspended"
         : contact.verifiedAt
@@ -496,10 +510,14 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
     bookerRole: contact.position,
     email: contact.email,
     phone: bookings.find((b) => Boolean(b.phone))?.phone ?? "—",
-    preferredVehicle: (() => {
-      const key = bookings.find((b) => Boolean(b.vehicle))?.vehicle;
-      return key ? (vehicleByKey(key)?.name ?? key) : "—";
-    })(),
+    preferredVehicle: contact.preferredVehicle && vehicleByKey(contact.preferredVehicle) ? (vehicleByKey(contact.preferredVehicle)?.name ?? contact.preferredVehicle) : "—",
+    preferredVehicleKey: contact.preferredVehicle && vehicleByKey(contact.preferredVehicle) ? contact.preferredVehicle : null,
+    preferredContact: contact.preferredContact === "email" || contact.preferredContact === "phone" || contact.preferredContact === "whatsapp" ? contact.preferredContact : null,
+    paymentTermsDays: contact.paymentTermsDays === 7 || contact.paymentTermsDays === 14 || contact.paymentTermsDays === 30 ? contact.paymentTermsDays : null,
+    introducerId: contact.introducerId,
+    introducerName: contact.introducerId
+      ? ((await db.select({ name: schema.introducers.name }).from(schema.introducers).where(eq(schema.introducers.id, contact.introducerId)).limit(1))[0]?.name ?? null)
+      : null,
     status: (contact.lockedUntil && contact.lockedUntil > new Date()
       ? "Suspended"
       : contact.verifiedAt
@@ -513,4 +531,12 @@ export const getCorporatePartnerDetail = cache(async (id: string): Promise<Corpo
   };
 
   return { partner, contact, bookings, totalSpend, activeCount, completedCount };
+});
+
+export const listIntroducers = cache(async () => {
+  await requireAdmin();
+  return db
+    .select({ id: schema.introducers.id, name: schema.introducers.name, active: schema.introducers.active })
+    .from(schema.introducers)
+    .orderBy(asc(schema.introducers.name));
 });

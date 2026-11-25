@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { PageBody, PageHeader } from "../../_components/ui";
 import { CorporateDirectoryHub } from "./corporate-directory";
-import { getCorporatePartners } from "@/lib/admin/live-queries";
+import { getCorporatePartners, listIntroducers } from "@/lib/admin/live-queries";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
@@ -17,8 +17,8 @@ async function Heading() {
 }
 
 async function CorporateContent() {
-  const [{ admin }, partners] = await Promise.all([adminDictionary(), getCorporatePartners()]);
-  return <CorporateDirectoryHub initialPartners={partners} copy={admin.corporate.hub} statuses={admin.statuses} />;
+  const [{ admin }, partners, introducers] = await Promise.all([adminDictionary(), getCorporatePartners(), listIntroducers()]);
+  return <CorporateDirectoryHub initialPartners={partners} copy={admin.corporate.hub} statuses={admin.statuses} introducers={introducers} />;
 }
 
 export default function CorporatePage() {

@@ -10,6 +10,7 @@ import { dictionaryFromForm } from "@/lib/i18n/get-dictionary";
 import { withinLimit } from "@/lib/rate-limit";
 import { isUniqueViolation, makeReference, visitor } from "@/lib/request-meta";
 import { priceForRequest } from "@/lib/pricing/quote";
+import { invoiceTerms } from "@/lib/payments/schedule";
 import { readStops } from "@/lib/quotes/stops";
 import { getCorporateContact } from "./access";
 import { contactColumns } from "./columns";
@@ -297,6 +298,7 @@ export async function submitOnboarding(_prev: CorporateState, formData: FormData
             service: "bespoke",
             source: "website-corporate",
             corporateContactId: contact.id,
+            invoiceTermsDays: invoiceTerms(contact.paymentTermsDays),
             entity: input.company,
             entityKvk: input.companyNumber,
             collection: input.collection,

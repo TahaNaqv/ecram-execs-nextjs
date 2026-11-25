@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { carsToPrice } from "../../lib/pricing/booking";
-import { billedHours, dayKind, hourlyRate, hoursByDay, kmPerHour, priceBooking, priceNet, vatByRate } from "../../lib/pricing/rates";
+import { billedHours, customerHourly, dayKind, extraKmRate, hourlyRate, hoursByDay, kmPerHour, priceBooking, priceNet, vatByRate } from "../../lib/pricing/rates";
 import { carsCapacityProblem, cleanCars, MAX_GROUP, MAX_PER_CAR } from "../../app/[locale]/_components/booking/trip";
-import { FLEET, fitConvoy, LARGEST_CAR_SEATS, vehicleByKey } from "../../lib/fleet/vehicles";
+import { FLEET, fitConvoy, LARGEST_CAR_SEATS, suggestVehicle, vehicleByKey } from "../../lib/fleet/vehicles";
 import { cleanExtras, priceExtras } from "../../lib/pricing/extras";
 import { heldKeys } from "../../lib/fleet/held";
 
@@ -24,6 +24,7 @@ test("every car has the rate and the kilometres the 2027 card gives it", () => {
     mercedes_vle_300: [[8500, 9500, 10000], [10000, 11000, 11500], 40],
     range_rover: [[10000, 12500, 15625], [12000, 15000, 18750], 35],
     cadillac_escalade: [[10500, 13125, 16406], [12500, 15625, 19531], 35],
+    mercedes_esprinter: [[12385, 14220, 15138], [15138, 16972, 17890], 25],
   };
   for (const [key, [corporate, standard, km]] of Object.entries(card)) {
     expect([hourlyRate(key, "corporate", "weekday"), hourlyRate(key, "corporate", "saturday"), hourlyRate(key, "corporate", "sunday")]).toEqual(corporate);
@@ -56,6 +57,49 @@ test("the waits are in the price, and an untimed ride still counts them as a low
   const untimed = priceBooking({ segment: "public", pickupAt: "2026-11-12T20:09", driveSeconds: null, waitMinutes: 150, cars: [{ key: "cadillac_escalade", count: 1 }] })!;
   expect(untimed.legs[0].hours).toBe(3);
   expect(untimed.exact).toBe(false);
+});
+
+test("sixteen passengers are offered the eSprinter, at the public and corporate hourly prices including 9% VAT", () => {
+  expect(suggestVehicle(FLEET, { pax: 16, bags: 0 })?.key).toBe("mercedes_esprinter");
+  expect(suggestVehicle(FLEET, { pax: 2, bags: 0 })?.key).not.toBe("mercedes_esprinter");
+  expect(kmPerHour("mercedes_esprinter")).toBe(25);
+  expect(extraKmRate("corporate")).toBe(150);
+  expect(extraKmRate("public")).toBe(175);
+
+  const dates = { weekday: "2027-06-14T10:00", saturday: "2027-06-19T10:00", sunday: "2027-06-20T10:00" } as const;
+  const gross = {
+    corporate: { weekday: 13500, saturday: 15500, sunday: 16500 },
+    public: { weekday: 16500, saturday: 18500, sunday: 19500 },
+  } as const;
+  for (const segment of ["corporate", "public"] as const) {
+    for (const day of ["weekday", "saturday", "sunday"] as const) {
+      const net = hourlyRate("mercedes_esprinter", segment, day)!;
+      expect(customerHourly("mercedes_esprinter", segment, day)).toBe(gross[segment][day]);
+      const price = priceBooking({ segment, pickupAt: dates[day], hours: 2, cars: [{ key: "mercedes_esprinter", count: 1 }] })!;
+      expect(price.rides).toBe(net * 2);
+      expect(price.vat).toBe(gross[segment][day] * 2 - net * 2);
+      expect(price.fee).toBe(1250);
+      expect(price.feeVat).toBe(263);
+      expect(price.total).toBe(price.rides + price.vat + 1250 + 263);
+    }
+  }
+
+  const over = priceBooking({
+    segment: "public",
+    pickupAt: "2027-06-14T10:00",
+    driveSeconds: 45 * 60,
+    distanceMeters: 60_000,
+    cars: [{ key: "mercedes_esprinter", count: 1 }],
+  })!;
+  expect(over.legs[0].km).toEqual({ distance: 60, lines: [{ key: "mercedes_esprinter", count: 1, included: 50, extra: 10, rate: 175, amount: 1750 }] });
+  const overCorporate = priceBooking({
+    segment: "corporate",
+    pickupAt: "2027-06-19T10:00",
+    driveSeconds: 45 * 60,
+    distanceMeters: 60_000,
+    cars: [{ key: "mercedes_esprinter", count: 1 }],
+  })!;
+  expect(overCorporate.legs[0].km?.lines[0]).toMatchObject({ included: 50, extra: 10, rate: 150, amount: 1500 });
 });
 
 test("a standard weekday ride: hours × rate, 9% VAT, then the €12.50 service fee with its 21% VAT", () => {

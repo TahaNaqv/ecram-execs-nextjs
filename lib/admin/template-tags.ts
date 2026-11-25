@@ -5,6 +5,10 @@ const TAGS = [
   { token: "reference", labels: ["Booking Reference", "Boekingsnummer"] },
   { token: "name", labels: ["Customer Name", "Klantnaam"] },
   { token: "amount", labels: ["Total Amount", "Totaalbedrag"] },
+  { token: "introducerName", labels: ["Introducer Name", "Naam van de introducer"] },
+  { token: "monthYear", labels: ["Month Year", "Maand en jaar"] },
+  { token: "commission", labels: ["Calculated Commission", "Berekende commissie"] },
+  { token: "netTotal", labels: ["Net Booking Total", "Netto boekingstotaal"] },
 ] as const;
 
 export type TemplateToken = (typeof TAGS)[number]["token"];

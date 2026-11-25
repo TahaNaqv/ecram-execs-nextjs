@@ -400,12 +400,21 @@ export function BookingFlow({
           copy={t}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
-          onCars={(key, count) => setTrip((current) => withCarCount(current, key, count))}
+          onCars={(key, count) => setTrip((current) => {
+            const next = withCarCount(current, key, count);
+            if (current.pax <= 7) return next;
+            const solo = new Set(FLEET.filter((vehicle) => (vehicle.specs?.passengers ?? 0) >= current.pax).map((vehicle) => vehicle.key));
+            if (solo.size === 0) return next;
+            const cars = next.cars.filter((car) => solo.has(normalizeVehicleKey(car.key) ?? car.key));
+            return normalizeTrip({ ...next, cars, vehicle: cars[0]?.key ?? "" });
+          })}
           onAdvise={() => setTrip((current) => normalizeTrip({ ...current, cars: [], vehicle: current.vehicle === "advise" ? "" : "advise" }))}
           onBack={editJourney}
           onNext={() => {
             let next = trip;
-            if (trip.cars.length > 0) next = { ...trip, vehicle: trip.cars[0].key };
+            const solo = FLEET.filter((vehicle) => (vehicle.specs?.passengers ?? 0) >= trip.pax);
+            const kept = trip.pax > 7 && solo.length > 0 ? trip.cars.filter((car) => solo.some((vehicle) => vehicle.key === (normalizeVehicleKey(car.key) ?? car.key))) : trip.cars;
+            if (kept.length > 0) next = { ...trip, cars: kept, vehicle: kept[0].key };
             else if (trip.vehicle !== "advise") {
               if (trip.pax > LARGEST_CAR_SEATS) next = { ...trip, vehicle: "advise" };
               else {
@@ -583,7 +592,10 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   const party = guestsText(t, trip.pax);
   const totalCars = trip.cars.reduce((n, c) => n + c.count, 0);
   const advise = trip.vehicle === "advise" && trip.cars.length === 0;
-  const recommendation = suggestVehicle(cars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
+  // A party the smaller cars cannot seat in one vehicle is offered only the cars that can, so 16 guests land on the eSprinter.
+  const soloCars = cars.filter((car) => (car.seats ?? 0) >= trip.pax);
+  const offeredCars = trip.pax > 7 && soloCars.length > 0 ? soloCars : cars;
+  const recommendation = suggestVehicle(offeredCars.map((c) => c.vehicle), { pax: trip.pax, bags: trip.bags });
   // The days the booking is billed at: an hourly booking's own hours, a transfer's two-hour minimum (its drive is timed
   // on the review). Past midnight into the weekend the next day's rate applies, so both rates are shown.
   const days = trip.at ? hoursByDay(trip.at, trip.mode === "hourly" && trip.hours !== "" ? trip.hours : MIN_HOURS).map((part) => part.day) : [];
@@ -751,7 +763,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
       )}
       <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsSeveral}</p>
       <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
-        {[...cars].sort((a, b) => Number(b.vehicle.key === recommendation?.key) - Number(a.vehicle.key === recommendation?.key)).map(card)}
+        {[...offeredCars].sort((a, b) => Number(b.vehicle.key === recommendation?.key) - Number(a.vehicle.key === recommendation?.key)).map(card)}
         <li>
           {/* We choose the car. The car we would book is marked on its own card above */}
           <button
@@ -847,6 +859,8 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
   const [phoneCountry, setPhoneCountry] = useState(typed("phoneCountry", defaultPhone?.country) ?? "31");
   const [passengerCountry, setPassengerCountry] = useState(typed("passengerPhoneCountry", defaults?.passengerPhone?.country) ?? "31");
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+  const storedHear = typed("hearAbout") ?? "";
+  const [hear, setHear] = useState(storedHear === "other" || storedHear.startsWith("other:") ? "other" : storedHear);
   const errors: Record<string, string | undefined> = { ...result.fieldErrors, ...localErrors };
   const portal = variant === "portal";
   const formRef = useRef<HTMLFormElement>(null);
@@ -1048,7 +1062,19 @@ function DetailsStep({ headingRef, variant, trip, copy: t, locale, chosen, vehic
           )}
 
           {field("notes", t.notes, <textarea {...aria("notes")} name="notes" rows={3} maxLength={2000} defaultValue={typed("notes", defaults?.notes)} placeholder={t.notesPlaceholder} className={`${input} min-h-[64px] resize-y font-normal`} />)}
-          {field("hearAbout", t.hearAbout, <input {...aria("hearAbout")} name="hearAbout" maxLength={120} defaultValue={typed("hearAbout")} placeholder={t.hearAboutPlaceholder} className={input} />)}
+          {!portal && field("hearAbout", t.hearAbout, (
+            <div className="flex flex-col gap-2">
+              <select {...aria("hearAbout")} name="hearAbout" value={hear} onChange={(event) => setHear(event.target.value)} className={`${input} cursor-pointer`}>
+                <option value="">{t.hearAboutChoose}</option>
+                <option value="google">{t.hearGoogle}</option>
+                <option value="recommendation">{t.hearRecommendation}</option>
+                <option value="social">{t.hearSocial}</option>
+                <option value="corporate">{t.hearCorporate}</option>
+                <option value="other">{t.hearOther}</option>
+              </select>
+              {hear === "other" ? <input name="hearAboutOther" maxLength={100} defaultValue={storedHear.startsWith("other:") ? storedHear.slice(6).trim() : typed("hearAboutOther")} placeholder={t.hearOtherDetail} className={input} /> : null}
+            </div>
+          ))}
           {!portal && (
             <label className="flex items-start gap-2 text-[13px] text-ink-800">
               <input type="checkbox" name="marketingConsent" className="mt-1" />

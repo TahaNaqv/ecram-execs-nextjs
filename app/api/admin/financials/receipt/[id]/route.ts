@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { buildBookingReceipt } from "@/lib/admin/financial-receipt";
+import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -10,7 +11,8 @@ const NO_STORE = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noinde
 
 /** The booking confirmation PDF, built with the same receipt the website downloads. */
 export async function GET(_request: Request, ctx: RouteContext<"/api/admin/financials/receipt/[id]">) {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  if (!can(admin.role, admin.permissions, "financials") && !can(admin.role, admin.permissions, "bookings")) return new Response("Forbidden", { status: 403, headers: NO_STORE });
   const { id } = await ctx.params;
   if (!z.uuid().safeParse(id).success) return new Response("Not found", { status: 404, headers: NO_STORE });
 

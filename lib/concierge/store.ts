@@ -27,6 +27,20 @@ const MAX_CHATS = 20_000;
 /** Expired chats removed (a few at a time) whenever a new chat starts, so the period holds between the runs of the weekly clean-up job. */
 const PURGE_BATCH = 20;
 
+const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+
+/** Name and email the visitor gave, from the booking draft or from an address written in the message. */
+function visitorLead(draft: Record<string, unknown>, message: string): { visitorName?: string; visitorEmail?: string } {
+  const named = typeof draft.name === "string" ? draft.name.trim().slice(0, 120) : "";
+  const drafted = typeof draft.email === "string" ? draft.email.trim().toLowerCase() : "";
+  const written = message.match(EMAIL)?.[0]?.toLowerCase() ?? "";
+  const email = EMAIL.test(drafted) ? drafted.slice(0, 200) : written.slice(0, 200);
+  return {
+    ...(named.length > 1 ? { visitorName: named } : {}),
+    ...(email ? { visitorEmail: email } : {}),
+  };
+}
+
 export type Turn = {
   /** The chat's anonymous session id (32 hex characters, checked by the caller) */
   session: string;
@@ -60,12 +74,20 @@ export async function recordTurn(turn: Turn): Promise<void> {
 
       // One row per chat; two requests at once for the same chat queue up on it, so each gets its own positions.
       // (`xmax = 0` is true only for a row this statement inserted, which is how a new chat is told from a new turn.)
+      const lead = visitorLead(turn.draft, turn.visitor);
       const [chat] = await tx
         .insert(c)
-        .values({ sessionId: turn.session, locale: turn.locale, ipHash: turn.ipHash, messageCount: 2, draft })
+        .values({ sessionId: turn.session, locale: turn.locale, ipHash: turn.ipHash, messageCount: 2, draft, ...lead })
         .onConflictDoUpdate({
           target: c.sessionId,
-          set: { lastMessageAt: sql`now()`, messageCount: sql`least(${c.messageCount} + 2, ${MAX_MESSAGES + 2})`, draft, locale: turn.locale },
+          set: {
+            lastMessageAt: sql`now()`,
+            messageCount: sql`least(${c.messageCount} + 2, ${MAX_MESSAGES + 2})`,
+            draft,
+            locale: turn.locale,
+            ...(lead.visitorName ? { visitorName: lead.visitorName } : {}),
+            ...(lead.visitorEmail ? { visitorEmail: lead.visitorEmail } : {}),
+          },
         })
         .returning({ id: c.id, messageCount: c.messageCount, started: sql<boolean>`(xmax = 0)` });
 

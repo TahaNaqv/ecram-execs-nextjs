@@ -62,12 +62,12 @@ test.describe("payment plan", () => {
     expect(balanceDueOn(null, "2027-03-01T08:00")).toBeNull();
   });
 
-  test("the fee at booking is €15.13; plan C pays everything; never more than the total", () => {
+  test("the fee at booking is €12.50; plan C pays everything; never more than the total", () => {
     const price = { fee: 1250, feeVat: 263 };
     expect(feeWithVatCents(price)).toBe(1513);
     expect(feeWithVatCents(null)).toBe(1513);
-    expect(upfrontCents("A", 45752, price)).toBe(1513);
-    expect(upfrontCents("B", 45752, price)).toBe(1513);
+    expect(upfrontCents("A", 45752, price)).toBe(1250);
+    expect(upfrontCents("B", 45752, price)).toBe(1250);
     expect(upfrontCents("C", 45752, price)).toBe(45752);
     expect(upfrontCents("B", 1000, price)).toBe(1000);
   });

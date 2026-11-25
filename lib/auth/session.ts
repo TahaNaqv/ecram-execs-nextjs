@@ -4,7 +4,7 @@ import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { permissionsFor, type StaffPermission, type StaffRole } from "@/lib/admin/access";
+import { canOpenAdminPath, permissionsFor, type StaffPermission, type StaffRole } from "@/lib/admin/access";
 import { db, schema } from "@/lib/db";
 import type { Locale } from "@/lib/i18n/config";
 
@@ -67,5 +67,12 @@ export const getAdmin = cache(async (): Promise<Admin | null> => {
 export async function requireAdmin(): Promise<Admin> {
   const admin = await getAdmin();
   if (!admin) redirect("/admin/login");
+  return admin;
+}
+
+/** Signed-in admin who is allowed to open this area. Others are sent back to the dashboard. */
+export async function requireArea(pathname: string): Promise<Admin> {
+  const admin = await requireAdmin();
+  if (!canOpenAdminPath(admin.role, admin.permissions, pathname)) redirect("/admin");
   return admin;
 }

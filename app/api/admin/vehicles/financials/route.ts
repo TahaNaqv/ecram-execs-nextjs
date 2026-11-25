@@ -1,12 +1,14 @@
 import { unstable_rethrow } from "next/navigation";
 import { NextResponse } from "next/server";
+import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { listVehicleFinancials, viewFromRow } from "@/lib/financials/vehicle-financials";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+    if (!can(admin.role, admin.permissions, "fleet")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const [vehicles, rows] = await Promise.all([
       db.select({ id: schema.vehicles.id, name: schema.vehicles.name, licensePlate: schema.vehicles.licensePlate }).from(schema.vehicles),
       listVehicleFinancials(),

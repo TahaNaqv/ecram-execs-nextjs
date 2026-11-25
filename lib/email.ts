@@ -936,6 +936,6 @@ export async function sendIntroducerCommission(input: { to: string; subject: str
     to: [input.to],
     cc: input.cc,
     subject: input.subject,
-    html: `<p>${esc(input.body)}</p><p>${esc(input.fromName)}<br>Ecram Execs</p>`,
+    html: `<p>${esc(input.body).replaceAll("\n", "<br>")}</p><p>${esc(input.fromName)}<br>Ecram Execs</p>`,
   });
 }

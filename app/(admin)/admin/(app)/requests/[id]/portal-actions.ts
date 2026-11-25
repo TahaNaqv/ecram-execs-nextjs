@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/db";
 import { emailEnquiryStatus, emailPartnerBooking } from "@/lib/email";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { attachRestriction } from "@/lib/admin/portal";
+import { invoiceTerms } from "@/lib/payments/schedule";
 import { isUniqueViolation } from "@/lib/request-meta";
 import { listFiles, removeFiles, signedUploadUrl, storageConfigured } from "@/lib/storage";
 
@@ -21,7 +22,7 @@ export async function attachPartner(formData: FormData) {
   const input = z.object({ requestId: id, contactId: id }).safeParse(Object.fromEntries(formData));
   if (!input.success) return;
   const [partner] = await db
-    .select({ id: schema.corporateContacts.id, name: schema.corporateContacts.name })
+    .select({ id: schema.corporateContacts.id, name: schema.corporateContacts.name, paymentTermsDays: schema.corporateContacts.paymentTermsDays })
     .from(schema.corporateContacts)
     .where(and(eq(schema.corporateContacts.id, input.data.contactId), isNotNull(schema.corporateContacts.passwordSetAt)))
     .limit(1);
@@ -33,7 +34,7 @@ export async function attachPartner(formData: FormData) {
     // Only a request that is not linked yet: moving one to another partner is detach, then attach
     const [row] = await tx
       .update(q)
-      .set({ corporateContactId: partner.id })
+      .set({ corporateContactId: partner.id, invoiceTermsDays: invoiceTerms(partner.paymentTermsDays) })
       .where(and(eq(q.id, input.data.requestId), isNull(q.corporateContactId)))
       .returning({ id: q.id });
     if (row) await tx.insert(schema.requestEvents).values({ requestId: row.id, adminId: admin.id, event: "attached", params: { partner: partner.name, by: "team" } });

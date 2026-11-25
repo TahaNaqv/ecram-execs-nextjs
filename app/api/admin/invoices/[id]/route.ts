@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { readStoredFile } from "@/lib/storage";
@@ -8,7 +9,8 @@ const NO_STORE = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noinde
 
 /** An uploaded tax invoice, for a signed-in admin. The same file the partner downloads from their booking. */
 export async function GET(_request: Request, ctx: RouteContext<"/api/admin/invoices/[id]">) {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  if (!can(admin.role, admin.permissions, "bookings") && !can(admin.role, admin.permissions, "financials")) return new Response("Forbidden", { status: 403, headers: NO_STORE });
   const { id } = await ctx.params;
   if (!z.uuid().safeParse(id).success) return new Response("Not found", { status: 404, headers: NO_STORE });
 

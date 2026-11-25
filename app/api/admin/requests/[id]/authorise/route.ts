@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { can } from "@/lib/admin/access";
 import { setBookingStatus } from "@/lib/admin/approve";
 import { requireAdmin } from "@/lib/auth/session";
 import { invoiceBlocksStatus } from "@/lib/moneybird/sync";
@@ -13,6 +14,7 @@ import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await requireAdmin();
+    if (!can(admin.role, admin.permissions, "bookings")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const sendMail = Boolean(body.sendMail ?? false);

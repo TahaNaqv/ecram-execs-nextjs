@@ -33,7 +33,7 @@ test.slow();
 const g = en.guestBooking;
 const rv = en.admin.review;
 const CRON = process.env.CRON_SECRET ?? "";
-const FEE = 1513;
+const FEE = 1250;
 const TOTAL = 45752;
 
 let stopMollie: (() => Promise<void>) | undefined;
@@ -164,7 +164,7 @@ const guestPage = (b: { id: string; reference: string }) => `/en/booking?ref=${b
 const sweep = (page: Page) => page.request.post("/api/cron/payments", { headers: { Authorization: `Bearer ${CRON}` } });
 const control = (path: string) => fetch(`http://127.0.0.1:${MOLLIE}${path}`, { method: "POST" });
 
-/** On the booking page: tick the consent, "Pay €15,13 to secure your booking", and pay on the stand-in's page. */
+/** On the booking page: tick the consent, "Pay €12,50 to secure your booking", and pay on the stand-in's page. */
 async function payAtBooking(page: Page, b: Booking, choice: "Pay" | "Fail" = "Pay") {
   await page.goto(guestPage(b));
   const button = page.getByRole("button", { name: /^Pay .+ to secure your booking$/ });
@@ -331,18 +331,18 @@ test("decline and refund: everything paid goes back, the card is removed, the bo
   const mandateId = (await bookingRow(b.id)).mollie_mandate_id!;
 
   await admin.goto(`/admin/requests/${b.id}`);
-  await expect(admin.getByText(/^Service fee paid \(€\s?15,13\)/)).toBeVisible();
+  await expect(admin.getByText(/Service fee €\s?12,50 paid/)).toBeVisible();
   await admin.getByRole("button", { name: rv.declineRefund }).click();
   await admin.getByRole("button", { name: rv.declineRefund }).click();
   // The page moves on to the cancelled booking, its history saying what happened
-  await expect(admin.getByText(/^Declined by the team, €\s?15,13 refunded$/)).toBeVisible();
+  await expect(admin.getByText(/^Declined by the team, €\s?12,50 refunded$/)).toBeVisible();
 
   const row = await bookingRow(b.id);
   expect(row.status).toBe("cancelled");
   expect(row.declined_at).not.toBeNull();
   const [fee] = await payRows(b.id);
   const refund = [...refunds.values()].find((r) => r.paymentId === fee.mollie_id)!;
-  expect(refund.amount.value).toBe("15.13");
+  expect(refund.amount.value).toBe("12.50");
   expect(mandates.get(mandateId)?.status).toBe("invalid");
   // Nothing to invoice: declined is not a kept fee
   expect(await invoiceRow(b.id)).toBeUndefined();

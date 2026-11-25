@@ -30,7 +30,8 @@ function checkoutHref(value: string | null | undefined): string | null {
   }
 }
 
-function paymentBadge(status: string | null, state: PaymentView["state"] | undefined, copy: BookingCopy): string {
+function paymentBadge(status: string | null, state: PaymentView["state"] | undefined, copy: BookingCopy, partial = false): string {
+  if (partial) return copy.payLivePartial;
   if (status === "paid" || state === "paid") return copy.payLivePaid;
   if (status === "pending" || status === "authorized" || state === "progress") return copy.payLivePending;
   if (status === "failed" || status === "canceled" || status === "expired" || state === "failed") return copy.payLiveFailed;
@@ -211,7 +212,7 @@ export function GuestBookingView({
           <div className="flex min-w-0 max-w-[640px] flex-col gap-5">
             <div className="flex flex-wrap items-center gap-3">
               <BookingStatusBadge label={view.eyebrow} tone={confirmedLook ? "confirmed" : "neutral"} />
-              {payment && reference && (settled || !payment.awaitingConfirmation) ? <BookingStatusBadge label={paymentBadge(paymentStatus, payment.state, bookingCopy)} /> : null}
+              {payment && reference && (settled || payment.rest || !payment.awaitingConfirmation) ? <BookingStatusBadge label={paymentBadge(paymentStatus, payment.state, bookingCopy, Boolean(payment.rest))} /> : null}
               {reference ? <span className="text-[12px] font-semibold tracking-[0.16em] text-ink-600 uppercase">{reference}</span> : null}
             </div>
             <h2 ref={heading} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,4.2vw,46px)] leading-[1.08] font-normal outline-none">
@@ -227,7 +228,7 @@ export function GuestBookingView({
             {payment.state === "paid" && payment.due === 0 && (
               <p className="m-0 text-[15px] font-semibold text-ink-950">
                 {payment.rest
-                  ? interpolate(t.payRestOn, { amount: payment.rest.label, date: payment.rest.on })
+                  ? interpolate(payment.rest.on ? t.payRestOn : t.payRestOpen, { fee: payment.paidLabel ?? "", amount: payment.rest.label, date: payment.rest.on })
                   : payment.paidOn
                     ? interpolate(t.paidOn, { date: payment.paidOn })
                     : t.paidThanks}

@@ -94,6 +94,7 @@ export default async function PrivacyPage() {
           <p className="m-0">{t.s4p1}</p>
           <ul className="m-0 list-disc pl-5">
             <li>{t.s4Hosting}</li>
+            <li>{t.s4Supabase}</li>
             <li>{t.s4Resend}</li>
             <li>{t.s4Anthropic}</li>
             <li>{t.s4Moneybird}</li>

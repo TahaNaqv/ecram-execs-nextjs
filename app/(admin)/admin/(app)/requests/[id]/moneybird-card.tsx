@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { feeWithVatCents } from "@/lib/payments/schedule";
+import { serviceFeeCents } from "@/lib/payments/schedule";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { QuoteRequest } from "@/lib/db/schema";
@@ -33,19 +33,44 @@ const TONE: Record<string, string> = {
  * what the team can do: try again after an error, or credit it once the booking is cancelled. Hidden when Moneybird is not
  * connected and nothing was ever invoiced, and for a booking that was never confirmed.
  */
-/** Shown beside Email and Call, so the invoice is reachable without scrolling to the card. */
-export async function MoneybirdHeaderLink({ requestId }: { requestId: string }) {
-  const [rows, { admin }] = await Promise.all([invoicesFor(requestId), adminDictionary()]);
-  const live = rows.find((row) => row.kind === "invoice" && !row.creditedAt && (row.moneybirdId || row.number));
-  if (!live) return null;
-  const href =
-    live.moneybirdId && !live.moneybirdId.startsWith("mock_")
-      ? moneybirdInvoiceLink(live.moneybirdId)
-      : `/api/mock/moneybird/invoice?id=${encodeURIComponent(live.moneybirdId || live.number || requestId)}&view=customer`;
+/** Invoice actions beside Email and Call, so they are available before the invoice details further down. */
+export async function MoneybirdHeaderActions({ r }: { r: QuoteRequest }) {
+  const [rows, { admin }] = await Promise.all([invoicesFor(r.id), adminDictionary()]);
+  const t = admin.moneybird;
+  const connected = moneybirdConfigured();
+  const confirmed = r.status === "confirmed" || r.status === "completed";
+  const live = rows.find((row) => row.kind === "invoice" && !row.creditedAt) ?? null;
+  if (!live && (!connected || !confirmed)) return null;
+  const automatic = !live && confirmed && connected ? await invoiceEligible(r.id) : true;
+  const bookingCents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null });
+  const sent = live ? isSent(live) : false;
+  const differs = Boolean(live && sent && bookingCents != null && live.totalCents != null && bookingCents !== live.totalCents);
+  const error = live?.lastError ?? null;
+  const [partner] = error?.startsWith("billing_missing") && r.corporateContactId
+    ? await db
+        .select({ billingStreet: schema.corporateContacts.billingStreet, billingPostcode: schema.corporateContacts.billingPostcode, billingCity: schema.corporateContacts.billingCity })
+        .from(schema.corporateContacts)
+        .where(eq(schema.corporateContacts.id, r.corporateContactId))
+        .limit(1)
+    : [];
+  const customerUrl = live
+    ? live.url && live.url.startsWith("https://moneybird.com")
+      ? live.url
+      : `/api/mock/moneybird/invoice?id=${encodeURIComponent(live.moneybirdId || r.reference)}&view=customer`
+    : null;
+  const inMoneybird = live ? moneybirdInvoiceLink(live.moneybirdId || "") : null;
+  const canRetry = connected && (!live ? confirmed : Boolean(error) && (!error?.startsWith("billing_missing") || (partner && billingComplete(partner))));
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.md}`}>
-      {admin.moneybird.openInMoneybird}
-    </a>
+    <>
+      {customerUrl ? (
+        <a href={customerUrl} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.secondary} ${btn.md}`}>{t.viewInvoice}</a>
+      ) : null}
+      {inMoneybird ? (
+        <a href={inMoneybird} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.md}`}>{t.openInMoneybird}</a>
+      ) : null}
+      {canRetry ? <RetryButton requestId={r.id} copy={t} force={!live && !automatic} /> : null}
+      {differs && live && connected ? <ReissueButton requestId={r.id} copy={t} /> : null}
+    </>
   );
 }
 
@@ -130,12 +155,7 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
     <Card>
       <CardHeader title={t.title} icon={<EuroIcon />} />
       <div className="flex flex-col gap-4 p-5 text-sm">
-        {!live && confirmed && (
-          <div className="flex flex-col gap-3">
-            <p className="m-0 text-zinc-600">{automatic ? t.making : t.notAutomatic}</p>
-            {connected && <RetryButton requestId={r.id} copy={t} force={!automatic} />}
-          </div>
-        )}
+        {!live && confirmed && <p className="m-0 text-zinc-600">{automatic ? t.making : t.notAutomatic}</p>}
 
         {live && (
           <div className="flex flex-col gap-2">
@@ -144,7 +164,6 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
               {badge(live.state)}
             </div>
             <p className="m-0 text-right text-[15px] font-semibold tabular-nums text-zinc-950">{euros(live.totalCents ?? bookingCents)}</p>
-            {links(live)}
           </div>
         )}
 
@@ -159,14 +178,12 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
                 {t.billingLink}
               </Link>
             )}
-            {connected && (!error?.startsWith("billing_missing") || (partner && billingComplete(partner))) && <RetryButton requestId={r.id} copy={t} />}
           </div>
         )}
 
         {differs && live && connected && (
           <div className="flex flex-col gap-3 rounded-lg bg-amber-50 p-3 text-[13px] text-amber-950 ring-1 ring-inset ring-amber-200">
             <p className="m-0 font-medium">{interpolate(t.priceChanged, { booking: euros(bookingCents), invoice: euros(live.totalCents) })}</p>
-            <ReissueButton requestId={r.id} copy={t} />
           </div>
         )}
 
@@ -176,7 +193,7 @@ export async function MoneybirdCard({ r }: { r: QuoteRequest }) {
             copy={t}
             paid={live.state === "paid"}
             total={euros(live.totalCents)}
-            serviceFee={r.paymentPlan && r.priceEstimate?.fee ? euros(feeWithVatCents(r.priceEstimate)) : undefined}
+            serviceFee={r.paymentPlan && r.priceEstimate?.fee ? euros(serviceFeeCents(r.priceEstimate)) : undefined}
           />
         )}
 

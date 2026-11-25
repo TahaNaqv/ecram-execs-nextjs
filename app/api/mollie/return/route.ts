@@ -6,7 +6,7 @@ import { partnerOwns, REF_RE } from "@/lib/corporate/bookings";
 import { db, schema } from "@/lib/db";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { localizedPath } from "@/lib/i18n/pathnames";
-import { siteOrigin } from "@/lib/mollie/config";
+import { isLoopbackOrigin, siteOrigin } from "@/lib/mollie/config";
 import { openCheckoutFor, refreshOnReturn } from "@/lib/mollie/pay";
 import { getGuestBooking } from "@/lib/quotes/guest";
 import { guestPath } from "@/lib/quotes/guest-link";
@@ -19,7 +19,9 @@ import { withinLimit } from "@/lib/rate-limit";
  */
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
-  const origin = siteOrigin() ?? req.nextUrl.origin;
+  const configured = siteOrigin();
+  // A localhost SITE_URL must not send the customer off the deployed site. The request's own host is the page that exists.
+  const origin = configured && !isLoopbackOrigin(configured) ? configured : req.nextUrl.origin;
   const locale: Locale = isLocale(params.get("locale") ?? undefined) ? (params.get("locale") as Locale) : "en";
   const ref = params.get("ref") ?? "";
   const stay = params.get("stay") === "1";

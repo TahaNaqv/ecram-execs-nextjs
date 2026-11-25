@@ -6,7 +6,8 @@ import { invoiceCents } from "@/lib/moneybird/invoice";
 import { invoiceOpenCents, recordingOn, recordPayment, recordRefund } from "@/lib/moneybird/payments";
 import { amountOf, centsOf, mollie, MollieError, type MollieCustomer, type MollieMandate, type MolliePayment, type MollieRefund } from "./client";
 import { addDays, amsterdamDay, balanceDueOn, chargeAllowed, requiresManualConfirmation, upfrontCents } from "@/lib/payments/schedule";
-import { mollieConfig, safeCheckoutUrl, webhookOrigin } from "./config";
+import { isLoopbackOrigin, mollieConfig, safeCheckoutUrl, webhookOrigin } from "./config";
+import { publicOrigin } from "./origin";
 
 /**
  * Paying for an approved booking through Mollie's own payment page (the client, 8 Nov 2026; built 14 Nov):
@@ -196,9 +197,17 @@ async function recordInBooks(id: string): Promise<void> {
 /** What one payment at Mollie is asked for, and for whom. */
 type Ask = { purpose: "upfront" | "balance" | "pay"; first: boolean; customerId?: string | null };
 
+/** Mollie's webhook must be a public address. A localhost SITE_URL is ignored when this request is on the deployed host. */
+async function notifyOrigin(): Promise<string | null> {
+  const configured = webhookOrigin();
+  if (configured) return configured;
+  const origin = await publicOrigin();
+  return origin && !isLoopbackOrigin(origin) ? origin : null;
+}
+
 /** Makes the payment at Mollie (again, with the same key, for a row whose answer was lost: Mollie answers the same). */
 async function createAtMollie(row: Payment, r: Booking, returnUrl: string, ask: Ask): Promise<MolliePayment> {
-  const origin = webhookOrigin();
+  const origin = await notifyOrigin();
   return mollie<MolliePayment>(
     "POST",
     "payments",
@@ -285,6 +294,17 @@ export async function recordConsent(requestId: string, ipHash: string | null): P
  * which shows the result when they come back (built by the caller, which has checked who they are). A payment that saves
  * the card is only started once the customer has agreed to it (`consentedAt`).
  */
+/** True when the open payment already sends the customer back to this site. A localhost return on the deployed site is not reused. */
+async function returnHostMatches(mollieId: string, returnUrl: string): Promise<boolean> {
+  try {
+    const live = await mollie<MolliePayment>("GET", `payments/${encodeURIComponent(mollieId)}`);
+    if (!live.redirectUrl) return true;
+    return new URL(live.redirectUrl).origin === new URL(returnUrl).origin;
+  } catch {
+    return true;
+  }
+}
+
 export async function startPayment(requestId: string, returnUrl: string): Promise<StartResult> {
   const config = mollieConfig();
   if (!config) return { status: "off" };
@@ -308,7 +328,7 @@ export async function startPayment(requestId: string, returnUrl: string): Promis
         const m = await createAtMollie(row, r, returnUrl, { purpose: row.purpose, first, customerId: first ? await ensureCustomer(r) : null });
         if (m.mode !== config.mode) throw new MollieError(0, null, "Mollie answered in the other mode");
         await release(row.id, { ...fromMollie(m), lastError: null });
-        const url = safeCheckoutUrl(m._links?.checkout?.href);
+        const url = safeCheckoutUrl(m._links?.checkout?.href, await publicOrigin());
         return url && m.status === "open" ? { status: "redirect", url } : { status: "in_progress" };
       } catch (err) {
         await release(row.id, { lastError: describe(err) });
@@ -326,8 +346,9 @@ export async function startPayment(requestId: string, returnUrl: string): Promis
       } catch (err) {
         return { status: "failed", error: describe(err) };
       }
-      const url = safeCheckoutUrl(now.checkoutUrl);
-      if (due.cents === now.amountCents && due.purpose === now.purpose && url) return { status: "redirect", url };
+      const url = safeCheckoutUrl(now.checkoutUrl, await publicOrigin());
+      const sameReturn = url && now.mollieId ? await returnHostMatches(now.mollieId, returnUrl) : false;
+      if (due.cents === now.amountCents && due.purpose === now.purpose && url && sameReturn) return { status: "redirect", url };
       // The amount changed while this payment was open: cancel it when Mollie still allows, else let it run its course
       try {
         const m = await mollie<MolliePayment>("DELETE", `payments/${encodeURIComponent(now.mollieId!)}`);
@@ -358,7 +379,7 @@ export async function startPayment(requestId: string, returnUrl: string): Promis
     const m = await createAtMollie(row, r, returnUrl, { purpose: due.purpose, first: due.first, customerId });
     if (m.mode !== config.mode) throw new MollieError(0, null, "Mollie answered in the other mode");
     await release(row.id, { ...fromMollie(m), lastError: null });
-    const url = safeCheckoutUrl(m._links?.checkout?.href);
+    const url = safeCheckoutUrl(m._links?.checkout?.href, await publicOrigin());
     return url ? { status: "redirect", url } : { status: "failed", error: "no checkout link" };
   } catch (err) {
     // Nothing was made at Mollie (or it cannot be reached): the row steps aside, so the next click can try again
@@ -508,16 +529,21 @@ export async function syncBookingPaymentStatus(requestId: string): Promise<strin
   const config = mollieConfig();
   const mode = config?.mode ?? "test";
 
-  let nextStatus: "PAID" | "OPEN" | "UNPAID" = "OPEN";
+  let nextStatus: "PAID" | "PARTIAL" | "OPEN" | "UNPAID" = "OPEN";
 
-  const [paidRow] = await db
-    .select({ id: p.id })
-    .from(p)
-    .where(and(eq(p.requestId, requestId), eq(p.mode, mode), eq(p.status, "paid")))
+  const paid = await paidNet(requestId, mode);
+  const [bookingRow] = await db
+    .select({ quotedAmount: schema.quoteRequests.quotedAmount, priceEstimate: schema.quoteRequests.priceEstimate })
+    .from(schema.quoteRequests)
+    .where(eq(schema.quoteRequests.id, requestId))
     .limit(1);
+  const total = invoiceCents({ quotedAmount: bookingRow?.quotedAmount ?? null, priceEstimate: bookingRow?.priceEstimate ?? null }) ?? 0;
 
-  if (paidRow) {
+  if (paid > 0 && total > 0 && paid >= total) {
     nextStatus = "PAID";
+  } else if (paid > 0) {
+    // The service fee (or any part of the price) is in, and the balance is still unpaid or scheduled.
+    nextStatus = "PARTIAL";
   } else {
     const [latest] = await db
       .select({ status: p.status })
@@ -585,7 +611,7 @@ export async function openCheckoutFor(requestId: string): Promise<{ url: string 
   if (!latest) return { url: null, status: null };
   // Only a payment still open has a Mollie page to go back to. A failed, expired or cancelled one has none: the page then
   // offers the Pay button, which starts a new payment (24 Nov 2026)
-  const url = latest.status === "open" ? safeCheckoutUrl(latest.checkoutUrl) : null;
+  const url = latest.status === "open" ? safeCheckoutUrl(latest.checkoutUrl, await publicOrigin()) : null;
   return { url, status: latest.status };
 }
 
@@ -841,8 +867,10 @@ export type PaymentView = {
   first: boolean;
   /** The customer already agreed to the terms on the booking form, so the confirmation page does not ask again. */
   agreed: boolean;
-  /** Paid at booking, the rest to come from the card: how much, and on which day */
+  /** Paid at booking, the rest to come from the card: how much, and on which day (empty when it is not scheduled yet) */
   rest: { label: string; on: string } | null;
+  /** What has already been paid, when a balance is still open. */
+  paidLabel: string | null;
   /** Under six months: the team confirms the booking before any money is taken. */
   awaitingConfirmation: boolean;
 };
@@ -863,14 +891,19 @@ export async function paymentView(requestId: string, locale: "en" | "nl"): Promi
       : status === "paid"
         ? "paid"
         : "failed";
-  // What the card is charged later: after the payment at booking (still to make, or made and the card saved)
+  // What is still unpaid after the service fee: scheduled on the card, or left open on the partner's invoice terms.
   let rest: PaymentView["rest"] = null;
+  let paidLabel: string | null = null;
   const r = await booking(requestId);
-  const restOn = r && !r.balanceAttemptedAt && (summary.first || r.mollieMandateId) ? balanceDueOn(r.paymentPlan, r.pickupAt) : null;
-  if (r && restOn) {
+  if (r) {
     const total = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
-    const left = total - (await paidNet(requestId, mollieConfig()!.mode)) - (summary.first ? summary.due : 0);
-    if (left > 0) rest = { label: formatCents(left, locale), on: formatDay(new Date(`${restOn}T12:00:00Z`), locale) };
+    const paid = await paidNet(requestId, mollieConfig()!.mode);
+    const left = total - paid - (summary.first ? summary.due : 0);
+    if (paid > 0 && left > 0) {
+      paidLabel = formatCents(paid, locale);
+      const restOn = !r.balanceAttemptedAt && !r.invoiceTermsDays && (summary.first || r.mollieMandateId) ? balanceDueOn(r.paymentPlan, r.pickupAt) : null;
+      rest = { label: formatCents(left, locale), on: restOn ? formatDay(new Date(`${restOn}T12:00:00Z`), locale) : "" };
+    }
   }
   return {
     due: summary.due,
@@ -880,6 +913,7 @@ export async function paymentView(requestId: string, locale: "en" | "nl"): Promi
     first: summary.first,
     agreed: Boolean(r?.consentedAt),
     rest,
+    paidLabel,
     awaitingConfirmation: Boolean(r && requiresManualConfirmation(r.paymentPlan) && !chargeAllowed(r.paymentPlan, r.status) && summary.due === 0),
   };
 }

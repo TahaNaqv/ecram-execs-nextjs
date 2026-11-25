@@ -4,6 +4,16 @@
  * MOLLIE_API_URL points the e2e tests at a stand-in (tests/e2e); never set in production.
  */
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+
+/** This machine, not a site a customer can open. */
+export function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
+  } catch {
+    return false;
+  }
+}
 // The live site: www.ecramexecs.com since 23 Nov 2026, and the .nl it moved from
 const LIVE_SITE = /^https:\/\/(www\.)?ecramexecs\.(com|nl)\/?$/;
 
@@ -43,14 +53,21 @@ export function mollieConfig(): MollieConfig | null {
 
 export const mollieConfigured = () => mollieConfig() !== null;
 
-/** Where the customer may be sent to pay: Mollie's own checkout, or the e2e stand-in. Nothing else. */
-export function safeCheckoutUrl(raw: string | null | undefined): string | null {
+/**
+ * Where the customer may be sent to pay: Mollie's own checkout, or the e2e stand-in. Nothing else.
+ * A localhost checkout is only usable while this request itself is on localhost. On the deployed site it is dropped,
+ * so Pay now never navigates to a path that only exists on a developer machine.
+ */
+export function safeCheckoutUrl(raw: string | null | undefined, site?: string | null): string | null {
   if (!raw) return null;
   try {
     const url = new URL(raw);
     if (url.protocol === "https:" && (url.hostname === "mollie.com" || url.hostname.endsWith(".mollie.com"))) return url.toString();
     const override = process.env.MOLLIE_API_URL;
-    if (override && LOOPBACK.test(override) && url.origin === new URL(override).origin) return url.toString();
+    if (override && LOOPBACK.test(override) && url.origin === new URL(override).origin) {
+      if (site && !isLoopbackOrigin(site)) return null;
+      return url.toString();
+    }
     return null;
   } catch {
     return null;

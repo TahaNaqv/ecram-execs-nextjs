@@ -6,7 +6,8 @@ import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { EXTRA_KEYS } from "@/lib/pricing/extras";
 import { btn, Card, PageBody, PageHeader, field } from "../../_components/ui";
-import { addSupplier, deleteSupplier, saveAddonStock, updateSupplier } from "./actions";
+import { addSupplier, deleteSupplier, saveAddonStock } from "./actions";
+import { PendingSubmit } from "./pending-submit";
 
 export const instant = false;
 
@@ -75,23 +76,17 @@ async function Addons() {
             </select>
           </label>
           <label className="text-[13px] text-zinc-700 md:col-span-2">Notes<textarea name="notes" rows={2} className={`${field} mt-1`} /></label>
-          <button className={`${btn.base} ${btn.primary} ${btn.md} self-start`}>Save supplier</button>
+          <PendingSubmit label="Save supplier" pendingLabel="Saving supplier…" className={`${btn.base} ${btn.primary} ${btn.md} self-start disabled:cursor-progress disabled:opacity-70`} />
         </form>
         {suppliers.length > 0 && (
           <ul className="m-0 list-none border-t border-zinc-100">
             {suppliers.map((supplier) => (
-              <li key={supplier.id} className="border-b border-zinc-100 px-5 py-4 last:border-0">
-                <form action={updateSupplier} className="grid gap-3 md:grid-cols-2">
-                  <input type="hidden" name="id" value={supplier.id} />
-                  <label className="text-[13px] text-zinc-700">Supplier name<input name="name" required defaultValue={supplier.name} className={`${field} mt-1 h-10`} /></label>
-                  <label className="text-[13px] text-zinc-700">Email<input name="email" type="email" defaultValue={supplier.email ?? ""} className={`${field} mt-1 h-10`} /></label>
-                  <label className="text-[13px] text-zinc-700">Phone<input name="phone" defaultValue={supplier.phone ?? ""} className={`${field} mt-1 h-10`} /></label>
-                  <label className="text-[13px] text-zinc-700 md:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={supplier.notes ?? ""} className={`${field} mt-1`} /></label>
-                  <div className="flex flex-wrap gap-2 md:col-span-2">
-                    <button className={`${btn.base} ${btn.secondary} ${btn.sm}`}>Save changes</button>
-                  </div>
-                </form>
-                <form action={deleteSupplier} className="mt-2">
+              <li key={supplier.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3 last:border-0">
+                <div className="min-w-0 text-sm text-zinc-800">
+                  <p className="m-0 font-medium text-zinc-950">{supplier.name}</p>
+                  <p className="m-0 text-[13px] text-zinc-500">{[supplier.email, supplier.phone, supplier.notes].filter(Boolean).join(" · ") || "No contact details"}</p>
+                </div>
+                <form action={deleteSupplier}>
                   <input type="hidden" name="id" value={supplier.id} />
                   <button className={`${btn.base} ${btn.danger} ${btn.sm}`}>Remove supplier</button>
                 </form>

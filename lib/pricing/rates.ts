@@ -39,6 +39,19 @@ const RATES: Record<VehicleKey, Record<Segment, Record<DayKind, number>>> = {
     corporate: { weekday: 10500, saturday: 13125, sunday: 16406 },
     public: { weekday: 12500, saturday: 15625, sunday: 19531 },
   },
+  // Net of 9% VAT. The customer hourly prices are €135/€155/€165 corporate and €165/€185/€195 public.
+  mercedes_esprinter: {
+    corporate: { weekday: 12385, saturday: 14220, sunday: 15138 },
+    public: { weekday: 15138, saturday: 16972, sunday: 17890 },
+  },
+};
+
+/** Customer hourly price including 9% VAT, in euro cents. The quote engine still adds VAT to the net rate above. */
+const CUSTOMER_HOURLY: Partial<Record<VehicleKey, Record<Segment, Record<DayKind, number>>>> = {
+  mercedes_esprinter: {
+    corporate: { weekday: 13500, saturday: 15500, sunday: 16500 },
+    public: { weekday: 16500, saturday: 18500, sunday: 19500 },
+  },
 };
 
 /** Kilometres each billed hour includes, per car (the 2027 card's kilometre allowance). */
@@ -48,6 +61,7 @@ const KM_PER_HOUR: Record<VehicleKey, number> = {
   mercedes_vle_300: 40,
   range_rover: 35,
   cadillac_escalade: 35,
+  mercedes_esprinter: 25,
 };
 
 /** Euro cents per kilometre beyond the allowance, the same for every car. */
@@ -110,6 +124,12 @@ export function kmPerHour(key: string): number | null {
 
 /** Euro cents per kilometre beyond the allowance. */
 export const extraKmRate = (segment: Segment) => EXTRA_KM_RATE[segment];
+
+/** The hourly price a customer is shown, including 9% VAT. Null when this car has no separate customer price. */
+export function customerHourly(key: string, segment: Segment, day: DayKind): number | null {
+  const vehicle = normalizeVehicleKey(key);
+  return vehicle ? CUSTOMER_HOURLY[vehicle]?.[segment]?.[day] ?? null : null;
+}
 
 /**
  * Whole hours billed for one leg, at least `MIN_HOURS`. An hourly booking is billed for the hours booked. A transfer is
@@ -232,8 +252,9 @@ export function priceBooking(input: PriceInput): Price | null {
   }
   if (legs.length === 0) return null;
   const rides = legs.reduce((sum, leg) => sum + leg.lines.reduce((n, line) => n + line.amount, 0) + (leg.km?.lines ?? []).reduce((n, line) => n + line.amount, 0), 0);
-  // The client's order: the rides, then 9% VAT on them, then the service fee
-  const vat = Math.round(rides * VAT_RATE);
+  // The client's order: the rides, then 9% VAT on them, then the service fee.
+  // A car with a published customer hourly price uses that price minus the net rate as its VAT, so the cents match the card.
+  const vat = vatOnRides(input.segment, rides, legs);
   const fee = SERVICE_FEE_CENTS;
   const feeVat = Math.round(fee * SERVICE_FEE_VAT_RATE);
   const extras = priceExtras(input.extras ?? []);
@@ -255,6 +276,22 @@ export function priceBooking(input: PriceInput): Price | null {
     ...(!hourly && input.distanceMeters && Number.isFinite(input.distanceMeters) && input.distanceMeters > 0 ? { distanceMeters: input.distanceMeters } : {}),
     ...(!hourly && input.driveSeconds && Number.isFinite(input.driveSeconds) && input.driveSeconds > 0 ? { driveSeconds: input.driveSeconds } : {}),
   };
+}
+
+/** VAT on the rides. Cars with a customer hourly price contribute inclusive minus net. Everything else is 9% of its net, rounded once. */
+function vatOnRides(segment: Segment, rides: number, legs: PriceLeg[]): number {
+  let residual = 0;
+  let covered = 0;
+  for (const leg of legs) {
+    for (const line of leg.lines) {
+      const gross = customerHourly(line.key, segment, line.day ?? leg.day);
+      if (gross == null) continue;
+      const hours = line.hours ?? leg.hours;
+      residual += gross * hours * line.count - line.amount;
+      covered += line.amount;
+    }
+  }
+  return residual + Math.round((rides - covered) * VAT_RATE);
 }
 
 /** Per car that drives beyond its allowance on one leg: the kilometres included, the extra, and what they cost. */

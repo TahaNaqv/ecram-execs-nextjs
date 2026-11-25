@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireArea } from "@/lib/auth/session";
 import { FLEET_CACHE_TAG } from "@/lib/fleet/catalog";
 import { removeFleetImages, saveFleetImages } from "@/lib/fleet/image-store";
 
@@ -67,13 +67,13 @@ function imageFiles(formData: FormData): File[] {
 }
 
 export async function addVehicle(formData: FormData): Promise<{ ok: boolean; error?: string }> {
-  await requireAdmin();
+  await requireArea("/admin/vehicles");
 
   const name = optionalText(formData, "name");
   const existingId = optionalText(formData, "id");
   if (!name) return { ok: false, error: "name" };
 
-  const seats = optionalInt(formData, "seats", 1, 14);
+  const seats = optionalInt(formData, "seats", 1, 16);
   const luggage = optionalInt(formData, "luggage", 0, 30);
   const rateWeekday = optionalCents(formData, "rateWeekday");
   const rateSaturday = optionalCents(formData, "rateSaturday");
@@ -127,7 +127,7 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
 }
 
 export async function updateVehicleName(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/vehicles");
 
   const id = formData.get("id") as string;
   const name = (formData.get("name") as string)?.trim();
@@ -152,7 +152,7 @@ export async function updateVehicleName(formData: FormData) {
 }
 
 export async function toggleVehicleStatus(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/vehicles");
 
   const id = formData.get("id") as string;
   const targetStatus = formData.get("status") as string | null;
@@ -185,7 +185,7 @@ export async function toggleVehicleStatus(formData: FormData) {
 }
 
 export async function deleteVehicle(formData: FormData) {
-  await requireAdmin();
+  await requireArea("/admin/vehicles");
 
   const id = formData.get("id") as string;
 

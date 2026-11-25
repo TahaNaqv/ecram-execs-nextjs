@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, inArray, or, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
+import { driverPairByVehicle } from "@/lib/admin/driver-board";
 import { carKey, heldKeys } from "@/lib/fleet/availability";
 import type { RoutedBooking } from "@/lib/fleet/route";
 import { blocksOf, overlaps, wallMinutes } from "@/lib/fleet/schedule";
@@ -39,6 +40,8 @@ export type DayColumn = {
   /** available | unavailable | maintenance, or null for a car with no row in the fleet table */
   state: string | null;
   blocks: DayBlock[];
+  /** "Driver → vehicle" when a driver is linked to this car on this day. */
+  driverLabel: string | null;
 };
 
 /** A confirmed trip of the day that has a route to draw, with what Google needs to find it */
@@ -80,7 +83,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   // A trip and its drive home can run past midnight into the next day or two, so the two days before are read too, then clipped to this day
   const from = shiftDay(date, -2);
 
-  const [cars, rows] = await Promise.all([
+  const [cars, rows, pairs] = await Promise.all([
     db.select({ id: v.id, name: v.name, status: v.status, plate: v.licensePlate }).from(v).orderBy(asc(v.name)),
     db
       .select({
@@ -115,6 +118,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
           ),
         ),
       ),
+    driverPairByVehicle(date),
   ]);
 
   // One column per car in the fleet table (a switched-off car stays, greyed), then any car a booking names that the table
@@ -123,16 +127,16 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   for (const car of cars) {
     const key = carKey(car.id) ?? car.id;
     const label = [vehicleByKey(key)?.name ?? car.name, car.plate].filter(Boolean).join(" · ");
-    if (!columns.has(key)) columns.set(key, { key, name: label, state: car.status, blocks: [] });
+    if (!columns.has(key)) columns.set(key, { key, name: label, state: car.status, blocks: [], driverLabel: pairs.get(car.id) ?? pairs.get(key) ?? null });
   }
-  const unassigned: DayColumn = { key: UNASSIGNED, name: "", state: null, blocks: [] };
+  const unassigned: DayColumn = { key: UNASSIGNED, name: "", state: null, blocks: [], driverLabel: null };
 
   let jobs = 0;
   const trips: DayTrip[] = [];
   for (const row of rows) {
     // A booking for several cars is drawn in each of their columns; its first car leads (the day map follows that one)
     const held = [...heldKeys(row)].map((key) => {
-      const column = columns.get(key) ?? { key, name: vehicleByKey(key)?.name ?? key, state: null, blocks: [] };
+      const column = columns.get(key) ?? { key, name: vehicleByKey(key)?.name ?? key, state: null, blocks: [], driverLabel: pairs.get(key) ?? null };
       columns.set(key, column);
       return column;
     });

@@ -55,16 +55,26 @@ export function planFor(pickupAt: string | null | undefined, today: string): Pay
   return ride >= addMonths(today, AUTO_APPROVE_MONTHS) ? "A" : "B";
 }
 
-/** The service fee with its VAT, from the booking's own price (€12.50 + 21% = €15.13 on the 2027 card). */
+/** The service fee itself, in cents. Always €12.50 (1250), never the fee plus its 21% VAT. */
+export function serviceFeeCents(price: Pick<Price, "fee"> | null | undefined): number {
+  return centsOf(price?.fee) ?? SERVICE_FEE_CENTS;
+}
+
+/** The service fee with its VAT, for an invoice line that is stored tax-inclusive. Not the amount taken at booking. */
 export function feeWithVatCents(price: Pick<Price, "fee" | "feeVat"> | null | undefined): number {
-  const fee = centsOf(price?.fee) ?? SERVICE_FEE_CENTS;
+  const fee = serviceFeeCents(price);
   const vat = centsOf(price?.feeVat) ?? Math.round(fee * SERVICE_FEE_VAT_RATE);
   return fee + vat;
 }
 
 /** What is paid once the booking is confirmed: the fee (plans A and B), or everything (plan C). Nothing is taken before that. */
 export function upfrontCents(plan: PaymentPlan, totalCents: number, price: Pick<Price, "fee" | "feeVat"> | null | undefined): number {
-  return plan === "C" ? totalCents : Math.min(totalCents, feeWithVatCents(price));
+  return plan === "C" ? totalCents : Math.min(totalCents, serviceFeeCents(price));
+}
+
+/** A corporate partner's invoice window, or null when they pay the balance by card. */
+export function invoiceTerms(days: number | null | undefined): 7 | 14 | 30 | null {
+  return days === 7 || days === 14 || days === 30 ? days : null;
 }
 
 export type LaunchSchedule = {

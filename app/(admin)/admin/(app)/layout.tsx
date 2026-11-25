@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { Suspense } from "react";
-import { mayCreateAccounts } from "@/lib/admin/access";
+import { redirect } from "next/navigation";
+import { canOpenAdminPath, hiddenAdminHrefs } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { applicationCounts } from "@/lib/admin/applications";
 import { waitingEnquiries } from "@/lib/admin/sla";
@@ -33,8 +35,10 @@ export default function AdminAppLayout({ children }: { children: React.ReactNode
 }
 
 async function Chrome() {
-  const [{ admin: t }, admin] = await Promise.all([adminDictionary(), requireAdmin()]);
-  const hidden = mayCreateAccounts(admin.role, admin.permissions) ? [] : ["/admin/staff"];
+  const [{ admin: t }, admin, headerList] = await Promise.all([adminDictionary(), requireAdmin(), headers()]);
+  const path = headerList.get("x-pathname") ?? "";
+  if (path.startsWith("/admin") && !canOpenAdminPath(admin.role, admin.permissions, path)) redirect("/admin");
+  const hidden = hiddenAdminHrefs(admin.role, admin.permissions);
   return (
     <Suspense fallback={<ChromeFallback />}>
       <AdminChrome

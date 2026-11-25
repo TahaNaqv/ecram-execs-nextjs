@@ -8,6 +8,7 @@ import { AdminModal } from "@/app/(admin)/admin/_components/admin-modal";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { formatCurrency } from "@/lib/pricing/rates";
+import { savePartnerOps } from "./ops-actions";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -87,6 +88,31 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
           <p className="text-lg font-bold tracking-tight text-zinc-950 truncate">{partner.topVehicle}</p>
         </div>
       </div>
+
+      <form action={savePartnerOps} className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <input type="hidden" name="id" value={partner.id} />
+        <label className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          {copy.preferredMethod}
+          <select name="preferredContact" defaultValue={partner.preferredContact ?? ""} className="mt-2 block h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium normal-case tracking-normal text-zinc-950">
+            <option value="">{copy.notSet}</option>
+            <option value="email">{copy.methodEmail}</option>
+            <option value="phone">{copy.methodPhone}</option>
+            <option value="whatsapp">{copy.methodWhatsapp}</option>
+          </select>
+        </label>
+        <label className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          {copy.paymentWindow}
+          <select name="paymentTermsDays" defaultValue={partner.paymentTermsDays ?? ""} className="mt-2 block h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium normal-case tracking-normal text-zinc-950">
+            <option value="">{copy.notSet}</option>
+            <option value="7">{copy.days7}</option>
+            <option value="14">{copy.days14}</option>
+            <option value="30">{copy.days30}</option>
+          </select>
+        </label>
+        <button className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-950 px-4 text-xs font-semibold text-white hover:bg-zinc-800">
+          {copy.save}
+        </button>
+      </form>
 
       {/* --- BOOKINGS SIDEBAR DRAWER --- */}
       <AdminDrawer

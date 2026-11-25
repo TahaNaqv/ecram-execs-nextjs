@@ -50,13 +50,15 @@ function hotp(secret: Buffer, counter: number) {
   return String(bin % 1_000_000).padStart(6, "0");
 }
 
-/** True when the 6-digit code matches this 30-second window, or the one beside it. */
+/** True when the 6-digit code matches this 30-second window, or up to a minute either side. */
 export function verifyTotp(secret: string, token: string, now = Date.now()) {
-  const cleaned = token.replace(/\s/g, "");
+  const cleaned = token.replace(/\D/g, "");
   if (!/^\d{6}$/.test(cleaned)) return false;
-  const key = decodeBase32(secret);
+  const key = decodeBase32(secret.replace(/\s/g, ""));
+  if (key.length === 0) return false;
   const counter = Math.floor(now / 30_000);
-  return [-1, 0, 1].some((skew) => hotp(key, counter + skew) === cleaned);
+  // ±2 steps covers a phone or server clock that is up to about a minute off.
+  return [-2, -1, 0, 1, 2].some((skew) => hotp(key, counter + skew) === cleaned);
 }
 
 export function totpUri(email: string, secret: string) {

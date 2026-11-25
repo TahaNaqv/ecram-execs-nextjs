@@ -27,8 +27,8 @@ export const TEMPLATE_DEFAULTS: Record<TemplateKey, { subject: string; body: str
     body: "Booking {reference} is cancelled. If a payment is due back, it is handled separately and you will see it on your statement.",
   },
   introducer_commission: {
-    subject: "Commission this month: {amount}",
-    body: "Hello {name}, your commission this month is {amount}, worked out on payments received excluding VAT. Please email the bookkeeper an invoice for that amount. A copy of this note goes to the bookkeeper.",
+    subject: "Commission for {monthYear}: {commission}",
+    body: "Hello {introducerName}, for {monthYear} the net booking total from your partners is {netTotal}. Your commission is {commission}. Please email an invoice for {commission} to our bookkeeper. The bookkeeper is copied on this message.",
   },
 };
 
