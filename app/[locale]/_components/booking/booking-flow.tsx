@@ -824,7 +824,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, 
             trailerOn ? "border-2 border-solid border-ink-950 p-[11px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-3"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- placeholder drawing until the photo of the all-black trailer arrives */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- small product photo from /public, as on the add-ons step */}
           <img src={EXTRAS[TRAILER_KEY].image} alt="" className="aspect-[4/3] w-full shrink-0 rounded-[11px] object-cover sm:w-[180px]" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-[15px] font-semibold">{names.trailer}</span>

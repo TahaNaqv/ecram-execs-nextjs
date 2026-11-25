@@ -9,7 +9,7 @@ import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { bookableFleet } from "@/lib/fleet/catalog";
 import { MAX_GALLERY_IMAGES, UPCOMING, vehicleByKey, type Amenity, type FleetVehicle, type OfferedVehicle } from "@/lib/fleet/vehicles";
 import { customerHourly, extraKmRate, formatCents, kmPerHour, type DayKind } from "@/lib/pricing/rates";
-import { EXTRAS, TRAILER_KEY } from "@/lib/pricing/extras";
+import { TRAILER_GALLERY, TRAILER_KEY } from "@/lib/pricing/extras";
 import { LanguageSwitcher } from "../_components/language-switcher";
 import { SiteFooter } from "../_components/sections";
 import { VehicleGallery } from "../_components/vehicle-gallery";
@@ -91,7 +91,7 @@ function Availability({ expected, t }: { expected?: string; t: Dictionary["fleet
   );
 }
 
-type Card = { key: string; name: string; images: string[]; rows: Row[]; pending?: boolean; expected?: string; note?: string };
+type Card = { key: string; name: string; images: string[]; rows: Row[]; pending?: boolean; expected?: string; note?: string; alt?: string };
 
 function VehicleCard({ card, index, d }: { card: Card; index: number; d: Dictionary }) {
   const t = d.fleetPage;
@@ -107,7 +107,7 @@ function VehicleCard({ card, index, d }: { card: Card; index: number; d: Diction
           <VehicleGallery
             name={card.name}
             images={card.images}
-            alt={interpolate(d.fleetSection.imageAlt, { name: card.name })}
+            alt={card.alt ?? interpolate(d.fleetSection.imageAlt, { name: card.name })}
             sizes="(max-width: 768px) 100vw, 60vw"
             copy={{
               label: d.fleetSection.galleryLabel,
@@ -178,7 +178,9 @@ async function FleetList() {
     {
       key: TRAILER_KEY,
       name: d.addOns.trailer,
-      images: [EXTRAS[TRAILER_KEY].image],
+      images: TRAILER_GALLERY,
+      // The dealer's photos show its silver demo model, not the black one: no "in obsidian black"
+      alt: d.addOns.trailer,
       note: d.fleetPage.trailerWith,
       rows: [
         [d.fleetPage.trailerCapacity, d.fleetPage.trailerCapacityValue],

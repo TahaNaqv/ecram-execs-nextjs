@@ -37,9 +37,16 @@ export type ExtraSpec = {
   /** Priced by the hour: the customer's hourly price including VAT, per segment, and the least hours billed per ride. */
   hourly?: { gross: Record<Segment, number>; minHours: number };
 };
+/**
+ * The luggage trailer's photos on the fleet page, cover first: the Debon Roadster 255 from the dealer's product page
+ * (nexus-aanhangers.nl, 26 Nov 2026), shown in the dealer's silver demo model. Replace them with photos of the all-black
+ * trailer with the logo once it arrives, under new filenames (/assets is cached for 7 days).
+ */
+export const TRAILER_GALLERY = [1, 2, 3, 4, 5, 6].map((n) => `/assets/fleet-trailer-debon-${n}.jpg`);
+
 export const EXTRAS: Record<ExtraKey, ExtraSpec> = {
   // The client's rate card, 26 Nov 2026: €6.25 an hour corporate, €9 public, VAT included, at least 4 hours (€25 / €36)
-  trailer: { unit: 0, vatRate: 0.09, image: "/add-ons/trailer.svg", max: 1, hourly: { gross: { corporate: 625, public: 900 }, minHours: 4 } },
+  trailer: { unit: 0, vatRate: 0.09, image: "/add-ons/trailer-debon-roadster-255.jpg", max: 1, hourly: { gross: { corporate: 625, public: 900 }, minHours: 4 } },
   champagne: { unit: 7800, vatRate: 0.21, image: "/add-ons/champagne.webp" },
   chocolates: { unit: 4200, vatRate: 0.21, image: "/add-ons/chocolates.webp", options: CHOCOLATE_OPTIONS },
   flowers: { unit: 6600, vatRate: 0.09, image: "/add-ons/flowers.webp" },
