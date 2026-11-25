@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { cache } from "react";
 import { bookingEuros } from "@/lib/admin/queries";
@@ -49,6 +50,7 @@ export type DashboardFigures = {
 
 /** The four headline figures. Every one comes straight from the bookings, vehicles and partner accounts the panel already holds. */
 export const dashboardFigures = cache(async (): Promise<DashboardFigures> => {
+  await connection();
   await requireAdmin();
   const [[fleet], todays, [partners], [revenue]] = await Promise.all([
     db
@@ -99,6 +101,7 @@ export type UpcomingPickup = {
  * stored on the row is what the page shows.
  */
 export const upcomingPickups = cache(async (): Promise<UpcomingPickup[]> => {
+  await connection();
   await requireAdmin();
   const rows = await db
     .select({

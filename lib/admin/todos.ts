@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { EXTRA_KEYS } from "@/lib/pricing/extras";
@@ -13,6 +14,7 @@ const soon = () => {
 
 /** Work the operations desk should see today. Amounts are not formatted here. */
 export async function operationsTodos(): Promise<TodoItem[]> {
+  await connection();
   const today = new Date().toISOString().slice(0, 10);
   const horizon = soon();
   const items: TodoItem[] = [];

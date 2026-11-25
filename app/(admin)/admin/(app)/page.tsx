@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { dashboardFigures, fleetStatus, recentRequests, upcomingPickups } from "@/lib/admin/dashboard";
 import { formatEuro, formatRelative, pickupParts } from "@/lib/admin/format";
@@ -177,6 +178,7 @@ function Pill({ tone, children }: { tone: "good" | "warn" | "bad" | "muted"; chi
 }
 
 async function ScheduleMap() {
+  await connection();
   const { admin: t, locale } = await dashboardCopy();
   const d = t.dashboard;
   const today = await daySchedule(amsterdamToday());
