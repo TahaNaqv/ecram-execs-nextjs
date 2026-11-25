@@ -1,5 +1,6 @@
 "use server";
 
+import { hasTrailer } from "@/lib/pricing/extras";
 import { stopPaying } from "@/lib/admin/approve";
 import { and, eq, sql } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
@@ -167,7 +168,7 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
     await tx.insert(schema.requestEvents).values({ requestId: id, adminId: admin.id, event: "changes", params: { changes } });
     return row;
   });
-  if (saved && "clash" in saved) return { error: `That car is already booked at that time (${saved.clash}). Give this booking another car first.` };
+  if (saved && "clash" in saved) return { error: hasTrailer(before.extras) ? `That car, or the luggage trailer, is already booked at that time (${saved.clash}). Give this booking another car, or remove the trailer, first.` : `That car is already booked at that time (${saved.clash}). Give this booking another car first.` };
   if (!saved) return changedMeanwhile;
 
   // A partner is told when their booking is picked up, quoted, confirmed, completed or cancelled: whatever the team changed

@@ -255,7 +255,8 @@
     "vehicleClassRequired": "Please choose a vehicle class.",
     "contactPreferenceRequired": "Please choose how we should contact you.",
     "itineraryRequired": "Please describe the itinerary.",
-    "itineraryTooLong": "The itinerary is too long."
+    "itineraryTooLong": "The itinerary is too long.",
+    "trailerNeedsCar": "The luggage trailer can only be booked with a car."
   },
   "common": {
     "skipToContent": "Skip to content",
@@ -442,7 +443,15 @@
     "ratePublic": "Public {price} per hour",
     "rateCorporate": "Corporate {price} per hour",
     "rateKm": "{km} km included per booked hour. Extra kilometres: corporate {corporate}/km, public {public}/km",
-    "home": "Ecram Execs home"
+    "home": "Ecram Execs home",
+    "trailerCapacity": "Luggage capacity",
+    "trailerCapacityValue": "Up to 15 standard check-in suitcases (plus garment bags or cabin cases)",
+    "trailerPayload": "Maximum payload",
+    "trailerPayloadValue": "375 kg net luggage weight",
+    "trailerSecurity": "Weather & security",
+    "trailerSecurityValue": "Fully enclosed, hard-shell aerodynamic body with lockable doors and ramp",
+    "trailerWith": "Booked with any of our cars",
+    "photoSoon": "Photo coming soon"
   },
   "marquee": {
     "label": "Cities we serve",
@@ -1424,7 +1433,9 @@
       "cardExpires": "The saved card expires on {date}, before the balance date",
       "autoApproved": "Approved automatically (booked 6 months or more ahead)",
       "autoApproveStopped": "Not approved automatically: a car is already booked then ({reference})",
-      "declined": "Declined by the team, {amount} refunded"
+      "declined": "Declined by the team, {amount} refunded",
+      "trailerAdded": "Luggage trailer added",
+      "trailerRemoved": "Luggage trailer removed"
     },
     "corporate": {
       "title": "Corporate contacts",
@@ -1658,7 +1669,9 @@
       "statusSaving": "Saving…",
       "cancelWarn": "Cancelling removes this booking from the calendar. The customer is emailed. Choose Cancel booking only if you mean to.",
       "cancelGo": "Cancel booking",
-      "cancelBack": "Keep booking"
+      "cancelBack": "Keep booking",
+      "unfulfilledTrailer": "The luggage trailer is already booked at that time ({reference}). Remove it from this booking, or discuss it with the customer.",
+      "removeTrailer": "Remove the trailer"
     },
     "invoices": {
       "title": "Invoices",
@@ -2615,7 +2628,9 @@
     "champagneNote": "A bottle waiting for you in the car.",
     "chocolatesNote": "Handmade in Amsterdam. Choose the selection that suits you.* The classic selection may contain nuts and alcohol. The dietary-safe selection is alcohol-free, nut-aware & gluten free.",
     "flowersNote": "A fresh seasonal bouquet, ready in the car. Vase not included.",
-    "newspapersNote": "Today's Financial Times and Het Financieele Dagblad."
+    "newspapersNote": "Today's Financial Times and Het Financieele Dagblad.",
+    "trailer": "Luggage Trailer (Debon Roadster 255)",
+    "trailerNote": "Up to 15 check-in suitcases, plus garment bags or cabin cases. All black, fully enclosed and lockable."
   },
   "booking": {
     "pageTitle": "Book your chauffeur",
@@ -2855,7 +2870,7 @@
     "priceFrom": "from {price}",
     "stepExtras": "Add-ons",
     "extrasTitle": "Add a finishing touch",
-    "extrasIntro": "Optional. Each add-on is ready in the car when your journey starts. Prices exclude BTW / VAT, which is added to your total.",
+    "extrasIntro": "Optional. Each add-on is ready when your journey starts. Prices exclude BTW / VAT unless they say otherwise; the VAT is added to your total.",
     "extrasPrice": "{price} excl. {rate}% BTW / VAT",
     "extrasAdd": "Add",
     "extrasAdded": "Added",
@@ -2901,7 +2916,11 @@
     "payAfterConfirmFull": "Once it is confirmed, the full amount of {amount} is taken.",
     "payReviewed": "Your booking is submitted for manual review. No payment will be charged today.",
     "payTabOpening": "Opening the secure payment page… If nothing happens, go back to the booking tab.",
-    "submitPay": "Book and pay {amount}"
+    "submitPay": "Book and pay {amount}",
+    "extrasHourly": "{price} / hour incl. {rate}% BTW / VAT, minimum {hours} hours ({minimum})",
+    "extrasTrailerFrom": "Luggage trailer: from {price} incl. BTW / VAT, exact on the review step",
+    "trailerNeedsCar": "Choose a car first: the trailer travels behind it.",
+    "trailerHeading": "Need more room for luggage?"
   },
   "guestBooking": {
     "metaTitle": "Your booking",

@@ -250,7 +250,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
             status={r.status}
             copy={d.admin.review}
             pay={paidSoFar}
-            fulfilment={conflict ? { ok: false, reference: conflict.reference, pending: conflict.pending } : { ok: true }}
+            fulfilment={conflict ? { ok: false, reference: conflict.reference, pending: conflict.pending, trailer: conflict.trailer } : { ok: true }}
             canApprove={can(admin.role, admin.permissions, "approve")}
           />
         </div>

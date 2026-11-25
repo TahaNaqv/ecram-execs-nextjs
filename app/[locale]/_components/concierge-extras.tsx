@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
-import { CHOCOLATE_OPTIONS, EXTRA_KEYS, EXTRAS, MAX_PER_EXTRA, type ExtraKey, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
+import { CHOCOLATE_OPTIONS, IN_CAR_EXTRA_KEYS, EXTRAS, MAX_PER_EXTRA, type ExtraKey, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
 import { formatCents } from "@/lib/pricing/rates";
 
 /** The booking form's own words for the add-on step, used on the chat's scroller. */
@@ -47,7 +47,7 @@ export function ExtrasCarousel({ names, copy, locale, disabled, onConfirm }: {
   disabled?: boolean;
   onConfirm: (picks: ExtraPick[]) => void;
 }) {
-  const slides = EXTRA_KEYS.length;
+  const slides = IN_CAR_EXTRA_KEYS.length;
   const track = useRef<HTMLUListElement>(null);
   const [index, setIndex] = useState(0);
   const [picks, setPicks] = useState<ExtraPick[]>([]);
@@ -94,7 +94,7 @@ export function ExtrasCarousel({ names, copy, locale, disabled, onConfirm }: {
         }}
         className="m-0 flex w-full list-none snap-x snap-mandatory gap-3 overflow-x-auto p-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {EXTRA_KEYS.map((key, i) => {
+        {IN_CAR_EXTRA_KEYS.map((key, i) => {
           const spec = EXTRAS[key];
           const count = countOf(key);
           const option = spec.options ? (picks.find((pick) => pick.key === key)?.option ?? chocolate) : undefined;
@@ -183,7 +183,7 @@ export function ExtrasCarousel({ names, copy, locale, disabled, onConfirm }: {
           <Chevron direction="left" />
         </button>
         <div className="flex items-center gap-1.5" aria-hidden="true">
-          {EXTRA_KEYS.map((key, i) => (
+          {IN_CAR_EXTRA_KEYS.map((key, i) => (
             <span key={key} className={`size-1.5 rounded-full ${i === index ? "bg-white" : "bg-ink-600"}`} />
           ))}
         </div>

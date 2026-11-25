@@ -11,6 +11,7 @@ import { allocationFor, fleetPicks, normalizeVehicleKey } from "@/lib/fleet/vehi
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
+import { hasTrailer, TRAILER_KEY } from "@/lib/pricing/extras";
 
 export type CarsState = { ok?: boolean; error?: string };
 
@@ -66,6 +67,44 @@ export async function updateCars(_prev: CarsState, formData: FormData): Promise<
       .returning({ id: q.id });
     if (!row) return false;
     const changes: RequestEventChange[] = [{ kind: "cars", from, to }];
+    if ((before.quotedAmount ?? null) !== (quotedAmount ?? null)) changes.push({ kind: "quote", from: before.quotedAmount, to: quotedAmount });
+    await tx.insert(schema.requestEvents).values({ requestId: before.id, adminId: admin.id, event: "changes", params: { changes } });
+    return true;
+  });
+  if (!saved) return { error: t.stale };
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Takes the luggage trailer off a booking that is still being reviewed (26 Nov 2026): the one trailer may already be
+ * booked then, and this lets the team approve the rest of the booking. Priced again like a change of cars.
+ */
+export async function removeTrailer(_prev: CarsState, formData: FormData): Promise<CarsState> {
+  const admin = await requireAdmin();
+  const t = (await adminDictionary()).admin.review;
+  const input = z.object({ requestId: z.uuid(), seenStatus: z.string() }).safeParse(Object.fromEntries(formData));
+  if (!input.success) return { error: t.failed };
+  const [before] = await db.select().from(q).where(eq(q.id, input.data.requestId)).limit(1);
+  if (!before || before.status !== input.data.seenStatus) return { error: t.stale };
+  if (before.status !== "new" && before.status !== "contacted" && before.status !== "quoted") return { error: t.carsLocked };
+  if (!hasTrailer(before.extras)) return { ok: true };
+
+  const extras = (before.extras ?? []).filter((e) => e.key !== TRAILER_KEY);
+  const segment = before.priceEstimate?.segment ?? (before.corporateContactId ? "corporate" : "public");
+  const price = await priceForRequest({ ...before, extras }, segment);
+  if (price && before.priceEstimate?.purpose) price.purpose = before.priceEstimate.purpose;
+  const fromRateCard = before.quotedAmount == null || before.quotedAmount === storedQuoteEuros(before.priceEstimate);
+  const quotedAmount = fromRateCard ? storedQuoteEuros(price) : before.quotedAmount;
+
+  const saved = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(q)
+      .set({ extras: extras.length > 0 ? extras : null, priceEstimate: price, quotedAmount, updatedAt: sql`now()` })
+      .where(and(eq(q.id, before.id), eq(q.status, before.status)))
+      .returning({ id: q.id });
+    if (!row) return false;
+    const changes: RequestEventChange[] = [{ kind: "trailer", to: false }];
     if ((before.quotedAmount ?? null) !== (quotedAmount ?? null)) changes.push({ kind: "quote", from: before.quotedAmount, to: quotedAmount });
     await tx.insert(schema.requestEvents).values({ requestId: before.id, adminId: admin.id, event: "changes", params: { changes } });
     return true;

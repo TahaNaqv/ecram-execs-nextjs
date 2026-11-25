@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
-import { EXTRA_KEYS } from "@/lib/pricing/extras";
+import { STOCKED_EXTRA_KEYS } from "@/lib/pricing/extras";
 import { btn, Card, PageBody, PageHeader, field } from "../../_components/ui";
 import { ActionForm } from "../../_components/action-feedback";
 import { addSupplier, deleteSupplier, saveAddonStock } from "./actions";
@@ -49,7 +49,7 @@ async function Addons() {
             </tr>
           </thead>
           <tbody>
-            {EXTRA_KEYS.map((key) => {
+            {STOCKED_EXTRA_KEYS.map((key) => {
               const row = byKey.get(key);
               const supplier = suppliers.find((item) => item.id === row?.supplierId);
               return (
@@ -80,7 +80,7 @@ async function Addons() {
           <label className="text-[13px] text-zinc-700">Phone<input name="phone" className={`${field} mt-1 h-10`} /></label>
           <label className="text-[13px] text-zinc-700">Linked add-on
             <select name="key" className={`${field} mt-1 h-10`}>
-              {EXTRA_KEYS.map((key) => <option key={key} value={key}>{key}</option>)}
+              {STOCKED_EXTRA_KEYS.map((key) => <option key={key} value={key}>{key}</option>)}
             </select>
           </label>
           <label className="text-[13px] text-zinc-700 md:col-span-2">Notes<textarea name="notes" rows={2} className={`${field} mt-1`} /></label>

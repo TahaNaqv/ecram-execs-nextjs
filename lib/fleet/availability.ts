@@ -3,6 +3,7 @@ import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { carKey, heldKeys } from "@/lib/fleet/held";
 import { fleetPicks, normalizeVehicleKey, VEHICLE_KEYS } from "@/lib/fleet/vehicles";
+import { TRAILER_KEY } from "@/lib/pricing/extras";
 import { blocksOf, overlaps, wallText, windowBlocks, type Block, type Window } from "@/lib/fleet/schedule";
 
 export { carKey, heldKeys };
@@ -22,7 +23,7 @@ export async function lockFleet(tx: Db) {
   await tx.execute(sql`select pg_advisory_xact_lock(${FLEET_LOCK})`);
 }
 
-type ConfirmedRow = { id: string; reference: string; vehicle: string | null; vehicles: unknown; service: string; pickupAt: string | null; returnAt: string | null; durationHours: number | null; blockMinutes: number | null; driveBackMinutes: number | null };
+type ConfirmedRow = { id: string; reference: string; vehicle: string | null; vehicles: unknown; extras: unknown; service: string; pickupAt: string | null; returnAt: string | null; durationHours: number | null; blockMinutes: number | null; driveBackMinutes: number | null };
 
 /** The confirmed bookings with a particular car whose stretches could touch the given stretches. */
 async function confirmedNear(db: Db, blocks: Block[], excludeId?: string): Promise<ConfirmedRow[]> {
@@ -31,12 +32,13 @@ async function confirmedNear(db: Db, blocks: Block[], excludeId?: string): Promi
   const lo = wallText(Math.min(...blocks.map((b) => b.start)) - 2 * 24 * 60);
   const hi = wallText(Math.max(...blocks.map((b) => b.end)));
   return db
-    .select({ id: q.id, reference: q.reference, vehicle: q.vehicle, vehicles: q.vehicles, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes, driveBackMinutes: q.driveBackMinutes })
+    .select({ id: q.id, reference: q.reference, vehicle: q.vehicle, vehicles: q.vehicles, extras: q.extras, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes, driveBackMinutes: q.driveBackMinutes })
     .from(q)
     .where(
       and(
         eq(q.status, "confirmed"),
-        ne(q.vehicle, "advise"),
+        // "Let us choose" holds no car, but it may hold the trailer
+        or(ne(q.vehicle, "advise"), sql`${q.extras} @> ${JSON.stringify([{ key: TRAILER_KEY }])}::jsonb`),
         or(sql`${q.pickupAt} between ${lo}::timestamp and ${hi}::timestamp`, sql`${q.returnAt} between ${lo}::timestamp and ${hi}::timestamp`),
         excludeId ? ne(q.id, excludeId) : undefined,
       ),
@@ -63,8 +65,8 @@ export async function busyVehicleKeys(window: Window, opts: { excludeId?: string
  * another car or decline. Confirming still refuses only a confirmed clash.
  */
 export async function holdConflict(
-  booking: { id?: string; vehicle: string | null; vehicles?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null; driveBackMinutes?: number | null },
-): Promise<{ reference: string; pending: boolean } | null> {
+  booking: { id?: string; vehicle: string | null; vehicles?: unknown; extras?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null; driveBackMinutes?: number | null },
+): Promise<{ reference: string; pending: boolean; trailer: boolean } | null> {
   const keys = heldKeys(booking);
   if (keys.size === 0 || !booking.pickupAt) return null;
   const mine = blocksOf({ id: booking.id ?? "new", status: "confirmed", service: booking.service, pickupAt: booking.pickupAt, returnAt: booking.returnAt, durationHours: booking.durationHours, blockMinutes: booking.blockMinutes ?? null, driveBackMinutes: booking.driveBackMinutes ?? null });
@@ -72,20 +74,23 @@ export async function holdConflict(
   const lo = wallText(Math.min(...mine.map((b) => b.start)) - 2 * 24 * 60);
   const hi = wallText(Math.max(...mine.map((b) => b.end)));
   const rows = await db
-    .select({ id: q.id, reference: q.reference, status: q.status, vehicle: q.vehicle, vehicles: q.vehicles, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes, driveBackMinutes: q.driveBackMinutes })
+    .select({ id: q.id, reference: q.reference, status: q.status, vehicle: q.vehicle, vehicles: q.vehicles, extras: q.extras, service: q.service, pickupAt: q.pickupAt, returnAt: q.returnAt, durationHours: q.durationHours, blockMinutes: q.blockMinutes, driveBackMinutes: q.driveBackMinutes })
     .from(q)
     .where(
       and(
         inArray(q.status, ["new", "contacted", "quoted", "confirmed"]),
-        ne(q.vehicle, "advise"),
+        // "Let us choose" holds no car, but it may hold the trailer
+        or(ne(q.vehicle, "advise"), sql`${q.extras} @> ${JSON.stringify([{ key: TRAILER_KEY }])}::jsonb`),
         or(sql`${q.pickupAt} between ${lo}::timestamp and ${hi}::timestamp`, sql`${q.returnAt} between ${lo}::timestamp and ${hi}::timestamp`),
         booking.id ? ne(q.id, booking.id) : undefined,
       ),
     );
   for (const row of rows) {
-    if (![...heldKeys(row)].some((k) => keys.has(k))) continue;
+    const shared = [...heldKeys(row)].filter((k) => keys.has(k));
+    if (shared.length === 0) continue;
     const theirs = blocksOf({ ...row, status: "confirmed" });
-    if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return { reference: row.reference, pending: row.status !== "confirmed" };
+    // `trailer`: what clashes is only the luggage trailer, so removing it from this booking resolves it
+    if (theirs.some((t) => mine.some((m) => overlaps(t, m)))) return { reference: row.reference, pending: row.status !== "confirmed", trailer: shared.every((k) => k === TRAILER_KEY) };
   }
   return null;
 }
@@ -93,7 +98,7 @@ export async function holdConflict(
 /** The reference of a confirmed booking that already holds one of this booking's cars at some point of this trip, or null when they are all free. */
 export async function clashingReference(
   tx: Db,
-  booking: { id?: string; vehicle: string | null; vehicles?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null; driveBackMinutes?: number | null },
+  booking: { id?: string; vehicle: string | null; vehicles?: unknown; extras?: unknown; pickupAt: string | null; returnAt: string | null; service: string; durationHours: number | null; blockMinutes?: number | null; driveBackMinutes?: number | null },
 ): Promise<string | null> {
   const keys = heldKeys(booking);
   if (keys.size === 0 || !booking.pickupAt) return null;

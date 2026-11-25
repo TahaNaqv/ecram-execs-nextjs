@@ -3,8 +3,8 @@
 import { useId, useState } from "react";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
-import { formatCents } from "@/lib/pricing/rates";
-import { CHOCOLATE_OPTIONS, cleanExtras, EXTRA_KEYS, EXTRAS, MAX_PER_EXTRA, type ExtraKey, type ExtraPick } from "@/lib/pricing/extras";
+import { formatCents, type Segment } from "@/lib/pricing/rates";
+import { CHOCOLATE_OPTIONS, cleanExtras, EXTRA_KEYS, EXTRAS, MAX_PER_EXTRA, TRAILER_KEY, type ExtraKey, type ExtraPick } from "@/lib/pricing/extras";
 import type { AddOnsCopy, BookingCopy } from "./copy";
 import { Check } from "./parts";
 
@@ -15,6 +15,7 @@ const ArrowLeft = () => (
 );
 
 const NOTES: Record<ExtraKey, keyof AddOnsCopy> = {
+  trailer: "trailerNote",
   champagne: "champagneNote",
   chocolates: "chocolatesNote",
   flowers: "flowersNote",
@@ -27,11 +28,18 @@ const PHOTO_SCALE: Partial<Record<ExtraKey, string>> = {
   newspapers: "origin-center scale-[1.48]",
 };
 
-/** The step after the car: champagne, chocolates, flowers and newspapers, waiting in the car. All optional. */
-export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChange, onBack, onNext }: {
+/**
+ * The step after the car: the luggage trailer first (by the hour, only with a car), then champagne, chocolates, flowers
+ * and newspapers, waiting in the car. All optional.
+ */
+export function ExtrasStep({ headingRef, extras, locale, segment, hasCar, copy: t, names, onChange, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   extras: ExtraPick[];
   locale: Locale;
+  /** Which hourly rate the trailer shows: corporate partners have their own */
+  segment: Segment;
+  /** A car is chosen, or "let us choose": the trailer needs one to travel behind */
+  hasCar: boolean;
   copy: BookingCopy;
   names: AddOnsCopy;
   onChange: (extras: ExtraPick[]) => void;
@@ -51,7 +59,11 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
     const rest = extras.filter((e) => e.key !== key);
     onChange(cleanExtras(count > 0 ? [...rest, { key, count, ...(option ? { option } : {}) }] : rest));
   };
-  const subtotal = extras.reduce((sum, e) => sum + EXTRAS[e.key].unit * e.count, 0);
+  // The fixed-price add-ons, before VAT. The trailer is priced on the review step, from the ride's hours: here its minimum
+  const subtotal = extras.filter((e) => !EXTRAS[e.key].hourly).reduce((sum, e) => sum + EXTRAS[e.key].unit * e.count, 0);
+  const trailerSpec = EXTRAS[TRAILER_KEY].hourly!;
+  const trailerMinimum = trailerSpec.gross[segment] * trailerSpec.minHours;
+  const trailerPicked = Boolean(picked(TRAILER_KEY));
 
   const card = (key: ExtraKey) => {
     const spec = EXTRAS[key];
@@ -59,6 +71,9 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
     const count = pick?.count ?? 0;
     const name = names[key];
     const option = spec.options ? (pick?.option ?? chocolate) : undefined;
+    const max = spec.max ?? MAX_PER_EXTRA;
+    // The trailer travels behind a car: not offered until one is chosen (or the team is asked to choose)
+    const blocked = key === TRAILER_KEY && !hasCar && count === 0;
     return (
       <li key={key} className="flex">
         <div
@@ -74,8 +89,16 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
             <h3 className="m-0 text-[15px] leading-snug font-semibold">{name}</h3>
             <p className="m-0 flex-1 text-[13px] leading-snug text-ink-600">{names[NOTES[key]]}</p>
             <p className="m-0 pt-1 text-[14px] font-medium text-ink-700 tabular-nums">
-              {interpolate(t.extrasPrice, { price: euro(spec.unit), rate: Math.round(spec.vatRate * 100) })}
+              {spec.hourly
+                ? interpolate(t.extrasHourly, {
+                    price: euro(spec.hourly.gross[segment]),
+                    rate: Math.round(spec.vatRate * 100),
+                    hours: spec.hourly.minHours,
+                    minimum: euro(spec.hourly.gross[segment] * spec.hourly.minHours),
+                  })
+                : interpolate(t.extrasPrice, { price: euro(spec.unit), rate: Math.round(spec.vatRate * 100) })}
             </p>
+            {blocked && <p className="m-0 text-[13px] leading-snug font-medium text-ink-950">{t.trailerNeedsCar}</p>}
           </div>
           {spec.options ? (
             <fieldset className="m-0 mx-1.5 mt-1 grid min-h-10 min-w-0 grid-cols-2 gap-1.5 border-0 p-0">
@@ -109,12 +132,13 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
             <button
               type="button"
               id={`${uid}-${key}-add`}
+              disabled={blocked}
               onClick={() => {
                 set(key, 1, option);
                 focusSoon(`${uid}-${key}-more`);
               }}
               aria-label={`${t.extrasAdd}: ${name}`}
-              className="m-1.5 flex h-11 cursor-pointer items-center justify-center rounded-xl border border-solid border-ink-225 bg-white text-[14px] font-semibold text-ink-950 hover:border-ink-950"
+              className="m-1.5 flex h-11 cursor-pointer items-center justify-center rounded-xl border border-solid border-ink-225 bg-white text-[14px] font-semibold text-ink-950 hover:border-ink-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-ink-225"
             >
               {t.extrasAdd}
             </button>
@@ -139,8 +163,8 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
               <button
                 type="button"
                 id={`${uid}-${key}-more`}
-                onClick={() => count < MAX_PER_EXTRA && set(key, count + 1, option)}
-                aria-disabled={count >= MAX_PER_EXTRA || undefined}
+                onClick={() => count < max && set(key, count + 1, option)}
+                aria-disabled={count >= max || undefined}
                 aria-label={interpolate(t.extrasMore, { item: name })}
                 className="grid size-9 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-[20px] leading-none text-white hover:bg-white/15 aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
               >
@@ -159,12 +183,13 @@ export function ExtrasStep({ headingRef, extras, locale, copy: t, names, onChang
         {t.extrasTitle}
       </h2>
       <p className="m-0 mt-2 max-w-[640px] text-[14px] text-ink-600">{t.extrasIntro}</p>
-      <ul className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4">{EXTRA_KEYS.map(card)}</ul>
+      <ul className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">{EXTRA_KEYS.map(card)}</ul>
 
       <div className="sticky bottom-0 z-10 mt-8 -mx-5 border-t border-solid border-ink-150 bg-white/95 px-5 pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur md:-mx-6 md:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p aria-live="polite" className="m-0 text-[14px] font-medium text-ink-700 tabular-nums">
-            {subtotal > 0 ? interpolate(t.extrasSubtotal, { price: euro(subtotal) }) : ""}
+          <p aria-live="polite" className="m-0 flex flex-col text-[14px] font-medium text-ink-700 tabular-nums">
+            {subtotal > 0 && <span>{interpolate(t.extrasSubtotal, { price: euro(subtotal) })}</span>}
+            {trailerPicked && <span>{interpolate(t.extrasTrailerFrom, { price: euro(trailerMinimum) })}</span>}
           </p>
           <div className="ml-auto flex w-full gap-2.5 md:w-auto">
             <button type="button" onClick={onBack} className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-solid border-ink-225 bg-white px-4 text-[13px] font-semibold tracking-wide text-ink-950 hover:border-ink-950">

@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { EXTRA_KEYS } from "@/lib/pricing/extras";
+import { STOCKED_EXTRA_KEYS } from "@/lib/pricing/extras";
 
 export type TodoItem = { href: string; title: string; detail: string };
 
@@ -54,7 +54,7 @@ export async function operationsTodos(): Promise<TodoItem[]> {
     if (row.onHand < 5) items.push({ href: "/admin/addons", title: `Low stock: ${row.key}`, detail: `${row.onHand} on hand, below 5` });
   }
   const known = new Set(stock.map((row) => row.key));
-  for (const key of EXTRA_KEYS) {
+  for (const key of STOCKED_EXTRA_KEYS) {
     if (!known.has(key)) items.push({ href: "/admin/addons", title: `Stock not set: ${key}`, detail: "Set a count before the next booking" });
   }
 

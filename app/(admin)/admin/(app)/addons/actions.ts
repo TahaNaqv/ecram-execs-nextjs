@@ -4,9 +4,9 @@ import { eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { requireArea } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { EXTRA_KEYS, type ExtraPick } from "@/lib/pricing/extras";
+import { STOCKED_EXTRA_KEYS, type ExtraPick } from "@/lib/pricing/extras";
 
-const known = (key: string) => (EXTRA_KEYS as readonly string[]).includes(key);
+const known = (key: string) => (STOCKED_EXTRA_KEYS as readonly string[]).includes(key);
 
 export async function saveAddonStock(formData: FormData) {
   await requireArea("/admin/addons");

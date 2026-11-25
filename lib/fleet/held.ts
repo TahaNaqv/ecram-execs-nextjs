@@ -1,3 +1,4 @@
+import { hasTrailer, TRAILER_KEY } from "../pricing/extras.ts";
 import { fleetPicks, normalizeVehicleKey } from "./vehicles.ts";
 
 /** The key a booking's car is held under, or null when no particular car is meant ("advise me", or none chosen). */
@@ -12,10 +13,13 @@ export function carKey(vehicle: string | null | undefined): string | null {
  * car leading, so when the team gives the booking another car, that car takes the first one's place. A booking with no
  * particular car ("let us choose") holds nothing until the team gives it one.
  */
-export function heldKeys(booking: { vehicle: string | null | undefined; vehicles?: unknown }): Set<string> {
+export function heldKeys(booking: { vehicle: string | null | undefined; vehicles?: unknown; extras?: unknown }): Set<string> {
+  // The luggage trailer is one of a kind: a booking with it holds it too, whichever car (or none chosen yet) pulls it
+  const trailer = hasTrailer(booking.extras);
   const lead = carKey(booking.vehicle);
-  if (!lead) return new Set();
+  if (!lead) return new Set(trailer ? [TRAILER_KEY] : []);
   const keys = new Set([lead]);
   for (const pick of fleetPicks(booking.vehicles).slice(1)) keys.add(pick.key);
+  if (trailer) keys.add(TRAILER_KEY);
   return keys;
 }

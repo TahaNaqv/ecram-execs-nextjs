@@ -17,7 +17,9 @@ export type RequestEventChange =
   /** The car that does the job: a fleet key, "advise" for none in particular, or null when it was left open. */
   | { kind: "vehicle"; from: string | null; to: string | null }
   /** The booking's cars, changed by the team in review (the client, 8 Nov 2026): fleet keys and counts, "audi:2|range_rover:1" */
-  | { kind: "cars"; from: string; to: string };
+  | { kind: "cars"; from: string; to: string }
+  /** The luggage trailer taken off the booking by the team, e.g. to resolve a clash (26 Nov 2026) */
+  | { kind: "trailer"; to: boolean };
 
 export type RequestEventParams = {
   /** For `event: "changes"` — several fields can change in one save. */
@@ -101,6 +103,8 @@ export type EventLabels = {
   vehicleChanged: string;
   /** Interpolates {from} and {to}: the booking's cars ("2 × Audi E-Tron GT, 1 × Range Rover EV") */
   carsChanged: string;
+  trailerAdded: string;
+  trailerRemoved: string;
   /** Interpolates {reference}: a partner accepted a quote for a car that another confirmed booking already holds */
   carClash: string;
   /** Interpolates {number}: the Moneybird invoice was sent */
@@ -213,6 +217,7 @@ export function renderEvent(
         return fill(labels.vehicleChanged, { from: car(change.from), to: car(change.to) });
       }
       if (change.kind === "cars") return fill(labels.carsChanged, { from: carsLine(change.from) || labels.none, to: carsLine(change.to) || labels.none });
+      if (change.kind === "trailer") return change.to ? labels.trailerAdded : labels.trailerRemoved;
       return labels.notesUpdated;
     });
     return parts.join(" · ");
