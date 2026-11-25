@@ -22,6 +22,8 @@ export type VehicleSpecs = {
   rangeStandard: "WLTP" | "EPA";
   /** Free-text per language: how much luggage fits. Left out when sources disagree: no answer beats a wrong one. */
   luggage?: Record<"en" | "nl", string>;
+  /** Short facts shown with the car, in the visitor's language. */
+  highlights?: Record<"en" | "nl", string[]>;
   /** Only amenities this exact vehicle has. */
   amenities: Amenity[];
   verified: {
@@ -265,20 +267,34 @@ export const FLEET: FleetVehicle[] = [
     name: "Mercedes-Benz eSprinter 420 RWD PRO",
     images: [
       "/assets/Black_van_studio_render_1f48a4a8.jpg",
-      "/assets/Black_high-roof_Sprinter_van_022d1a11.jpg",
-      "/assets/Black_Sprinter_van_studio_render_00dc9925.jpg",
       "/assets/Sprinter_van_studio_render_5ce5b996.jpg",
-      "/assets/Sprinter_van_studio_render_715456cc.jpg",
+      "/assets/Black_high-roof_Sprinter_van_022d1a11.jpg",
+      "/assets/Studio_render_of_black_van_3e9c41b4.jpg",
       "/assets/Luxury_Sprinter_van_interior_render_aeb794b0.jpg",
+      "/assets/Black_Sprinter_van_studio_render_00dc9925.jpg",
     ],
     drivetrain: "bev",
     specs: {
       passengers: 16,
       rangeKm: 440,
       rangeStandard: "WLTP",
-      luggage: {
-        en: "Passenger windows, passenger air conditioning, and an electric passenger sliding door.",
-        nl: "Ramen voor de passagiers, airconditioning voor de passagiers en een elektrische schuifdeur voor de passagiers.",
+      highlights: {
+        en: [
+          "16 passenger seats",
+          "Fully electric",
+          "Passenger windows",
+          "Passenger air conditioning",
+          "Electric passenger sliding door",
+          "Optional 113 kWh battery",
+        ],
+        nl: [
+          "16 passagierszitplaatsen",
+          "Volledig elektrisch",
+          "Ramen voor de passagiers",
+          "Airconditioning voor de passagiers",
+          "Elektrische schuifdeur voor de passagiers",
+          "Optionele accu van 113 kWh",
+        ],
       },
       amenities: COMMON_AMENITIES,
       verified: {

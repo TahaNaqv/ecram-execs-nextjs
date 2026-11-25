@@ -8,6 +8,7 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, Card, CardHeader, field, fieldLabel } from "../../../_components/ui";
+import { pushToast } from "../../../_components/action-feedback";
 import { discussBooking, type DiscussState } from "./portal-actions";
 import { declineAction, type PaymentActionState } from "./payment-actions";
 
@@ -49,11 +50,19 @@ export function ReviewCard({
   const [declined, declineFormAction, declinePending] = useActionState<PaymentActionState, FormData>(declineAction, {});
 
   useEffect(() => {
-    if (declined.ok) publishBookingStatus(requestId, "cancelled");
-  }, [declined.ok, requestId]);
+    if (declined.ok) {
+      publishBookingStatus(requestId, "cancelled");
+      pushToast("Status updated!");
+    } else if (declined.error) {
+      pushToast(declined.error, false);
+    }
+  }, [declined, requestId]);
 
   useEffect(() => {
-    if (state.ok) publishBookingStatus(requestId, "contacted");
+    if (state.ok) {
+      publishBookingStatus(requestId, "contacted");
+      pushToast("Status updated!");
+    }
   }, [state.ok, requestId]);
 
   async function approve() {
@@ -69,15 +78,19 @@ export function ReviewCard({
         const data = (await res.json().catch(() => ({}))) as { clash?: string; error?: string };
         const reference = data.clash ?? data.error?.match(/EE-[A-Z0-9]{6}/)?.[0] ?? "";
         setError(interpolate(t.clash, { reference }));
+        pushToast(interpolate(t.clash, { reference }), false);
       } else if (!res.ok) {
         setError(t.failed);
+        pushToast(t.failed, false);
       } else {
         setApproved(true);
+        pushToast("Booking approved!");
         publishBookingStatus(requestId, "confirmed");
         refreshOnce(router);
       }
     } catch {
       setError(t.failed);
+      pushToast(t.failed, false);
     } finally {
       setApproving(false);
     }

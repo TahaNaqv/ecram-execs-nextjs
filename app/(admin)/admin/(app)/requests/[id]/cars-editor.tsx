@@ -5,6 +5,7 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, Card, CardHeader } from "../../../_components/ui";
+import { useActionNotice } from "../../../_components/action-feedback";
 import { updateCars, type CarsState } from "./cars-actions";
 
 type Copy = Dictionary["admin"]["review"];
@@ -27,6 +28,7 @@ export function CarsEditor({
 }) {
   const [counts, setCounts] = useState<Record<string, number>>(initial);
   const [state, action, pending] = useActionState<CarsState, FormData>(updateCars, {});
+  useActionNotice(state, "Vehicle assigned!");
   const set = (key: string, n: number) => setCounts((c) => ({ ...c, [key]: Math.max(0, Math.min(max, n)) }));
   const value = cars
     .filter((c) => (counts[c.key] ?? 0) > 0)

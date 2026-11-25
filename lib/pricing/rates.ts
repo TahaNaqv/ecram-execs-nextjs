@@ -131,6 +131,11 @@ export function customerHourly(key: string, segment: Segment, day: DayKind): num
   return vehicle ? CUSTOMER_HOURLY[vehicle]?.[segment]?.[day] ?? null : null;
 }
 
+/** The hourly figure on a vehicle card. Cars with a published customer price show that VAT-inclusive rate, never the net rate. */
+export function displayHourly(key: string, segment: Segment, day: DayKind): number | null {
+  return customerHourly(key, segment, day) ?? hourlyRate(key, segment, day);
+}
+
 /**
  * Whole hours billed for one leg, at least `MIN_HOURS`. An hourly booking is billed for the hours booked. A transfer is
  * billed for the drive Google expects (without traffic) plus the chauffeur's waits at the stops, rounded up to the hour:

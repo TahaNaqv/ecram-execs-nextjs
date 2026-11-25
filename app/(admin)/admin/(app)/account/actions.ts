@@ -6,6 +6,7 @@ import { ACCOUNT_AREAS, isStaffRole, mayCreateAccounts, permissionsFor, readTeam
 import { createStaff } from "@/lib/admin/staff";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { newTotpSecret, verifyTotp } from "@/lib/auth/totp";
+import { clearPendingTotp, readPendingTotp, savePendingTotp } from "@/lib/auth/totp-pending";
 import { destroySession, requireAdmin } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
@@ -121,18 +122,28 @@ export async function createTeamAccount(_prev: CreateAccountState, formData: For
 
 export async function beginTotp() {
   const admin = await requireAdmin();
-  await db.update(schema.adminUsers).set({ totpSecret: newTotpSecret(), totpEnabled: false }).where(eq(schema.adminUsers.id, admin.id));
-  refresh();
+  const secret = newTotpSecret();
+  await db.update(schema.adminUsers).set({ totpSecret: secret, totpEnabled: false }).where(eq(schema.adminUsers.id, admin.id));
+  await savePendingTotp(secret);
+  redirect("/admin/account");
 }
 
 export async function confirmTotp(formData: FormData) {
   const admin = await requireAdmin();
-  const [user] = await db.select({ secret: schema.adminUsers.totpSecret }).from(schema.adminUsers).where(eq(schema.adminUsers.id, admin.id)).limit(1);
-  if (!user?.secret || !verifyTotp(user.secret, String(formData.get("code") ?? ""))) {
-    redirect("/admin/account?totp=rejected");
+  const code = String(formData.get("code") ?? "");
+  const fromSession = await readPendingTotp();
+  const [user] = await db
+    .select({ secret: schema.adminUsers.totpSecret, enabled: schema.adminUsers.totpEnabled })
+    .from(schema.adminUsers)
+    .where(eq(schema.adminUsers.id, admin.id))
+    .limit(1);
+  const pending = user && !user.enabled ? fromSession ?? user.secret : null;
+  if (!pending || !verifyTotp(pending, code)) {
+    return { ok: false as const, error: "That code did not match. Wait for the next code and try again." };
   }
-  await db.update(schema.adminUsers).set({ totpEnabled: true }).where(eq(schema.adminUsers.id, admin.id));
-  refresh();
+  await db.update(schema.adminUsers).set({ totpSecret: pending, totpEnabled: true }).where(eq(schema.adminUsers.id, admin.id));
+  await clearPendingTotp();
+  redirect("/admin/account?totp=enabled");
 }
 
 /** Turns the authenticator off and ends every session for this account, so a locked-out owner can sign in with the password. */
@@ -141,6 +152,7 @@ export async function disableTotp() {
   if (admin.role !== "owner") redirect("/admin/account?totp=denied");
   const cleared = await clearTotp(admin.id);
   if (!cleared) redirect("/admin/account?totp=missing");
+  await clearPendingTotp();
   await destroySession();
   redirect("/admin/login?totp=cleared");
 }
@@ -160,6 +172,7 @@ export async function resetTotpFor(formData: FormData) {
   const cleared = await clearTotp(user.id);
   if (!cleared) redirect("/admin/account?totp=failed");
   if (user.id === admin.id) {
+    await clearPendingTotp();
     await destroySession();
     redirect("/admin/login?totp=cleared");
   }

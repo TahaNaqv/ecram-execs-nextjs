@@ -5,6 +5,7 @@ import { getCorporatePartnerDetail } from "@/lib/admin/live-queries";
 import { updateCorporatePartner } from "@/lib/admin/corporate-actions";
 import { ArrowLeftIcon } from "../../../../_components/icons";
 import { Card, PageBody, PageHeader } from "../../../../_components/ui";
+import { ActionForm } from "../../../../_components/action-feedback";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 
@@ -47,7 +48,7 @@ export default async function EditCorporatePartnerPage({
 
       <div className="mt-6 max-w-3xl">
         <Card className="p-6">
-          <form action={handleUpdate} className="space-y-5 text-xs">
+          <ActionForm action={handleUpdate} success="Changes saved!" className="space-y-5 text-xs">
             <input type="hidden" name="id" value={id} />
 
             <div>
@@ -125,7 +126,7 @@ export default async function EditCorporatePartnerPage({
                 {copy.cancel}
               </Link>
             </div>
-          </form>
+          </ActionForm>
         </Card>
       </div>
     </PageBody>

@@ -9,6 +9,7 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { formatCurrency } from "@/lib/pricing/rates";
 import { savePartnerOps } from "./ops-actions";
+import { ActionForm } from "../../../_components/action-feedback";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -89,7 +90,7 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
         </div>
       </div>
 
-      <form action={savePartnerOps} className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <ActionForm action={savePartnerOps} success="Changes saved!" className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <input type="hidden" name="id" value={partner.id} />
         <label className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs text-xs font-semibold uppercase tracking-wider text-zinc-500">
           {copy.preferredMethod}
@@ -112,7 +113,7 @@ export function PartnerProfileClient({ partner, copy }: { partner: any; copy: Hu
         <button className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-950 px-4 text-xs font-semibold text-white hover:bg-zinc-800">
           {copy.save}
         </button>
-      </form>
+      </ActionForm>
 
       {/* --- BOOKINGS SIDEBAR DRAWER --- */}
       <AdminDrawer

@@ -4,12 +4,14 @@ import { useActionState } from "react";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { useActionNotice } from "../../../_components/action-feedback";
 import { checkPayments, refundAction, type PaymentActionState } from "./payment-actions";
 
 type Copy = Dictionary["admin"]["payments"];
 
 export function CheckPaymentsButton({ requestId, copy: t }: { requestId: string; copy: Copy }) {
   const [state, action, pending] = useActionState<PaymentActionState, FormData>(checkPayments, {});
+  useActionNotice(state, "Status updated!");
   return (
     <form action={action} className="flex items-center gap-3">
       <input type="hidden" name="requestId" value={requestId} />
@@ -24,6 +26,7 @@ export function CheckPaymentsButton({ requestId, copy: t }: { requestId: string;
 /** Gives money back through Mollie. The amount starts at what the credit invoice returns (or all that is left). */
 export function RefundForm({ paymentId, suggested, max, copy: t }: { paymentId: string; suggested: string; max: string; copy: Copy }) {
   const [state, action, pending] = useActionState<PaymentActionState, FormData>(refundAction, {});
+  useActionNotice(state, "Status updated!");
   return (
     <form action={action} className="flex flex-col gap-2 rounded-lg bg-zinc-50 p-3 ring-1 ring-inset ring-zinc-200">
       <input type="hidden" name="paymentId" value={paymentId} />

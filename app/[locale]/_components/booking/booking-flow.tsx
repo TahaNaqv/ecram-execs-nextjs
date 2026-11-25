@@ -7,7 +7,7 @@ import { bagCapacity, FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehi
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { receiptLineItems, type ReceiptLine } from "@/lib/pricing/receipt-lines";
-import { formatCents, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
+import { customerHourly, displayHourly, formatCents, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
 import { extraName } from "@/lib/pricing/extras";
 import { labelledRoute } from "@/lib/quotes/route-labels";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
@@ -603,7 +603,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
   const rateOf = (key: string) =>
     days.flatMap((day) => {
       const custom = cars.find((car) => car.vehicle.key === key)?.rates;
-      const rate = custom ? custom[day] : hourlyRate(key, segment, day);
+      const rate = displayHourly(key, segment, day) ?? custom?.[day] ?? null;
       if (rate === null) return [];
       const price = formatCents(rate, locale);
       return [split ? interpolate(t.carRateDay, { price, day: dayLabel(t, day) }) : interpolate(t.carRate, { price })];
@@ -749,17 +749,20 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
     );
   };
 
+  const inclusiveStep = offeredCars.length > 0 && offeredCars.every((car) => customerHourly(car.vehicle.key, segment, "weekday") != null);
+  const rateNote = split
+    ? interpolate(inclusiveStep ? t.carRatesSplitIncluded : t.carRatesSplit, { days: days.map((day) => dayLabel(t, day)).join(t.carRatesAnd), fee: formatCents(SERVICE_FEE_CENTS, locale) })
+    : days[0]
+      ? interpolate(inclusiveStep ? t.carRatesIncluded : t.carRates, { day: dayLabel(t, days[0]), fee: formatCents(SERVICE_FEE_CENTS, locale) })
+      : "";
+
   return (
     <section aria-labelledby="booking-car" className="scroll-mt-6">
       <h2 id="booking-car" ref={headingRef} tabIndex={-1} className="m-0 font-serif text-[clamp(32px,4vw,44px)] leading-[1.05] font-normal outline-none">
         {t.carTitle}
       </h2>
       {days.length > 0 && (
-        <p className="m-0 mt-2 text-[13px] text-ink-600">
-          {split
-            ? interpolate(t.carRatesSplit, { days: days.map((day) => dayLabel(t, day)).join(t.carRatesAnd), fee: formatCents(SERVICE_FEE_CENTS, locale) })
-            : interpolate(t.carRates, { day: dayLabel(t, days[0]), fee: formatCents(SERVICE_FEE_CENTS, locale) })}
-        </p>
+        <p className="m-0 mt-2 text-[13px] text-ink-600">{rateNote}</p>
       )}
       <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsSeveral}</p>
       <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">

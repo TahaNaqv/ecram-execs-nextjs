@@ -25,7 +25,9 @@ export function questionsFor(vehicle: FleetVehicle, t: FleetDictionary, locale: 
     items.push([t.qaRangeQ, interpolate(t.qaRangeA, { km: specs.rangeKm, standard: specs.rangeStandard })]);
   }
   items.push([t.qaDurationQ, t.qaDurationA]);
-  if (specs && specs.amenities.length > 0) {
+  if (specs?.highlights) {
+    items.push([t.qaFeaturesQ, interpolate(t.qaFeaturesA, { list: specs.highlights[locale].join(", ") })]);
+  } else if (specs && specs.amenities.length > 0) {
     items.push([t.qaFeaturesQ, interpolate(t.qaFeaturesA, { list: specs.amenities.map((a) => t[AMENITY_KEY[a]]).join(", ") })]);
   }
   if (specs?.luggage) items.push([t.qaLuggageQ, specs.luggage[locale]]);

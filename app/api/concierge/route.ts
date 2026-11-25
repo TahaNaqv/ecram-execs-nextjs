@@ -7,7 +7,7 @@ import { bestMatch } from "@/lib/concierge/match";
 import { recordTurn, SESSION_ID } from "@/lib/concierge/store";
 import type { ConciergeMessageMeta } from "@/lib/db/schema";
 import { bagCapacity, FLEET, vehicleByKey } from "@/lib/fleet/vehicles";
-import { dayKind, formatCents, hourlyRate } from "@/lib/pricing/rates";
+import { dayKind, displayHourly, formatCents } from "@/lib/pricing/rates";
 import { quoteDraft, type ChatQuote } from "@/lib/concierge/price";
 import { asksAboutPrice, namedCarRateReply, publicRateCard } from "@/lib/concierge/rates";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/config";
@@ -356,7 +356,7 @@ CRITICAL RULES:
               shown: true,
               offered: cars,
               rates: Object.fromEntries(cars.map((key) => {
-                const rate = hourlyRate(key, "public", day);
+                const rate = displayHourly(key, "public", day);
                 return [key, rate === null ? null : formatCents(rate, locale)];
               })),
               excluded,

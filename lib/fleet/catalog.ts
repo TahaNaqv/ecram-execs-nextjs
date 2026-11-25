@@ -77,7 +77,14 @@ export async function bookableFleet(): Promise<OfferedVehicle[]> {
     const known = normalizeVehicleKey(row.id);
     if (known) {
       const offer = offers.find((item) => item.key === known);
-      if (offer && row.images && row.images.length > 0) offer.images = row.images;
+      if (!offer) continue;
+      // The eSprinter booking gallery is the printed sequence, not whatever order the register stored.
+      if (known === "mercedes_esprinter") {
+        const printed = FLEET.find((vehicle) => vehicle.key === known);
+        if (printed) offer.images = printed.images;
+      } else if (row.images && row.images.length > 0) {
+        offer.images = row.images;
+      }
       continue;
     }
     if (row.status !== "available") continue;

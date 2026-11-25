@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { pushToast, useActionNotice } from "../../../_components/action-feedback";
 import { creditInvoice, reissueInvoice, retryInvoice, type MoneybirdState } from "./moneybird-actions";
 
 type Copy = Dictionary["admin"]["moneybird"];
@@ -178,6 +179,7 @@ export function MockInvoiceReceiptActions({
 
 export function ReissueButton({ requestId, copy: t }: { requestId: string; copy: Copy }) {
   const [state, action, pending] = useActionState<MoneybirdState, FormData>(reissueInvoice, {});
+  useActionNotice(state, "Invoice request synced!");
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="requestId" value={requestId} />
@@ -192,6 +194,7 @@ export function ReissueButton({ requestId, copy: t }: { requestId: string; copy:
 
 export function RetryButton({ requestId, copy: t, force = false }: { requestId: string; copy: Copy; force?: boolean }) {
   const [state, action, pending] = useActionState<MoneybirdState, FormData>(retryInvoice, {});
+  useActionNotice(state, "Invoice request synced!");
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="requestId" value={requestId} />
@@ -207,6 +210,7 @@ export function RetryButton({ requestId, copy: t, force = false }: { requestId: 
 /** The cancelled booking's credit: in full, or keeping a cancellation fee. Nothing is credited until the team chooses. */
 export function CreditForm({ requestId, copy: t, paid, total, serviceFee }: { requestId: string; copy: Copy; paid: boolean; total: string; serviceFee?: string }) {
   const [state, action, pending] = useActionState<MoneybirdState, FormData>(creditInvoice, {});
+  useActionNotice(state, "Invoice updated!");
   // Paid at booking: the service fee is not refunded when the customer cancels, so that is the first choice
   const [mode, setMode] = useState<"full" | "fee" | "serviceFee">(serviceFee ? "serviceFee" : "full");
   return (

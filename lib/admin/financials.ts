@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { bookingEuros } from "@/lib/admin/queries";
 import {
+  addDays,
   CORPORATE_TERM_DAYS,
   FINANCIAL_PAGE_SIZE,
   monthWindow,
@@ -218,6 +219,7 @@ type LedgerRow = {
   companyName: string | null;
   bookingStatus: string;
   settlement: string;
+  activityAt: string;
 };
 
 function sortExpr(query: FinancialQuery): SQL {
@@ -255,6 +257,7 @@ async function selectLedger(query: FinancialQuery, limit: number, offset: number
         companyName: contacts.companyName,
         bookingStatus: q.status,
         settlement: sql<string>`${settlementSql()}`,
+        activityAt: sql<string>`to_char(${activityAt()}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
       })
       .from(q)
       .leftJoin(contacts, eq(contacts.id, q.corporateContactId))
@@ -377,6 +380,7 @@ export function presentLedger(
           ? moneybirdInvoiceLink(mbInvoice.moneybirdId)
           : `/api/admin/financials/receipt/${row.id}`
         : null,
+      activityAt: row.activityAt,
     };
   });
 }
@@ -403,6 +407,59 @@ export async function getFinancialPage(query: FinancialQuery, locale: Locale, la
     summary,
     rows: presentLedger(ledger.rows, invoicesByRequest, locale, labels, moneybirdByRequest),
     total: ledger.total,
+  };
+}
+
+const SPAN_ROW_LIMIT = 5_000;
+
+export type FinancialBundle = {
+  rows: PresentedFinancialRow[];
+  summaries: Record<"today" | "week" | "month", FinancialSummary>;
+  /** Inclusive start and exclusive end covering today, this week, and this month. */
+  bounds: { from: string; to: string };
+};
+
+/** One ledger read for the preset windows, plus each window's summary. Tab switches then filter this set. */
+export async function getFinancialBundle(
+  filter: Pick<FinancialQuery, "status" | "q">,
+  locale: Locale,
+  labels: PresentLabels,
+): Promise<FinancialBundle> {
+  await requireAdmin();
+  const base: FinancialQuery = { range: "month", status: filter.status, q: filter.q, sort: "date", dir: "desc", page: 1 };
+  const windows = {
+    today: resolveRange({ ...base, range: "today" }),
+    week: resolveRange({ ...base, range: "week" }),
+    month: resolveRange({ ...base, range: "month" }),
+  };
+  const from = [windows.today.from, windows.week.from, windows.month.from].sort()[0];
+  const to = [windows.today.to, windows.week.to, windows.month.to].sort().at(-1)!;
+  const span: FinancialQuery = { ...base, range: "custom", from, to: addDays(to, -1) };
+  const [today, week, month, ledger] = await Promise.all([
+    getFinancialSummary({ ...base, range: "today" }),
+    getFinancialSummary({ ...base, range: "week" }),
+    getFinancialSummary({ ...base, range: "month" }),
+    selectLedger(span, SPAN_ROW_LIMIT, 0),
+  ]);
+  const [invoicesByRequest, moneybirdByRequest] = await Promise.all([attachInvoices(ledger.rows), attachMoneybird(ledger.rows)]);
+  return {
+    rows: presentLedger(ledger.rows, invoicesByRequest, locale, labels, moneybirdByRequest),
+    summaries: { today, week, month },
+    bounds: { from, to },
+  };
+}
+
+/** Custom range rows and summary. Callers skip this when the dates already sit inside a loaded bundle. */
+export async function getCustomFinancials(query: FinancialQuery, locale: Locale, labels: PresentLabels) {
+  await requireAdmin();
+  const [summary, ledger] = await Promise.all([
+    getFinancialSummary(query),
+    selectLedger({ ...query, page: 1 }, SPAN_ROW_LIMIT, 0),
+  ]);
+  const [invoicesByRequest, moneybirdByRequest] = await Promise.all([attachInvoices(ledger.rows), attachMoneybird(ledger.rows)]);
+  return {
+    summary,
+    rows: presentLedger(ledger.rows, invoicesByRequest, locale, labels, moneybirdByRequest),
   };
 }
 

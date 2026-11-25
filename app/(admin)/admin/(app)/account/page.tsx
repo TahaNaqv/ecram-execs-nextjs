@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
-import { totpUri } from "@/lib/auth/totp";
+import { readPendingTotp } from "@/lib/auth/totp-pending";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { adminDictionary, getDictionary } from "@/lib/i18n/get-dictionary";
 import { btn, Card, CardHeader, PageBody, PageHeader, field } from "../../_components/ui";
+import { ActionForm } from "../../_components/action-feedback";
 import { AccountForm } from "./account-form";
-import { beginTotp, confirmTotp, disableTotp, resetTotpFor } from "./actions";
+import { AuthenticatorSetup } from "./authenticator-setup";
+import { beginTotp, disableTotp, resetTotpFor } from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await getDictionary(DEFAULT_LOCALE);
@@ -24,20 +26,26 @@ export default function AccountPage({ searchParams }: { searchParams: Promise<{ 
 }
 
 async function AccountScreen({ searchParams }: { searchParams: Promise<{ totp?: string }> }) {
-  const [{ admin: t }, admin, query] = await Promise.all([adminDictionary(), requireAdmin(), searchParams]);
+  const [{ admin: t }, admin, query, pendingSecret] = await Promise.all([adminDictionary(), requireAdmin(), searchParams, readPendingTotp()]);
   const [signIn] = await db.select({ secret: schema.adminUsers.totpSecret, enabled: schema.adminUsers.totpEnabled }).from(schema.adminUsers).where(eq(schema.adminUsers.id, admin.id)).limit(1);
   const notice =
-    query.totp === "cleared"
-      ? { ok: true, text: "Authenticator reset. That account signs in with its password." }
-      : query.totp === "rejected"
-        ? { ok: false, text: "That code did not match. Wait for the next code and try again." }
-        : query.totp === "missing"
-          ? { ok: false, text: "No account uses that email." }
-          : query.totp === "denied"
-            ? { ok: false, text: "Only an owner can reset an authenticator." }
-            : query.totp === "failed"
-              ? { ok: false, text: "The authenticator could not be reset. Try again." }
-              : null;
+    query.totp === "enabled"
+      ? { ok: true, text: "Authenticator 2FA enabled!" }
+      : query.totp === "cleared"
+        ? { ok: true, text: "Authenticator reset. That account signs in with its password." }
+        : query.totp === "rejected"
+          ? { ok: false, text: "That code did not match. Wait for the next code and try again." }
+          : query.totp === "missing"
+            ? { ok: false, text: "No account uses that email." }
+            : query.totp === "denied"
+              ? { ok: false, text: "Only an owner can reset an authenticator." }
+              : query.totp === "failed"
+                ? { ok: false, text: "The authenticator could not be reset. Try again." }
+                : null;
+  const pending = !signIn?.enabled ? pendingSecret || signIn?.secret || null : null;
+  if (pending && pending !== signIn?.secret) {
+    await db.update(schema.adminUsers).set({ totpSecret: pending, totpEnabled: false }).where(eq(schema.adminUsers.id, admin.id));
+  }
   return (
     <PageBody>
       <PageHeader title={t.account.title} />
@@ -56,36 +64,29 @@ async function AccountScreen({ searchParams }: { searchParams: Promise<{ totp?: 
             </p>
           ) : null}
           {signIn?.enabled ? (
-            <>
-              <p className="m-0">Two-factor login is on for this account.</p>
-            </>
+            <p className="m-0">Two-factor login is on. The next sign-in asks for the code from your authenticator app.</p>
+          ) : pending ? (
+            <AuthenticatorSetup email={admin.email} secret={pending} />
           ) : (
             <>
-              <form action={beginTotp}><button className={`${btn.base} ${btn.secondary} ${btn.md}`}>Generate authenticator secret</button></form>
-              {signIn?.secret ? (
-                <>
-                  <p className="m-0 break-all font-mono text-[13px]">{signIn.secret}</p>
-                  <p className="m-0 break-all text-[12px] text-zinc-500">{totpUri(admin.email, signIn.secret)}</p>
-                  <form action={confirmTotp} className="flex flex-wrap items-center gap-2">
-                    <input name="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={8} placeholder="6-digit code" className={`${field} h-10 w-40`} />
-                    <button className={`${btn.base} ${btn.primary} ${btn.md}`}>Confirm code</button>
-                  </form>
-                </>
-              ) : null}
+              <p className="m-0 text-zinc-600">Sign-in will ask for a 6-digit code from an authenticator app, as well as the password.</p>
+              <ActionForm action={beginTotp} success="Authenticator secret generated!" inline="Ready!">
+                <button className={`${btn.base} ${btn.primary} ${btn.md}`}>Set up authenticator</button>
+              </ActionForm>
             </>
           )}
-          {(signIn?.enabled || signIn?.secret) && admin.role === "owner" ? (
-            <form action={disableTotp}>
+          {(signIn?.enabled || pending) && admin.role === "owner" ? (
+            <ActionForm action={disableTotp} tone="reset">
               <button className={`${btn.base} ${btn.secondary} ${btn.md}`}>Reset authenticator</button>
-            </form>
+            </ActionForm>
           ) : null}
           {admin.role === "owner" ? (
-            <form action={resetTotpFor} className="flex flex-wrap items-end gap-2 border-t border-zinc-100 pt-3">
+            <ActionForm action={resetTotpFor} tone="reset" success="Authenticator reset!" className="flex flex-wrap items-end gap-2 border-t border-zinc-100 pt-3">
               <label className="text-[13px] text-zinc-700">Reset another account
                 <input name="email" type="email" required placeholder="name@company.com" className={`${field} mt-1 h-10 w-64`} />
               </label>
               <button className={`${btn.base} ${btn.secondary} ${btn.md}`}>Reset their authenticator</button>
-            </form>
+            </ActionForm>
           ) : null}
         </div>
       </Card>

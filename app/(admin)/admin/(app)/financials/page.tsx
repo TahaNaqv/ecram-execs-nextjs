@@ -3,33 +3,19 @@ export const instant = false;
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { formatDate } from "@/lib/admin/format";
-import { getFinancialPage } from "@/lib/admin/financials";
-import { FINANCIAL_PAGE_SIZE, amsterdamToday, financialHref, isCanonicalFinancialUrl, parseFinancialQuery, type FinancialQuery } from "@/lib/admin/financials-shared";
+import { getCustomFinancials, getFinancialBundle } from "@/lib/admin/financials";
+import { addDays, financialHref, isCanonicalFinancialUrl, parseFinancialQuery } from "@/lib/admin/financials-shared";
 import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { Card, PageBody, PageHeader, Skeleton, StatCardSkeleton } from "../../_components/ui";
-import { FinancialFilters } from "./FinancialFilters";
-import { FinancialSummaryCards } from "./FinancialSummaryCards";
-import { FinancialTable } from "./FinancialTable";
+import { FinancialsBoard } from "./financials-board";
 
 type Search = Record<string, string | string[] | undefined>;
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
   return { title: admin.financials.title };
-}
-
-function periodLabel(query: FinancialQuery, month: string, today: string, week: string, locale: "en" | "nl"): string {
-  if (query.range === "today") return today;
-  if (query.range === "week") return week;
-  if (query.range === "custom" && query.from && query.to) {
-    const from = formatDate(query.from, locale);
-    const to = formatDate(query.to, locale);
-    return from === to ? from : `${from} – ${to}`;
-  }
-  return month;
 }
 
 async function Financials({ searchParams }: { searchParams: Promise<Search> }) {
@@ -42,46 +28,27 @@ async function Financials({ searchParams }: { searchParams: Promise<Search> }) {
     return <p className="mt-6 text-sm text-zinc-600">Only someone with financial access can open this page.</p>;
   }
   const locale = admin?.locale ?? "en";
-  const copy = dict.admin.financials;
-  const { summary, rows, total } = await getFinancialPage(query, locale, {
-    services: dict.services,
-    hourly: dict.admin.requestDetail.durationValue,
-  });
-  const pages = Math.max(1, Math.ceil(total / FINANCIAL_PAGE_SIZE));
-  if (query.page > pages) redirect(financialHref({ ...query, page: pages }));
-  const today = amsterdamToday();
+  const labels = { services: dict.services, hourly: dict.admin.requestDetail.durationValue };
+  const bundle = await getFinancialBundle({ status: query.status, q: query.q }, locale, labels);
+  const outside = query.range === "custom" && query.from && query.to && (query.from < bundle.bounds.from || addDays(query.to, 1) > bundle.bounds.to);
+  const custom = outside ? await getCustomFinancials(query, locale, labels) : null;
 
   return (
-    <>
-      <FinancialSummaryCards
-        summary={summary}
-        range={query.range}
-        periodLabel={periodLabel(query, copy.rangeMonth, copy.rangeToday, copy.rangeWeek, locale)}
-        copy={copy}
-      />
-      <Card className="mt-6 overflow-hidden">
-        <FinancialFilters
-          query={query}
-          copy={copy}
-          defaults={{ from: query.from ?? today, to: query.to ?? today }}
-          locale={locale === "nl" ? "nl" : "en"}
-          dateCopy={{ chooseDate: dict.admin.common.chooseDate, previousMonth: dict.admin.common.previousMonth, nextMonth: dict.admin.common.nextMonth }}
-        />
-        <FinancialTable
-          query={query}
-          rows={rows}
-          total={total}
-          filtered={financialHref(query) !== "/admin/financials"}
-          copy={copy}
-          paging={{
-            previous: dict.admin.common.previousPage,
-            next: dict.admin.common.nextPage,
-            pagination: dict.admin.common.pagination,
-            reset: dict.admin.common.resetFilters,
-          }}
-        />
-      </Card>
-    </>
+    <FinancialsBoard
+      initialQuery={query}
+      bundle={bundle}
+      custom={custom}
+      copy={dict.admin.financials}
+      locale={locale === "nl" ? "nl" : "en"}
+      dateCopy={{ chooseDate: dict.admin.common.chooseDate, previousMonth: dict.admin.common.previousMonth, nextMonth: dict.admin.common.nextMonth }}
+      paging={{
+        previous: dict.admin.common.previousPage,
+        next: dict.admin.common.nextPage,
+        pagination: dict.admin.common.pagination,
+        reset: dict.admin.common.resetFilters,
+      }}
+      statusLabels={dict.admin.statuses}
+    />
   );
 }
 

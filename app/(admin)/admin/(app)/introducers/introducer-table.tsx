@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { fillTemplate } from "@/lib/admin/template-tags";
 import { btn, field } from "../../_components/ui";
+import { ActionForm } from "../../_components/action-feedback";
 import { deleteIntroducer, emailIntroducer, updateIntroducer } from "./actions";
 
 export type IntroducerView = {
@@ -42,7 +43,7 @@ export function IntroducerTable({ rows, subjectTemplate, bodyTemplate }: { rows:
             {rows.map((row) => (
               <tr key={row.id} className="border-b border-zinc-100 align-bottom last:border-0">
                 <td className="min-w-[22rem] px-4 py-3">
-                  <form id={`introducer-${row.id}`} action={updateIntroducer} className="flex flex-col gap-4">
+                  <ActionForm id={`introducer-${row.id}`} action={updateIntroducer} className="flex flex-col gap-4">
                     <input type="hidden" name="id" value={row.id} />
                     <input name="name" required defaultValue={row.name} aria-label="Name" className={`${field} h-10 w-full`} />
                     <input name="email" type="email" defaultValue={row.email ?? ""} aria-label="Email" placeholder="Email" className={`${field} h-10 w-full`} />
@@ -57,7 +58,7 @@ export function IntroducerTable({ rows, subjectTemplate, bodyTemplate }: { rows:
                       </label>
                       <button className={`${compact} border border-zinc-200 bg-white text-zinc-900`}>Save</button>
                     </div>
-                  </form>
+                  </ActionForm>
                 </td>
                 <td className="px-4 py-3">
                   {row.partners.length === 0 ? (
@@ -76,10 +77,10 @@ export function IntroducerTable({ rows, subjectTemplate, bodyTemplate }: { rows:
                 <td className="px-4 py-3 tabular-nums">{row.monthCommission}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center gap-4">
-                    <form action={deleteIntroducer}>
+                    <ActionForm action={deleteIntroducer} tone="delete">
                       <input type="hidden" name="id" value={row.id} />
                       <button className={`${compact} bg-red-50 text-red-700 ring-1 ring-inset ring-red-200`}>Remove</button>
-                    </form>
+                    </ActionForm>
                     <button type="button" disabled={!row.email} onClick={() => setPreview(row)} className={`${compact} border border-zinc-200 bg-white text-zinc-900`}>
                       Email invoice request
                     </button>
@@ -106,8 +107,12 @@ export function IntroducerTable({ rows, subjectTemplate, bodyTemplate }: { rows:
 function InvoicePreview({ row, subject, body, onClose }: { row: IntroducerView; subject: string; body: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-zinc-950/40 p-4" role="presentation" onClick={onClose}>
-      <form
+      <ActionForm
         action={emailIntroducer}
+        tone="email"
+        success="Invoice request email sent!"
+        inline="Sent!"
+        onDone={onClose}
         role="dialog"
         aria-modal="true"
         aria-labelledby="invoice-request-title"
@@ -131,7 +136,7 @@ function InvoicePreview({ row, subject, body, onClose }: { row: IntroducerView; 
           <button type="button" onClick={onClose} className={`${compact} ${btn.ghost}`}>Cancel</button>
           <button className={`${compact} ${btn.primary}`}>Send invoice request</button>
         </div>
-      </form>
+      </ActionForm>
     </div>
   );
 }

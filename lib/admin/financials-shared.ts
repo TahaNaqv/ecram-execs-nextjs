@@ -74,6 +74,8 @@ export type PresentedFinancialRow = {
   moneybirdNumber: string | null;
   moneybirdState: string | null;
   moneybirdHref: string | null;
+  /** Amsterdam wall time `YYYY-MM-DDTHH:mm:ss`, so a loaded ledger can be filtered without another query. */
+  activityAt: string;
 };
 
 const STATUSES: readonly StatusFilter[] = ["all", "paid", "pending", "overdue", "refunded"];

@@ -8,6 +8,7 @@ import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { formatCurrency } from "@/lib/pricing/rates";
 import { btn, Card, PageBody, PageHeader, field } from "../../_components/ui";
+import { ActionForm } from "../../_components/action-feedback";
 import { addIntroducer } from "./actions";
 import { IntroducerTable } from "./introducer-table";
 
@@ -48,7 +49,7 @@ async function Introducers() {
     <PageBody>
       <PageHeader title="Introducers" />
       <Card className="mt-6 overflow-hidden">
-        <form action={addIntroducer} className="grid items-end gap-4 border-b border-zinc-100 px-5 py-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(18rem,1.4fr)_7.5rem_auto]">
+        <ActionForm action={addIntroducer} success="Introducer added!" className="grid items-end gap-4 border-b border-zinc-100 px-5 py-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(18rem,1.4fr)_7.5rem_auto]">
           <label className="flex min-w-0 flex-col gap-1 text-[13px] text-zinc-700">
             Name
             <input name="name" required className={`${field} h-10 w-full`} />
@@ -62,7 +63,7 @@ async function Introducers() {
             <input name="percent" type="number" min={0} max={100} defaultValue={10} className={`${field} h-10 w-full`} />
           </label>
           <button className={`${btn.base} ${btn.primary} h-10 px-4`}>Add introducer</button>
-        </form>
+        </ActionForm>
         <IntroducerTable rows={views} subjectTemplate={template.subject} bodyTemplate={template.body} />
       </Card>
     </PageBody>

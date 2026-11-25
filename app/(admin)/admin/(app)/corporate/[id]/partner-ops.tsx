@@ -2,6 +2,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { formatTimestamp } from "@/lib/admin/format";
 import { db, schema } from "@/lib/db";
 import { btn, Card, CardHeader, field } from "../../../_components/ui";
+import { ActionForm } from "../../../_components/action-feedback";
 import { ArchivePartner } from "./archive-partner";
 import { addBooker, deleteBooker, restorePartner, savePartnerOps, updateBooker } from "./ops-actions";
 
@@ -31,7 +32,7 @@ export async function PartnerOps({ contactId }: { contactId: string }) {
     <div className="mt-6 grid gap-4">
       <Card>
         <CardHeader title="Partner record" description={contact.archivedAt ? "Archived" : "Billing and who looks after this account. Preferred contact and the payment window are on the overview."} />
-        <form action={savePartnerOps} className="grid gap-3 px-5 py-4 md:grid-cols-2">
+        <ActionForm action={savePartnerOps} success="Changes saved!" className="grid gap-3 px-5 py-4 md:grid-cols-2">
           <input type="hidden" name="id" value={contact.id} />
           <label className="text-[13px] text-zinc-700">Account manager
             <select name="accountManagerId" defaultValue={contact.accountManagerId ?? ""} className={`${field} mt-1 h-10`}>
@@ -52,36 +53,36 @@ export async function PartnerOps({ contactId }: { contactId: string }) {
           <label className="text-[13px] text-zinc-700">VAT number<input name="vatNumber" defaultValue={contact.vatNumber ?? ""} className={`${field} mt-1 h-10`} /></label>
           <label className="text-[13px] text-zinc-700 md:col-span-2">Client preferences<textarea name="preferences" rows={3} defaultValue={contact.preferences ?? ""} className={`${field} mt-1`} /></label>
           <button className={`${btn.base} ${btn.primary} ${btn.md} self-start`}>Save partner</button>
-        </form>
+        </ActionForm>
       </Card>
       <Card>
         <CardHeader title="Bookers" description="People who book for this partner, besides the account login." />
         <ul className="m-0 list-none px-5 py-3">
           {bookers.map((booker) => (
             <li key={booker.id} className="border-b border-zinc-100 py-3">
-              <form action={updateBooker} className="grid gap-2 md:grid-cols-4">
+              <ActionForm action={updateBooker} className="grid gap-2 md:grid-cols-4">
                 <input type="hidden" name="id" value={booker.id} />
                 <input name="name" required defaultValue={booker.name} aria-label="Name" className={`${field} h-10`} />
                 <input name="email" type="email" defaultValue={booker.email ?? ""} aria-label="Email" className={`${field} h-10`} />
                 <input name="phone" defaultValue={booker.phone ?? ""} aria-label="Phone" className={`${field} h-10`} />
                 <input name="position" defaultValue={booker.position ?? ""} aria-label="Role" placeholder="Role" className={`${field} h-10`} />
                 <button className={`${btn.base} ${btn.secondary} ${btn.sm} self-start`}>Save booker</button>
-              </form>
-              <form action={deleteBooker} className="mt-2">
+              </ActionForm>
+              <ActionForm action={deleteBooker} tone="delete" success="Booker removed!" className="mt-2">
                 <input type="hidden" name="id" value={booker.id} />
                 <button className={`${btn.base} ${btn.ghost} ${btn.sm} text-red-700`}>Remove booker</button>
-              </form>
+              </ActionForm>
             </li>
           ))}
         </ul>
-        <form action={addBooker} className="grid gap-2 border-t border-zinc-100 px-5 py-4 md:grid-cols-4">
+        <ActionForm action={addBooker} success="Booker added!" className="grid gap-2 border-t border-zinc-100 px-5 py-4 md:grid-cols-4">
           <input type="hidden" name="contactId" value={contact.id} />
           <input name="name" required placeholder="Name" className={`${field} h-10`} />
           <input name="email" type="email" placeholder="Email" className={`${field} h-10`} />
           <input name="phone" placeholder="Phone" className={`${field} h-10`} />
           <input name="position" placeholder="Role" className={`${field} h-10`} />
           <button className={`${btn.base} ${btn.secondary} ${btn.md} md:col-span-4 self-start`}>Add booker</button>
-        </form>
+        </ActionForm>
       </Card>
       <Card>
         <CardHeader title="Change history" />
@@ -103,10 +104,10 @@ export async function PartnerOps({ contactId }: { contactId: string }) {
       <Card>
         <CardHeader title="Archive" description="Archiving keeps the record and takes the partner off the active list." />
         {contact.archivedAt ? (
-          <form action={restorePartner} className="px-5 py-4">
+          <ActionForm action={restorePartner} success="Partner restored!" className="px-5 py-4">
             <input type="hidden" name="id" value={contact.id} />
             <button className={`${btn.base} ${btn.secondary} ${btn.md}`}>Restore partner</button>
-          </form>
+          </ActionForm>
         ) : (
           <ArchivePartner id={contact.id} />
         )}

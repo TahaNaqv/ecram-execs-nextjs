@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { formatEuro } from "@/lib/admin/format";
+import { formatEuro, STATUS_DOT, STATUS_STYLE as BOOKING_STATUS_STYLE } from "@/lib/admin/format";
 import { FINANCIAL_PAGE_SIZE, financialHref, type FinancialQuery, type PaymentStatus, type PresentedFinancialRow, type SortKey } from "@/lib/admin/financials-shared";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
+import type { RequestStatus } from "@/lib/quotes/constants";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, FileTextIcon, InboxIcon, SearchIcon } from "../../_components/icons";
-import { StatusBadge } from "../../_components/status-badge";
 import { btn, EmptyState } from "../../_components/ui";
 
 type Copy = Dictionary["admin"]["financials"];
@@ -35,15 +35,34 @@ function pageWindow(page: number, pages: number): (number | null)[] {
   return shown.flatMap((n, i) => (i > 0 && n - shown[i - 1] > 1 ? [null, n] : [n]));
 }
 
-function SortHeader({ query, sort, label, align = "left" }: { query: FinancialQuery; sort: SortKey; label: string; align?: "left" | "right" }) {
+function SortHeader({ query, sort, label, align = "left", onNavigate }: { query: FinancialQuery; sort: SortKey; label: string; align?: "left" | "right"; onNavigate?: (next: FinancialQuery) => void }) {
   const active = query.sort === sort;
+  const className = `inline-flex items-center gap-1 hover:text-zinc-950 ${align === "right" ? "flex-row-reverse" : ""}`;
+  const nextDir = query.sort !== sort ? (sort === "client" || sort === "reference" || sort === "status" ? "asc" : "desc") : query.dir === "asc" ? "desc" : "asc";
+  const mark = active && <ChevronDownIcon size={12} className={query.dir === "asc" ? "rotate-180" : ""} />;
   return (
     <th scope="col" aria-sort={active ? (query.dir === "asc" ? "ascending" : "descending") : "none"} className={`px-3 py-2.5 font-medium ${align === "right" ? "text-right" : ""}`}>
-      <Link href={sortHref(query, sort)} scroll={false} className={`inline-flex items-center gap-1 hover:text-zinc-950 ${align === "right" ? "flex-row-reverse" : ""}`}>
-        {label}
-        {active && <ChevronDownIcon size={12} className={query.dir === "asc" ? "rotate-180" : ""} />}
-      </Link>
+      {onNavigate ? (
+        <button type="button" onClick={() => onNavigate({ ...query, sort, dir: nextDir, page: 1 })} className={className}>
+          {label}
+          {mark}
+        </button>
+      ) : (
+        <Link href={sortHref(query, sort)} scroll={false} className={className}>
+          {label}
+          {mark}
+        </Link>
+      )}
     </th>
+  );
+}
+
+function BookingStatus({ status, label }: { status: RequestStatus; label: string }) {
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${BOOKING_STATUS_STYLE[status]}`}>
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${STATUS_DOT[status]}`} />
+      {label}
+    </span>
   );
 }
 
@@ -117,6 +136,8 @@ export function FinancialTable({
   filtered,
   copy,
   paging,
+  onNavigate,
+  statusLabels,
 }: {
   query: FinancialQuery;
   rows: PresentedFinancialRow[];
@@ -124,6 +145,8 @@ export function FinancialTable({
   filtered: boolean;
   copy: Copy;
   paging: { previous: string; next: string; pagination: string; reset: string };
+  onNavigate?: (next: FinancialQuery) => void;
+  statusLabels: Record<RequestStatus, string>;
 }) {
   const page = query.page;
   const pages = Math.max(1, Math.ceil(total / FINANCIAL_PAGE_SIZE));
@@ -138,9 +161,15 @@ export function FinancialTable({
         description={filtered ? copy.emptyFilteredNote : copy.emptyNote}
         action={
           filtered ? (
-            <Link href="/admin/financials" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
-              {paging.reset}
-            </Link>
+            onNavigate ? (
+              <button type="button" onClick={() => onNavigate({ range: "month", status: "all", sort: "date", dir: "desc", page: 1 })} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+                {paging.reset}
+              </button>
+            ) : (
+              <Link href="/admin/financials" className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+                {paging.reset}
+              </Link>
+            )
           ) : undefined
         }
       />
@@ -158,7 +187,7 @@ export function FinancialTable({
                 {row.clientSub && <p className="truncate text-xs text-zinc-500">{row.clientSub}</p>}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <Audience corporate={row.corporate} copy={copy} />
-                  <StatusBadge status={row.bookingStatus} />
+                  <BookingStatus status={row.bookingStatus} label={statusLabels[row.bookingStatus]} />
                   <Payment status={row.status} copy={copy} />
                 </div>
               </div>
@@ -185,13 +214,13 @@ export function FinancialTable({
           <caption className="sr-only">{copy.title}</caption>
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs font-medium text-zinc-500">
-              <SortHeader query={query} sort="reference" label={copy.colReference} />
-              <SortHeader query={query} sort="date" label={copy.colDate} />
-              <SortHeader query={query} sort="client" label={copy.colClient} />
+              <SortHeader query={query} sort="reference" label={copy.colReference} onNavigate={onNavigate} />
+              <SortHeader query={query} sort="date" label={copy.colDate} onNavigate={onNavigate} />
+              <SortHeader query={query} sort="client" label={copy.colClient} onNavigate={onNavigate} />
               <th scope="col" className="px-3 py-2.5 font-medium">{copy.colRoute}</th>
-              <SortHeader query={query} sort="amount" label={copy.colGross} align="right" />
+              <SortHeader query={query} sort="amount" label={copy.colGross} align="right" onNavigate={onNavigate} />
               <th scope="col" className="px-3 py-2.5 text-right font-medium">{copy.colVat}</th>
-              <SortHeader query={query} sort="status" label={copy.colStatus} />
+              <SortHeader query={query} sort="status" label={copy.colStatus} onNavigate={onNavigate} />
               <th scope="col" className="px-3 py-2.5 font-medium">{copy.colBookingStatus}</th>
               <th scope="col" className="sticky right-0 bg-zinc-50 py-2.5 pr-5 pl-3 text-right font-medium shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.08)]">{copy.colActions}</th>
             </tr>
@@ -219,7 +248,7 @@ export function FinancialTable({
                 <td className="px-3 py-3.5 text-right font-medium tabular-nums whitespace-nowrap text-zinc-950">{formatEuro(row.gross)}</td>
                 <td className="px-3 py-3.5 whitespace-nowrap"><Vat row={row} copy={copy} /></td>
                 <td className="px-3 py-3.5"><Payment status={row.status} copy={copy} /></td>
-                <td className="px-3 py-3.5"><StatusBadge status={row.bookingStatus} /></td>
+                <td className="px-3 py-3.5"><BookingStatus status={row.bookingStatus} label={statusLabels[row.bookingStatus]} /></td>
                 <td className="sticky right-0 bg-white py-3.5 pr-5 pl-3 shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.08)] group-hover:bg-zinc-50"><Actions row={row} copy={copy} /></td>
               </tr>
             ))}
@@ -231,12 +260,22 @@ export function FinancialTable({
         <p>{interpolate(copy.showing, { from, to, total })}</p>
         <nav className="flex flex-wrap items-center gap-2" aria-label={paging.pagination}>
           <span className="px-1 font-medium text-zinc-700 tabular-nums">{interpolate(copy.pageOf, { page, pages })}</span>
-          <PageLink disabled={page <= 1} href={financialHref({ ...query, page: page - 1 })} label={paging.previous}>
+          <PageLink disabled={page <= 1} href={financialHref({ ...query, page: page - 1 })} label={paging.previous} onClick={onNavigate ? () => onNavigate({ ...query, page: page - 1 }) : undefined}>
             <ChevronLeftIcon />
           </PageLink>
           {pageWindow(page, pages).map((n, i) =>
             n === null ? (
               <span key={`gap-${i}`} aria-hidden="true" className="px-1">…</span>
+            ) : onNavigate ? (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onNavigate({ ...query, page: n })}
+                aria-current={n === page ? "page" : undefined}
+                className={`${btn.base} size-8 px-0 tabular-nums ${n === page ? btn.primary : btn.secondary}`}
+              >
+                {n}
+              </button>
             ) : (
               <Link
                 key={n}
@@ -249,7 +288,7 @@ export function FinancialTable({
               </Link>
             ),
           )}
-          <PageLink disabled={page >= pages} href={financialHref({ ...query, page: page + 1 })} label={paging.next}>
+          <PageLink disabled={page >= pages} href={financialHref({ ...query, page: page + 1 })} label={paging.next} onClick={onNavigate ? () => onNavigate({ ...query, page: page + 1 }) : undefined}>
             <ChevronRightIcon />
           </PageLink>
         </nav>
@@ -258,13 +297,20 @@ export function FinancialTable({
   );
 }
 
-function PageLink({ disabled, href, label, children }: { disabled: boolean; href: string; label: string; children: React.ReactNode }) {
+function PageLink({ disabled, href, label, children, onClick }: { disabled: boolean; href: string; label: string; children: React.ReactNode; onClick?: () => void }) {
   const cls = `${btn.base} ${btn.secondary} size-8 px-0`;
   if (disabled) {
     return (
       <span aria-disabled="true" aria-label={label} className={`${cls} cursor-not-allowed opacity-40`}>
         {children}
       </span>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" aria-label={label} onClick={onClick} className={cls}>
+        {children}
+      </button>
     );
   }
   return (

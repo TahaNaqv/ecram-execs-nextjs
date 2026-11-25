@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { btn, field, fieldLabel } from "../../_components/ui";
+import { pushToast } from "../../_components/action-feedback";
 import { saveAccount, type AccountState } from "./actions";
 
 type Copy = {
@@ -28,6 +29,10 @@ export function AccountForm({ name, email, copy }: { name: string; email: string
   const [state, action, pending] = useActionState<AccountState, FormData>(saveAccount, {});
   const error =
     state.error === "wrong" ? copy.wrong : state.error === "taken" ? copy.taken : state.error === "short" ? copy.short : state.error === "failed" ? copy.invalid : null;
+  useEffect(() => {
+    if (state.ok) pushToast("Changes saved!");
+    else if (error) pushToast(error, false);
+  }, [state.ok, error]);
   return (
     <form action={action} className="flex flex-col gap-5">
       <label className="flex flex-col gap-1.5">

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { carsToPrice } from "../../lib/pricing/booking";
-import { billedHours, customerHourly, dayKind, extraKmRate, hourlyRate, hoursByDay, kmPerHour, priceBooking, priceNet, vatByRate } from "../../lib/pricing/rates";
+import { billedHours, customerHourly, dayKind, displayHourly, extraKmRate, hourlyRate, hoursByDay, kmPerHour, priceBooking, priceNet, vatByRate } from "../../lib/pricing/rates";
 import { carsCapacityProblem, cleanCars, MAX_GROUP, MAX_PER_CAR } from "../../app/[locale]/_components/booking/trip";
 import { FLEET, fitConvoy, LARGEST_CAR_SEATS, suggestVehicle, vehicleByKey } from "../../lib/fleet/vehicles";
 import { cleanExtras, priceExtras } from "../../lib/pricing/extras";
@@ -75,6 +75,7 @@ test("sixteen passengers are offered the eSprinter, at the public and corporate 
     for (const day of ["weekday", "saturday", "sunday"] as const) {
       const net = hourlyRate("mercedes_esprinter", segment, day)!;
       expect(customerHourly("mercedes_esprinter", segment, day)).toBe(gross[segment][day]);
+      expect(displayHourly("mercedes_esprinter", segment, day)).toBe(gross[segment][day]);
       const price = priceBooking({ segment, pickupAt: dates[day], hours: 2, cars: [{ key: "mercedes_esprinter", count: 1 }] })!;
       expect(price.rides).toBe(net * 2);
       expect(price.vat).toBe(gross[segment][day] * 2 - net * 2);

@@ -44,6 +44,11 @@ function codeAt(key: string, at: number) {
 const current = codeAt(secret, now);
 assert.equal(verifyTotp(secret, current, now), true);
 assert.equal(verifyTotp(secret, `${current.slice(0, 3)} ${current.slice(3)}`, now + 25_000), true);
+assert.equal(verifyTotp(secret, current, now + 60_000), false);
 assert.equal(verifyTotp(`  ${secret.toLowerCase()}  `, current, now), true);
+
+assert.equal(verifyTotp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "287082", 59_000), true);
+assert.equal(verifyTotp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "287 082", 59_000), true);
+assert.equal(verifyTotp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "081804", 1_111_111_109_000), true);
 
 console.log("totp checks passed");

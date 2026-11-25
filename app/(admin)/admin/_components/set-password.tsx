@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { setTeamPassword, type SetPasswordState } from "../(app)/account/actions";
 import { btn, field } from "./ui";
+import { pushToast } from "./action-feedback";
 
 type Copy = {
   setPassword: string;
@@ -20,6 +21,10 @@ export function SetPasswordForm({ id, copy }: { id: string; copy: Copy }) {
   const [visible, setVisible] = useState(false);
   const [state, submit, pending] = useActionState(setTeamPassword, {} as SetPasswordState);
   const error = state.error === "short" ? copy.short : state.error === "denied" ? copy.denied : state.error === "failed" ? copy.invalid : null;
+  useEffect(() => {
+    if (state.ok) pushToast("Changes saved!");
+    else if (error) pushToast(error, false);
+  }, [state.ok, error]);
 
   return (
     <form action={submit} className="flex w-full min-w-0 flex-col gap-1.5">

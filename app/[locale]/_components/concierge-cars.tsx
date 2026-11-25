@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { FLEET, normalizeVehicleKey, type FleetVehicle } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { formatCents, hourlyRate, hoursByDay, MIN_HOURS, type DayKind } from "@/lib/pricing/rates";
+import { displayHourly, formatCents, hoursByDay, MIN_HOURS, type DayKind } from "@/lib/pricing/rates";
 import { VehicleDetails, type FleetDictionary } from "./booking/vehicle-details";
 
 /** The words the carousel needs: the chat's own, and the booking form's for the car step (the section hands them over). */
@@ -91,7 +91,7 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale,
   const rateText = (key: string) => {
     if (!copy.rate) return null;
     const parts = days.flatMap((day) => {
-      const rate = hourlyRate(key, "public", day);
+      const rate = displayHourly(key, "public", day);
       if (rate === null) return [];
       const price = formatCents(rate, locale);
       const named = split && copy.rateDay && dayName(day);
@@ -146,6 +146,9 @@ export function CarCarousel({ keys, selected, onChoose, copy, fleetDict, locale,
                   {seats !== null && <span className="text-[12px] whitespace-nowrap text-ink-400">{interpolate(copy.seatsUpTo, { seats })}</span>}
                 </div>
                 {rate && <span className="text-[13px] font-medium text-white tabular-nums">{rate}</span>}
+                {car.specs?.highlights?.[locale] && (
+                  <span className="text-[12px] leading-5 text-ink-300">{car.specs.highlights[locale].join(" · ")}</span>
+                )}
                 <button
                   type="button"
                   aria-pressed={isChosen}

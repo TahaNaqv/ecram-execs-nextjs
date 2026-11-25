@@ -7,6 +7,7 @@ import { ACCOUNT_AREAS, type AccountArea, type StaffRole } from "@/lib/admin/acc
 import { CreateAccountForm, TeamAccessFields } from "../(app)/account/create-account";
 import { removeTeamAccount, updateTeamAccess, type RemoveAccountState, type UpdateAccessState } from "../(app)/account/actions";
 import { SetPasswordForm } from "./set-password";
+import { pushToast, SavedMark } from "./action-feedback";
 import { Avatar, btn } from "./ui";
 
 type Person = { id: string; name: string; email: string; role: string; permissions: string[] | null };
@@ -126,7 +127,10 @@ function AccessForm({
       <input type="hidden" name="id" value={person.id} />
       <TeamAccessFields copy={copy} labels={labels} role={role} setRole={setRole} selected={person.permissions ?? []} />
       {error ? <p role="alert" className="m-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
-      <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.md} self-start`}>{copy.saveAccess}</button>
+      <div className="flex items-center gap-2">
+        <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.md} self-start`}>{copy.saveAccess}</button>
+        <SavedMark text={state.ok ? "Saved!" : null} />
+      </div>
     </form>
   );
 }
@@ -162,12 +166,8 @@ export function TeamDesk({
 }) {
   const [open, setOpen] = useState<null | "create" | { kind: "access" | "password" | "remove"; person: Person }>(null);
   const [menu, setMenu] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const timer = useRef(0);
   const show = useCallback((message: string) => {
-    setToast(message);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setToast(null), 4000);
+    pushToast(message);
   }, []);
   const close = useCallback(() => setOpen(null), []);
   const created = useCallback(() => {
@@ -294,10 +294,6 @@ export function TeamDesk({
         <Dialog title={copy.removeAccount} description={open.person.name} closeLabel={copy.close} onClose={close}>
           <RemoveAccountForm key={open.person.id} person={open.person} copy={copy} onRemoved={removed} />
         </Dialog>
-      ) : null}
-      {toast ? createPortal(
-        <p role="status" className="fixed right-4 bottom-4 z-[80] m-0 rounded-lg bg-zinc-950 px-4 py-3 text-sm text-white shadow-lg">{toast}</p>,
-        document.body,
       ) : null}
     </section>
   );

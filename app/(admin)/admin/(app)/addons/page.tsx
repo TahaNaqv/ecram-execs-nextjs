@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { EXTRA_KEYS } from "@/lib/pricing/extras";
 import { btn, Card, PageBody, PageHeader, field } from "../../_components/ui";
+import { ActionForm } from "../../_components/action-feedback";
 import { addSupplier, deleteSupplier, saveAddonStock } from "./actions";
 import { PendingSubmit } from "./pending-submit";
 
@@ -55,7 +56,7 @@ async function Addons() {
                 <tr key={key} className="border-b border-zinc-100 last:border-0">
                   <td className="px-5 py-3 font-medium capitalize text-zinc-950">{key}{(row?.onHand ?? 0) < 5 ? <span className="ml-2 text-[12px] text-red-700">Low</span> : null}</td>
                   <td className="px-5 py-3">
-                    <form action={saveAddonStock} className="flex flex-wrap items-center gap-2">
+                    <ActionForm action={saveAddonStock} className="flex flex-wrap items-center gap-2">
                       <input type="hidden" name="key" value={key} />
                       <input name="onHand" type="number" min={0} defaultValue={row?.onHand ?? 0} className={`${field} h-9 w-24`} />
                       <select name="supplierId" defaultValue={row?.supplierId ?? ""} className={`${field} h-9 max-w-56`}>
@@ -63,7 +64,7 @@ async function Addons() {
                         {suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                       </select>
                       <button className={`${btn.base} ${btn.secondary} ${btn.sm}`}>Save</button>
-                    </form>
+                    </ActionForm>
                   </td>
                   <td className="px-5 py-3 text-zinc-700">{supplier ? `${supplier.name}${supplier.email ? ` · ${supplier.email}` : ""}` : "—"}</td>
                 </tr>
@@ -73,7 +74,7 @@ async function Addons() {
         </table>
       </Card>
       <Card className="mt-4">
-        <form action={addSupplier} className="grid gap-3 px-5 py-4 md:grid-cols-2">
+        <ActionForm action={addSupplier} success="Supplier saved!" className="grid gap-3 px-5 py-4 md:grid-cols-2">
           <label className="text-[13px] text-zinc-700">Supplier name<input name="name" required className={`${field} mt-1 h-10`} /></label>
           <label className="text-[13px] text-zinc-700">Email<input name="email" type="email" className={`${field} mt-1 h-10`} /></label>
           <label className="text-[13px] text-zinc-700">Phone<input name="phone" className={`${field} mt-1 h-10`} /></label>
@@ -84,7 +85,7 @@ async function Addons() {
           </label>
           <label className="text-[13px] text-zinc-700 md:col-span-2">Notes<textarea name="notes" rows={2} className={`${field} mt-1`} /></label>
           <PendingSubmit label="Save supplier" pendingLabel="Saving supplier…" className={`${btn.base} ${btn.primary} ${btn.md} self-start disabled:cursor-progress disabled:opacity-70`} />
-        </form>
+        </ActionForm>
         {suppliers.length > 0 && (
           <ul className="m-0 list-none border-t border-zinc-100">
             {suppliers.map((supplier) => {
@@ -102,10 +103,10 @@ async function Addons() {
                   </p>
                   <p className="m-0 text-[13px] text-zinc-500">{[supplier.email, supplier.phone, supplier.notes].filter(Boolean).join(" · ") || "No contact details"}</p>
                 </div>
-                <form action={deleteSupplier}>
+                <ActionForm action={deleteSupplier} tone="delete" success="Supplier removed!">
                   <input type="hidden" name="id" value={supplier.id} />
                   <button className={`${btn.base} ${btn.danger} ${btn.sm}`}>Remove supplier</button>
-                </form>
+                </ActionForm>
               </li>
               );
             })}

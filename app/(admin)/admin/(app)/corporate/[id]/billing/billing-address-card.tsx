@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { BillingDetails } from "@/lib/corporate/billing";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { btn, Card, CardHeader, field, fieldLabel } from "../../../../_components/ui";
+import { useActionNotice } from "../../../../_components/action-feedback";
 import { saveAdminBilling, type AdminBillingState } from "./billing-address-actions";
 
 type Copy = Dictionary["admin"]["moneybird"];
@@ -11,6 +12,7 @@ type Copy = Dictionary["admin"]["moneybird"];
 /** The partner's billing details as their Moneybird invoices carry them. Street, postcode and city are needed to invoice. */
 export function BillingAddressCard({ partnerId, initial, copy: t }: { partnerId: string; initial: BillingDetails; copy: Copy }) {
   const [state, action, pending] = useActionState<AdminBillingState, FormData>(saveAdminBilling, {});
+  useActionNotice(state, "Changes saved!");
   const row = (name: keyof BillingDetails, label: string, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="flex flex-col gap-1.5">
       <span className={fieldLabel}>{label}</span>

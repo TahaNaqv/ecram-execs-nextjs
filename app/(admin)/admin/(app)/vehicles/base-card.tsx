@@ -6,6 +6,7 @@ import type { Place } from "@/app/[locale]/_components/booking/trip";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { AlertIcon, CheckIcon } from "../../_components/icons";
 import { btn, Card, CardHeader } from "../../_components/ui";
+import { useActionNotice } from "../../_components/action-feedback";
 import { saveFleetBase, type BaseState } from "./base-actions";
 
 type Copy = Dictionary["admin"]["vehicles"];
@@ -28,6 +29,7 @@ export function FleetBaseCard({
 }) {
   const [place, setPlace] = useState<Place>({ text: base?.address ?? "", id: base?.placeId ?? null, kind: null });
   const [state, action, pending] = useActionState<BaseState, FormData>(saveFleetBase, {});
+  useActionNotice(state, "Changes saved!");
   const unchanged = place.text.trim() === (base?.address ?? "") && (place.id ?? null) === (base?.placeId ?? null);
 
   return (

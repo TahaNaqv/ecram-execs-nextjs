@@ -5,6 +5,7 @@ import { ACTIVE_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
 import { updateRequest, type UpdateState } from "../../../actions";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { useActionNotice } from "../../../_components/action-feedback";
 
 type Props = {
   id: string;
@@ -17,6 +18,7 @@ type Props = {
 
 export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabels, copy }: Props) {
   const [state, action, pending] = useActionState<UpdateState, FormData>(updateRequest, {});
+  useActionNotice(state, "Status updated!");
   const [warn, setWarn] = useState(false);
   return (
     <form

@@ -18,14 +18,19 @@ function encodeBase32(buf: Buffer) {
   return out;
 }
 
+function normalizeBase32(text: string) {
+  return text.replace(/[\s-]/g, "").replace(/=+$/g, "").toUpperCase();
+}
+
 function decodeBase32(text: string) {
-  const clean = text.replace(/=+$/g, "").toUpperCase().replace(/[^A-Z2-7]/g, "");
+  const clean = normalizeBase32(text);
+  if (!/^[A-Z2-7]+$/.test(clean)) return Buffer.alloc(0);
   let bits = 0;
   let value = 0;
   const out: number[] = [];
   for (const char of clean) {
     const idx = ALPHABET.indexOf(char);
-    if (idx < 0) continue;
+    if (idx < 0) return Buffer.alloc(0);
     value = (value << 5) | idx;
     bits += 5;
     if (bits >= 8) {
@@ -60,20 +65,19 @@ function hotp(secret: Buffer, counter: number) {
   return String(bin % 1_000_000).padStart(6, "0");
 }
 
-/** True when the 6-digit code matches this 30-second window, or up to a minute either side. Spaces in the code are ignored. */
+/** True when the 6-digit code matches this 30-second window, or one step either side (±30 seconds). Spaces in the code are ignored. */
 export function verifyTotp(secret: string, token: string, now = Date.now()) {
-  const cleaned = token.replace(/\D/g, "");
+  const cleaned = token.replace(/\s+/g, "").replace(/\D/g, "");
   if (!/^\d{6}$/.test(cleaned)) return false;
   const key = secretKey(secret);
   if (key.length < 10) return false;
   const counter = Math.floor(now / 30_000);
-  // ±2 steps covers a phone or server clock that is up to about a minute off.
-  return [-2, -1, 0, 1, 2].some((skew) => hotp(key, counter + skew) === cleaned);
+  return [-1, 0, 1].some((skew) => hotp(key, counter + skew) === cleaned);
 }
 
 export function totpUri(email: string, secret: string) {
   const issuer = "Ecram Execs";
-  const key = secret.replace(/\s/g, "").toUpperCase();
+  const key = secret.replace(/[\s-]/g, "").replace(/=+$/g, "").toUpperCase();
   const label = `${encodeURIComponent(issuer)}:${encodeURIComponent(email.trim().toLowerCase())}`;
   const query = [`secret=${encodeURIComponent(key)}`, `issuer=${encodeURIComponent(issuer)}`, "algorithm=SHA1", "digits=6", "period=30"].join("&");
   return `otpauth://totp/${label}?${query}`;

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { AlertIcon, PlusIcon } from "../../_components/icons";
 import { btn, field, fieldLabel } from "../../_components/ui";
 import { addDriver, type AddDriverState } from "./actions";
+import { pushToast } from "../../_components/action-feedback";
 import { COUNTRY_CODES } from "@/lib/quotes/constants";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 
@@ -20,6 +21,7 @@ export function AddDriverForm({ copy, onRegistered }: { copy: AddDriverFormCopy;
 
   useEffect(() => {
     if (!state.ok || closed.current) return;
+    pushToast("Driver added!");
     closed.current = true;
     setPhoneNumber("");
     setPhoneCountry("31");

@@ -25,12 +25,20 @@ export function FinancialFilters({
   defaults,
   locale,
   dateCopy,
+  selectedRange,
+  onQuery,
+  busy = false,
 }: {
   query: FinancialQuery;
   copy: Copy;
   defaults: { from: string; to: string };
   locale: Locale;
   dateCopy: AdminDateCopy;
+  /** Pill highlight, updated on click before any fetch. */
+  selectedRange?: FinancialQuery["range"];
+  /** When set, tab and filter changes stay on this page instead of navigating. */
+  onQuery?: (next: FinancialQuery) => void;
+  busy?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,6 +56,11 @@ export function FinancialFilters({
 
   function go(patch: Partial<FinancialQuery>, history: "push" | "replace" = "push") {
     const next: FinancialQuery = { ...current.current, ...patch, page: patch.page ?? 1 };
+    current.current = next;
+    if (onQuery) {
+      onQuery(next);
+      return;
+    }
     const href = financialHref(next);
     startTransition(() => {
       if (history === "replace") router.replace(href, { scroll: false });
@@ -84,13 +97,14 @@ export function FinancialFilters({
     go({ range: "custom", from, to, page: 1 });
   }
 
+  const shownRange = selectedRange ?? query.range;
   return (
-    <div className={`flex flex-col gap-3 border-b border-zinc-100 p-3 sm:p-4 ${pending ? "opacity-70" : ""}`} aria-busy={pending}>
+    <div className="flex flex-col gap-3 border-b border-zinc-100 p-3 sm:p-4" aria-busy={busy || pending}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 shadow-xs">
+        <div className="flex min-w-0 items-center">
+          <div className="inline-flex max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-0.5 shadow-xs">
             {presets.map((preset) => {
-              const active = query.range === preset.range && !customOpen;
+              const active = shownRange === preset.range && !customOpen;
               return (
                 <button
                   key={preset.range}
@@ -100,7 +114,7 @@ export function FinancialFilters({
                     setCustomOpen(false);
                     go({ range: preset.range, from: undefined, to: undefined, page: 1 });
                   }}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition ${
                     active ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
                   }`}
                 >
@@ -110,10 +124,13 @@ export function FinancialFilters({
             })}
             <button
               type="button"
-              aria-pressed={query.range === "custom" || customOpen}
-              onClick={() => setCustomOpen(true)}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                query.range === "custom" || customOpen ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
+              aria-pressed={shownRange === "custom" || customOpen}
+              onClick={() => {
+                setCustomOpen(true);
+                onQuery?.({ ...current.current, range: "custom", page: 1 });
+              }}
+              className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                shownRange === "custom" || customOpen ? "bg-zinc-950 text-white shadow-xs" : "text-zinc-600 hover:text-zinc-950"
               }`}
             >
               {copy.rangeCustom}

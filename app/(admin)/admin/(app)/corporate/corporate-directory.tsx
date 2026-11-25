@@ -13,6 +13,7 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { RequestStatus } from "@/lib/quotes/constants";
 import { FLEET } from "@/lib/fleet/vehicles";
+import { pushToast } from "../../_components/action-feedback";
 
 type HubCopy = Dictionary["admin"]["corporate"]["hub"];
 
@@ -166,6 +167,7 @@ export function CorporateDirectoryHub({
         return;
       }
       setIsAddModalOpen(false);
+      pushToast("Partner saved!");
       refreshOnce(router);
     });
   };
@@ -180,6 +182,7 @@ export function CorporateDirectoryHub({
       setPartners((prev) => prev.filter((p) => p.id !== id));
       setSelectedPartner(null);
       setPartnerToDelete(null);
+      pushToast("Partner removed!");
       refreshOnce(router);
     });
   };
@@ -198,7 +201,11 @@ export function CorporateDirectoryHub({
 
     startTransition(async () => {
       const res = await updateCorporatePartner(formData);
-      if (res && !res.ok) return;
+      if (res && !res.ok) {
+        pushToast(res.error || "Changes were not saved.", false);
+        return;
+      }
+      pushToast("Changes saved!");
       refreshOnce(router);
     });
   };

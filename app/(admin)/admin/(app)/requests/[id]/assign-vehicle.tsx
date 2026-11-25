@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
+import { useActionNotice } from "../../../_components/action-feedback";
 import { assignVehicle, type AssignState } from "./assign-vehicle-action";
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
 /** Gives the booking its car. A confirmed booking holds the car on the day schedule; the server refuses a car that is taken. */
 export function AssignVehicle({ id, vehicle, confirmed, scheduleHref, tripNote, cars, copy }: Props) {
   const [state, action, pending] = useActionState<AssignState, FormData>(assignVehicle, {});
+  useActionNotice(state, "Vehicle assigned!");
   return (
     <form action={action} className="flex flex-col gap-3 p-5">
       <input type="hidden" name="id" value={id} />

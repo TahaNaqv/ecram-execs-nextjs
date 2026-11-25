@@ -8,6 +8,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { bookableFleet } from "@/lib/fleet/catalog";
 import { MAX_GALLERY_IMAGES, UPCOMING, vehicleByKey, type Amenity, type FleetVehicle, type OfferedVehicle } from "@/lib/fleet/vehicles";
+import { customerHourly, extraKmRate, formatCents, kmPerHour, type DayKind } from "@/lib/pricing/rates";
 import { LanguageSwitcher } from "../_components/language-switcher";
 import { SiteFooter } from "../_components/sections";
 import { VehicleGallery } from "../_components/vehicle-gallery";
@@ -44,8 +45,33 @@ function specRows(offer: OfferedVehicle, vehicle: FleetVehicle | undefined, d: D
   }
   if (specs?.luggage) rows.push([t.luggage, specs.luggage[locale]]);
   else if (!vehicle && offer.bags) rows.push([t.luggage, offer.bags === 1 ? t.luggageBagsOne : interpolate(t.luggageBags, { count: offer.bags })]);
-  if (specs && specs.amenities.length > 0) {
+  if (specs?.highlights) rows.push([t.features, specs.highlights[locale].join(", ")]);
+  else if (specs && specs.amenities.length > 0) {
     rows.push([t.features, specs.amenities.map((a) => d.fleetSection[AMENITY_KEY[a]]).join(", ")]);
+  }
+  if (customerHourly(offer.key, "public", "weekday") != null) {
+    const days: DayKind[] = ["weekday", "saturday", "sunday"];
+    const labels = { weekday: t.rateWeekday, saturday: t.rateSaturday, sunday: t.rateSunday };
+    for (const day of days) {
+      const pub = customerHourly(offer.key, "public", day);
+      const corp = customerHourly(offer.key, "corporate", day);
+      if (pub == null || corp == null) continue;
+      rows.push([
+        labels[day],
+        `${interpolate(t.ratePublic, { price: formatCents(pub, locale) })} · ${interpolate(t.rateCorporate, { price: formatCents(corp, locale) })}`,
+      ]);
+    }
+    const km = kmPerHour(offer.key);
+    if (km != null) {
+      rows.push([
+        t.rateLabel,
+        interpolate(t.rateKm, {
+          km,
+          corporate: formatCents(extraKmRate("corporate"), locale),
+          public: formatCents(extraKmRate("public"), locale),
+        }),
+      ]);
+    }
   }
   return rows;
 }

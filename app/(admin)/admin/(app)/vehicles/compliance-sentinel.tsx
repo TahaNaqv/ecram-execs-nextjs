@@ -13,6 +13,7 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { amsterdamToday } from "@/lib/admin/financials-shared";
 import { customerHourly, formatCents, formatCurrency, type DayKind } from "@/lib/pricing/rates";
+import { pushToast } from "../../_components/action-feedback";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
 
@@ -271,6 +272,7 @@ export function FleetComplianceSentinel({
 
     startTransition(async () => {
       await toggleVehicleStatus(formData);
+      pushToast("Availability toggled!");
       refreshOnce(router);
     });
   };
@@ -288,6 +290,7 @@ export function FleetComplianceSentinel({
     formData.append("id", id);
     startTransition(async () => {
       await deleteVehicle(formData);
+      pushToast("Vehicle removed!");
       refreshOnce(router);
     });
   };
@@ -564,6 +567,7 @@ export function FleetComplianceSentinel({
                   if (result.ok) {
                     setFormError(null);
                     setIsAddModalOpen(false);
+                    pushToast(editor ? "Changes saved!" : "Vehicle saved!");
                     refreshOnce(router);
                   } else {
                     const message = result.error === "type" ? copy.imageType
@@ -572,6 +576,7 @@ export function FleetComplianceSentinel({
                       : result.error === "seats" || result.error === "luggage" ? copy.seatsInvalid
                       : copy.formError;
                     setFormError(message);
+                    pushToast(message, false);
                   }
                 });
               }}
