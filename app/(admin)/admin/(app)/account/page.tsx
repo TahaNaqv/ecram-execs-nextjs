@@ -26,6 +26,18 @@ export default function AccountPage({ searchParams }: { searchParams: Promise<{ 
 async function AccountScreen({ searchParams }: { searchParams: Promise<{ totp?: string }> }) {
   const [{ admin: t }, admin, query] = await Promise.all([adminDictionary(), requireAdmin(), searchParams]);
   const [signIn] = await db.select({ secret: schema.adminUsers.totpSecret, enabled: schema.adminUsers.totpEnabled }).from(schema.adminUsers).where(eq(schema.adminUsers.id, admin.id)).limit(1);
+  const notice =
+    query.totp === "cleared"
+      ? { ok: true, text: "Authenticator reset. That account signs in with its password." }
+      : query.totp === "rejected"
+        ? { ok: false, text: "That code did not match. Wait for the next code and try again." }
+        : query.totp === "missing"
+          ? { ok: false, text: "No account uses that email." }
+          : query.totp === "denied"
+            ? { ok: false, text: "Only an owner can reset an authenticator." }
+            : query.totp === "failed"
+              ? { ok: false, text: "The authenticator could not be reset. Try again." }
+              : null;
   return (
     <PageBody>
       <PageHeader title={t.account.title} />
@@ -38,11 +50,11 @@ async function AccountScreen({ searchParams }: { searchParams: Promise<{ totp?: 
       <Card className="mt-6 max-w-xl">
         <CardHeader title="Two-factor login" />
         <div className="flex flex-col gap-3 p-5 text-sm text-zinc-700">
-          {query.totp === "rejected" ? <p className="m-0 text-red-700">That code did not match. Wait for the next code and try again.</p> : null}
-          {query.totp === "cleared" ? <p className="m-0 text-emerald-700">Authenticator reset. That account signs in with its password.</p> : null}
-          {query.totp === "missing" ? <p className="m-0 text-red-700">No account uses that email.</p> : null}
-          {query.totp === "denied" ? <p className="m-0 text-red-700">Only an owner can reset an authenticator.</p> : null}
-          {query.totp === "failed" ? <p className="m-0 text-red-700">The authenticator could not be reset. Try again.</p> : null}
+          {notice ? (
+            <p role={notice.ok ? "status" : "alert"} className={`fixed right-4 bottom-4 z-[80] m-0 max-w-sm rounded-lg px-4 py-3 text-sm text-white shadow-lg ${notice.ok ? "bg-emerald-900" : "bg-red-800"}`}>
+              {notice.text}
+            </p>
+          ) : null}
           {signIn?.enabled ? (
             <>
               <p className="m-0">Two-factor login is on for this account.</p>
