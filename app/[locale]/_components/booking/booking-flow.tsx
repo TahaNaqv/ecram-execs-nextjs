@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateTimeCopy } from "@/components/date-time-field";
 import { mapFrameSrc, type RouteMapLinks } from "@/lib/fleet/map";
-import { bagCapacity, FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type OfferedVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
+import { bagCapacity, carsTowTrailer, FLEET, LARGEST_CAR_SEATS, normalizeVehicleKey, suggestVehicle, vehicleByKey, type FleetVehicle, type OfferedVehicle, type VehicleKey } from "@/lib/fleet/vehicles";
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { receiptLineItems, type ReceiptLine } from "@/lib/pricing/receipt-lines";
@@ -440,7 +440,7 @@ export function BookingFlow({
           extras={trip.extras}
           locale={locale}
           segment={segmentOf(variant)}
-          hasCar={trip.cars.length > 0 || trip.vehicle === "advise" || Boolean(trip.vehicle)}
+          trailerBlocked={trailerBlockReason(trip, t)}
           copy={t}
           names={addOns}
           onChange={(extras) => setTrip((current) => normalizeTrip({ ...current, extras }))}
@@ -547,6 +547,14 @@ function withCarCount(trip: Trip, key: string, count: number): Trip {
   return normalizeTrip({ ...trip, cars, vehicle: cars.length > 0 ? cars[0].key : "" });
 }
 
+/** Why the luggage trailer cannot be added yet, or null when it can: no car chosen, or only cars without a tow bar */
+function trailerBlockReason(trip: Trip, t: { trailerNeedsCar: string; trailerNoTow: string }): string | null {
+  if (trip.vehicle === "advise" && trip.cars.length === 0) return null;
+  const keys = trip.cars.length > 0 ? trip.cars.map((c) => c.key) : trip.vehicle ? [trip.vehicle] : [];
+  if (keys.length === 0) return t.trailerNeedsCar;
+  return carsTowTrailer(keys) ? null : t.trailerNoTow;
+}
+
 function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, error, onDetails, onCars, onAdvise, onTrailer, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
@@ -637,9 +645,11 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, 
     return { passengers: trip.pax > seats, luggage: bagsNeeded > boots };
   })();
   const blockedSelection = fit.passengers || fit.luggage;
-  // The luggage trailer (the client, 26 Nov 2026): beside the cars, only once a car is chosen or left to us
+  // The luggage trailer (the client, 26 Nov 2026): beside the cars, only once a car that can tow it is chosen (not the
+  // Audi e-tron GT on its own), or the car is left to us
   const trailerOn = trip.extras.some((e) => e.key === TRAILER_KEY);
-  const trailerAllowed = trip.cars.length > 0 || advise;
+  const trailerBlocked = trailerBlockReason(trip, t);
+  const trailerAllowed = !trailerBlocked;
   const trailerRate = EXTRAS[TRAILER_KEY].hourly!;
   const luggage = luggageLine(t, trip.bags, trip.small);
   const fitMessage = fit.passengers && fit.luggage
@@ -827,7 +837,7 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, 
                 minimum: formatCents(trailerRate.gross[segment] * trailerRate.minHours, locale),
               })}
             </span>
-            {!trailerAllowed && !trailerOn && <span className="text-[13px] font-medium text-ink-950">{t.trailerNeedsCar}</span>}
+            {!trailerAllowed && !trailerOn && <span className="text-[13px] font-medium text-ink-950">{trailerBlocked}</span>}
           </div>
           <button
             type="button"

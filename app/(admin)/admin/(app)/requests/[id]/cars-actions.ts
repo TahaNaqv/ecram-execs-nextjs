@@ -7,7 +7,7 @@ import { cleanCars } from "@/app/[locale]/_components/booking/trip";
 import type { RequestEventChange } from "@/lib/admin/events";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { allocationFor, fleetPicks, normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { allocationFor, carsTowTrailer, fleetPicks, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { storedQuoteEuros } from "@/lib/pricing/rates";
@@ -46,6 +46,8 @@ export async function updateCars(_prev: CarsState, formData: FormData): Promise<
   const [before] = await db.select().from(q).where(eq(q.id, input.data.requestId)).limit(1);
   if (!before || before.status !== input.data.seenStatus) return { error: t.stale };
   if (before.status !== "new" && before.status !== "contacted" && before.status !== "quoted") return { error: t.carsLocked };
+  // The luggage trailer needs a car that can tow it: the Audi e-tron GT cannot (the client, 26 Nov 2026)
+  if (hasTrailer(before.extras) && !carsTowTrailer(cars.map((c) => c.key))) return { error: t.carsNoTow };
 
   const fleet = allocationFor({ passengers: before.passengers, vehicle: cars[0].key, vehicles: cars });
   // Priced outside the transaction (the drive time may be looked up), at the rates the booking was made at

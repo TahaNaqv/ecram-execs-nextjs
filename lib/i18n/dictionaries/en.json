@@ -256,7 +256,8 @@
     "contactPreferenceRequired": "Please choose how we should contact you.",
     "itineraryRequired": "Please describe the itinerary.",
     "itineraryTooLong": "The itinerary is too long.",
-    "trailerNeedsCar": "The luggage trailer can only be booked with a car."
+    "trailerNeedsCar": "The luggage trailer can only be booked with a car.",
+    "trailerNoTow": "The Audi E-Tron GT cannot tow the luggage trailer: add another car, or remove the trailer."
   },
   "common": {
     "skipToContent": "Skip to content",
@@ -450,7 +451,7 @@
     "trailerPayloadValue": "375 kg net luggage weight",
     "trailerSecurity": "Weather & security",
     "trailerSecurityValue": "Fully enclosed, hard-shell aerodynamic body with lockable doors and ramp",
-    "trailerWith": "Booked with any of our cars",
+    "trailerWith": "Booked with any of our cars except the Audi E-Tron GT",
     "photoSoon": "Photo coming soon"
   },
   "marquee": {
@@ -1671,7 +1672,8 @@
       "cancelGo": "Cancel booking",
       "cancelBack": "Keep booking",
       "unfulfilledTrailer": "The luggage trailer is already booked at that time ({reference}). Remove it from this booking, or discuss it with the customer.",
-      "removeTrailer": "Remove the trailer"
+      "removeTrailer": "Remove the trailer",
+      "carsNoTow": "The Audi E-Tron GT cannot tow the luggage trailer: add another car, or remove the trailer first."
     },
     "invoices": {
       "title": "Invoices",
@@ -2920,6 +2922,7 @@
     "extrasHourly": "{price} / hour incl. {rate}% BTW / VAT, minimum {hours} hours ({minimum})",
     "extrasTrailerFrom": "Luggage trailer: from {price} incl. BTW / VAT, exact on the review step",
     "trailerNeedsCar": "Choose a car first: the trailer travels behind it.",
+    "trailerNoTow": "The Audi E-Tron GT has no tow bar: add another car to bring the trailer.",
     "trailerHeading": "Need more room for luggage?"
   },
   "guestBooking": {

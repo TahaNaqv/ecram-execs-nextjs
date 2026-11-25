@@ -4,8 +4,13 @@ export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
-/** Both languages are on the site. A visitor who has not chosen Dutch stays on English. */
-export const PUBLIC_LOCALES: readonly Locale[] = ["en", "nl"];
+/**
+ * The languages visitors can see. English only (the client, 22 Nov 2026, and again 26 Nov 2026 after Dutch had been
+ * switched back on): the Dutch copy waits for a native speaker. While a locale is left out, its URLs redirect (307) to
+ * the same page in English, the flags are hidden, and the sitemap and hreflang links list only English. Add "nl" to
+ * bring Dutch back; its dictionary is kept up to date meanwhile. The admin keeps both languages.
+ */
+export const PUBLIC_LOCALES: readonly Locale[] = ["en"];
 
 export function isPublicLocale(value: string | undefined): value is Locale {
   return isLocale(value) && PUBLIC_LOCALES.includes(value);

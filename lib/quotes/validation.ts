@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HOURLY_DURATIONS, SERVICES } from "@/lib/quotes/constants";
 import { capacityProblem, carsCapacityProblem, cleanCars, hasConsecutivePlaces, MAX_GROUP, MAX_GROUP_BAGS, MAX_PER_CAR, MAX_SMALL_BAGS } from "@/app/[locale]/_components/booking/trip";
-import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { carsTowTrailer, normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
 import { cleanExtras, hasTrailer, TRAILER_SUITCASES } from "@/lib/pricing/extras";
@@ -21,6 +21,8 @@ export type QuoteMessages = {
   collectionRequired: string;
   /** The luggage trailer was chosen without a car */
   trailerNeedsCar: string;
+  /** The luggage trailer was chosen with only cars that cannot tow it (the Audi e-tron GT) */
+  trailerNoTow: string;
   collectionTooLong: string;
   destinationRequired: string;
   destinationTooLong: string;
@@ -172,6 +174,7 @@ export const quoteSchema = (t: QuoteMessages, stops: readonly string[] = []) =>
     // The luggage trailer travels behind a car, never on its own (the client, 26 Nov 2026)
     const trailer = hasTrailer(v.extras);
     if (trailer && !v.vehicle && !v.vehicles?.length) issue("extras", t.trailerNeedsCar);
+    else if (trailer && !carsTowTrailer(v.vehicles?.length ? v.vehicles.map((c) => c.key) : [v.vehicle ?? ""], v.vehicle === "advise" && !v.vehicles?.length)) issue("extras", t.trailerNoTow);
     // Several cars are checked together: their seats and boots added up, and the trailer takes 15 suitcases more
     const luggage = v.luggage == null ? null : Math.max(0, v.luggage - (trailer ? TRAILER_SUITCASES : 0));
     const fit = v.vehicles?.length ? carsCapacityProblem(cleanCars(v.vehicles), v.passengers ?? 1, luggage) : capacityProblem(v.vehicle, v.passengers ?? 1, luggage);

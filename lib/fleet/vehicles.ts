@@ -69,6 +69,8 @@ export type FleetVehicle = {
    * the fleet page. Absent means available now (shown in green). It does not change what the booking form offers.
    */
   expected?: string;
+  /** Has no tow bar: the luggage trailer cannot be booked behind it (the Audi e-tron GT, the client 26 Nov 2026) */
+  noTrailer?: true;
 };
 
 export const MAX_GALLERY_IMAGES = 8;
@@ -129,6 +131,7 @@ export const FLEET: FleetVehicle[] = [
     // the Corporate Partner form.
     key: "audi",
     name: "Audi E-Tron GT",
+    noTrailer: true,
     images: [
       "/assets/fleet-audi-v2.jpg",
       "/assets/fleet-audi-gallery-2.jpg",
@@ -324,6 +327,12 @@ export const UPCOMING: UpcomingVehicle[] = [
     expected: "Q4 2027",
   },
 ];
+
+/** Whether the luggage trailer can travel behind this car. A car listed in the admin, not printed here, can. */
+export const towsTrailer = (key: string): boolean => !vehicleByKey(key)?.noTrailer;
+
+/** The trailer needs one car in the booking that can tow it, or the team choosing the car ("advise"). */
+export const carsTowTrailer = (keys: readonly string[], advise = false): boolean => advise || keys.some(towsTrailer);
 
 /** What the booking form's vehicle box accepts: a specific vehicle, or "advise me". */
 export const VEHICLE_CHOICES = [...VEHICLE_KEYS, "advise"] as const;

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { clashingReference, lockFleet } from "@/lib/fleet/availability";
-import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
+import { carsTowTrailer, fleetPicks, VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
 
 export type AssignState = { ok?: boolean; error?: string };
 
@@ -35,6 +35,11 @@ export async function assignVehicle(_prev: AssignState, formData: FormData): Pro
     const [before] = await tx.select().from(schema.quoteRequests).where(eq(schema.quoteRequests.id, id)).limit(1);
     if (!before) return { error: "Request not found." } as const;
     if ((before.vehicle ?? null) === vehicle) return { ok: true } as const;
+    // The luggage trailer needs a car that can tow it: not the Audi e-tron GT on its own (the client, 26 Nov 2026)
+    // The assigned car replaces the first of the booking's cars; the others stay (lib/fleet/held.ts)
+    if (vehicle && vehicle !== "advise" && hasTrailer(before.extras) && !carsTowTrailer([vehicle, ...fleetPicks(before.vehicles).slice(1).map((p) => p.key)])) {
+      return { error: "The Audi E-Tron GT cannot tow the luggage trailer. Choose another car, or remove the trailer first." } as const;
+    }
     if (before.status === "confirmed") {
       const clash = await clashingReference(tx, { ...before, vehicle });
       if (clash) return { error: hasTrailer(before.extras) ? `That car, or the luggage trailer, is already booked at that time (${clash}). Choose another car, or remove the trailer.` : `That car is already booked at that time (${clash}). Choose another car.` } as const;

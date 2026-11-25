@@ -32,14 +32,14 @@ const PHOTO_SCALE: Partial<Record<ExtraKey, string>> = {
  * The step after the car: the luggage trailer first (by the hour, only with a car), then champagne, chocolates, flowers
  * and newspapers, waiting in the car. All optional.
  */
-export function ExtrasStep({ headingRef, extras, locale, segment, hasCar, copy: t, names, onChange, onBack, onNext }: {
+export function ExtrasStep({ headingRef, extras, locale, segment, trailerBlocked, copy: t, names, onChange, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   extras: ExtraPick[];
   locale: Locale;
   /** Which hourly rate the trailer shows: corporate partners have their own */
   segment: Segment;
-  /** A car is chosen, or "let us choose": the trailer needs one to travel behind */
-  hasCar: boolean;
+  /** Why the trailer cannot be added (no car yet, or only the Audi, which has no tow bar); null when it can */
+  trailerBlocked: string | null;
   copy: BookingCopy;
   names: AddOnsCopy;
   onChange: (extras: ExtraPick[]) => void;
@@ -72,8 +72,8 @@ export function ExtrasStep({ headingRef, extras, locale, segment, hasCar, copy: 
     const name = names[key];
     const option = spec.options ? (pick?.option ?? chocolate) : undefined;
     const max = spec.max ?? MAX_PER_EXTRA;
-    // The trailer travels behind a car: not offered until one is chosen (or the team is asked to choose)
-    const blocked = key === TRAILER_KEY && !hasCar && count === 0;
+    // The trailer travels behind a car that can tow it: not offered until one is chosen (or the team is asked to choose)
+    const blocked = key === TRAILER_KEY && Boolean(trailerBlocked) && count === 0;
     return (
       <li key={key} className="flex">
         <div
@@ -98,7 +98,7 @@ export function ExtrasStep({ headingRef, extras, locale, segment, hasCar, copy: 
                   })
                 : interpolate(t.extrasPrice, { price: euro(spec.unit), rate: Math.round(spec.vatRate * 100) })}
             </p>
-            {blocked && <p className="m-0 text-[13px] leading-snug font-medium text-ink-950">{t.trailerNeedsCar}</p>}
+            {blocked && <p className="m-0 text-[13px] leading-snug font-medium text-ink-950">{trailerBlocked}</p>}
           </div>
           {spec.options ? (
             <fieldset className="m-0 mx-1.5 mt-1 grid min-h-10 min-w-0 grid-cols-2 gap-1.5 border-0 p-0">

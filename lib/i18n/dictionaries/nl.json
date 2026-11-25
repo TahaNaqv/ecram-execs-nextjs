@@ -256,7 +256,8 @@
     "contactPreferenceRequired": "Kies hoe wij contact met u opnemen.",
     "itineraryRequired": "Beschrijf het reisschema.",
     "itineraryTooLong": "Het reisschema is te lang.",
-    "trailerNeedsCar": "De bagageaanhanger kan alleen met een auto worden geboekt."
+    "trailerNeedsCar": "De bagageaanhanger kan alleen met een auto worden geboekt.",
+    "trailerNoTow": "De Audi E-Tron GT kan de bagageaanhanger niet trekken: kies er een andere auto bij, of laat de aanhanger weg."
   },
   "common": {
     "skipToContent": "Naar de inhoud",
@@ -450,7 +451,7 @@
     "trailerPayloadValue": "375 kg netto bagagegewicht",
     "trailerSecurity": "Weer en beveiliging",
     "trailerSecurityValue": "Volledig gesloten, aerodynamische hardshell-opbouw met afsluitbare deuren en oprijklep",
-    "trailerWith": "Te boeken bij elk van onze auto's",
+    "trailerWith": "Te boeken bij elk van onze auto's, behalve de Audi E-Tron GT",
     "photoSoon": "Foto volgt binnenkort"
   },
   "marquee": {
@@ -1824,7 +1825,8 @@
       "cancelGo": "Boeking annuleren",
       "cancelBack": "Boeking houden",
       "unfulfilledTrailer": "De bagageaanhanger is op dat moment al geboekt ({reference}). Haal hem van deze boeking, of overleg met de klant.",
-      "removeTrailer": "Aanhanger verwijderen"
+      "removeTrailer": "Aanhanger verwijderen",
+      "carsNoTow": "De Audi E-Tron GT kan de bagageaanhanger niet trekken: voeg een andere auto toe, of haal eerst de aanhanger weg."
     },
     "invoices": {
       "title": "Facturen",
@@ -2921,6 +2923,7 @@
     "extrasHourly": "{price} per uur incl. {rate}% btw, minimaal {hours} uur ({minimum})",
     "extrasTrailerFrom": "Bagageaanhanger: vanaf {price} incl. btw, exact bij het overzicht",
     "trailerNeedsCar": "Kies eerst een auto: de aanhanger rijdt erachter.",
+    "trailerNoTow": "De Audi E-Tron GT heeft geen trekhaak: kies er een andere auto bij voor de aanhanger.",
     "trailerHeading": "Meer ruimte voor bagage nodig?"
   },
   "guestBooking": {
