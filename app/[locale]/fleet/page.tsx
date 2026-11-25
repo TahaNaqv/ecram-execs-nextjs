@@ -8,6 +8,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { bookableFleet } from "@/lib/fleet/catalog";
 import { MAX_GALLERY_IMAGES, UPCOMING, vehicleByKey, type Amenity, type FleetVehicle, type OfferedVehicle } from "@/lib/fleet/vehicles";
+import { EXTRAS, TRAILER_KEY } from "@/lib/pricing/extras";
 import { LanguageSwitcher } from "../_components/language-switcher";
 import { SiteFooter } from "../_components/sections";
 import { VehicleGallery } from "../_components/vehicle-gallery";
@@ -64,7 +65,7 @@ function Availability({ expected, t }: { expected?: string; t: Dictionary["fleet
   );
 }
 
-type Card = { key: string; name: string; images: string[]; rows: Row[]; pending?: boolean; expected?: string };
+type Card = { key: string; name: string; images: string[]; rows: Row[]; pending?: boolean; expected?: string; note?: string };
 
 function VehicleCard({ card, index, d }: { card: Card; index: number; d: Dictionary }) {
   const t = d.fleetPage;
@@ -99,6 +100,7 @@ function VehicleCard({ card, index, d }: { card: Card; index: number; d: Diction
         <h2 id={headingId} className="m-0 font-serif text-[28px] leading-[1.1] font-light text-white md:text-[32px]">
           {card.name}
         </h2>
+        {card.note && <p className="m-0 -mt-3 text-[14px] font-light text-ink-400">{card.note}</p>}
 
         {(card.rows.length > 0 || card.pending) && (
           <div className="flex flex-col gap-3">
@@ -146,6 +148,18 @@ async function FleetList() {
         expected: vehicle?.expected,
       };
     }),
+    // The luggage trailer (the client, 26 Nov 2026): booked with a car, shown beside them. No price here, as for the cars
+    {
+      key: TRAILER_KEY,
+      name: d.addOns.trailer,
+      images: [EXTRAS[TRAILER_KEY].image],
+      note: d.fleetPage.trailerWith,
+      rows: [
+        [d.fleetPage.trailerCapacity, d.fleetPage.trailerCapacityValue],
+        [d.fleetPage.trailerPayload, d.fleetPage.trailerPayloadValue],
+        [d.fleetPage.trailerSecurity, d.fleetPage.trailerSecurityValue],
+      ],
+    },
     ...UPCOMING.map((car) => ({ key: car.key, name: car.name, images: car.images, rows: [], pending: true, expected: car.expected })),
   ];
 

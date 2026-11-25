@@ -4,6 +4,10 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { driverPairByVehicle } from "@/lib/admin/driver-board";
 import { carKey, heldKeys } from "@/lib/fleet/availability";
+import { TRAILER_KEY } from "@/lib/pricing/extras";
+
+/** The trailer's column on the day schedule (the admin is in English). */
+const TRAILER_COLUMN_NAME = "Luggage trailer";
 import type { RoutedBooking } from "@/lib/fleet/route";
 import { blocksOf, overlaps, wallMinutes } from "@/lib/fleet/schedule";
 import { ROUTED_SERVICES } from "@/lib/fleet/trip";
@@ -92,6 +96,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         status: q.status,
         vehicle: q.vehicle,
         vehicles: q.vehicles,
+        extras: q.extras,
         service: q.service,
         // Wall clock as stored. Reading the timestamp through the driver can shift it off this day.
         pickupAt: sql<string | null>`to_char(${q.pickupAt}, 'YYYY-MM-DD HH24:MI:SS')`,
@@ -135,12 +140,17 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
   const trips: DayTrip[] = [];
   for (const row of rows) {
     // A booking for several cars is drawn in each of their columns; its first car leads (the day map follows that one)
-    const held = [...heldKeys(row)].map((key) => {
-      const column = columns.get(key) ?? { key, name: vehicleByKey(key)?.name ?? key, state: null, blocks: [], driverLabel: pairs.get(key) ?? null };
+    const columnFor = (key: string, name: string) => {
+      const column = columns.get(key) ?? { key, name, state: null, blocks: [], driverLabel: pairs.get(key) ?? null };
       columns.set(key, column);
       return column;
-    });
-    const column = held[0] ?? unassigned;
+    };
+    const keys = [...heldKeys(row)];
+    // The cars decide where the booking is filed (a "let us choose" booking stays unassigned); the luggage trailer gets a
+    // column of its own as well, so two bookings wanting it at once show as a clash there (26 Nov 2026)
+    const carColumns = keys.filter((key) => key !== TRAILER_KEY).map((key) => columnFor(key, vehicleByKey(key)?.name ?? key));
+    const column = carColumns[0] ?? unassigned;
+    const held = [...(carColumns.length > 0 ? carColumns : [unassigned]), ...(keys.includes(TRAILER_KEY) ? [columnFor(TRAILER_KEY, TRAILER_COLUMN_NAME)] : [])];
     const status = row.status as (typeof SHOWN)[number];
     let onThisDay = false;
     let firstStart: number | null = null;
@@ -172,7 +182,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         clash: false,
       };
       // Each column gets its own copy: a clash is marked per car
-      for (const target of held.length > 0 ? held : [unassigned]) target.blocks.push({ ...drawn });
+      for (const target of held) target.blocks.push({ ...drawn });
     }
     if (onThisDay) jobs++;
     // Only a confirmed trip with somewhere to go is drawn on the day map

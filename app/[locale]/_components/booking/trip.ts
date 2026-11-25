@@ -3,7 +3,7 @@ import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
 import { bagCapacity, FLEET, LARGEST_CAR_SEATS, MAX_CARS, normalizeVehicleKey, vehicleByKey, VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
 import { curatedKind } from "@/lib/places/curated";
 import { isAirportKind, PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
-import { cleanExtras, type ExtraPick } from "@/lib/pricing/extras";
+import { cleanExtras, type ExtraPick, TRAILER_KEY } from "@/lib/pricing/extras";
 import { wallMinutes } from "@/lib/fleet/schedule";
 import { isBeyondHorizon, isPastWall } from "@/lib/time/amsterdam";
 
@@ -183,9 +183,10 @@ export function normalizeTrip(trip: Trip): Trip {
   const pax = bounded(trip.pax, 1, MAX_GROUP);
   const bags = bounded(trip.bags, 0, MAX_GROUP_BAGS);
   const small = bounded(trip.small, 0, MAX_SMALL_BAGS);
-  // A trip saved before add-ons existed has none
-  const extras = cleanExtras(trip.extras ?? []);
+  // A trip saved before add-ons existed has none. The trailer only travels behind a car (or one the team chooses)
   const chosen = cleanCars(trip.cars);
+  const withCar = chosen.length > 0 || trip.vehicle === "advise" || Boolean(trip.vehicle && vehicleByKey(trip.vehicle));
+  const extras = cleanExtras(trip.extras ?? []).filter((e) => withCar || e.key !== TRAILER_KEY);
   if (chosen.length > 0) return { ...trip, pax, bags, small, extras, cars: chosen, vehicle: chosen[0].key };
   const named = trip.vehicle && trip.vehicle !== "advise" ? vehicleByKey(trip.vehicle) : undefined;
   if (named) return { ...trip, pax, bags, small, extras, cars: [{ key: named.key, count: 1 }], vehicle: named.key };

@@ -51,6 +51,7 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
           const clash = await clashingReference(tx, {
             vehicle: values.vehicle ?? null,
             vehicles: values.vehicles ?? null,
+            extras: values.extras ?? null,
             pickupAt: values.pickupAt ?? null,
             returnAt: values.returnAt ?? null,
             service: values.service,

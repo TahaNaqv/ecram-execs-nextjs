@@ -255,7 +255,8 @@
     "vehicleClassRequired": "Kies een voertuigklasse.",
     "contactPreferenceRequired": "Kies hoe wij contact met u opnemen.",
     "itineraryRequired": "Beschrijf het reisschema.",
-    "itineraryTooLong": "Het reisschema is te lang."
+    "itineraryTooLong": "Het reisschema is te lang.",
+    "trailerNeedsCar": "De bagageaanhanger kan alleen met een auto worden geboekt."
   },
   "common": {
     "skipToContent": "Naar de inhoud",
@@ -435,7 +436,15 @@
     "luggageBags": "{count} koffers",
     "specsPending": "De volledige specificaties volgen zodra Mercedes-Benz het definitieve ontwerp bevestigt.",
     "features": "Voorzieningen",
-    "home": "Ecram Execs home"
+    "home": "Ecram Execs home",
+    "trailerCapacity": "Bagageruimte",
+    "trailerCapacityValue": "Tot 15 standaard ruimbagagekoffers (plus kledinghoezen of handbagage)",
+    "trailerPayload": "Maximaal laadvermogen",
+    "trailerPayloadValue": "375 kg netto bagagegewicht",
+    "trailerSecurity": "Weer en beveiliging",
+    "trailerSecurityValue": "Volledig gesloten, aerodynamische hardshell-opbouw met afsluitbare deuren en oprijklep",
+    "trailerWith": "Te boeken bij elk van onze auto's",
+    "photoSoon": "Foto volgt binnenkort"
   },
   "marquee": {
     "label": "Steden waar wij rijden",
@@ -1399,7 +1408,9 @@
       "cardExpires": "De opgeslagen kaart verloopt op {date}, voor de datum van het restbedrag",
       "autoApproved": "Automatisch goedgekeurd (6 maanden of meer vooruit geboekt)",
       "autoApproveStopped": "Niet automatisch goedgekeurd: een auto is dan al geboekt ({reference})",
-      "declined": "Afgewezen door het team, {amount} terugbetaald"
+      "declined": "Afgewezen door het team, {amount} terugbetaald",
+      "trailerAdded": "Bagageaanhanger toegevoegd",
+      "trailerRemoved": "Bagageaanhanger verwijderd"
     },
     "corporate": {
       "title": "Zakelijke contacten",
@@ -1786,7 +1797,9 @@
       "statusSaving": "Opslaan…",
       "cancelWarn": "Annuleren haalt deze boeking van de kalender. De klant ontvangt een e-mail. Kies Boeking annuleren alleen als u dat bedoelt.",
       "cancelGo": "Boeking annuleren",
-      "cancelBack": "Boeking houden"
+      "cancelBack": "Boeking houden",
+      "unfulfilledTrailer": "De bagageaanhanger is op dat moment al geboekt ({reference}). Haal hem van deze boeking, of overleg met de klant.",
+      "removeTrailer": "Aanhanger verwijderen"
     },
     "invoices": {
       "title": "Facturen",
@@ -2591,7 +2604,9 @@
     "champagneNote": "Een fles staat voor u klaar in de auto.",
     "chocolatesNote": "Handgemaakt in Amsterdam. Kies de selectie die bij u past.",
     "flowersNote": "Een vers seizoensboeket, klaar in de auto. Vaas niet inbegrepen.",
-    "newspapersNote": "De Financial Times en Het Financieele Dagblad van vandaag."
+    "newspapersNote": "De Financial Times en Het Financieele Dagblad van vandaag.",
+    "trailer": "Bagageaanhanger (Debon Roadster 255)",
+    "trailerNote": "Tot 15 ruimbagagekoffers, plus kledinghoezen of handbagage. Volledig zwart, gesloten en afsluitbaar."
   },
   "booking": {
     "pageTitle": "Boek uw chauffeur",
@@ -2827,7 +2842,7 @@
     "priceFrom": "vanaf {price}",
     "stepExtras": "Extra's",
     "extrasTitle": "Maak uw rit compleet",
-    "extrasIntro": "Optioneel. Elke extra ligt klaar in de auto wanneer uw rit begint. Prijzen zijn exclusief BTW / VAT, die bij uw totaal wordt opgeteld.",
+    "extrasIntro": "Optioneel. Elke extra staat klaar wanneer uw rit begint. Prijzen zijn exclusief btw, tenzij anders vermeld; de btw komt bij uw totaal.",
     "extrasPrice": "{price} excl. {rate}% BTW / VAT",
     "extrasAdd": "Toevoegen",
     "extrasAdded": "Toegevoegd",
@@ -2873,7 +2888,11 @@
     "payAfterConfirmFull": "Na bevestiging wordt het volledige bedrag van {amount} afgeschreven.",
     "payReviewed": "Uw boeking is ingediend voor handmatige controle. Vandaag wordt er niets afgeschreven.",
     "payTabOpening": "De beveiligde betaalpagina wordt geopend… Gebeurt er niets, ga dan terug naar het tabblad met uw boeking.",
-    "submitPay": "Boek en betaal {amount}"
+    "submitPay": "Boek en betaal {amount}",
+    "extrasHourly": "{price} per uur incl. {rate}% btw, minimaal {hours} uur ({minimum})",
+    "extrasTrailerFrom": "Bagageaanhanger: vanaf {price} incl. btw, exact bij het overzicht",
+    "trailerNeedsCar": "Kies eerst een auto: de aanhanger rijdt erachter.",
+    "trailerHeading": "Meer ruimte voor bagage nodig?"
   },
   "guestBooking": {
     "metaTitle": "Uw boeking",

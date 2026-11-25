@@ -257,7 +257,7 @@ export function priceBooking(input: PriceInput): Price | null {
   const vat = vatOnRides(input.segment, rides, legs);
   const fee = SERVICE_FEE_CENTS;
   const feeVat = Math.round(fee * SERVICE_FEE_VAT_RATE);
-  const extras = priceExtras(input.extras ?? []);
+  const extras = priceExtras(input.extras ?? [], { segment: input.segment, legHours: legs.map((leg) => leg.hours) });
   const extrasNet = extras.reduce((sum, line) => sum + line.amount, 0);
   const extrasVat = extras.reduce((sum, line) => sum + line.vat, 0);
   return {

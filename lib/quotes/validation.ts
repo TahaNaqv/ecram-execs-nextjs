@@ -4,7 +4,7 @@ import { capacityProblem, carsCapacityProblem, cleanCars, hasConsecutivePlaces, 
 import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 import { LOCALES } from "@/lib/i18n/config";
 import { phoneLengthOk } from "@/lib/phone";
-import { cleanExtras } from "@/lib/pricing/extras";
+import { cleanExtras, hasTrailer, TRAILER_SUITCASES } from "@/lib/pricing/extras";
 import { amsterdamWallOffset, isBeyondHorizon, isPastWall } from "@/lib/time/amsterdam";
 
 /** Current wall-clock time in the Netherlands as "YYYY-MM-DDTHH:mm". `offsetMinutes` moves a real instant, then reads that clock. */
@@ -19,6 +19,8 @@ export function amsterdamNow(offsetMinutes = 0) {
  */
 export type QuoteMessages = {
   collectionRequired: string;
+  /** The luggage trailer was chosen without a car */
+  trailerNeedsCar: string;
   collectionTooLong: string;
   destinationRequired: string;
   destinationTooLong: string;
@@ -167,8 +169,12 @@ export const quoteSchema = (t: QuoteMessages, stops: readonly string[] = []) =>
     if (v.returnAt && v.returnAt <= v.pickupAt) issue("returnAt", t.returnBeforePickup);
     // Home → Office → Home is fine. The place directly before this one cannot be the same, including a stop beside pickup or drop-off.
     if (v.service !== "hourly" && hasConsecutivePlaces([v.collection, ...stops, v.destination ?? ""])) issue("destination", t.consecutivePlace);
-    // Several cars are checked together: their seats and boots added up
-    const fit = v.vehicles?.length ? carsCapacityProblem(cleanCars(v.vehicles), v.passengers ?? 1, v.luggage ?? null) : capacityProblem(v.vehicle, v.passengers ?? 1, v.luggage ?? null);
+    // The luggage trailer travels behind a car, never on its own (the client, 26 Nov 2026)
+    const trailer = hasTrailer(v.extras);
+    if (trailer && !v.vehicle && !v.vehicles?.length) issue("extras", t.trailerNeedsCar);
+    // Several cars are checked together: their seats and boots added up, and the trailer takes 15 suitcases more
+    const luggage = v.luggage == null ? null : Math.max(0, v.luggage - (trailer ? TRAILER_SUITCASES : 0));
+    const fit = v.vehicles?.length ? carsCapacityProblem(cleanCars(v.vehicles), v.passengers ?? 1, luggage) : capacityProblem(v.vehicle, v.passengers ?? 1, luggage);
     const fitText = fit.passengers && fit.luggage ? t.vehicleBoth : fit.passengers ? t.vehiclePassengers : fit.luggage ? t.vehicleLuggage : "";
     if (fitText) issue("vehicle", fitText);
   }).transform(({ phoneCountry, phone, passengerPhoneCountry, passengerPhone, durationHours, ...rest }) => ({

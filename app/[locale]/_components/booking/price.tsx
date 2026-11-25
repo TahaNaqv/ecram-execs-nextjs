@@ -81,7 +81,8 @@ export function PriceBreakdown({
       `extra-${line.key}`,
       <span className="flex flex-col">
         <span className="text-ink-950">{extraName(names, line)}</span>
-        <span className="text-[12px]">{`${line.count} × ${euro(line.unit)}`}</span>
+        {/* The trailer is billed by the hour over the rides: its hours, not a count and an item price */}
+        <span className="text-[12px]">{line.hours ? `${line.hours} h` : `${line.count} × ${euro(line.unit)}`}</span>
       </span>,
       euro(line.amount),
       false,

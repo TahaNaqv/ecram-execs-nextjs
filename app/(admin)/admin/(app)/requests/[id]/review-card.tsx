@@ -10,6 +10,7 @@ import { AlertIcon, CheckIcon } from "../../../_components/icons";
 import { btn, Card, CardHeader, field, fieldLabel } from "../../../_components/ui";
 import { discussBooking, type DiscussState } from "./portal-actions";
 import { declineAction, type PaymentActionState } from "./payment-actions";
+import { removeTrailer, type CarsState } from "./cars-actions";
 
 type Copy = Dictionary["admin"]["review"];
 
@@ -21,7 +22,8 @@ type Copy = Dictionary["admin"]["review"];
 /** What the customer has paid online so far, on a booking paid at booking (null: not paid at booking). */
 export type PayState = { kind: "unpaid" | "fee" | "full"; paid: string; rest?: string; restOn?: string } | null;
 
-export type FulfilmentView = { ok: true } | { ok: false; reference: string; pending: boolean };
+/** `trailer`: only the luggage trailer clashes, which the team can take off the booking here. */
+export type FulfilmentView = { ok: true } | { ok: false; reference: string; pending: boolean; trailer?: boolean };
 
 export function ReviewCard({
   requestId,
@@ -38,6 +40,7 @@ export function ReviewCard({
   fulfilment?: FulfilmentView | null;
   canApprove?: boolean;
 }) {
+  const [trailerState, trailerAction, trailerPending] = useActionState<CarsState, FormData>(removeTrailer, {});
   const router = useRouter();
   const [approving, setApproving] = useState(false);
   const [askApprove, setAskApprove] = useState(false);
@@ -89,8 +92,20 @@ export function ReviewCard({
       <div className="flex flex-col gap-4 p-5">
         {fulfilment && (
           <p className={`m-0 rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${fulfilment.ok ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-amber-50 text-amber-950 ring-amber-200"}`}>
-            {fulfilment.ok ? t.fulfilled : interpolate(fulfilment.pending ? t.unfulfilledPending : t.unfulfilled, { reference: fulfilment.reference })}
+            {fulfilment.ok
+              ? t.fulfilled
+              : interpolate(fulfilment.trailer ? t.unfulfilledTrailer : fulfilment.pending ? t.unfulfilledPending : t.unfulfilled, { reference: fulfilment.reference })}
           </p>
+        )}
+        {fulfilment && !fulfilment.ok && fulfilment.trailer && (
+          <form action={trailerAction} className="m-0">
+            <input type="hidden" name="requestId" value={requestId} />
+            <input type="hidden" name="seenStatus" value={status} />
+            <button type="submit" disabled={trailerPending} className={`${btn.base} ${btn.secondary} h-9 px-3`}>
+              {t.removeTrailer}
+            </button>
+            {trailerState.error && <p className="m-0 mt-2 text-sm text-red-700">{trailerState.error}</p>}
+          </form>
         )}
         {pay && (
           <p className={`m-0 rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${pay.kind === "unpaid" ? "bg-amber-50 text-amber-900 ring-amber-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200"}`}>

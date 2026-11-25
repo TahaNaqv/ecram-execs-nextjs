@@ -8,7 +8,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
 import { plain } from "./plain";
 import { PLACE_KINDS, type PlaceKind } from "@/lib/places/types";
-import { cleanExtras, extrasLine, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
+import { cleanExtras, extrasLine, TRAILER_KEY, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
 import { COUNTRY_CODES, HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, asWait } from "@/lib/quotes/stops";
 import { amsterdamNow, quoteSchema, type QuoteMessages } from "@/lib/quotes/validation";
@@ -107,7 +107,8 @@ const CLEAN: { [K in DraftKey]-?: (v: unknown) => Draft[K] | undefined } = {
   extras: (v) => {
     if (!Array.isArray(v)) return undefined;
     if (v.length === 0) return [];
-    const picks = cleanExtras(v);
+    // The chat books the in-car add-ons only: the trailer is chosen on the website, priced by the hour
+    const picks = cleanExtras(v).filter((pick) => pick.key !== TRAILER_KEY);
     return picks.length > 0 ? picks : undefined;
   },
 };

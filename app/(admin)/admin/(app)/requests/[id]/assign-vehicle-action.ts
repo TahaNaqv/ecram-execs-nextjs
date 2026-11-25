@@ -1,5 +1,6 @@
 "use server";
 
+import { hasTrailer } from "@/lib/pricing/extras";
 import { eq } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -36,7 +37,7 @@ export async function assignVehicle(_prev: AssignState, formData: FormData): Pro
     if ((before.vehicle ?? null) === vehicle) return { ok: true } as const;
     if (before.status === "confirmed") {
       const clash = await clashingReference(tx, { ...before, vehicle });
-      if (clash) return { error: `That car is already booked at that time (${clash}). Choose another car.` } as const;
+      if (clash) return { error: hasTrailer(before.extras) ? `That car, or the luggage trailer, is already booked at that time (${clash}). Choose another car, or remove the trailer.` : `That car is already booked at that time (${clash}). Choose another car.` } as const;
     }
     await tx.update(schema.quoteRequests).set({ vehicle }).where(eq(schema.quoteRequests.id, id));
     await tx.insert(schema.requestEvents).values({

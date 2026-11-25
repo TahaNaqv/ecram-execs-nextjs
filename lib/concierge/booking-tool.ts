@@ -1,5 +1,5 @@
 import { VEHICLE_CHOICES } from "@/lib/fleet/vehicles";
-import { CHOCOLATE_OPTIONS, EXTRA_KEYS, MAX_PER_EXTRA } from "@/lib/pricing/extras";
+import { CHOCOLATE_OPTIONS, IN_CAR_EXTRA_KEYS, MAX_PER_EXTRA } from "@/lib/pricing/extras";
 import { PLACE_KINDS } from "@/lib/places/types";
 import { HOURLY_DURATIONS } from "@/lib/quotes/constants";
 import { MAX_STOPS, STOP_WAITS } from "@/lib/quotes/stops";
@@ -64,7 +64,7 @@ export const BOOKING_TOOL = {
           additionalProperties: false,
           required: ["key", "count"],
           properties: {
-            key: { type: "string", enum: [...EXTRA_KEYS] },
+            key: { type: "string", enum: [...IN_CAR_EXTRA_KEYS] },
             count: { type: "integer", minimum: 1, maximum: MAX_PER_EXTRA },
             option: { type: "string", enum: [...CHOCOLATE_OPTIONS], description: 'For chocolates only: "classic" or "dairy_free"' },
           },

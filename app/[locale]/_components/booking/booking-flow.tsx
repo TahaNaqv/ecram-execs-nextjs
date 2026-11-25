@@ -8,7 +8,7 @@ import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { receiptLineItems, type ReceiptLine } from "@/lib/pricing/receipt-lines";
 import { formatCents, hourlyRate, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
-import { extraName } from "@/lib/pricing/extras";
+import { EXTRAS, extraName, TRAILER_KEY, TRAILER_SUITCASES } from "@/lib/pricing/extras";
 import { labelledRoute } from "@/lib/quotes/route-labels";
 import { cleanPhoneInput, PASTE_MAX } from "@/lib/phone";
 import { VehicleGallery, type GalleryCopy } from "../vehicle-gallery";
@@ -409,6 +409,12 @@ export function BookingFlow({
             return normalizeTrip({ ...next, cars, vehicle: cars[0]?.key ?? "" });
           })}
           onAdvise={() => setTrip((current) => normalizeTrip({ ...current, cars: [], vehicle: current.vehicle === "advise" ? "" : "advise" }))}
+          names={addOns}
+          onTrailer={(on) =>
+            setTrip((current) =>
+              normalizeTrip({ ...current, extras: on ? [...current.extras.filter((e) => e.key !== TRAILER_KEY), { key: TRAILER_KEY, count: 1 }] : current.extras.filter((e) => e.key !== TRAILER_KEY) }),
+            )
+          }
           onBack={editJourney}
           onNext={() => {
             let next = trip;
@@ -433,9 +439,11 @@ export function BookingFlow({
           headingRef={heading}
           extras={trip.extras}
           locale={locale}
+          segment={segmentOf(variant)}
+          hasCar={trip.cars.length > 0 || trip.vehicle === "advise" || Boolean(trip.vehicle)}
           copy={t}
           names={addOns}
-          onChange={(extras) => setTrip((current) => ({ ...current, extras }))}
+          onChange={(extras) => setTrip((current) => normalizeTrip({ ...current, extras }))}
           onBack={() => go("car")}
           onNext={() => go("details")}
         />
@@ -539,9 +547,12 @@ function withCarCount(trip: Trip, key: string, count: number): Trip {
   return normalizeTrip({ ...trip, cars, vehicle: cars.length > 0 ? cars[0].key : "" });
 }
 
-function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, onDetails, onCars, onAdvise, onBack, onNext }: {
+function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, error, onDetails, onCars, onAdvise, onTrailer, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
+  /** The add-ons' words: the luggage trailer is offered here too, beside the cars */
+  names: AddOnsCopy;
+  onTrailer: (on: boolean) => void;
   segment: Segment;
   locale: Locale;
   vehicles: OfferedVehicle[];
@@ -620,10 +631,16 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
       seats += (card.seats ?? 99) * pick.count;
       boots += (card.bags ?? 99) * pick.count;
     }
-    if (!any) return carsCapacityProblem(trip.cars, trip.pax, trip.bags);
-    return { passengers: trip.pax > seats, luggage: trip.bags > boots };
+    // The trailer takes 15 suitcases on top of the boots
+    const bagsNeeded = Math.max(0, trip.bags - (trip.extras.some((e) => e.key === TRAILER_KEY) ? TRAILER_SUITCASES : 0));
+    if (!any) return carsCapacityProblem(trip.cars, trip.pax, bagsNeeded);
+    return { passengers: trip.pax > seats, luggage: bagsNeeded > boots };
   })();
   const blockedSelection = fit.passengers || fit.luggage;
+  // The luggage trailer (the client, 26 Nov 2026): beside the cars, only once a car is chosen or left to us
+  const trailerOn = trip.extras.some((e) => e.key === TRAILER_KEY);
+  const trailerAllowed = trip.cars.length > 0 || advise;
+  const trailerRate = EXTRAS[TRAILER_KEY].hourly!;
   const luggage = luggageLine(t, trip.bags, trip.small);
   const fitMessage = fit.passengers && fit.luggage
     ? interpolate(t.carsFitBoth, { party, bags: luggage })
@@ -786,6 +803,50 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, error, 
           </button>
         </li>
       </ul>
+
+      <section aria-labelledby="booking-trailer" className="mt-6">
+        <h3 id="booking-trailer" className="m-0 text-[13px] font-semibold tracking-[0.14em] text-ink-600 uppercase">{t.trailerHeading}</h3>
+        <div
+          className={`mt-3 box-border flex flex-col gap-4 rounded-2xl bg-white text-ink-950 sm:flex-row sm:items-center ${
+            trailerOn ? "border-2 border-solid border-ink-950 p-[11px] shadow-[0_12px_30px_rgba(var(--ec-black-rgb),0.12)]" : "border border-solid border-ink-225 p-3"
+          }`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- placeholder drawing until the photo of the all-black trailer arrives */}
+          <img src={EXTRAS[TRAILER_KEY].image} alt="" className="aspect-[4/3] w-full shrink-0 rounded-[11px] object-cover sm:w-[180px]" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-[15px] font-semibold">{names.trailer}</span>
+            <span className="text-[13px] leading-snug text-ink-600">{names.trailerNote}</span>
+            <span className="pt-1 text-[14px] font-medium text-ink-700 tabular-nums">
+              {interpolate(t.extrasHourly, {
+                price: formatCents(trailerRate.gross[segment], locale),
+                rate: Math.round(EXTRAS[TRAILER_KEY].vatRate * 100),
+                hours: trailerRate.minHours,
+                minimum: formatCents(trailerRate.gross[segment] * trailerRate.minHours, locale),
+              })}
+            </span>
+            {!trailerAllowed && !trailerOn && <span className="text-[13px] font-medium text-ink-950">{t.trailerNeedsCar}</span>}
+          </div>
+          <button
+            type="button"
+            aria-pressed={trailerOn}
+            disabled={!trailerAllowed && !trailerOn}
+            onClick={() => onTrailer(!trailerOn)}
+            aria-label={`${trailerOn ? t.extrasAdded : t.extrasAdd}: ${names.trailer}`}
+            className={`flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl px-6 text-[14px] font-semibold sm:w-[150px] disabled:cursor-not-allowed disabled:opacity-50 ${
+              trailerOn ? "border-0 bg-ink-950 text-white" : "border border-solid border-ink-225 bg-white text-ink-950 hover:border-ink-950"
+            }`}
+          >
+            {trailerOn ? (
+              <>
+                <Check />
+                {t.extrasAdded}
+              </>
+            ) : (
+              t.extrasAdd
+            )}
+          </button>
+        </div>
+      </section>
 
       {(fitMessage || error) && (
         <p role="alert" className="m-0 mt-6 text-[13px] leading-snug text-error">
