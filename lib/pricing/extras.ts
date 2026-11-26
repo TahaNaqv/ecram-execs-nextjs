@@ -38,15 +38,15 @@ export type ExtraSpec = {
   hourly?: { gross: Record<Segment, number>; minHours: number };
 };
 /**
- * The luggage trailer's photos on the fleet page, cover first: the black Debon Roadster 255, cut from the six-photo collage
- * sent on 27 Nov 2026 (front three-quarter, side, front, two rear three-quarters, rear). New photos go under new filenames
- * (/assets is cached for 7 days).
+ * The luggage trailer's photos on the fleet page, cover first: the black Debon Roadster 255 from the client's six-photo
+ * collage of 27 Nov 2026 (front three-quarter, side, front, two rear three-quarters, rear), set in the cars' studio
+ * background (vidIQ, 27 Nov 2026; the trailer itself unchanged). New photos go under new filenames (/assets is cached for 7 days).
  */
-export const TRAILER_GALLERY = [1, 2, 3, 4, 5, 6].map((n) => `/assets/fleet-trailer-black-${n}.jpg`);
+export const TRAILER_GALLERY = [1, 2, 3, 4, 5, 6].map((n) => `/assets/fleet-trailer-studio-${n}.jpg`);
 
 export const EXTRAS: Record<ExtraKey, ExtraSpec> = {
   // The client's rate card, 26 Nov 2026: €6.25 an hour corporate, €9 public, VAT included, at least 4 hours (€25 / €36)
-  trailer: { unit: 0, vatRate: 0.09, image: "/add-ons/trailer-debon-roadster-255-black.jpg", max: 1, hourly: { gross: { corporate: 625, public: 900 }, minHours: 4 } },
+  trailer: { unit: 0, vatRate: 0.09, image: "/add-ons/trailer-debon-roadster-255-studio.jpg", max: 1, hourly: { gross: { corporate: 625, public: 900 }, minHours: 4 } },
   champagne: { unit: 7800, vatRate: 0.21, image: "/add-ons/champagne.webp" },
   chocolates: { unit: 4200, vatRate: 0.21, image: "/add-ons/chocolates.webp", options: CHOCOLATE_OPTIONS },
   flowers: { unit: 6600, vatRate: 0.09, image: "/add-ons/flowers.webp" },
