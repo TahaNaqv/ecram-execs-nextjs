@@ -103,39 +103,57 @@ const refreshDrivers = () => {
 };
 
 /** Links a driver to a car for a window, or for the whole 10-hour shift starting at the given time. */
-export async function assignDriverVehicle(formData: FormData) {
+export async function assignDriverVehicle(formData: FormData): Promise<{ ok: true } | { error: string }> {
   await requireArea("/admin/drivers");
   const driver = z.uuid().safeParse(formData.get("driverId"));
   const vehicle = z.string().trim().min(1).safeParse(formData.get("vehicleId"));
+  if (!driver.success) return { error: "Choose a driver." };
+  if (!vehicle.success) return { error: "Choose a vehicle." };
   const start = wall(formData, "date", "start");
-  if (!driver.success || !vehicle.success || !start) return;
+  if (!start) return { error: "Choose a date and a start time." };
   const entire = formData.get("entireShift") === "on";
   const end = entire ? new Date(start.getTime() + SHIFT_CAP_MS) : wall(formData, "date", "end");
-  if (!end || end <= start) return;
+  if (!end || end <= start) return { error: "The end time must be after the start time." };
+  if (end.getTime() - start.getTime() > SHIFT_CAP_MS) return { error: "A link can last at most 10 hours." };
+  // A link that has already ended is no use to plan with
+  if (end.getTime() <= Date.now()) return { error: "This time has already passed." };
   const notes = String(formData.get("notes") ?? "").trim().slice(0, 500) || null;
   const [car] = await db.select({ id: vehicles.id }).from(vehicles).where(eq(vehicles.id, vehicle.data)).limit(1);
   const [person] = await db.select({ id: drivers.id }).from(drivers).where(and(eq(drivers.id, driver.data), eq(drivers.active, true))).limit(1);
-  if (!car || !person) return;
-  const clash = await db
-    .select({ id: driverAssignments.id })
-    .from(driverAssignments)
-    .where(
-      and(
-        sql`${driverAssignments.startTime} < ${end.toISOString()}::timestamptz and ${driverAssignments.endTime} > ${start.toISOString()}::timestamptz`,
-        sql`(${driverAssignments.driverId} = ${driver.data} or ${driverAssignments.vehicleId} = ${vehicle.data})`,
-      ),
-    )
-    .limit(1);
-  if (clash.length) return;
-  await db.insert(driverAssignments).values({
-    driverId: driver.data,
-    vehicleId: vehicle.data,
-    startTime: start,
-    endTime: end,
-    isEntireShift: entire,
-    notes,
+  if (!car) return { error: "That vehicle no longer exists." };
+  if (!person) return { error: "That driver is archived or no longer exists." };
+  // One check and save at a time, so two people linking the same car at once cannot both pass the check
+  const clash = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('driver-assignments'))`);
+    const [taken] = await tx
+      .select({ driverId: driverAssignments.driverId, vehicleId: driverAssignments.vehicleId, driverName: drivers.name })
+      .from(driverAssignments)
+      .innerJoin(drivers, eq(drivers.id, driverAssignments.driverId))
+      .where(
+        and(
+          sql`${driverAssignments.startTime} < ${end.toISOString()}::timestamptz and ${driverAssignments.endTime} > ${start.toISOString()}::timestamptz`,
+          sql`(${driverAssignments.driverId} = ${driver.data} or ${driverAssignments.vehicleId} = ${vehicle.data})`,
+        ),
+      )
+      .limit(1);
+    if (taken) return taken;
+    await tx.insert(driverAssignments).values({
+      driverId: driver.data,
+      vehicleId: vehicle.data,
+      startTime: start,
+      endTime: end,
+      isEntireShift: entire,
+      notes,
+    });
+    return null;
   });
+  if (clash) {
+    return clash.vehicleId === vehicle.data && clash.driverId !== driver.data
+      ? { error: `This vehicle is already linked to ${clash.driverName} at that time.` }
+      : { error: "This driver is already linked to a vehicle at that time." };
+  }
   refreshDrivers();
+  return { ok: true };
 }
 
 export async function removeDriverAssignment(formData: FormData) {

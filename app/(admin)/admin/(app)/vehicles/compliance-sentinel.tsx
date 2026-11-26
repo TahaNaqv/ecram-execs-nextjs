@@ -5,8 +5,8 @@ import { useTransition, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AdminDateField, AdminSelect, type AdminDateCopy } from "../../_components/admin-fields";
 import { ClockIcon, PlusIcon, XIcon, TrashIcon } from "../../_components/icons";
-import type { FleetUsage, VehicleRow } from "@/lib/admin/live-queries";
-import { addVehicle, toggleVehicleStatus, deleteVehicle } from "@/lib/admin/vehicle-actions";
+import type { FleetUsage, VehicleRow, VehicleServiceRow } from "@/lib/admin/live-queries";
+import { addVehicle, cancelVehicleService, deleteVehicle, scheduleVehicleService, toggleVehicleStatus } from "@/lib/admin/vehicle-actions";
 import { refreshOnce } from "@/lib/nav/refresh-once";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
@@ -222,12 +222,14 @@ function formatStoredDate(value: string | null | undefined, locale: Locale) {
 
 export function FleetComplianceSentinel({
   vehicles,
+  services,
   usage,
   copy,
   locale,
   dateCopy,
 }: {
   vehicles: VehicleRow[];
+  services: VehicleServiceRow[];
   usage: Record<string, FleetUsage>;
   copy: VehicleCopy;
   locale: Locale;
@@ -250,7 +252,18 @@ export function FleetComplianceSentinel({
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
   const [isPending, startTransition] = useTransition();
-  const [serviceType, setServiceType] = useState(copy.serviceApk);
+  const serviceOptions = [
+    { value: "apk", label: copy.serviceApk },
+    { value: "battery", label: copy.serviceBattery },
+    { value: "tyres", label: copy.serviceTyres },
+    { value: "detail", label: copy.serviceDetail },
+  ];
+  const serviceLabel = (type: string) => serviceOptions.find((option) => option.value === type)?.label ?? type;
+  const [serviceType, setServiceType] = useState("apk");
+  const [serviceVehicle, setServiceVehicle] = useState("");
+  const [serviceNotes, setServiceNotes] = useState("");
+  const [serviceError, setServiceError] = useState<string | null>(null);
+  const today = amsterdamToday();
   const permitOptions = [
     { value: "Valid", label: copy.permitValid },
     { value: "Pending", label: copy.permitPending },
@@ -365,6 +378,10 @@ export function FleetComplianceSentinel({
             type="button"
             onClick={() => {
               setServiceDate(amsterdamToday());
+              setServiceVehicle(selected?.id ?? "");
+              setServiceType("apk");
+              setServiceNotes("");
+              setServiceError(null);
               setIsServiceModalOpen(true);
             }}
             className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
@@ -542,6 +559,43 @@ export function FleetComplianceSentinel({
                   ))}
                 </tbody>
               </table>
+              <div className="border-t border-zinc-100 px-4 py-4">
+                <h4 className="m-0 text-[13px] font-semibold text-zinc-950">{copy.serviceUpcoming}</h4>
+                <p className="m-0 mt-0.5 text-[12px] text-zinc-500">{copy.serviceBlocksNote}</p>
+                {services.length === 0 ? (
+                  <p className="m-0 mt-3 text-[13px] text-zinc-500">{copy.serviceNone}</p>
+                ) : (
+                  <ul className="m-0 mt-3 list-none divide-y divide-zinc-100 p-0">
+                    {services.map((service) => (
+                      <li key={service.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-[13px]">
+                        <span className="min-w-0">
+                          <span className="font-mono text-zinc-700">{formatStoredDate(service.serviceDate, locale)}</span>
+                          <span className="mx-2 text-zinc-300">·</span>
+                          <span className="font-medium text-zinc-950">{service.vehicleName}</span>
+                          <span className="mx-2 text-zinc-300">·</span>
+                          <span className="text-zinc-700">{serviceLabel(service.serviceType)}</span>
+                          {service.notes ? <span className="block text-[12px] text-zinc-500">{service.notes}</span> : null}
+                        </span>
+                        <button
+                          type="button"
+                          className="cursor-pointer text-[12px] font-medium text-rose-600 hover:underline"
+                          onClick={() => {
+                            const data = new FormData();
+                            data.append("id", service.id);
+                            startTransition(async () => {
+                              const done = await cancelVehicleService(data);
+                              pushToast(done.ok ? copy.serviceCancelled : copy.formError, done.ok);
+                              refreshOnce(router);
+                            });
+                          }}
+                        >
+                          {copy.serviceCancel}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
       </div>
@@ -574,6 +628,8 @@ export function FleetComplianceSentinel({
                       : result.error === "too-large" ? copy.imageSize
                       : result.error === "rate" ? copy.rateInvalid
                       : result.error === "seats" || result.error === "luggage" ? copy.seatsInvalid
+                      : result.error === "apk-past" ? copy.apkPast
+                      : result.error === "insurance-past" ? copy.insurancePast
                       : copy.formError;
                     setFormError(message);
                     pushToast(message, false);
@@ -623,13 +679,13 @@ export function FleetComplianceSentinel({
                   <label className={labelClass} htmlFor="vehicle-apk-expiry">
                     {copy.colApk}
                   </label>
-                  <AdminDateField id="vehicle-apk-expiry" name="apkExpiry" placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.apkExpiry ?? ""} />
+                  <AdminDateField id="vehicle-apk-expiry" name="apkExpiry" min={today} placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.apkExpiry ?? ""} />
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-insurance-expiry">
                     {copy.colInsurance}
                   </label>
-                  <AdminDateField id="vehicle-insurance-expiry" name="insuranceExpiry" placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.insuranceExpiry ?? ""} />
+                  <AdminDateField id="vehicle-insurance-expiry" name="insuranceExpiry" min={today} placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.insuranceExpiry ?? ""} />
                 </div>
               </div>
               <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-2">
@@ -703,17 +759,27 @@ export function FleetComplianceSentinel({
             <h3 className="mb-4 text-base font-semibold text-zinc-950">{copy.serviceTitle}</h3>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">{copy.serviceType}</label>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.serviceVehicle}</label>
                 <AdminSelect
-                  value={serviceType}
-                  onChange={setServiceType}
-                  options={[copy.serviceApk, copy.serviceBattery, copy.serviceTyres, copy.serviceDetail].map((label) => ({ value: label, label }))}
+                  value={serviceVehicle}
+                  onChange={setServiceVehicle}
+                  options={[{ value: "", label: copy.serviceChooseVehicle }, ...vehicleList.map((vehicle) => ({ value: vehicle.id, label: vehicle.licensePlate ? `${vehicle.name} · ${vehicle.licensePlate}` : vehicle.name }))]}
                 />
               </div>
               <div>
-                <label className="block font-medium text-zinc-700 mb-1">{copy.scheduledDate}</label>
-                <AdminDateField value={serviceDate} onChange={setServiceDate} placement="above" locale={locale} copy={dateCopy} />
+                <label className="block font-medium text-zinc-700 mb-1">{copy.serviceType}</label>
+                <AdminSelect value={serviceType} onChange={setServiceType} options={serviceOptions} />
               </div>
+              <div>
+                <label className="block font-medium text-zinc-700 mb-1">{copy.scheduledDate}</label>
+                <AdminDateField value={serviceDate} onChange={setServiceDate} min={today} placement="above" locale={locale} copy={dateCopy} />
+              </div>
+              <div>
+                <label className="block font-medium text-zinc-700 mb-1" htmlFor="service-notes">{copy.serviceNotes}</label>
+                <input id="service-notes" value={serviceNotes} maxLength={500} onChange={(event) => setServiceNotes(event.target.value)} className={fieldClass} />
+              </div>
+              <p className="m-0 text-[12px] text-zinc-500">{copy.serviceBlocksNote}</p>
+              {serviceError ? <p className="m-0 text-[12px] text-rose-700">{serviceError}</p> : null}
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-2">
                 <button
                   type="button"
@@ -724,8 +790,33 @@ export function FleetComplianceSentinel({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsServiceModalOpen(false)}
-                  className="bg-black hover:bg-zinc-800 text-white font-semibold px-5 py-2 rounded-xl cursor-pointer"
+                  disabled={isPending}
+                  onClick={() => {
+                    if (!serviceVehicle) return setServiceError(copy.serviceErrorVehicle);
+                    if (!serviceDate || serviceDate < amsterdamToday()) return setServiceError(copy.serviceErrorPast);
+                    const data = new FormData();
+                    data.append("vehicleId", serviceVehicle);
+                    data.append("serviceType", serviceType);
+                    data.append("serviceDate", serviceDate);
+                    data.append("notes", serviceNotes);
+                    startTransition(async () => {
+                      const result = await scheduleVehicleService(data);
+                      if (!result.ok) {
+                        const message = result.error === "vehicle" ? copy.serviceErrorVehicle
+                          : result.error === "date-past" || result.error === "date" ? copy.serviceErrorPast
+                          : result.error === "duplicate" ? copy.serviceErrorDuplicate
+                          : copy.formError;
+                        setServiceError(message);
+                        pushToast(message, false);
+                        return;
+                      }
+                      setIsServiceModalOpen(false);
+                      pushToast(result.bookingsThatDay ? interpolate(copy.serviceBookingsThatDay, { count: result.bookingsThatDay }) : copy.serviceSaved, !result.bookingsThatDay);
+                      setView("apk");
+                      refreshOnce(router);
+                    });
+                  }}
+                  className="bg-black hover:bg-zinc-800 text-white font-semibold px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50"
                 >
                   {copy.confirmBooking}
                 </button>

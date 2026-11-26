@@ -31,13 +31,13 @@ const TOKENS: { token: TemplateToken; labelKey: keyof Pick<Copy, "tagReference" 
   { token: "netTotal", labelKey: "tagNet" },
 ];
 
+export type TemplateCopy = Copy;
+
 export function TemplateForm({
   row,
-  title,
   copy,
 }: {
   row: { key: string; subject: string; body: string };
-  title: string;
   copy: Copy;
 }) {
   const labels = {
@@ -74,7 +74,6 @@ export function TemplateForm({
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <h2 className="m-0 text-base font-semibold text-zinc-950">{title}</h2>
       <input type="hidden" name="key" value={row.key} />
       <div className="flex flex-col gap-2">
         <p className="m-0 text-[13px] text-zinc-500">{copy.tagsHint}</p>

@@ -9,7 +9,7 @@ import { waitingEnquiries } from "@/lib/admin/sla";
 import { logout } from "../actions";
 import { AdminChrome } from "../_components/admin-nav";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
-import { LOCALES } from "@/lib/i18n/config";
+import { ADMIN_LOCALES } from "@/lib/i18n/config";
 import { setAdminLocale } from "../actions";
 import { LogOutIcon } from "../_components/icons";
 import { Avatar } from "../_components/ui";
@@ -138,8 +138,9 @@ async function AccountMenu() {
         <Link href="/admin/account" className="text-xs text-zinc-300 underline-offset-2 hover:underline">{t.nav.account}</Link>
       </div>
       {/* Language preference: admin is not locale-routed, so it lives on the account (D3). */}
+      {ADMIN_LOCALES.length > 1 ? (
       <form action={setAdminLocale} className="flex items-center gap-0.5" aria-label={t.common.language}>
-        {LOCALES.map((l) => (
+        {ADMIN_LOCALES.map((l) => (
           <button
             key={l}
             name="locale"
@@ -154,6 +155,7 @@ async function AccountMenu() {
           </button>
         ))}
       </form>
+      ) : null}
       <form action={logout}>
         <button
           title={t.common.signOut}

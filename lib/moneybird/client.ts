@@ -31,6 +31,8 @@ export type MoneybirdSalesInvoice = {
   payment_url?: string | null;
   paid_at?: string | null;
   sent_at?: string | null;
+  /** YYYY-MM-DD, from the invoice date and its payment term */
+  due_date?: string | null;
   details?: { id: string; total_price_excl_tax_with_discount?: string; tax_rate_id?: string }[];
 };
 
@@ -231,10 +233,15 @@ export type MoneybirdWorkflow = {
 };
 
 let workflowsPromise: Promise<{ en?: string; nl?: string } | null> | null = null;
+let workflowsAt = 0;
+/** Re-read now and then, so a workflow added in Moneybird is used without a restart, and a failed read is retried later */
+const WORKFLOWS_TTL_MS = 10 * 60_000;
 
 /** Active sales invoice workflows by language ("en" / "nl"), if configured in Moneybird. */
 export function invoiceWorkflows(): Promise<{ en?: string; nl?: string } | null> {
-  workflowsPromise ??= moneybird<MoneybirdWorkflow[]>("GET", "workflows.json")
+  if (workflowsPromise && Date.now() - workflowsAt < WORKFLOWS_TTL_MS) return workflowsPromise;
+  workflowsAt = Date.now();
+  workflowsPromise = moneybird<MoneybirdWorkflow[]>("GET", "workflows.json")
     .then((list) => {
       if (!Array.isArray(list)) return null;
       const active = list.filter((w) => w.active !== false);
@@ -242,10 +249,7 @@ export function invoiceWorkflows(): Promise<{ en?: string; nl?: string } | null>
       const nl = active.find((w) => w.language === "nl" || w.language === "nl-be" || /nederlands|dutch/i.test(w.name))?.id;
       return { en: en ? String(en) : undefined, nl: nl ? String(nl) : undefined };
     })
-    .catch(() => {
-      workflowsPromise = null;
-      return null;
-    });
+    .catch(() => null);
   return workflowsPromise;
 }
 

@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { STOCKED_EXTRA_KEYS } from "@/lib/pricing/extras";
+import { moneybirdConfigured } from "@/lib/moneybird/config";
+import { invoiceWorkflows } from "@/lib/moneybird/client";
 
 export type TodoItem = { href: string; title: string; detail: string };
 
@@ -48,6 +50,20 @@ export async function operationsTodos(): Promise<TodoItem[]> {
     .from(schema.bookingMessages)
     .where(and(eq(schema.bookingMessages.authorKind, "guest"), isNull(schema.bookingMessages.seenByTeamAt)));
   if ((unread?.n ?? 0) > 0) items.push({ href: "/admin/requests", title: "Unread guest messages", detail: `${unread?.n} waiting` });
+
+  // Moneybird writes its invoice page and its own email block in the workflow's language. Without an English workflow
+  // every invoice, English bookings included, goes out with Dutch words ("Factuur", "Bekijk factuur").
+  if (moneybirdConfigured()) {
+    // Never hold the dashboard up for Moneybird: no answer within 2 seconds, no to-do this time
+    const workflows = await Promise.race([invoiceWorkflows().catch(() => null), new Promise<null>((done) => setTimeout(() => done(null), 2000))]);
+    if (workflows && !workflows.en) {
+      items.push({
+        href: "/admin/financials",
+        title: "Moneybird has no English invoice workflow",
+        detail: "Invoices and their emails go out in Dutch. In Moneybird: Settings → Workflows → new invoice workflow in English (with an English email template)",
+      });
+    }
+  }
 
   const stock = await db.select().from(schema.addonStock);
   for (const row of stock) {

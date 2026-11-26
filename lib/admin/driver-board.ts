@@ -247,3 +247,24 @@ export function formatBoardClock(instant: Date, locale: string) {
 }
 
 export { utcToAmsterdamParts };
+
+/**
+ * Driver–vehicle links from the day before `date` to two weeks after it, in Amsterdam wall time ("YYYY-MM-DDTHH:MM"), so the
+ * link form can leave out cars and drivers already taken on whichever day is picked there (the server checks again on save).
+ */
+export async function linksAround(date: string): Promise<{ driverId: string; driverName: string; vehicleId: string; start: string; end: string }[]> {
+  const from = amsterdamWallToUtc(date, "00:00");
+  if (!from) return [];
+  const lo = new Date(from.getTime() - 24 * 3_600_000);
+  const hi = new Date(from.getTime() + 15 * 24 * 3_600_000);
+  const rows = await db
+    .select({ driverId: a.driverId, driverName: d.name, vehicleId: a.vehicleId, start: a.startTime, end: a.endTime })
+    .from(a)
+    .innerJoin(d, eq(d.id, a.driverId))
+    .where(and(lte(a.startTime, hi), gte(a.endTime, lo)));
+  return rows.map((row) => {
+    const s = utcToAmsterdamParts(row.start);
+    const e = utcToAmsterdamParts(row.end);
+    return { driverId: row.driverId, driverName: row.driverName, vehicleId: row.vehicleId, start: `${s.date}T${s.time}`, end: `${e.date}T${e.time}` };
+  });
+}

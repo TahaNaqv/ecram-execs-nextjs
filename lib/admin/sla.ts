@@ -12,7 +12,8 @@ import type { RequestStatus } from "@/lib/quotes/constants";
  * - **corporate**: a partner with a verified account asked in the portal, or a company sent its introduction. Judged by where the
  *   enquiry came from as well as by the partner link, which can be cleared later (detached by the team, or the partner erased).
  *
- * Bookings the team keyed in themselves (source "admin") and demo rows are not enquiries and are left out.
+ * Bookings the team keyed in themselves (source "admin") still wait for approval, so they are listed and counted with the
+ * rest (the dashboard counts every new booking too), but they do not count towards the answer times: the team made them.
  */
 export type Queue = "standard" | "corporate";
 
@@ -40,6 +41,8 @@ export type OpenEnquiry = {
   returnAt: string | null;
   createdMs: number;
   deadlineMs: number;
+  /** Keyed in by the team (a phone booking): waiting for approval, with no answer time to beat */
+  byTeam: boolean;
 };
 
 export type AnsweredEnquiry = {
@@ -77,6 +80,8 @@ type Row = {
   pickup_at: string | null;
   return_at: string | null;
   queue: Queue;
+  /** Keyed in by the team: listed, but left out of the answer-time figures */
+  by_team: boolean;
   created_ms: number;
   responded_ms: number | null;
 };
@@ -101,12 +106,13 @@ export const enquiryQueues = cache(async (): Promise<{ nowMs: number; standard: 
              q.pickup_at::text as pickup_at, q.return_at::text as return_at,
              c.company_name,
              case when q.corporate_contact_id is not null or q.source in ('portal', 'website-corporate') then 'corporate' else 'standard' end as queue,
+             q.source = 'admin' as by_team,
              (extract(epoch from q.created_at) * 1000)::float8 as created_ms,
              (extract(epoch from ${FIRST_ANSWER}) * 1000)::float8 as responded_ms
       from quote_requests q
       left join corporate_contacts c on c.id = q.corporate_contact_id
-      where q.source in ('website', 'website-bespoke', 'website-corporate', 'portal')
-        and (q.status = 'new' or q.created_at > now() - make_interval(days => ${WINDOW_DAYS}))
+      where q.source in ('website', 'website-bespoke', 'website-corporate', 'portal', 'admin')
+        and (q.status = 'new' or (q.source <> 'admin' and q.created_at > now() - make_interval(days => ${WINDOW_DAYS})))
       order by q.created_at asc`),
   );
   const nowMs = Date.now();
@@ -130,6 +136,7 @@ function summarise(queue: Queue, all: Row[], nowMs: number): QueueSummary {
       returnAt: r.return_at,
       createdMs: r.created_ms,
       deadlineMs: r.created_ms + targetMs,
+      byTeam: r.by_team,
     }))
     .sort((a, b) => a.deadlineMs - b.deadlineMs);
 
@@ -145,7 +152,7 @@ function summarise(queue: Queue, all: Row[], nowMs: number): QueueSummary {
       withinTarget: r.responded_ms - r.created_ms <= targetMs,
     }));
 
-  const late = waiting.filter((w) => w.deadlineMs < nowMs);
+  const late = waiting.filter((w) => w.deadlineMs < nowMs && !w.byTeam);
   // The figure looks back 30 days: an enquiry forgotten for months still shows as overdue, but does not hold the percentage down for ever
   const lateInWindow = late.filter((w) => w.createdMs > nowMs - WINDOW_DAYS * 86_400_000).length;
   const judged = answered.length + lateInWindow;
@@ -159,7 +166,7 @@ function summarise(queue: Queue, all: Row[], nowMs: number): QueueSummary {
     avgResponseMs: answered.length ? answered.reduce((sum, a) => sum + (a.respondedMs - a.createdMs), 0) / answered.length : null,
     compliance: judged ? Math.round((inTime / judged) * 100) : null,
     overdue: late.length,
-    dueSoon: waiting.filter((w) => w.deadlineMs >= nowMs && w.deadlineMs - nowMs <= dueSoonMs).length,
+    dueSoon: waiting.filter((w) => !w.byTeam && w.deadlineMs >= nowMs && w.deadlineMs - nowMs <= dueSoonMs).length,
     answered: answered.sort((a, b) => b.respondedMs - a.respondedMs).slice(0, 5),
   };
 }
@@ -169,7 +176,7 @@ export const waitingEnquiries = cache(async () => {
   await requireAdmin();
   const [row] = Array.from(
     await db.execute<{ n: number }>(sql`
-      select count(*)::int as n from quote_requests where status = 'new' and source in ('website', 'website-bespoke', 'website-corporate', 'portal')`),
+      select count(*)::int as n from quote_requests where status = 'new' and source in ('website', 'website-bespoke', 'website-corporate', 'portal', 'admin')`),
   );
   return row?.n ?? 0;
 });

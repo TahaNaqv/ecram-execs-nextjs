@@ -31,3 +31,9 @@ export function isLocale(value: string | undefined): value is Locale {
 export function spokenLocale(value: string | null | undefined): Locale {
   return value === "nl" ? "nl" : DEFAULT_LOCALE;
 }
+
+/**
+ * The languages the admin panel offers. English only (the client's bug report, 26 Nov 2026): the switch is hidden and every
+ * team member sees English, whatever their saved preference. Add "nl" to bring the switch back; the dictionary is kept.
+ */
+export const ADMIN_LOCALES: readonly Locale[] = ["en"];

@@ -51,7 +51,7 @@ async function answer(page: Page, id: string, status = "contacted") {
 // A queue lists its 25 most urgent: enquiries other specs left waiting would push these tests' rows out of sight. Specs run one at a time, so they are put aside first.
 test.beforeEach(async () => {
   const db = sql();
-  await db`update quote_requests set status = 'cancelled' where status = 'new' and source in ('website', 'website-bespoke', 'website-corporate', 'portal')`;
+  await db`update quote_requests set status = 'cancelled' where status = 'new' and source in ('website', 'website-bespoke', 'website-corporate', 'portal', 'admin')`;
   await db.end();
 });
 
@@ -67,7 +67,7 @@ test("the menu lists Enquiries between the dashboard and the requests", async ({
   await expect(menu.getByRole("link", { name: new RegExp(`^${en.admin.nav.enquiries}`) })).toHaveAttribute("aria-current", "page");
 });
 
-test("enquiries from the website split into the standard and the corporate queue; what is not an enquiry is left out", async ({ page }) => {
+test("enquiries split into the standard and the corporate queue; team bookings are listed, answered ones left out", async ({ page }) => {
   test.slow();
   const partnerEmail = newEmail("queue-partner");
   const contactId = await seedContact(partnerEmail, PASSWORD, "Anouk Jansen", "Orion Holdings B.V.");
@@ -96,8 +96,13 @@ test("enquiries from the website split into the standard and the corporate queue
   // The corporate queue names the company, the standard one the client
   await expect(corp.locator(`[data-enquiry="${portal.reference}"]`)).toContainText("Orion Holdings B.V.");
   await expect(std.locator(`[data-enquiry="${standard.reference}"]`)).toContainText("Anouk Jansen");
-  // A booking the team keyed in, and one already answered, are not waiting enquiries
-  for (const r of [keyedIn, answered]) await expect(page.locator(`[data-enquiry="${r.reference}"]`)).toHaveCount(0);
+  // A booking the team keyed in still waits for approval: it is listed (the dashboard counts it too), without a countdown
+  const team = std.locator(`[data-enquiry="${keyedIn.reference}"]`);
+  await expect(team).toBeVisible();
+  await expect(team).toContainText("Keyed in by the team");
+  await expect(team.getByRole("timer")).toHaveCount(0);
+  // One already answered is not a waiting enquiry
+  await expect(page.locator(`[data-enquiry="${answered.reference}"]`)).toHaveCount(0);
   // A row leads to the request
   await std.locator(`[data-enquiry="${standard.reference}"]`).getByRole("link", { name: standard.reference }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/requests/${standard.id}$`));

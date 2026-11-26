@@ -127,15 +127,25 @@ type SlotBooking = {
   driveBackMinutes?: number | null;
 };
 
-/** Cars of each class that can be booked. A printed model with no row yet counts as one car. An unavailable row does not. */
-async function classCapacity(tx: Db): Promise<Map<string, number>> {
-  const rows = await tx.select({ id: schema.vehicles.id, status: schema.vehicles.status }).from(schema.vehicles);
+/**
+ * Cars of each class that can be booked. A printed model with no row yet counts as one car. An unavailable row does not,
+ * nor does a car with a service day (vehicle_services) on any day of the trip, `from` to `to` (YYYY-MM-DD).
+ */
+async function classCapacity(tx: Db, from: string, to: string): Promise<Map<string, number>> {
+  const [rows, serviced] = await Promise.all([
+    tx.select({ id: schema.vehicles.id, status: schema.vehicles.status }).from(schema.vehicles),
+    tx
+      .selectDistinct({ id: schema.vehicleServices.vehicleId })
+      .from(schema.vehicleServices)
+      .where(sql`${schema.vehicleServices.serviceDate} between ${from}::date and ${to}::date`),
+  ]);
+  const inService = new Set(serviced.map((row) => row.id));
   const known = new Set<string>();
   const free = new Map<string, number>();
   for (const row of rows) {
     const key = normalizeVehicleKey(row.id) ?? row.id;
     known.add(key);
-    if (row.status !== "available") continue;
+    if (row.status !== "available" || inService.has(row.id)) continue;
     free.set(key, (free.get(key) ?? 0) + 1);
   }
   for (const key of VEHICLE_KEYS) if (!known.has(key)) free.set(key, 1);
@@ -207,7 +217,7 @@ export async function fleetSlotFree(tx: Db, booking: SlotBooking): Promise<boole
     }
     for (const [key, count] of need) used.set(key, (used.get(key) ?? 0) + count);
   }
-  const caps = await classCapacity(tx);
+  const caps = await classCapacity(tx, wallText(Math.min(...mine.map((b) => b.start))).slice(0, 10), hi.slice(0, 10));
   const totalCap = [...caps.values()].reduce((sum, n) => sum + n, 0);
   const totalUsed = [...used.values()].reduce((sum, n) => sum + n, 0) + any;
   const requested = classDemand(booking);

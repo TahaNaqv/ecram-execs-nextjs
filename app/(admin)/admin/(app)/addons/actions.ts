@@ -5,28 +5,39 @@ import { refresh } from "next/cache";
 import { requireArea } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { STOCKED_EXTRA_KEYS, type ExtraPick } from "@/lib/pricing/extras";
+import { parseStock, parseSupplier, UUID } from "./addon-rules";
 
 const known = (key: string) => (STOCKED_EXTRA_KEYS as readonly string[]).includes(key);
 
-export async function saveAddonStock(formData: FormData) {
+type Result = { error: string } | undefined;
+
+async function supplierExists(id: string) {
+  const [row] = await db.select({ id: schema.addonSuppliers.id }).from(schema.addonSuppliers).where(eq(schema.addonSuppliers.id, id)).limit(1);
+  return Boolean(row);
+}
+
+export async function saveAddonStock(formData: FormData): Promise<Result> {
   await requireArea("/admin/addons");
   const key = String(formData.get("key") ?? "");
-  if (!known(key)) return;
-  const onHand = Math.max(0, Math.round(Number(formData.get("onHand") ?? 0)));
-  const supplierId = String(formData.get("supplierId") ?? "");
-  const linked = /^[0-9a-f-]{36}$/i.test(supplierId) ? supplierId : null;
+  if (!known(key)) return { error: "That add-on is not stocked." };
+  const stock = parseStock(formData.get("onHand"));
+  if ("error" in stock) return stock;
+  const onHand = stock.value;
+  const supplierId = String(formData.get("supplierId") ?? "").trim();
+  if (supplierId && !UUID.test(supplierId)) return { error: "Choose a supplier from the list." };
+  if (supplierId && !(await supplierExists(supplierId))) return { error: "That supplier no longer exists. Reload the page and try again." };
+  const linked = supplierId || null;
   await db.insert(schema.addonStock).values({ key, onHand, supplierId: linked }).onConflictDoUpdate({ target: schema.addonStock.key, set: { onHand, supplierId: linked } });
   refresh();
 }
 
-export async function addSupplier(formData: FormData) {
+export async function addSupplier(formData: FormData): Promise<Result> {
   await requireArea("/admin/addons");
-  const name = String(formData.get("name") ?? "").trim();
-  if (name.length < 2) return;
-  const email = String(formData.get("email") ?? "").trim() || null;
-  const phone = String(formData.get("phone") ?? "").trim() || null;
-  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const parsed = parseSupplier(formData);
+  if ("error" in parsed) return parsed;
+  const { name, email, phone, notes } = parsed.data;
   const key = String(formData.get("key") ?? "");
+  if (key && !known(key)) return { error: "Choose an add-on from the list." };
   // One submission can reach the server more than once. The lock makes those retries share a single supplier.
   const supplier = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`addon-supplier:${name.toLowerCase()}:${email ?? ""}`}))`);
@@ -42,7 +53,7 @@ export async function addSupplier(formData: FormData) {
       .returning({ id: schema.addonSuppliers.id });
     return created;
   });
-  if (supplier && known(key)) {
+  if (supplier && key) {
     await db.insert(schema.addonStock).values({ key, onHand: 0, supplierId: supplier.id }).onConflictDoUpdate({
       target: schema.addonStock.key,
       set: { supplierId: supplier.id },
@@ -51,27 +62,25 @@ export async function addSupplier(formData: FormData) {
   refresh();
 }
 
-export async function updateSupplier(formData: FormData) {
+export async function updateSupplier(formData: FormData): Promise<Result> {
   await requireArea("/admin/addons");
   const id = String(formData.get("id") ?? "");
-  const name = String(formData.get("name") ?? "").trim();
-  if (!/^[0-9a-f-]{36}$/i.test(id) || name.length < 2) return;
-  await db
+  if (!UUID.test(id)) return { error: "That supplier could not be found." };
+  const parsed = parseSupplier(formData);
+  if ("error" in parsed) return parsed;
+  const updated = await db
     .update(schema.addonSuppliers)
-    .set({
-      name,
-      email: String(formData.get("email") ?? "").trim() || null,
-      phone: String(formData.get("phone") ?? "").trim() || null,
-      notes: String(formData.get("notes") ?? "").trim() || null,
-    })
-    .where(eq(schema.addonSuppliers.id, id));
+    .set(parsed.data)
+    .where(eq(schema.addonSuppliers.id, id))
+    .returning({ id: schema.addonSuppliers.id });
+  if (updated.length === 0) return { error: "That supplier no longer exists. Reload the page and try again." };
   refresh();
 }
 
-export async function deleteSupplier(formData: FormData) {
+export async function deleteSupplier(formData: FormData): Promise<Result> {
   await requireArea("/admin/addons");
   const id = String(formData.get("id") ?? "");
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  if (!UUID.test(id)) return { error: "That supplier could not be found." };
   await db.delete(schema.addonSuppliers).where(eq(schema.addonSuppliers.id, id));
   refresh();
 }

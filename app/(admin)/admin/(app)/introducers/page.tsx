@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { asc, isNull, sql } from "drizzle-orm";
 import { introducerBoard } from "@/lib/admin/introducers";
 import { TEMPLATE_DEFAULTS, templateOverride } from "@/lib/admin/templates";
 import { formatTimestamp } from "@/lib/admin/format";
 import { requireAdmin } from "@/lib/auth/session";
+import { db, schema } from "@/lib/db";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { formatCurrency } from "@/lib/pricing/rates";
-import { btn, Card, PageBody, PageHeader, field } from "../../_components/ui";
-import { ActionForm } from "../../_components/action-feedback";
-import { addIntroducer } from "./actions";
-import { IntroducerTable } from "./introducer-table";
+import { PageBody } from "../../_components/ui";
+import { IntroducerBoard, type IntroducerView, type PartnerOption } from "./introducer-table";
 
 export const instant = false;
 
@@ -29,12 +29,34 @@ export default function IntroducersPage() {
 
 async function Introducers() {
   await requireAdmin();
-  const [rows, savedTemplate] = await Promise.all([introducerBoard(), templateOverride("introducer_commission")]);
+  const [rows, savedTemplate, details, partnerRows] = await Promise.all([
+    introducerBoard(),
+    templateOverride("introducer_commission"),
+    db
+      .select({ id: schema.introducers.id, phone: schema.introducers.phone, company: schema.introducers.company, notes: schema.introducers.notes })
+      .from(schema.introducers),
+    db
+      .select({
+        id: schema.corporateContacts.id,
+        company: schema.corporateContacts.companyName,
+        name: schema.corporateContacts.name,
+        email: schema.corporateContacts.email,
+        introducerId: schema.corporateContacts.introducerId,
+      })
+      .from(schema.corporateContacts)
+      .where(isNull(schema.corporateContacts.archivedAt))
+      .orderBy(asc(sql`coalesce(nullif(${schema.corporateContacts.companyName}, ''), ${schema.corporateContacts.name})`)),
+  ]);
   const template = savedTemplate ?? TEMPLATE_DEFAULTS.introducer_commission;
-  const views = rows.map((row) => ({
+  const extra = new Map(details.map((row) => [row.id, row]));
+  const monthYear = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric", timeZone: "Europe/Amsterdam" }).format(new Date());
+  const views: IntroducerView[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
     email: row.email,
+    phone: extra.get(row.id)?.phone ?? null,
+    company: extra.get(row.id)?.company ?? null,
+    notes: extra.get(row.id)?.notes ?? null,
     commissionPercent: row.commissionPercent,
     active: row.active,
     partners: row.partners,
@@ -42,30 +64,19 @@ async function Introducers() {
     monthCommission: formatCurrency(row.monthCommissionCents / 100),
     monthCommissionCents: row.monthCommissionCents,
     monthNetCents: row.monthNetCents,
-    monthYear: new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric", timeZone: "Europe/Amsterdam" }).format(new Date()),
+    monthYear,
     notified: row.lastInvoiceRequestedAt ? formatTimestamp(row.lastInvoiceRequestedAt) : null,
+  }));
+  const partners: PartnerOption[] = partnerRows.map((row) => ({
+    id: row.id,
+    company: row.company?.trim() || null,
+    name: row.name,
+    email: row.email,
+    introducerId: row.introducerId,
   }));
   return (
     <PageBody>
-      <PageHeader title="Introducers" />
-      <Card className="mt-6 overflow-hidden">
-        <ActionForm action={addIntroducer} success="Introducer added!" className="grid items-end gap-4 border-b border-zinc-100 px-5 py-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(18rem,1.4fr)_7.5rem_auto]">
-          <label className="flex min-w-0 flex-col gap-1 text-[13px] text-zinc-700">
-            Name
-            <input name="name" required className={`${field} h-10 w-full`} />
-          </label>
-          <label className="flex min-w-0 flex-col gap-1 text-[13px] text-zinc-700">
-            Email
-            <input name="email" type="email" className={`${field} h-10 w-full`} />
-          </label>
-          <label className="flex flex-col gap-1 text-[13px] text-zinc-700">
-            Percent
-            <input name="percent" type="number" min={0} max={100} defaultValue={10} className={`${field} h-10 w-full`} />
-          </label>
-          <button className={`${btn.base} ${btn.primary} h-10 px-4`}>Add introducer</button>
-        </ActionForm>
-        <IntroducerTable rows={views} subjectTemplate={template.subject} bodyTemplate={template.body} />
-      </Card>
+      <IntroducerBoard rows={views} partners={partners} subjectTemplate={template.subject} bodyTemplate={template.body} />
     </PageBody>
   );
 }

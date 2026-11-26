@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { canOpenAdminPath, permissionsFor, type StaffPermission, type StaffRole } from "@/lib/admin/access";
 import { db, schema } from "@/lib/db";
-import type { Locale } from "@/lib/i18n/config";
+import { ADMIN_LOCALES, type Locale } from "@/lib/i18n/config";
 
 export const SESSION_COOKIE = "ee_admin_session";
 const SESSION_DAYS = 7;
@@ -60,7 +60,7 @@ export const getAdmin = cache(async (): Promise<Admin | null> => {
   if (!row) return null;
   const storedRole = row.role.toLowerCase();
   const role: StaffRole = storedRole === "owner" || storedRole === "manager" ? storedRole : "staff";
-  return { id: row.id, name: row.name, email: row.email, locale: row.locale, role, permissions: permissionsFor(role, row.permissions) };
+  return { id: row.id, name: row.name, email: row.email, locale: ADMIN_LOCALES.includes(row.locale) ? row.locale : ADMIN_LOCALES[0], role, permissions: permissionsFor(role, row.permissions) };
 });
 
 /** Use in every admin page, Server Action and Route Handler. */

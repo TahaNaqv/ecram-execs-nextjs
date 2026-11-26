@@ -157,6 +157,7 @@ export function AdminDateField({
   locale,
   copy,
   submitOnChange = false,
+  min,
 }: {
   id?: string;
   name?: string;
@@ -169,6 +170,8 @@ export function AdminDateField({
   copy: AdminDateCopy;
   /** Submit the surrounding form as soon as a day is chosen, so the page view follows the date. */
   submitOnChange?: boolean;
+  /** The earliest day that can be chosen (YYYY-MM-DD); earlier days are greyed out. */
+  min?: string;
 }) {
   const router = useRouter();
   const controlled = value !== undefined;
@@ -308,8 +311,9 @@ export function AdminDateField({
                 <button
                   key={iso(date)}
                   type="button"
+                  disabled={Boolean(min) && iso(date) < min!}
                   onClick={() => choose(iso(date))}
-                  className={`grid size-7 cursor-pointer place-items-center rounded-md text-[12px] tabular-nums ${
+                  className={`grid size-7 cursor-pointer place-items-center rounded-md text-[12px] tabular-nums disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent ${
                     iso(date) === current
                       ? "bg-zinc-950 font-semibold text-white"
                       : iso(date) === todayIso

@@ -18,6 +18,8 @@ import { confirmIfAutomatic, consentFromForm, markAnnounced, payAtBooking, planF
 import { guestPath } from "./guest-link";
 
 import { readStops } from "./stops";
+import { parseInstant } from "@/lib/drivers/time";
+import { interpolate } from "@/lib/i18n/interpolate";
 import { quoteSchema, type QuoteField } from "./validation";
 
 /** The booking's private page, or nothing when the link cannot be made (no secret configured): the booking is in either way. */
@@ -109,6 +111,18 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return fail(t.checkHighlighted, fieldErrors);
   }
 
+  // The team needs some notice (Settings, "Minimum notice"). The pick-up is a Dutch wall-clock time, not the server's.
+  const rules = await bookingRules().catch((err) => {
+    console.error("[quote] booking rules unavailable", err);
+    return null;
+  });
+  if (!rules) return fail(t.quoteServerError);
+  const pickup = parseInstant(parsed.data.pickupAt);
+  if (pickup && pickup.getTime() < Date.now() + rules.minNoticeHours * 3_600_000) {
+    const message = interpolate(rules.minNoticeHours === 1 ? t.quoteTooSoonOne : t.quoteTooSoon, { hours: rules.minNoticeHours });
+    return fail(message, { pickupAt: message });
+  }
+
   const { ipHash, userAgent } = await visitor();
 
   const since = new Date(Date.now() - RATE_LIMIT.windowMinutes * 60_000);
@@ -127,11 +141,6 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     // The website's rates: a corporate partner books (at the corporate rates) from the portal
     const priceEstimate = await priceForRequest({ ...parsed.data, ...stops }, "public");
     if (priceEstimate) priceEstimate.purpose = tripPurpose === "private" ? "private" : "business";
-    const rules = await bookingRules();
-    const pickup = new Date(parsed.data.pickupAt);
-    if (!Number.isNaN(pickup.getTime()) && pickup.getTime() < Date.now() + rules.minNoticeHours * 3_600_000) {
-      return fail(t.quoteServerError);
-    }
     const terms = await currentTerms();
     request = await createQuoteRequest({
       ...parsed.data,

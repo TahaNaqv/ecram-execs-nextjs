@@ -322,6 +322,25 @@ async function deleteDraft(id: string): Promise<void> {
   }
 }
 
+/**
+ * Days from today until the invoice is due. Paid at booking (the client's rules of 15 Nov 2026): the rest is due when it is
+ * charged to the card, 30 days before the ride; everything paid already (plan C, a kept fee) is due at once. Otherwise the
+ * corporate or guest payment term.
+ */
+function firstDueDays(r: Booking, partner: Partner | null, row: Row): number {
+  const corporate = Boolean(partner) || isCorporateBooking(r);
+  const balanceOn = isFeeRow(row) ? null : balanceDueOn(r.paymentPlan, r.pickupAt);
+  const today = amsterdamToday();
+  return r.paymentPlan ? (balanceOn ? Math.max(0, daysBetween(today, balanceOn)) : 0) : dueInDays(corporate, r.pickupAt, today, CORPORATE_TERM_DAYS);
+}
+
+/** YYYY-MM-DD, `days` after today in Amsterdam */
+function daysFromToday(days: number): string {
+  const at = new Date(`${amsterdamToday()}T12:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
 async function createDraft(r: Booking, partner: Partner | null, row: Row, cents: number): Promise<MoneybirdSalesInvoice> {
   const config = moneybirdConfig()!;
   const locale = spokenLocale(r.locale);
@@ -331,6 +350,7 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
     invoiceWorkflows().catch(() => null),
   ]);
   const workflowId = workflows?.[locale];
+  if (workflows && !workflowId) console.warn(`[moneybird] no ${locale} invoice workflow: ${r.reference} uses the default workflow, in its language`);
   const contactId = await ensureContact(r, partner, workflowId);
   const words = INVOICE_WORDS[locale];
   // The customer cancelled a booking paid at booking: the service fee is not refunded, so it is invoiced on its own
@@ -355,12 +375,8 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
     { services: dict.services, addOns: dict.addOns },
     cents,
   );
-  const corporate = Boolean(partner) || isCorporateBooking(r);
-  // Paid at booking (the client's rules of 15 Nov 2026): the rest is due when it is charged to the card, 30 days before the
-  // ride, and the invoice says so; everything paid already (plan C, a kept fee) is due at once
   const balanceOn = isFeeRow(row) ? null : balanceDueOn(r.paymentPlan, r.pickupAt);
-  const today = amsterdamToday();
-  const firstDue = r.paymentPlan ? (balanceOn ? Math.max(0, daysBetween(today, balanceOn)) : 0) : dueInDays(corporate, r.pickupAt, today, CORPORATE_TERM_DAYS);
+  const firstDue = firstDueDays(r, partner, row);
   return moneybird<MoneybirdSalesInvoice>("POST", "sales_invoices.json", {
     sales_invoice: {
       contact_id: contactId,
@@ -382,26 +398,25 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
   });
 }
 
-function invoiceEmail(r: Booking, partner: Partner | null, reference: string, cents: number): string {
+/**
+ * Our words above Moneybird's own block (which repeats the number, dates and amount, and has the "view invoice" button):
+ * a greeting, the booking, and the due date Moneybird itself shows, so the two never disagree.
+ */
+function invoiceEmail(r: Booking, partner: Partner | null, row: Row, inv: MoneybirdSalesInvoice, cents: number): string {
   const locale = spokenLocale(r.locale);
   const mail = INVOICE_MAIL[locale];
-  const today = amsterdamToday();
-  const balanceOn = balanceDueOn(r.paymentPlan, r.pickupAt);
-  const due = balanceOn ?? today;
+  // A draft may not carry its due date yet: the same term the draft was made with gives the same day
+  const due = /^\d{4}-\d{2}-\d{2}$/.test(inv.due_date ?? "") ? inv.due_date! : daysFromToday(firstDueDays(r, partner, row));
   const who = partner?.name || r.name;
   return [
-    mail.subject(reference),
-    "",
     mail.greeting(who),
+    "",
     mail.intro,
     "",
-    `${mail.invoice}: ${reference}`,
-    `${mail.sender}: Ecram Execs`,
-    `${mail.reference}: ${reference}`,
-    `${mail.invoiceDate}: ${longDay(today, locale)}`,
-    `${mail.dueDate}: ${longDay(due, locale)}`,
+    ...(inv.invoice_id ? [`${mail.invoice}: ${inv.invoice_id}`] : []),
+    `${mail.reference}: ${r.reference}`,
     `${mail.outstanding}: ${formatCurrency(cents / 100)}`,
-    mail.view,
+    `${mail.dueDate}: ${longDay(due, locale)}`,
   ].join("\n");
 }
 
@@ -462,7 +477,7 @@ async function issue(row: Row, r: Booking, partner: Partner | null): Promise<Syn
       await release(row.id, { state: "void", creditedAt: new Date(), lastError: null });
       return { status: "done" };
     }
-    const sent = await send(inv, (row.delivery as Delivery) ?? "Email", recipient(r, partner), invoiceEmail(r, partner, row.reference, cents));
+    const sent = await send(inv, (row.delivery as Delivery) ?? "Email", recipient(r, partner), invoiceEmail(r, partner, row, inv, cents));
     await release(row.id, { ...fromInvoice(sent), lastError: null });
     await logEvent(row.requestId, "mb_invoice", sent.invoice_id);
     return { status: "done" };

@@ -2,14 +2,19 @@
 
 import { eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
+import { after } from "next/server";
 import { ACCOUNT_AREAS, isStaffRole, mayCreateAccounts, permissionsFor, readTeamAccount } from "@/lib/admin/access";
-import { createStaff } from "@/lib/admin/staff";
+import { createStaff, issuePasswordReset } from "@/lib/admin/staff";
+import { emailAdminWelcome } from "@/lib/email";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { newTotpSecret, verifyTotp } from "@/lib/auth/totp";
 import { clearPendingTotp, readPendingTotp, savePendingTotp } from "@/lib/auth/totp-pending";
 import { destroySession, requireAdmin } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
+
+/** How long a new member's "choose your password" link works */
+const WELCOME_LINK_HOURS = 72;
 
 export type AccountState = { ok?: boolean; error?: "wrong" | "taken" | "short" | "failed" };
 export type CreateAccountState = { ok?: boolean; error?: "taken" | "short" | "denied" | "failed" };
@@ -103,7 +108,10 @@ export async function removeTeamAccount(_prev: RemoveAccountState, formData: For
   return { ok: true };
 }
 
-/** Adds a team sign-in. No email is sent; the person who creates the account passes on the password. */
+/**
+ * Adds a team sign-in and emails the new member where to sign in, with a link to choose their own password. The temporary
+ * password is never emailed: the person who creates the account passes it on, for when the link has expired.
+ */
 export async function createTeamAccount(_prev: CreateAccountState, formData: FormData): Promise<CreateAccountState> {
   const admin = await requireAdmin();
   if (!mayCreateAccounts(admin.role, admin.permissions)) return { error: "denied" };
@@ -117,7 +125,21 @@ export async function createTeamAccount(_prev: CreateAccountState, formData: For
   if (!read.ok) return { error: read.error };
   const result = await createStaff(read);
   refresh();
-  return result.status === "taken" ? { error: "taken" } : { ok: true };
+  if (result.status === "taken") return { error: "taken" };
+  const origin = process.env.SITE_URL ?? "";
+  const issued = await issuePasswordReset(read.email, WELCOME_LINK_HOURS);
+  if (issued) {
+    after(() =>
+      emailAdminWelcome(issued, {
+        by: admin.name,
+        role: read.role,
+        loginUrl: `${origin}/admin/login`,
+        setPasswordUrl: `${origin}/admin/reset?token=${encodeURIComponent(issued.token)}`,
+        hours: WELCOME_LINK_HOURS,
+      }).catch((error) => console.error("[staff] welcome email failed", error)),
+    );
+  }
+  return { ok: true };
 }
 
 export async function beginTotp() {

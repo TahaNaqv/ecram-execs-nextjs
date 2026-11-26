@@ -207,7 +207,11 @@ function Row({ row, nowMs, targetMs, dueSoonMs, locale, overdueLabel, timeLeftLa
         </div>
       </div>
       <p className="m-0 text-sm text-zinc-600">{formatRelative(new Date(row.createdMs), nowMs, locale)}</p>
-      <Countdown deadline={row.deadlineMs} serverNow={nowMs} target={targetMs} dueSoon={dueSoonMs} overdueLabel={overdueLabel} label={timeLeftLabel} />
+      {row.byTeam ? (
+        <p className="m-0 text-[13px] text-zinc-500">Keyed in by the team · waiting for approval</p>
+      ) : (
+        <Countdown deadline={row.deadlineMs} serverNow={nowMs} target={targetMs} dueSoon={dueSoonMs} overdueLabel={overdueLabel} label={timeLeftLabel} />
+      )}
     </li>
   );
 }

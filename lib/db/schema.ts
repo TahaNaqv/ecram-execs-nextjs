@@ -673,6 +673,10 @@ export const introducers = pgTable("introducers", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   email: text("email"),
+  phone: text("phone"),
+  /** The introducer's own company, if any */
+  company: text("company"),
+  notes: text("notes"),
   /** Percent of the net (ex-VAT) payments received from introduced partners. */
   commissionPercent: integer("commission_percent").notNull().default(10),
   active: boolean("active").notNull().default(true),
@@ -831,6 +835,36 @@ export const conciergeMessages = pgTable(
     uniqueIndex("concierge_messages_position_idx").on(t.conversationId, t.position),
     check("concierge_messages_role_check", sql`${t.role} in ('visitor', 'concierge')`),
   ],
+);
+
+/** Every saved version of the terms and conditions, newest last: the live text is in app_settings "terms_en". */
+export const termsVersions = pgTable(
+  "terms_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    version: text("version").notNull(),
+    body: text("body").notNull(),
+    savedBy: uuid("saved_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    savedAt: timestamp("saved_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("terms_versions_saved_at_idx").on(t.savedAt), uniqueIndex("terms_versions_version_key").on(t.version)],
+);
+
+/** A service day booked for a car (APK, tyres...): the car takes no bookings that day. */
+export const vehicleServices = pgTable(
+  "vehicle_services",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    vehicleId: text("vehicle_id")
+      .notNull()
+      .references(() => vehicles.id, { onDelete: "cascade" }),
+    serviceType: text("service_type").notNull(),
+    serviceDate: date("service_date").notNull(),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("vehicle_services_date_idx").on(t.serviceDate), uniqueIndex("vehicle_services_vehicle_day_key").on(t.vehicleId, t.serviceDate)],
 );
 
 /** Settings the team changes in the admin, one row per key (the fleet's base: lib/fleet/base.ts). */

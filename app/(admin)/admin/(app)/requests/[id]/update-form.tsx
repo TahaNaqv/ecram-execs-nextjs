@@ -11,15 +11,25 @@ type Props = {
   id: string;
   status: RequestStatus;
   quotedAmount: string | null;
+  /** Priced by the rate card (not bespoke): the amount follows the cars and the trip, and is not typed in */
+  priced?: boolean;
   internalNotes: string | null;
   statusLabels: Record<RequestStatus, string>;
   copy: { save: string; saving: string; status: string; quotedAmount: string; internalNotes: string; amountPlaceholder: string; internalPlaceholder: string; cancelWarn?: string; cancelGo?: string; cancelBack?: string };
 };
 
-export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabels, copy }: Props) {
+export function UpdateForm({ id, status, quotedAmount, priced = false, internalNotes, statusLabels, copy }: Props) {
   const [state, action, pending] = useActionState<UpdateState, FormData>(updateRequest, {});
   useActionNotice(state, "Status updated!");
   const [warn, setWarn] = useState(false);
+  // The menu follows the booking: when it moves on elsewhere (approved, declined) the page refreshes with the new status,
+  // and the menu must show that, not the one it was opened on (a save from a stale menu would put the old status back)
+  const [chosen, setChosen] = useState<string>(status);
+  const [shownFor, setShownFor] = useState(status);
+  if (shownFor !== status) {
+    setShownFor(status);
+    setChosen(status);
+  }
   return (
     <form
       action={action}
@@ -40,7 +50,7 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
           {copy.status}
         </label>
         <div className="relative">
-          <select id="req-status" name="status" defaultValue={(ACTIVE_STATUSES as readonly string[]).includes(status) ? status : "new"} onChange={(event) => setWarn(event.target.value === "cancelled" && status !== "cancelled" ? warn : false)} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
+          <select id="req-status" name="status" value={(ACTIVE_STATUSES as readonly string[]).includes(chosen) ? chosen : "new"} onChange={(event) => { setChosen(event.target.value); setWarn(event.target.value === "cancelled" && status !== "cancelled" ? warn : false); }} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
             {ACTIVE_STATUSES.filter((s) => s !== "cancelled" || s === status).map((s) => (
               <option key={s} value={s}>
                 {statusLabels[s]}
@@ -50,25 +60,32 @@ export function UpdateForm({ id, status, quotedAmount, internalNotes, statusLabe
           <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="req-amount" className={fieldLabel}>
-          {copy.quotedAmount}
-        </label>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">€</span>
-          <input
-            id="req-amount"
-            name="quotedAmount"
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder={copy.amountPlaceholder}
-            defaultValue={quotedAmount ?? ""}
-            aria-invalid={state.error ? true : undefined}
-            aria-describedby={state.error ? "req-error" : undefined}
-            className={`${field} h-10 pl-7 tabular-nums`}
-          />
+      {priced ? (
+        <p className="m-0 text-[13px] leading-5 text-zinc-500">
+          <input type="hidden" name="quotedAmount" value="" />
+          The price comes from the rate card above. To change it, change the cars or the trip; it is recalculated automatically.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="req-amount" className={fieldLabel}>
+            {copy.quotedAmount}
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">€</span>
+            <input
+              id="req-amount"
+              name="quotedAmount"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder={copy.amountPlaceholder}
+              defaultValue={quotedAmount ?? ""}
+              aria-invalid={state.error ? true : undefined}
+              aria-describedby={state.error ? "req-error" : undefined}
+              className={`${field} h-10 pl-7 tabular-nums`}
+            />
+          </div>
         </div>
-      </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="req-notes" className={fieldLabel}>
           {copy.internalNotes}

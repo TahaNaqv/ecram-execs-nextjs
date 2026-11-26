@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { FleetComplianceSentinel } from "./compliance-sentinel";
-import { getAllVehicles, getFleetUsage } from "@/lib/admin/live-queries";
+import { getAllVehicles, getFleetUsage, getUpcomingServices } from "@/lib/admin/live-queries";
 import { formatStamp } from "@/lib/corporate/format";
 import { fleetBaseSetting } from "@/lib/fleet/base-store";
 import { interpolate } from "@/lib/i18n/interpolate";
@@ -32,7 +32,7 @@ async function VehiclesContent() {
     description:
       "Manage luxury electric vehicle inventory, ILT compliance telemetry, and automated driver credential blocks.",
   };
-  const [vehicles, base, usage] = await Promise.all([getAllVehicles(), fleetBaseSetting(), getFleetUsage()]);
+  const [vehicles, base, usage, services] = await Promise.all([getAllVehicles(), fleetBaseSetting(), getFleetUsage(), getUpcomingServices()]);
   const saved = base.updatedAt
     ? interpolate(base.updatedBy ? admin.vehicles.baseSavedBy : admin.vehicles.baseSavedAt, { name: base.updatedBy ?? "", when: formatStamp(base.updatedAt, me.locale) })
     : null;
@@ -43,6 +43,7 @@ async function VehiclesContent() {
       <FleetBaseCard key={`${base.base?.address ?? ""}|${base.base?.placeId ?? ""}`} base={base.base} saved={saved} locale={me.locale} copy={admin.vehicles} />
       <FleetComplianceSentinel
         vehicles={vehicles}
+        services={services}
         usage={usage}
         copy={admin.vehicles}
         locale={me.locale}

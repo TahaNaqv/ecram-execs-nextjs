@@ -9,7 +9,9 @@ import { ChevronLeftIcon, ChevronRightIcon, NoteIcon, XIcon } from "../../_compo
 import { btn, field, fieldLabel, PageBody, PageHeader } from "../../_components/ui";
 import { ActionForm } from "../../_components/action-feedback";
 import { AddDriverForm } from "./add-driver-form";
-import { adjustDriverShift, assignDriverVehicle, endShift, removeDriverAssignment, removeDriverBreak, saveDriverBreak, setDriverActive, startShift, updateDriver } from "./actions";
+import { LinkVehicleForm, type BoardLink } from "./link-vehicle-form";
+import type { Locale } from "@/lib/i18n/config";
+import { adjustDriverShift, endShift, removeDriverAssignment, removeDriverBreak, saveDriverBreak, setDriverActive, startShift, updateDriver } from "./actions";
 
 export type DeskBreak = { id: string; label: string };
 
@@ -107,6 +109,8 @@ export function DriversClient({
   archived,
   drivers,
   vehicles,
+  links,
+  adminLocale,
   appsNew,
   dict,
 }: {
@@ -119,6 +123,8 @@ export function DriversClient({
   archived: { id: string; name: string; phone: string | null }[];
   drivers: { id: string; name: string }[];
   vehicles: { id: string; label: string }[];
+  links: BoardLink[];
+  adminLocale: Locale;
   appsNew: number;
   dict: Dictionary["admin"];
 }) {
@@ -126,7 +132,6 @@ export function DriversClient({
   const [addOpen, setAddOpen] = useState(false);
   const [linkFor, setLinkFor] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [entire, setEntire] = useState(false);
   const editing = rows.find((row) => row.id === editId) ?? null;
   const heading = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
 
@@ -141,7 +146,7 @@ export function DriversClient({
               {dict.nav.applications}
               {appsNew > 0 ? <span className="rounded-full bg-zinc-950 px-1.5 py-px text-[11px] font-semibold text-white">{appsNew}</span> : null}
             </Link>
-            <button type="button" onClick={() => { setEntire(false); setLinkFor(""); }} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+            <button type="button" onClick={() => { setLinkFor(""); }} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
               {t.linkDriver}
             </button>
             <button type="button" onClick={() => setAddOpen(true)} className={`${btn.base} ${btn.primary} ${btn.md}`}>
@@ -227,7 +232,7 @@ export function DriversClient({
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => setEditId(row.id)} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>{t.edit}</button>
-                      <button type="button" onClick={() => { setEntire(false); setLinkFor(row.id); }} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>{t.linkVehicle}</button>
+                      <button type="button" onClick={() => { setLinkFor(row.id); }} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>{t.linkVehicle}</button>
                       <ActionForm action={setDriverActive} tone="delete" success="Deleted!">
                         <input type="hidden" name="driverId" value={row.id} />
                         <input type="hidden" name="active" value="false" />
@@ -278,45 +283,18 @@ export function DriversClient({
 
       {linkFor !== null ? (
         <Dialog title={t.assignTitle} closeLabel={t.close} onClose={() => setLinkFor(null)}>
-          <ActionForm action={assignDriverVehicle} tone="status" success="Driver assigned!" inline="Saved!" className="grid gap-3" onDone={() => setLinkFor(null)}>
-            <label className="flex flex-col gap-1.5">
-              <span className={fieldLabel}>{t.driverLabel}</span>
-              <select name="driverId" required defaultValue={linkFor} className={`${field} h-10`}>
-                <option value="">{t.chooseDriver}</option>
-                {drivers.map((driver) => (
-                  <option key={driver.id} value={driver.id}>{driver.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={fieldLabel}>{t.vehicleLabel}</span>
-              <select name="vehicleId" required className={`${field} h-10`}>
-                <option value="">{t.chooseVehicle}</option>
-                {vehicles.map((vehicle) => (
-                  <option key={vehicle.id} value={vehicle.id}>{vehicle.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={fieldLabel}>{t.dateLabel}</span>
-              <input type="date" name="date" required defaultValue={date} className={`${field} h-10`} />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className={fieldLabel}>{t.startLabel}</span>
-                <input type="time" name="start" required defaultValue="08:00" className={`${field} h-10`} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={fieldLabel}>{t.endLabel}</span>
-                <input type="time" name="end" defaultValue="16:00" disabled={entire} className={`${field} h-10 disabled:bg-zinc-50`} />
-              </label>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-zinc-800">
-              <input type="checkbox" name="entireShift" checked={entire} onChange={(event) => setEntire(event.target.checked)} />
-              {t.entireShift}
-            </label>
-            <button className={`${btn.base} ${btn.primary} ${btn.md} w-fit`}>{t.saveAssignment}</button>
-          </ActionForm>
+          <LinkVehicleForm
+            driverId={linkFor}
+            date={date}
+            today={today}
+            drivers={drivers}
+            vehicles={vehicles}
+            links={links}
+            t={t}
+            dateCopy={{ chooseDate: dict.common.chooseDate, previousMonth: dict.common.previousMonth, nextMonth: dict.common.nextMonth }}
+            locale={adminLocale}
+            onDone={() => setLinkFor(null)}
+          />
         </Dialog>
       ) : null}
 

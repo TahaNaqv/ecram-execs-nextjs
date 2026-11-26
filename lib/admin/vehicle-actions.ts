@@ -1,8 +1,11 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { vehicles } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { quoteRequests, vehicles, vehicleServices } from "@/lib/db/schema";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { heldKeys } from "@/lib/fleet/held";
+import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { amsterdamToday } from "@/lib/admin/financials-shared";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireArea } from "@/lib/auth/session";
 import { FLEET_CACHE_TAG } from "@/lib/fleet/catalog";
@@ -82,6 +85,16 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
   if (optionalText(formData, "luggage") && luggage == null) return { ok: false, error: "luggage" };
   if (optionalText(formData, "rateWeekday") && rateWeekday == null) return { ok: false, error: "rate" };
 
+  // APK and insurance run until a day still to come. An expired date already on the car may stay while other details change.
+  const today = amsterdamToday();
+  const before = existingId
+    ? (await db.select({ apkExpiry: vehicles.apkExpiry, insuranceExpiry: vehicles.insuranceExpiry }).from(vehicles).where(eq(vehicles.id, existingId)).limit(1))[0]
+    : undefined;
+  const apk = optionalIsoDate(formData, "apkExpiry");
+  const insurance = optionalIsoDate(formData, "insuranceExpiry");
+  if (apk && apk < today && apk !== before?.apkExpiry) return { ok: false, error: "apk-past" };
+  if (insurance && insurance < today && insurance !== before?.insuranceExpiry) return { ok: false, error: "insurance-past" };
+
   const files = imageFiles(formData);
   let id = existingId && slug(existingId) === existingId ? existingId : slug(name);
   if (!id) return { ok: false, error: "name" };
@@ -98,8 +111,8 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
     name,
     licensePlate: optionalText(formData, "licensePlate"),
     color: optionalText(formData, "color"),
-    apkExpiry: optionalIsoDate(formData, "apkExpiry"),
-    insuranceExpiry: optionalIsoDate(formData, "insuranceExpiry"),
+    apkExpiry: apk,
+    insuranceExpiry: insurance,
     seats,
     luggage,
     rateWeekday,
@@ -204,4 +217,53 @@ export async function deleteVehicle(formData: FormData) {
   }
 
   publishFleetChange();
+}
+const SERVICE_TYPES = ["apk", "battery", "tyres", "detail"] as const;
+
+/**
+ * Books a service day for one car. New bookings cannot take the car that day (lib/fleet/availability.ts); bookings of the
+ * same model already made for that day are counted in the answer, so the team can check the day schedule.
+ */
+export async function scheduleVehicleService(formData: FormData): Promise<{ ok: boolean; error?: string; bookingsThatDay?: number }> {
+  const admin = await requireArea("/admin/vehicles");
+  const vehicleId = optionalText(formData, "vehicleId");
+  const serviceType = optionalText(formData, "serviceType");
+  const serviceDate = optionalIsoDate(formData, "serviceDate");
+  const notes = optionalText(formData, "notes")?.slice(0, 500) ?? null;
+  if (!vehicleId) return { ok: false, error: "vehicle" };
+  if (!serviceType || !(SERVICE_TYPES as readonly string[]).includes(serviceType)) return { ok: false, error: "type" };
+  if (!serviceDate) return { ok: false, error: "date" };
+  if (serviceDate < amsterdamToday()) return { ok: false, error: "date-past" };
+  const [car] = await db.select({ id: vehicles.id }).from(vehicles).where(eq(vehicles.id, vehicleId)).limit(1);
+  if (!car) return { ok: false, error: "vehicle" };
+  const saved = await db
+    .insert(vehicleServices)
+    .values({ vehicleId, serviceType, serviceDate, notes, createdBy: admin.id })
+    .onConflictDoNothing({ target: [vehicleServices.vehicleId, vehicleServices.serviceDate] })
+    .returning({ id: vehicleServices.id });
+  if (saved.length === 0) return { ok: false, error: "duplicate" };
+  const model = normalizeVehicleKey(vehicleId) ?? vehicleId;
+  const sameDay = await db
+    .select({ vehicle: quoteRequests.vehicle, vehicles: quoteRequests.vehicles, extras: quoteRequests.extras })
+    .from(quoteRequests)
+    .where(
+      and(
+        inArray(quoteRequests.status, ["new", "contacted", "quoted", "confirmed"]),
+        sql`(${quoteRequests.pickupAt}::date = ${serviceDate}::date or ${quoteRequests.returnAt}::date = ${serviceDate}::date)`,
+      ),
+    );
+  revalidatePath("/admin/vehicles");
+  return { ok: true, bookingsThatDay: sameDay.filter((row) => heldKeys(row).has(model)).length };
+}
+
+export async function cancelVehicleService(formData: FormData): Promise<{ ok: boolean }> {
+  await requireArea("/admin/vehicles");
+  const id = optionalText(formData, "id");
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return { ok: false };
+  const gone = await db
+    .delete(vehicleServices)
+    .where(and(eq(vehicleServices.id, id), gte(vehicleServices.serviceDate, amsterdamToday())))
+    .returning({ id: vehicleServices.id });
+  revalidatePath("/admin/vehicles");
+  return { ok: gone.length > 0 };
 }

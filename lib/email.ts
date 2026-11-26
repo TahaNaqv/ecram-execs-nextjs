@@ -285,6 +285,25 @@ export async function emailAdminReset(to: { email: string; name: string }, link:
   });
 }
 
+/**
+ * Tells a new team member that an admin account was made for them: where to sign in, who made it, and a link to choose their
+ * own password (valid for `hours`). The temporary password is never emailed; the person who made the account passes it on.
+ */
+export async function emailAdminWelcome(to: { email: string; name: string }, opts: { by: string; role: string; loginUrl: string; setPasswordUrl: string; hours: number }) {
+  return send("admin", to.email, "admin welcome", {
+    from: mailFrom(),
+    to: [to.email],
+    subject: "Your Ecram Execs admin account is ready",
+    html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p>Hello ${esc(to.name.split(" ")[0] ?? "")},</p>
+      <p>${esc(opts.by)} has created an Ecram Execs admin account for you (${esc(opts.role)} access). You sign in with this email address.</p>
+      <p><a href="${esc(opts.setPasswordUrl)}">Choose your password</a>. This link works for ${opts.hours} hours. After that, sign in with the temporary password ${esc(opts.by)} gives you, or use "Forgot password" on the sign-in page.</p>
+      <p>Sign in at <a href="${esc(opts.loginUrl)}">${esc(opts.loginUrl)}</a>.</p>
+      <p>Ecram Execs</p>
+    </div>`,
+  });
+}
+
 export async function sendPasswordChanged({ email, name, locale }: { email: string; name: string; locale: QuoteRequest["locale"] }) {
   const { SITE_URL } = process.env;
   const { email: t } = await getDictionary(locale);

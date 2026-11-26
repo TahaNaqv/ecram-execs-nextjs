@@ -1,7 +1,7 @@
 export const instant = false;
 import type { Metadata } from "next";
 import { applicationCounts } from "@/lib/admin/applications";
-import { driverBoard, formatBoardClock } from "@/lib/admin/driver-board";
+import { driverBoard, linksAround, formatBoardClock } from "@/lib/admin/driver-board";
 import { listDrivers } from "@/lib/admin/drivers";
 import { getAdmin } from "@/lib/auth/session";
 import { amsterdamToday, utcToAmsterdamParts } from "@/lib/drivers/time";
@@ -23,7 +23,7 @@ export default async function DriversPage({ searchParams }: PageProps<"/admin/dr
   const raw = (await searchParams).date;
   const requested = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const date = /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : amsterdamToday();
-  const [{ onShift, offShift, archived }, apps, board] = await Promise.all([listDrivers(), applicationCounts(), driverBoard(date)]);
+  const [{ onShift, offShift, archived }, apps, board, links] = await Promise.all([listDrivers(), applicationCounts(), driverBoard(date), linksAround(date)]);
   const locale = who?.locale === "nl" ? "nl-NL" : "en-GB";
   const clock = (instant: Date) => formatBoardClock(instant, locale);
 
@@ -81,6 +81,8 @@ export default async function DriversPage({ searchParams }: PageProps<"/admin/dr
       archived={archived.map((driver) => ({ id: driver.id, name: driver.name, phone: driver.phone }))}
       drivers={board.drivers}
       vehicles={board.vehicles}
+      links={links}
+      adminLocale={who?.locale === "nl" ? "nl" : "en"}
       appsNew={apps.new}
       dict={dict}
     />

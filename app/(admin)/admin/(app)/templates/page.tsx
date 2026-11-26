@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { adminDictionary, getDictionary } from "@/lib/i18n/get-dictionary";
 import { Card, PageBody, PageHeader } from "../../_components/ui";
-import { TemplateForm } from "./template-form";
+import { TemplateList } from "./template-list";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await getDictionary(DEFAULT_LOCALE);
@@ -41,16 +41,10 @@ async function TemplatesScreen() {
   };
   return (
     <PageBody>
-      <PageHeader title={t.templatesDesk.title} />
-      <div className="mt-6 flex flex-col gap-4">
-        {rows.map((row) => (
-          <Card key={row.key}>
-            <div className="p-5">
-              <TemplateForm row={row} title={names[row.key]} copy={t.templatesDesk} />
-            </div>
-          </Card>
-        ))}
-      </div>
+      <PageHeader title={t.templatesDesk.title} description={t.templatesDesk.note} />
+      <Card className="mt-6 overflow-hidden">
+        <TemplateList rows={rows.map((row) => ({ key: row.key, subject: row.subject, body: row.body, title: names[row.key] }))} copy={t.templatesDesk} />
+      </Card>
     </PageBody>
   );
 }

@@ -276,6 +276,21 @@ export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
   }));
 });
 
+export type VehicleServiceRow = { id: string; vehicleId: string; vehicleName: string; serviceType: string; serviceDate: string; notes: string | null };
+
+/** Service days still to come, soonest first. */
+export const getUpcomingServices = cache(async (): Promise<VehicleServiceRow[]> => {
+  await requireAdmin();
+  const s = schema.vehicleServices;
+  const rows = await db
+    .select({ id: s.id, vehicleId: s.vehicleId, vehicleName: v.name, serviceType: s.serviceType, serviceDate: s.serviceDate, notes: s.notes })
+    .from(s)
+    .innerJoin(v, eq(v.id, s.vehicleId))
+    .where(sql`${s.serviceDate} >= (now() at time zone 'Europe/Amsterdam')::date`)
+    .orderBy(asc(s.serviceDate));
+  return rows.map((row) => ({ ...row, serviceDate: asCalendarDate(row.serviceDate) ?? String(row.serviceDate) }));
+});
+
 export type FleetUsage = { completed: number; active: number; revenue: number };
 
 /** Completed journeys, open bookings, and confirmed revenue for each assigned vehicle. */

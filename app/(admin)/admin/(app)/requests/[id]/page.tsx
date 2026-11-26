@@ -53,7 +53,7 @@ import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate } from "@/lib/pricing/rates";
+import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate, storedQuoteEuros } from "@/lib/pricing/rates";
 import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
@@ -278,6 +278,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               id={r.id}
               status={r.status}
               quotedAmount={r.quotedAmount}
+              priced={ratePriced(r)}
               internalNotes={r.internalNotes}
               statusLabels={d.admin.statuses}
               copy={{
@@ -433,6 +434,8 @@ function DetailSkeleton() {
   );
 }
 const isBespoke = (r: QuoteRequest) => r.service === "bespoke";
+/** The rate card priced it: its amount follows the cars and the trip and is not typed in. A booking it could not price takes a typed amount. */
+const ratePriced = (r: QuoteRequest) => !isBespoke(r) && storedQuoteEuros(r.priceEstimate) != null;
 /** Cars can still be changed until the booking is confirmed. Quoted trips are included: approval has not happened yet. */
 const canEditCars = (r: QuoteRequest) => !isBespoke(r) && (r.status === "new" || r.status === "contacted" || r.status === "quoted");
 

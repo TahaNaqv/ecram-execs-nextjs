@@ -129,7 +129,9 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
 
   // A blank amount does not clear or reprice the booking. The stored amount stays, or the rate-card total
   // saved at submit is written once. A different amount is kept only when the team typed one.
-  const quotedAmount = submittedAmount ?? before.quotedAmount ?? storedQuoteEuros(before.priceEstimate);
+  // A booking the rate card priced takes no typed amount (the form has no field for it); a bespoke one, or one it could not price, does
+  const typed = before.service === "bespoke" || storedQuoteEuros(before.priceEstimate) == null ? submittedAmount : null;
+  const quotedAmount = typed ?? before.quotedAmount ?? storedQuoteEuros(before.priceEstimate);
 
   // Keys and values, never prose — the history has to render in whichever language the admin
   // reading it has chosen, including for changes recorded years earlier.

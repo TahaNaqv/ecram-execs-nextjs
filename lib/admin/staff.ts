@@ -62,8 +62,8 @@ export async function createStaff(input: { email: string; name: string; role: St
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-/** A one-hour reset link. Returns the raw token only so the email can carry it; the database keeps the hash. */
-export async function issuePasswordReset(email: string): Promise<{ email: string; name: string; token: string } | null> {
+/** A reset link, one hour by default (a new account's welcome link lasts longer). Returns the raw token only so the email can carry it; the database keeps the hash. */
+export async function issuePasswordReset(email: string, hours = 1): Promise<{ email: string; name: string; token: string } | null> {
   const [user] = await db
     .select({ id: schema.adminUsers.id, email: schema.adminUsers.email, name: schema.adminUsers.name })
     .from(schema.adminUsers)
@@ -74,7 +74,7 @@ export async function issuePasswordReset(email: string): Promise<{ email: string
   await db.insert(schema.adminPasswordResets).values({
     adminId: user.id,
     tokenHash: hashToken(token),
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000),
   });
   return { email: user.email, name: user.name, token };
 }
