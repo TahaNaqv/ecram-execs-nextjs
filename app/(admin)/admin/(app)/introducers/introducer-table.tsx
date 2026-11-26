@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { commissionBasisPoints, COMMISSION_SCHEDULE_BP, anniversary, formatRate } from "@/lib/admin/commission";
 import { fillTemplate } from "@/lib/admin/template-tags";
 import { AdminModal } from "../../_components/admin-modal";
 import { ActionForm } from "../../_components/action-feedback";
@@ -17,7 +18,13 @@ export type IntroducerView = {
   phone: string | null;
   company: string | null;
   notes: string | null;
-  commissionPercent: number;
+  /** YYYY-MM-DD: the commission schedule counts tenure years from here */
+  startDate: string;
+  /** Today's rate, e.g. "2.5%", and the tenure year it belongs to */
+  rate: string;
+  tenureYear: number;
+  /** "2% from 27 Nov 2027", or null once the rate is locked at 0.5% */
+  nextChange: string | null;
   active: boolean;
   partners: { id: string; name: string }[];
   monthNet: string;
@@ -174,7 +181,10 @@ function IntroducerRow({ row, onEdit, onEmail }: { row: IntroducerView; onEdit: 
       </td>
       <td className="px-4 py-4 text-right whitespace-nowrap">
         <p className="m-0 font-medium tabular-nums text-zinc-950">{row.monthCommission}</p>
-        <p className="m-0 mt-0.5 text-xs text-zinc-500">{row.commissionPercent}% of net</p>
+        <p className="m-0 mt-0.5 text-xs text-zinc-500">
+          {row.tenureYear === 0 ? "Starts later" : `${row.rate} of net · year ${row.tenureYear}`}
+        </p>
+        {row.nextChange ? <p className="m-0 mt-0.5 text-xs text-zinc-400">{row.nextChange}</p> : null}
       </td>
       <td className="px-4 py-4">
         {row.active ? (
@@ -267,7 +277,7 @@ function IntroducerDialog({
   const [company, setCompany] = useState(row?.company ?? "");
   const [email, setEmail] = useState(row?.email ?? "");
   const [phone, setPhone] = useState(row?.phone ?? "");
-  const [percent, setPercent] = useState(String(row?.commissionPercent ?? 10));
+  const [startDate, setStartDate] = useState(row?.startDate ?? todayIso());
   const [notes, setNotes] = useState(row?.notes ?? "");
   const [active, setActive] = useState(row?.active ?? true);
   // Only partners that can be shown here: an archived partner stays linked and is left alone on save.
@@ -331,26 +341,10 @@ function IntroducerDialog({
             </label>
             <label className="flex min-w-0 flex-col gap-1.5">
               <span className={fieldLabel}>
-                Commission <span className="text-red-600">*</span>
+                Start date <span className="text-red-600">*</span>
               </span>
-              <div className="relative">
-                <input
-                  name="percent"
-                  type="number"
-                  required
-                  min={0}
-                  max={100}
-                  step={1}
-                  inputMode="numeric"
-                  value={percent}
-                  onChange={(event) => setPercent(event.target.value)}
-                  className={`${field} h-10 pr-9`}
-                />
-                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-zinc-400">
-                  %
-                </span>
-              </div>
-              <span className="text-xs text-zinc-500">Whole number from 0 to 100, of net payments.</span>
+              <input name="startDate" type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} className={`${field} h-10`} />
+              <span className="text-xs text-zinc-500">Commission counts tenure years from this date.</span>
             </label>
             {editing ? (
               <label className="flex h-10 items-center gap-2.5 self-start rounded-lg border border-zinc-200 px-3 text-sm text-zinc-800 sm:mt-[1.6rem]">
@@ -361,6 +355,8 @@ function IntroducerDialog({
               <input type="hidden" name="active" value="on" />
             )}
           </div>
+
+          <CommissionSchedule startDate={startDate} />
 
           <label className="flex flex-col gap-1.5">
             <span className="flex items-baseline justify-between">
@@ -477,6 +473,40 @@ function InvoicePreview({ row, subject, body, onClose }: { row: IntroducerView; 
           <button className={`${compact} ${btn.primary}`}>Send invoice request</button>
         </div>
       </ActionForm>
+    </div>
+  );
+}
+
+const SHORT_DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const shortDate = (iso: string) => SHORT_DATE.format(new Date(`${iso}T00:00:00Z`));
+
+/** Today as YYYY-MM-DD in the Netherlands, for a new introducer's start date. */
+function todayIso() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Amsterdam" }).format(new Date());
+}
+
+/** The tenure schedule for the chosen start date, with the year that applies today marked. */
+function CommissionSchedule({ startDate }: { startDate: string }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
+  const today = todayIso();
+  const nowBp = commissionBasisPoints(startDate, today);
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 px-3 py-2.5">
+      <p className="m-0 text-[13px] font-medium text-zinc-900">Commission on net payments, by tenure year</p>
+      <ol className="m-0 mt-1.5 grid list-none gap-1 p-0 text-xs text-zinc-600 sm:grid-cols-2">
+        {COMMISSION_SCHEDULE_BP.map((bp, i) => {
+          const from = anniversary(startDate, i);
+          const last = i === COMMISSION_SCHEDULE_BP.length - 1;
+          const current = nowBp > 0 && (last ? today >= from : today >= from && today < anniversary(startDate, i + 1));
+          return (
+            <li key={bp} className={current ? "font-semibold text-zinc-950" : ""}>
+              Year {i + 1}
+              {last ? "+" : ""}: {formatRate(bp)} from {shortDate(from)}
+              {current ? " (now)" : ""}
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

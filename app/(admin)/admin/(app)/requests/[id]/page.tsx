@@ -46,14 +46,18 @@ import { mollieConfig } from "@/lib/mollie/config";
 import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { holdConflict } from "@/lib/fleet/availability";
-import { balanceDueOn } from "@/lib/payments/schedule";
+import { BALANCE_DAYS_BEFORE, balanceDueOn, daysBetween, rideDay } from "@/lib/payments/schedule";
+import { chargesFor } from "@/lib/admin/charges";
+import { moneybirdConfigured } from "@/lib/moneybird/config";
+import { amsterdamToday } from "@/lib/admin/financials-shared";
+import { CloseProtectionCharges } from "./close-protection-card";
 import { PaymentCard } from "./payment-card";
 import { MAX_PER_CAR } from "@/app/[locale]/_components/booking/trip";
 import { guestUrl } from "@/lib/quotes/guest-link";
 import { localizedPath } from "@/lib/i18n/pathnames";
 import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
-import { bookingTotalEuros, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate, storedQuoteEuros } from "@/lib/pricing/rates";
+import { bookingTotalEuros, formatCurrency, hasHighRateExtras, legSpansDays, lineDay, type Price, VAT_RATE, vatByRate, storedQuoteEuros } from "@/lib/pricing/rates";
 import { savedRouteLine } from "@/lib/pricing/saved-route";
 import { extraName, extrasLine, type ExtraNames } from "@/lib/pricing/extras";
 
@@ -305,6 +309,14 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
                 <input type="hidden" name="id" value={r.id} />
                 <button className={`${btn.base} ${btn.secondary} ${btn.sm} self-start`}>Save security notes</button>
               </form>
+            ) : null}
+            {can(admin.role, admin.permissions, "approve") ? (
+              <div className="mt-4 flex flex-col gap-2 border-t border-zinc-100 pt-4">
+                <p className="m-0 text-sm font-medium text-zinc-950">Close protection charge</p>
+                <Suspense fallback={<Skeleton className="h-24" />}>
+                  <CloseProtectionSection requestId={r.id} pickupAt={r.pickupAt} confirmed={r.status === "confirmed" || r.status === "completed"} />
+                </Suspense>
+              </div>
             ) : r.closeProtection ? (
               <p className="mt-4 border-t border-zinc-100 pt-4 text-sm text-zinc-600">Close protection is on this booking. The notes are limited to staff who can approve bookings.</p>
             ) : null}
@@ -489,5 +501,32 @@ function RateCardPrice({ price, finalEuros, copy: rd, names }: { price: Price | 
         </div>
       )}
     </Card>
+  );
+}
+
+/** The close-protection charges of one booking (lib/admin/charges.ts), for the team's panel. */
+async function CloseProtectionSection({ requestId, pickupAt, confirmed }: { requestId: string; pickupAt: string | null; confirmed: boolean }) {
+  const charges = await chargesFor(requestId);
+  const rideSoon = !pickupAt || daysBetween(amsterdamToday(), rideDay(pickupAt)) <= BALANCE_DAYS_BEFORE;
+  return (
+    <CloseProtectionCharges
+      requestId={requestId}
+      rideSoon={rideSoon}
+      confirmed={confirmed}
+      moneybird={moneybirdConfigured()}
+      charges={charges.map((charge) => ({
+        id: charge.id,
+        description: charge.description,
+        amount: formatCurrency(charge.amountCents / 100),
+        billing: charge.billing,
+        status: charge.status,
+        accepted: Boolean(charge.acceptedAt),
+        invoiceNumber: charge.invoiceNumber,
+        invoiceState: charge.invoiceState,
+        invoiceUrl: charge.invoiceUrl,
+        paid: Boolean(charge.paidAt),
+        lastError: charge.lastError,
+      }))}
+    />
   );
 }

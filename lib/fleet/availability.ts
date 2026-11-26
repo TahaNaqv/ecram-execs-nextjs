@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { carKey, heldKeys } from "@/lib/fleet/held";
-import { fleetPicks, normalizeVehicleKey, VEHICLE_KEYS } from "@/lib/fleet/vehicles";
+import { fleetPicks, vehicleModel, VEHICLE_KEYS } from "@/lib/fleet/vehicles";
 import { TRAILER_KEY } from "@/lib/pricing/extras";
 import { blocksOf, overlaps, wallText, windowBlocks, type Block, type Window } from "@/lib/fleet/schedule";
 
@@ -133,7 +133,7 @@ type SlotBooking = {
  */
 async function classCapacity(tx: Db, from: string, to: string): Promise<Map<string, number>> {
   const [rows, serviced] = await Promise.all([
-    tx.select({ id: schema.vehicles.id, status: schema.vehicles.status }).from(schema.vehicles),
+    tx.select({ id: schema.vehicles.id, modelKey: schema.vehicles.modelKey, status: schema.vehicles.status }).from(schema.vehicles),
     tx
       .selectDistinct({ id: schema.vehicleServices.vehicleId })
       .from(schema.vehicleServices)
@@ -143,7 +143,7 @@ async function classCapacity(tx: Db, from: string, to: string): Promise<Map<stri
   const known = new Set<string>();
   const free = new Map<string, number>();
   for (const row of rows) {
-    const key = normalizeVehicleKey(row.id) ?? row.id;
+    const key = vehicleModel(row) ?? row.id;
     known.add(key);
     if (row.status !== "available" || inService.has(row.id)) continue;
     free.set(key, (free.get(key) ?? 0) + 1);

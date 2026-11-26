@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { FLEET, normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { FLEET, vehicleModel } from "@/lib/fleet/vehicles";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
 import { ACTIVE_STATUSES } from "@/lib/quotes/constants";
 import { asc, isNotNull } from "drizzle-orm";
@@ -42,10 +42,15 @@ async function Form() {
   const t = d.admin.newBooking;
   // The vehicles in the table (so the team sees which are switched off), limited to the ones a booking can be saved with:
   // a vehicle added by name in the fleet page has an id the booking rules do not know.
-  const known = (dbVehicles ?? []).flatMap((v) => {
-    const key = normalizeVehicleKey(v.id);
-    return key ? [{ value: key, label: v.status === "available" ? v.name : `${v.name} (${t.unavailable})` }] : [];
-  });
+  // One option per model, even when several cars of it are registered; a model is unavailable only when all its cars are
+  const byModel = new Map<string, { name: string; available: boolean }>();
+  for (const v of dbVehicles ?? []) {
+    const key = vehicleModel(v);
+    if (!key) continue;
+    const have = byModel.get(key);
+    byModel.set(key, { name: FLEET.find((f) => f.key === key)?.name ?? v.name, available: (have?.available ?? false) || v.status === "available" });
+  }
+  const known = [...byModel].map(([key, model]) => ({ value: key, label: model.available ? model.name : `${model.name} (${t.unavailable})` }));
   const vehicleOptions = known.length > 0 ? known : FLEET.map((v) => ({ value: v.key, label: v.name }));
 
   return (

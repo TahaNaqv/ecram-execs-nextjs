@@ -6,11 +6,12 @@ import { LanguageSwitcher } from "../_components/language-switcher";
 import { currentLocale, getDict } from "@/lib/i18n/get-dictionary";
 import { localizedPath, unprefixedPath } from "@/lib/i18n/pathnames";
 import { interpolate } from "@/lib/i18n/interpolate";
-import { TERMS, TERMS_APPLICABILITY, TERMS_EFFECTIVE, TERMS_GOVERNING_ENTITY, TERMS_VERSION } from "@/lib/legal/terms";
+import { publishedDocument } from "@/lib/legal/documents";
+import { LegalText } from "@/lib/legal/legal-text";
 
-// The terms are the client's own document, in English only (lib/legal/terms.ts). The Dutch page says so above them.
+// The terms are the client's own document, in English only, as last published in Settings (lib/legal/documents.ts).
 export default async function TermsPage() {
-  const [locale, dict] = await Promise.all([currentLocale(), getDict()]);
+  const [locale, dict, terms] = await Promise.all([currentLocale(), getDict(), publishedDocument("terms")]);
   const t = dict.terms;
 
   return (
@@ -32,51 +33,14 @@ export default async function TermsPage() {
           <h1 className="m-0 font-serif text-[clamp(36px,6vw,56px)] leading-[1.08] font-light text-white">{t.heading}</h1>
           <p className="m-0 text-[14px] text-ink-450">
             {interpolate(t.version, {
-              version: TERMS_VERSION,
-              date: new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${TERMS_EFFECTIVE}T00:00:00Z`)),
+              version: terms.version,
+              date: new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${terms.effectiveOn}T00:00:00Z`)),
             })}
           </p>
-          <dl lang="en" className="m-0 grid gap-1 text-[14px] font-light text-ink-300">
-            <div>
-              <dt className="inline font-semibold text-ink-150">Applicability: </dt>
-              <dd className="m-0 inline">{TERMS_APPLICABILITY}</dd>
-            </div>
-            <div>
-              <dt className="inline font-semibold text-ink-150">Governing Entity: </dt>
-              <dd className="m-0 inline">{TERMS_GOVERNING_ENTITY}</dd>
-            </div>
-          </dl>
         </div>
 
-        <div lang="en" className="flex flex-col gap-8 md:gap-10">
-          {TERMS.map((article) => (
-            <section key={article.number} id={`article-${article.number}`} className="flex scroll-mt-6 flex-col gap-3">
-              <h2 className="m-0 font-serif text-[26px] leading-tight font-normal text-white">
-                <span className="mr-2 text-ink-450">{interpolate(t.article, { number: article.number })} —</span>
-                {article.title}
-              </h2>
-              <ul className="m-0 flex list-disc flex-col gap-2.5 pl-5 font-light text-ink-300 marker:text-ink-500">
-                {article.points.map((point, i) => (
-                  <li key={i}>
-                    {point.label && (
-                      <strong className="font-semibold text-ink-150">
-                        {point.label}:
-                      </strong>
-                    )}
-                    {point.label && point.text ? " " : ""}
-                    {point.text}
-                    {point.sub && (
-                      <ul className="m-0 mt-2 flex list-[circle] flex-col gap-1.5 pl-5">
-                        {point.sub.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+        <div lang="en">
+          <LegalText text={terms.body} />
         </div>
 
         <Link href={localizedPath("/", locale)} className="text-[12px] tracking-[0.24em] uppercase">

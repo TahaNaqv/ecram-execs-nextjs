@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { bookingRules, currentTerms } from "@/lib/admin/booking-rules";
-import { QUICK_LINKS } from "@/lib/admin/quick-links";
+import { bookingRules } from "@/lib/admin/booking-rules";
 import { requireArea } from "@/lib/auth/session";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { Card, CardHeader, PageBody, PageHeader } from "../../_components/ui";
-import { saveBookingRules, saveTerms } from "./actions";
+import { saveBookingRules } from "./actions";
 import { BookingRulesForm } from "./booking-rules-form";
-import { SITE_ADDRESS, appVersion, emailProvider, moneybirdConnected, paymentsMode, platformCounts, termsHistory } from "./platform";
-import { TermsEditor } from "./terms-editor";
+import { LegalEditor } from "./legal-editor";
+import { SITE_ADDRESS, appVersion, emailProvider, legalVersions, moneybirdConnected, paymentsMode, platformCounts } from "./platform";
 
 export const instant = false;
 
@@ -50,16 +49,17 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 async function Desk() {
   await requireArea("/admin/desk");
-  const [rules, terms, history, counts, version] = await Promise.all([bookingRules(), currentTerms(), termsHistory(), platformCounts(), appVersion()]);
+  const [rules, terms, privacy, counts, version] = await Promise.all([bookingRules(), legalVersions("terms"), legalVersions("privacy"), platformCounts(), appVersion()]);
   const payments = paymentsMode();
   const email = emailProvider();
   const moneybird = moneybirdConnected();
   const environment = process.env.NODE_ENV ?? "unknown";
-  const lastTermsSave = history.find((entry) => entry.version === terms.version);
+  const liveTerms = terms.find((entry) => entry.current);
+  const livePrivacy = privacy.find((entry) => entry.current);
 
   return (
     <PageBody>
-      <PageHeader title="Settings" description="How the platform is set up, the booking rules and the Terms & Conditions." />
+      <PageHeader title="Settings" description="How the platform is set up, the booking rules, the Terms & Conditions and the Privacy Policy." />
 
       <Card className="mt-6">
         <CardHeader title="Platform" description="What is running now. Keys and passwords are never shown here." />
@@ -98,10 +98,10 @@ async function Desk() {
             at pickup are included, and the cancellation window is {plural(rules.cancellationHours, "hour", "hours")} before pickup.
           </p>
           <p className="m-0">
-            <span className="font-medium text-zinc-950">Terms & Conditions: </span>
-            {terms.body.trim() ? `version ${terms.version} is in force` : `version ${terms.version}, no text saved yet`}
-            {lastTermsSave ? `, saved ${lastTermsSave.savedAt} by ${lastTermsSave.savedBy}` : ""}
-            {history.length > 0 ? ` (${plural(history.length, "version", "versions")} kept).` : "."}
+            <span className="font-medium text-zinc-950">Legal pages: </span>
+            {liveTerms ? `Terms & Conditions version ${liveTerms.version}` : "the built-in Terms & Conditions"} and{" "}
+            {livePrivacy ? `Privacy Policy version ${livePrivacy.version}` : "the built-in Privacy Policy"} are on the website
+            {terms.some((entry) => entry.status === "draft") || privacy.some((entry) => entry.status === "draft") ? "; there are unpublished drafts." : "."}
           </p>
         </div>
       </Card>
@@ -112,21 +112,17 @@ async function Desk() {
             <CardHeader title="Booking rules" description="Checked when a booking is made." />
             <BookingRulesForm rules={rules} action={saveBookingRules} />
           </Card>
+        </div>
+        <div className="flex flex-col gap-4">
           <Card>
-            <CardHeader title="Quick access" />
-            <ul className="m-0 flex list-none flex-col gap-2 px-5 py-4">
-              {QUICK_LINKS.map(([label, href]) => (
-                <li key={href}>
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-zinc-950 underline underline-offset-2">{label}</a>
-                </li>
-              ))}
-            </ul>
+            <CardHeader title="Terms & Conditions" description="Work on a draft, then publish it: the website and new bookings use it at once." />
+            <LegalEditor doc="terms" name="Terms & Conditions" versions={terms} publicPath="/terms" />
+          </Card>
+          <Card>
+            <CardHeader title="Privacy Policy" description="Work on a draft, then publish it: the website shows it at once." />
+            <LegalEditor doc="privacy" name="Privacy Policy" versions={privacy} publicPath="/privacy" />
           </Card>
         </div>
-        <Card>
-          <CardHeader title="Terms & Conditions" description="Every save keeps a copy. Nothing is deleted." />
-          <TermsEditor terms={terms} history={history} action={saveTerms} />
-        </Card>
       </div>
     </PageBody>
   );

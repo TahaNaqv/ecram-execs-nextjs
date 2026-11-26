@@ -19,7 +19,9 @@ export type RequestEventChange =
   /** The booking's cars, changed by the team in review (the client, 8 Nov 2026): fleet keys and counts, "audi:2|range_rover:1" */
   | { kind: "cars"; from: string; to: string }
   /** The luggage trailer taken off the booking by the team, e.g. to resolve a clash (26 Nov 2026) */
-  | { kind: "trailer"; to: boolean };
+  | { kind: "trailer"; to: boolean }
+  /** Close protection added after booking (or cancelled), euros, and how it is collected (lib/payments/charges.ts) */
+  | { kind: "closeProtection"; amount: string; billing: "balance" | "separate"; cancelled?: boolean };
 
 export type RequestEventParams = {
   /** For `event: "changes"` — several fields can change in one save. */
@@ -105,6 +107,12 @@ export type EventLabels = {
   carsChanged: string;
   trailerAdded: string;
   trailerRemoved: string;
+  /** Interpolates {amount}: close protection added to the booking's total, collected with the balance */
+  cpAddedBalance: string;
+  /** Interpolates {amount}: close protection added as a separate charge with its own invoice */
+  cpAddedSeparate: string;
+  /** Interpolates {amount} */
+  cpCancelled: string;
   /** Interpolates {reference}: a partner accepted a quote for a car that another confirmed booking already holds */
   carClash: string;
   /** Interpolates {number}: the Moneybird invoice was sent */
@@ -218,6 +226,10 @@ export function renderEvent(
       }
       if (change.kind === "cars") return fill(labels.carsChanged, { from: carsLine(change.from) || labels.none, to: carsLine(change.to) || labels.none });
       if (change.kind === "trailer") return change.to ? labels.trailerAdded : labels.trailerRemoved;
+      if (change.kind === "closeProtection") {
+        const template = change.cancelled ? labels.cpCancelled : change.billing === "balance" ? labels.cpAddedBalance : labels.cpAddedSeparate;
+        return fill(template, { amount: formatAmount(change.amount) });
+      }
       return labels.notesUpdated;
     });
     return parts.join(" · ");

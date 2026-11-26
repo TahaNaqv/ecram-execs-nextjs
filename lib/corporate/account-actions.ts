@@ -248,6 +248,15 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
     stampFlowEpoch(jar);
     // Whoever owns the address is told when a password that existed is replaced
     if (before.hadPassword) after(() => sendPasswordChanged({ email: contact.email, name: contact.name, locale }));
+    // The newsletter tick, now on a verified address: onto the newsletter list (lib/marketing/contacts.ts)
+    if (challenge.purpose === "signup" && challenge.pendingConsent) {
+      after(async () => {
+        const { recordOptIn } = await import("@/lib/marketing/contacts");
+        await recordOptIn({ email: contact.email, name: contact.name, source: "corporate", sourceRef: contact.companyName ?? null }).catch((err) =>
+          console.error("[newsletter] corporate opt-in not recorded", err),
+        );
+      });
+    }
   } catch (err) {
     console.error("[corporate] complete failed", err);
     return fail(c.serverError);

@@ -1,7 +1,45 @@
-/** Outside tools the operations desk opens. One list for the dashboard and Settings. */
-export const QUICK_LINKS = [
-  ["E-Flux Dashboard", "https://dashboard.e-flux.io/"],
-  ["Rabobank Business", "https://banking.rabobank.com/welcome"],
-  ["Moneybird", "https://moneybird.com/login/"],
-  ["Mollie", "https://www.mollie.com/nl/"],
-] as const;
+import "server-only";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+
+/**
+ * Outside tools the operations desk opens: the Quick Links tab (/admin/quick-links) and the dashboard's To do card.
+ * Owners edit the list on that tab; it is stored in app_settings "quick_links". Until it is first edited, these are shown.
+ */
+export type QuickLink = { label: string; href: string };
+
+export const DEFAULT_QUICK_LINKS: QuickLink[] = [
+  { label: "E-Flux Dashboard", href: "https://dashboard.e-flux.io/" },
+  { label: "Rabobank Business", href: "https://banking.rabobank.com/welcome" },
+  { label: "Moneybird", href: "https://moneybird.com/login/" },
+  { label: "Mollie", href: "https://www.mollie.com/nl/" },
+];
+
+export const QUICK_LINKS_KEY = "quick_links";
+export const MAX_QUICK_LINKS = 30;
+
+/** An https address, or null. Only web addresses are kept, so a link can never run script. */
+export function cleanHref(raw: string): string | null {
+  const text = raw.trim();
+  if (!text || text.length > 500) return null;
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function quickLinks(): Promise<QuickLink[]> {
+  try {
+    const [row] = await db.select({ value: schema.appSettings.value }).from(schema.appSettings).where(eq(schema.appSettings.key, QUICK_LINKS_KEY)).limit(1);
+    if (!row || !Array.isArray(row.value)) return DEFAULT_QUICK_LINKS;
+    return (row.value as unknown[])
+      .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : {}))
+      .filter((item): item is QuickLink => typeof item.label === "string" && typeof item.href === "string" && cleanHref(item.href) !== null)
+      .slice(0, MAX_QUICK_LINKS);
+  } catch (error) {
+    console.error("[quick-links] could not be read", error);
+    return DEFAULT_QUICK_LINKS;
+  }
+}

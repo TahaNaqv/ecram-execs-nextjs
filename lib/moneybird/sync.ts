@@ -59,7 +59,7 @@ export const isSent = (row: Pick<Row, "number" | "sentAt" | "state">) =>
   Boolean(row.number || row.sentAt || (SENT_STATES as readonly string[]).includes(row.state));
 const invoiceSent = (inv: MoneybirdSalesInvoice) => isSent({ number: inv.invoice_id, sentAt: null, state: inv.state });
 
-const describeError = (err: unknown): string => {
+export const describeError = (err: unknown): string => {
   if (err instanceof MoneybirdError) {
     // A 4xx other than a rate limit or a missing record will not pass on a second try: it needs a person
     const lasting = err.status >= 400 && err.status < 500 && err.status !== 429 && err.status !== 404;
@@ -226,7 +226,7 @@ async function createContact(customerId: string, fields: Record<string, unknown>
 }
 
 /** The Moneybird contact the invoice is addressed to: the partner's company, or the guest (and their company, if given). */
-async function ensureContact(r: Booking, partner: Partner | null, workflowId?: string): Promise<string> {
+export async function ensureContact(r: Booking, partner: Partner | null, workflowId?: string): Promise<string> {
   if (partner) {
     const fields = {
       company_name: partner.companyName?.trim() || partner.name,
@@ -314,7 +314,7 @@ export async function getInvoice(id: string): Promise<MoneybirdSalesInvoice | nu
   }
 }
 
-async function deleteDraft(id: string): Promise<void> {
+export async function deleteDraft(id: string): Promise<void> {
   try {
     await moneybird("DELETE", `sales_invoices/${id}.json`);
   } catch (err) {
@@ -353,6 +353,13 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
   if (workflows && !workflowId) console.warn(`[moneybird] no ${locale} invoice workflow: ${r.reference} uses the default workflow, in its language`);
   const contactId = await ensureContact(r, partner, workflowId);
   const words = INVOICE_WORDS[locale];
+  // Close protection added after booking, more than 30 days out, is part of the total: its own line at its own VAT
+  const charges = isFeeRow(row)
+    ? []
+    : await db
+        .select({ description: schema.bookingCharges.description, cents: schema.bookingCharges.amountCents, vatBasisPoints: schema.bookingCharges.vatBasisPoints })
+        .from(schema.bookingCharges)
+        .where(and(eq(schema.bookingCharges.requestId, r.id), eq(schema.bookingCharges.billing, "balance"), eq(schema.bookingCharges.status, "active")));
   // The customer cancelled a booking paid at booking: the service fee is not refunded, so it is invoiced on its own
   const lines = isFeeRow(row)
     ? [{ description: `${r.reference} · ${words.feeKept}`, cents, rate: "high" as const, ledger: "extras" as const }]
@@ -371,6 +378,7 @@ async function createDraft(r: Booking, partner: Partner | null, row: Row, cents:
       locale,
       quotedAmount: r.quotedAmount,
       priceEstimate: r.priceEstimate ?? null,
+      charges,
     },
     { services: dict.services, addOns: dict.addOns },
     cents,
@@ -420,7 +428,7 @@ function invoiceEmail(r: Booking, partner: Partner | null, row: Row, inv: Moneyb
   ].join("\n");
 }
 
-async function send(inv: MoneybirdSalesInvoice, delivery: Delivery, email: string, message?: string): Promise<MoneybirdSalesInvoice> {
+export async function send(inv: MoneybirdSalesInvoice, delivery: Delivery, email: string, message?: string): Promise<MoneybirdSalesInvoice> {
   return moneybird<MoneybirdSalesInvoice>("PATCH", `sales_invoices/${inv.id}/send_invoice.json`, {
     sales_invoice_sending:
       delivery === "Email"

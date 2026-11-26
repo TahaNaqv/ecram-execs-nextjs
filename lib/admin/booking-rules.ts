@@ -1,6 +1,8 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { DEFAULT_LEGAL } from "@/lib/legal/defaults";
+import { livePublished } from "@/lib/legal/documents";
 
 export type BookingRules = {
   minNoticeHours: number;
@@ -27,10 +29,8 @@ function numberOr(value: unknown, fallback: number) {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+/** The Terms & Conditions in force now (the newest published version), whose version each new booking records. */
 export async function currentTerms(): Promise<{ version: string; body: string }> {
-  const [row] = await db.select({ value: schema.appSettings.value }).from(schema.appSettings).where(eq(schema.appSettings.key, "terms_en")).limit(1);
-  const value = row?.value;
-  if (!value || typeof value !== "object") return { version: "1", body: "" };
-  const raw = value as { version?: unknown; body?: unknown };
-  return { version: typeof raw.version === "string" && raw.version ? raw.version : "1", body: typeof raw.body === "string" ? raw.body : "" };
+  const live = await livePublished("terms");
+  return live ? { version: live.version, body: live.body } : { version: DEFAULT_LEGAL.terms.version, body: DEFAULT_LEGAL.terms.body };
 }

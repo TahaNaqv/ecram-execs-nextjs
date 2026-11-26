@@ -118,7 +118,12 @@
     "cardExpiresIntro": "The card you paid with for your booking {reference} expires before {date}, when the remaining amount is due. If it cannot be charged then, we will email you, and you can pay on your booking's page.",
     "declinedSubject": "Your booking {reference}",
     "declinedIntro": "We are sorry: we cannot take your booking {reference}. It has been cancelled.",
-    "declinedIntroRefund": "We are sorry: we cannot take your booking {reference}. It has been cancelled, and the {amount} you paid, service fee included, is being refunded to your card. It can take a few days to show."
+    "declinedIntroRefund": "We are sorry: we cannot take your booking {reference}. It has been cancelled, and the {amount} you paid, service fee included, is being refunded to your card. It can take a few days to show.",
+    "cpSubject": "Close protection added to your booking {reference}",
+    "cpIntro": "Close protection has been arranged for your booking {reference}, at {amount} including VAT.",
+    "cpBalance": "It has been added to your booking and is paid with the rest of it.",
+    "cpBalanceOn": "It has been added to your booking and is paid with the balance on {date}. Please confirm on your booking page that the card you paid with may be charged for it too.",
+    "cpSeparate": "It is invoiced separately: you will receive its invoice by email."
   },
   "criteria": {
     "or": "or",
@@ -847,7 +852,9 @@
       "account": "My account",
       "audit": "Settings & Audit",
       "fleetPartners": "Fleet & Partners",
-      "finance": "Finance"
+      "finance": "Finance",
+      "quickLinks": "Quick Links",
+      "newsletter": "Newsletter"
     },
     "account": {
       "title": "My account",
@@ -1444,7 +1451,10 @@
       "autoApproveStopped": "Not approved automatically: a car is already booked then ({reference})",
       "declined": "Declined by the team, {amount} refunded",
       "trailerAdded": "Luggage trailer added",
-      "trailerRemoved": "Luggage trailer removed"
+      "trailerRemoved": "Luggage trailer removed",
+      "cpAddedBalance": "Close protection added: {amount}, collected with the balance",
+      "cpAddedSeparate": "Close protection added: {amount}, invoiced separately",
+      "cpCancelled": "Close protection cancelled: {amount}"
     },
     "corporate": {
       "title": "Corporate contacts",
@@ -1907,7 +1917,13 @@
       "serviceErrorVehicle": "Choose the vehicle to service.",
       "serviceErrorPast": "Choose today or a later date.",
       "serviceErrorDuplicate": "This vehicle already has a service on that day.",
-      "serviceBookingsThatDay": "Service booked. Note: {count} booking(s) of this model already on that day. Check the day schedule."
+      "serviceBookingsThatDay": "Service booked. Note: {count} booking(s) of this model already on that day. Check the day schedule.",
+      "labelModelPick": "Model",
+      "modelOther": "Other: type the details in",
+      "modelPickHint": "Choose a model to fill in its standard specs and rates. You can change any of them before saving.",
+      "modelPriced": "Filled in from the {model}. Bookings of this car use the {model} rate card; the rates here are kept on the car.",
+      "labelRange": "Range (km)",
+      "rangeInvalid": "Enter the range in whole kilometres (0 to 2000)."
     },
     "financials": {
       "title": "Financials and accounting",
@@ -2292,7 +2308,7 @@
     "phName": "Your name",
     "labelPosition": "Position Within The Company",
     "phPosition": "e.g. Corporate Travel Coordinator",
-    "consentLabel": "Keep me informed about Ecram Execs services and news by email. I can withdraw at any time.",
+    "consentLabel": "Keep me informed about Ecram Execs services and news by email. I can withdraw at any time, with the unsubscribe link in any newsletter or by emailing enquiries@ecramexecs.com.",
     "privacyNote": "Your information is used to securely access your account. Your information will remain private and will not be shared.",
     "privacyLink": "Privacy policy",
     "sendCode": "Send Verification Code",
@@ -2792,7 +2808,7 @@
     "hearCorporate": "Corporate Partner",
     "hearOther": "Other",
     "hearOtherDetail": "Please tell us where",
-    "marketingConsent": "Email me news and offers. I can withdraw this at any time.",
+    "marketingConsent": "Email me news and offers. I can withdraw this at any time, with the unsubscribe link in any newsletter or by emailing enquiries@ecramexecs.com.",
     "closeProtection": "Add close protection. Our team will follow up in private.",
     "privacyNote": "No account needed. We use your details only to arrange your booking.",
     "privacyLink": "Privacy policy",
@@ -3005,6 +3021,14 @@
     "payConsentFull": "I agree to the Terms and Conditions. The service fee included in this amount is not refundable.",
     "payConsentNeeded": "Please tick the box first to agree.",
     "payRestOn": "Service fee {fee} paid. Remaining balance {amount} unpaid, scheduled for {date}.",
-    "payRestOpen": "Service fee {fee} paid. Remaining balance {amount} unpaid."
+    "payRestOpen": "Service fee {fee} paid. Remaining balance {amount} unpaid.",
+    "cpLabel": "Close protection",
+    "cpInTotal": "{amount}, included in the price above",
+    "cpSeparate": "{amount}, invoiced separately",
+    "cpAcceptText": "Close protection ({amount}) has been added to your booking. Do you agree that the card you paid with is charged for it too, with the rest of the booking?",
+    "cpAcceptTextOn": "Close protection ({amount}) has been added to your booking. Do you agree that the card you paid with is charged for it too, with the balance on {date}?",
+    "cpAccept": "Yes, add it to the card payment",
+    "cpAccepted": "Thank you: it is charged with the balance.",
+    "cpAcceptFailed": "That did not work. Please reload the page and try again, or reply to us below."
   }
 }

@@ -1,9 +1,8 @@
 import "server-only";
-import { ne } from "drizzle-orm";
 import { capacityProblem, tripFields, emptyTrip, MAX_BAGS, MAX_PASSENGERS, MAX_SMALL_BAGS, normalizeTrip, type Trip } from "@/app/[locale]/_components/booking/trip";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
-import { bagCapacity, FLEET, VEHICLE_CHOICES, normalizeVehicleKey, suggestVehicle } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, VEHICLE_CHOICES, normalizeVehicleKey, suggestVehicle, switchedOffKeys } from "@/lib/fleet/vehicles";
 import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
 import { plain } from "./plain";
@@ -279,8 +278,8 @@ export function todayLabel() {
  */
 export async function unavailableVehicleKeys(): Promise<ReadonlySet<string>> {
   try {
-    const rows = await db.select({ id: vehicles.id }).from(vehicles).where(ne(vehicles.status, "available"));
-    return new Set(rows.map((r) => normalizeVehicleKey(r.id) ?? r.id));
+    const rows = await db.select({ id: vehicles.id, modelKey: vehicles.modelKey, status: vehicles.status }).from(vehicles);
+    return new Set(switchedOffKeys(rows));
   } catch (error) {
     console.error("Failed to read vehicle availability:", error);
     return new Set();

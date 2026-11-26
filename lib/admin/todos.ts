@@ -51,6 +51,34 @@ export async function operationsTodos(): Promise<TodoItem[]> {
     .where(and(eq(schema.bookingMessages.authorKind, "guest"), isNull(schema.bookingMessages.seenByTeamAt)));
   if ((unread?.n ?? 0) > 0) items.push({ href: "/admin/requests", title: "Unread guest messages", detail: `${unread?.n} waiting` });
 
+  // Close protection added after booking (lib/admin/charges.ts) that needs the team in Moneybird
+  const cpReissue = await db.execute<{ id: string; reference: string }>(sql`
+    select distinct r.id, r.reference from booking_charges c
+    join quote_requests r on r.id = c.request_id
+    join moneybird_invoices i on i.request_id = r.id and i.kind = 'invoice' and i.credited_at is null and i.number is not null
+    where c.billing = 'balance' and c.status = 'active' and i.sent_at < c.created_at and r.status in ('confirmed', 'completed')
+    limit 8`);
+  for (const row of cpReissue) {
+    items.push({ href: `/admin/requests/${row.id}`, title: `Reissue the invoice: ${row.reference}`, detail: "Close protection was added after its invoice was sent; Reissue makes the balance include it" });
+  }
+  const cpCredit = await db.execute<{ id: string; reference: string; number: string }>(sql`
+    select r.id, r.reference, c.invoice_number as number from booking_charges c
+    join quote_requests r on r.id = c.request_id
+    where c.billing = 'separate' and c.status = 'active' and c.invoice_number is not null and c.paid_at is null
+      and (r.status = 'cancelled' or r.declined_at is not null)
+    limit 8`);
+  for (const row of cpCredit) {
+    items.push({ href: `/admin/requests/${row.id}`, title: `Credit close protection: ${row.reference}`, detail: `The booking is cancelled but invoice ${row.number} is still open in Moneybird` });
+  }
+  const cpFailed = await db.execute<{ id: string; reference: string }>(sql`
+    select r.id, r.reference from booking_charges c
+    join quote_requests r on r.id = c.request_id
+    where c.billing = 'separate' and c.status = 'active' and c.invoice_state = 'failed' and r.status in ('confirmed', 'completed')
+    limit 8`);
+  for (const row of cpFailed) {
+    items.push({ href: `/admin/requests/${row.id}`, title: `Close-protection invoice failed: ${row.reference}`, detail: "Moneybird did not take it; the reason is on the booking" });
+  }
+
   // Moneybird writes its invoice page and its own email block in the workflow's language. Without an English workflow
   // every invoice, English bookings included, goes out with Dutch words ("Factuur", "Bekijk factuur").
   if (moneybirdConfigured()) {

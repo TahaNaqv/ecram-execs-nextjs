@@ -15,6 +15,7 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
  * is reported, so a genuinely untranslated string cannot slip through unnoticed.
  */
 const ALLOW_IDENTICAL = new Set([
+  "admin.vehicles.labelModelPick", // "Model" is Dutch too
   // Moneybird invoices: "Open" and "Postcode" are Dutch too, and the error carries Moneybird's own (English) message
   "admin.financials.moneybirdStates.open",
   "admin.moneybird.error",

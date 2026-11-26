@@ -211,6 +211,14 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
       );
     }
     if (SESSION_ID.test(chat)) tasks.push(linkChatToRequest(chat, request.id));
+    // The "news and offers" tick: onto the newsletter list (lib/marketing/contacts.ts)
+    if (request.marketingConsent) {
+      tasks.push(
+        import("@/lib/marketing/contacts")
+          .then(({ recordOptIn }) => recordOptIn({ email: request.email, name: request.name, source: "booking", sourceRef: request.reference }))
+          .catch((err) => console.error(`[newsletter] ${request.reference} opt-in not recorded`, err)),
+      );
+    }
     await Promise.all(tasks);
   });
 

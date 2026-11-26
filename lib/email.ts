@@ -544,6 +544,31 @@ export async function emailPaymentReceived(q: QuoteRequest, cents: number) {
   return send("quote", q.reference, "payment received", { from: mailFrom(), to: [q.email], subject: fillTemplate(saved?.subject ?? t.paymentReceivedSubject, values), html });
 }
 
+/**
+ * Close protection was added to the booking after it was made (lib/admin/charges.ts): the amount, and how it is collected,
+ * with a link to the booking's page (where a card payment's customer agrees to it being added to the card charge).
+ */
+export async function emailCloseProtection(q: QuoteRequest, charge: { amountCents: number; billing: "balance" | "separate" }, balanceOn: string | null) {
+  if (!q.email) return false;
+  const { email: t } = await getDictionary(spokenLocale(q.locale));
+  const amount = formatCurrency(charge.amountCents / 100);
+  const date = balanceOn
+    ? new Intl.DateTimeFormat(q.locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${balanceOn}T12:00:00Z`))
+    : null;
+  const how = charge.billing === "separate" ? t.cpSeparate : date ? interpolate(t.cpBalanceOn, { date }) : t.cpBalance;
+  const link = customerLink(q);
+  const html = `
+    <div style="font-family:Georgia,serif;font-size:15px;line-height:1.6;color:#0a0a0b;max-width:560px">
+      <p style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;color:#71717a">${esc(t.tagline)}</p>
+      <p>${esc(interpolate(t.greeting, { name: q.name.split(" ")[0] }))}</p>
+      <p>${esc(interpolate(t.cpIntro, { reference: q.reference, amount }))}</p>
+      <p>${esc(how)}</p>
+      ${link ? `<p><a href="${esc(link)}">${esc(t.bookingOpenLink)}</a></p>` : ""}
+      <p>${esc(t.signoff)}<br>Ecram Execs</p>
+    </div>`;
+  return send("quote", q.reference, "close protection", { from: mailFrom(), to: [q.email], subject: interpolate(t.cpSubject, { reference: q.reference }), html });
+}
+
 export type PartnerEmailKind = "contacted" | "quoted" | "confirmed" | "completed" | "cancelled" | "reply" | "invoice";
 
 const euro = (amount: string | null, locale: QuoteRequest["locale"]) => {

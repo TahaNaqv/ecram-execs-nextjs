@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
+import { refreshChargeInvoices } from "@/lib/moneybird/charges";
 import { sweepMoneybird } from "@/lib/moneybird/sync";
 
 /**
@@ -21,7 +22,12 @@ export async function POST(req: NextRequest) {
   if (!moneybirdConfigured()) return NextResponse.json({ ok: true, off: true });
   try {
     const result = await sweepMoneybird();
-    return NextResponse.json({ ok: true, ...result });
+    // Close-protection invoices of their own (lib/moneybird/charges.ts)
+    const charges = await refreshChargeInvoices().catch((err) => {
+      console.error("[moneybird] close-protection sweep failed", err);
+      return null;
+    });
+    return NextResponse.json({ ok: true, ...result, charges });
   } catch (err) {
     console.error("[moneybird] sweep failed", err);
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });

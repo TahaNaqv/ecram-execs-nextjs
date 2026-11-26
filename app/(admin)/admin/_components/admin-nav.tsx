@@ -12,6 +12,8 @@ import {
   EuroIcon,
   InboxIcon,
   LayoutGridIcon,
+  LinkIcon,
+  MailIcon,
   MenuIcon,
   NoteIcon,
   SteeringIcon,
@@ -42,6 +44,8 @@ export type AdminNavCopy = {
   introducers?: string;
   addons?: string;
   desk?: string;
+  quickLinks?: string;
+  newsletter?: string;
   account?: string;
   openMenu: string;
   closeMenu: string;
@@ -88,6 +92,7 @@ const SECTIONS: NavSection[] = [
         match: (p: string, from?: string | null) => p.startsWith("/admin/requests") && !(p.startsWith("/admin/requests/") && from === "enquiries"),
       },
       { href: "/admin/chats", key: "chats", defaultLabel: "Live Chats", icon: ChatIcon, match: (p: string) => p.startsWith("/admin/chats") },
+      { href: "/admin/quick-links", key: "quickLinks", defaultLabel: "Quick Links", icon: LinkIcon, match: (p: string) => p.startsWith("/admin/quick-links") },
     ],
   },
   {
@@ -95,6 +100,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/corporate", key: "corporate", defaultLabel: "Corporate Partners", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/corporate") },
       { href: "/admin/introducers", key: "introducers", defaultLabel: "Introducers", icon: BriefcaseIcon, match: (p: string) => p.startsWith("/admin/introducers") },
+      { href: "/admin/newsletter", key: "newsletter", defaultLabel: "Newsletter", icon: MailIcon, match: (p: string) => p.startsWith("/admin/newsletter") },
       { href: "/admin/addons", key: "addons", defaultLabel: "Add-ons", icon: NoteIcon, match: (p: string) => p.startsWith("/admin/addons") },
       {
         href: "/admin/vehicles",

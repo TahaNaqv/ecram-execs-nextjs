@@ -5,7 +5,7 @@ import { cache } from "react";
 import { bookingEuros } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
-import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { normalizeVehicleKey, vehicleModel } from "@/lib/fleet/vehicles";
 
 const { quoteRequests: q, vehicles, corporateContacts: contacts } = schema;
 
@@ -162,7 +162,7 @@ export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
     const have = next.get(key);
     if (!have || b.next < have) next.set(key, b.next);
   }
-  return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(normalizeVehicleKey(v.id) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
+  return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(vehicleModel(v) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
 });
 
 /** Finished bookings, newest first. A booking that is still new stays in New Incoming Requests. */

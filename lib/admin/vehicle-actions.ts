@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { quoteRequests, vehicles, vehicleServices } from "@/lib/db/schema";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { heldKeys } from "@/lib/fleet/held";
-import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { vehicleModel, VEHICLE_KEYS } from "@/lib/fleet/vehicles";
 import { amsterdamToday } from "@/lib/admin/financials-shared";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireArea } from "@/lib/auth/session";
@@ -65,6 +65,17 @@ function optionalCents(formData: FormData, key: string): number | null {
   return Math.round(euros * 100);
 }
 
+/** Bookings that hold `from` (their car, or one of their cars) hold `to` instead. */
+async function rekeyBookings(tx: Pick<typeof db, "execute">, from: string, to: string) {
+  await tx.execute(sql`update quote_requests set vehicle = ${to} where vehicle = ${from}`);
+  await tx.execute(sql`
+    update quote_requests set vehicles = (
+      select jsonb_agg(case when e->>'key' = ${from} then jsonb_set(e, '{key}', to_jsonb(${to}::text)) else e end order by ord)
+      from jsonb_array_elements(vehicles) with ordinality as x(e, ord)
+    )
+    where jsonb_typeof(vehicles) = 'array' and vehicles @> ${JSON.stringify([{ key: from }])}::jsonb`);
+}
+
 function imageFiles(formData: FormData): File[] {
   return formData.getAll("images").filter((value): value is File => value instanceof File);
 }
@@ -81,6 +92,12 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
   const rateWeekday = optionalCents(formData, "rateWeekday");
   const rateSaturday = optionalCents(formData, "rateSaturday");
   const rateSunday = optionalCents(formData, "rateSunday");
+  // A car registered as one of the printed models counts as one more of that model; "" is a car typed in by hand
+  const modelText = optionalText(formData, "modelKey");
+  const modelKey = modelText && (VEHICLE_KEYS as readonly string[]).includes(modelText) ? modelText : null;
+  if (modelText && !modelKey) return { ok: false, error: "model" };
+  const evRangeKm = optionalInt(formData, "evRangeKm", 0, 2000);
+  if (optionalText(formData, "evRangeKm") && evRangeKm == null) return { ok: false, error: "range" };
   if (optionalText(formData, "seats") && seats == null) return { ok: false, error: "seats" };
   if (optionalText(formData, "luggage") && luggage == null) return { ok: false, error: "luggage" };
   if (optionalText(formData, "rateWeekday") && rateWeekday == null) return { ok: false, error: "rate" };
@@ -113,8 +130,10 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
     color: optionalText(formData, "color"),
     apkExpiry: apk,
     insuranceExpiry: insurance,
+    modelKey,
     seats,
     luggage,
+    ...(evRangeKm != null ? { evRangeKm } : {}),
     rateWeekday,
     rateSaturday: rateSaturday || rateWeekday,
     rateSunday: rateSunday || rateWeekday,
@@ -125,7 +144,12 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
 
   try {
     if (existingId) {
-      await db.update(vehicles).set(catalog).where(eq(vehicles.id, existingId));
+      await db.transaction(async (tx) => {
+        await tx.update(vehicles).set(catalog).where(eq(vehicles.id, existingId));
+        // A car that was its own (its id as the bookings' car key) now counts as a model: its bookings follow it, or they
+        // would hold a car no longer counted under that key (lib/fleet/availability.ts)
+        if (modelKey && modelKey !== existingId) await rekeyBookings(tx, existingId, modelKey);
+      });
     } else {
       await db.insert(vehicles).values({ id, status: "unavailable", ...catalog });
     }
@@ -234,7 +258,7 @@ export async function scheduleVehicleService(formData: FormData): Promise<{ ok: 
   if (!serviceType || !(SERVICE_TYPES as readonly string[]).includes(serviceType)) return { ok: false, error: "type" };
   if (!serviceDate) return { ok: false, error: "date" };
   if (serviceDate < amsterdamToday()) return { ok: false, error: "date-past" };
-  const [car] = await db.select({ id: vehicles.id }).from(vehicles).where(eq(vehicles.id, vehicleId)).limit(1);
+  const [car] = await db.select({ id: vehicles.id, modelKey: vehicles.modelKey }).from(vehicles).where(eq(vehicles.id, vehicleId)).limit(1);
   if (!car) return { ok: false, error: "vehicle" };
   const saved = await db
     .insert(vehicleServices)
@@ -242,7 +266,7 @@ export async function scheduleVehicleService(formData: FormData): Promise<{ ok: 
     .onConflictDoNothing({ target: [vehicleServices.vehicleId, vehicleServices.serviceDate] })
     .returning({ id: vehicleServices.id });
   if (saved.length === 0) return { ok: false, error: "duplicate" };
-  const model = normalizeVehicleKey(vehicleId) ?? vehicleId;
+  const model = vehicleModel(car) ?? vehicleId;
   const sameDay = await db
     .select({ vehicle: quoteRequests.vehicle, vehicles: quoteRequests.vehicles, extras: quoteRequests.extras })
     .from(quoteRequests)

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { asc, isNull, sql } from "drizzle-orm";
+import { formatRate, tenureYear } from "@/lib/admin/commission";
 import { introducerBoard } from "@/lib/admin/introducers";
+import { amsterdamToday } from "@/lib/drivers/time";
 import { TEMPLATE_DEFAULTS, templateOverride } from "@/lib/admin/templates";
 import { formatTimestamp } from "@/lib/admin/format";
 import { requireAdmin } from "@/lib/auth/session";
@@ -13,6 +15,8 @@ import { PageBody } from "../../_components/ui";
 import { IntroducerBoard, type IntroducerView, type PartnerOption } from "./introducer-table";
 
 export const instant = false;
+
+const SHORT_DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await getDictionary(DEFAULT_LOCALE);
@@ -57,7 +61,10 @@ async function Introducers() {
     phone: extra.get(row.id)?.phone ?? null,
     company: extra.get(row.id)?.company ?? null,
     notes: extra.get(row.id)?.notes ?? null,
-    commissionPercent: row.commissionPercent,
+    startDate: row.startDate,
+    rate: formatRate(row.rateBp),
+    tenureYear: tenureYear(row.startDate, amsterdamToday()),
+    nextChange: row.nextChange ? `${formatRate(row.nextChange.basisPoints)} from ${SHORT_DATE.format(new Date(`${row.nextChange.on}T00:00:00Z`))}` : null,
     active: row.active,
     partners: row.partners,
     monthNet: formatCurrency(row.monthNetCents / 100),

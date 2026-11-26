@@ -118,7 +118,12 @@
     "cardExpiresIntro": "De kaart waarmee u voor uw boeking {reference} hebt betaald, verloopt voor {date}, wanneer het resterende bedrag verschuldigd is. Lukt de afschrijving dan niet, dan sturen wij u een e-mail en kunt u betalen op de pagina van uw boeking.",
     "declinedSubject": "Uw boeking {reference}",
     "declinedIntro": "Het spijt ons: wij kunnen uw boeking {reference} niet aannemen. De boeking is geannuleerd.",
-    "declinedIntroRefund": "Het spijt ons: wij kunnen uw boeking {reference} niet aannemen. De boeking is geannuleerd en de {amount} die u hebt betaald, inclusief servicekosten, wordt teruggestort op uw kaart. Het kan een paar dagen duren voordat u het ziet."
+    "declinedIntroRefund": "Het spijt ons: wij kunnen uw boeking {reference} niet aannemen. De boeking is geannuleerd en de {amount} die u hebt betaald, inclusief servicekosten, wordt teruggestort op uw kaart. Het kan een paar dagen duren voordat u het ziet.",
+    "cpSubject": "Persoonsbeveiliging toegevoegd aan uw boeking {reference}",
+    "cpIntro": "Voor uw boeking {reference} is persoonsbeveiliging geregeld, voor {amount} inclusief btw.",
+    "cpBalance": "Dit is aan uw boeking toegevoegd en wordt samen met de rest betaald.",
+    "cpBalanceOn": "Dit is aan uw boeking toegevoegd en wordt op {date} met het restbedrag betaald. Bevestig op uw boekingspagina dat de kaart waarmee u betaalde hiervoor ook belast mag worden.",
+    "cpSeparate": "Dit wordt apart gefactureerd: u ontvangt de factuur per e-mail."
   },
   "criteria": {
     "or": "of",
@@ -847,7 +852,9 @@
       "account": "Mijn account",
       "audit": "Systeem & Audit",
       "fleetPartners": "Vloot en partners",
-      "finance": "Financiën"
+      "finance": "Financiën",
+      "quickLinks": "Snelkoppelingen",
+      "newsletter": "Nieuwsbrief"
     },
     "account": {
       "title": "Mijn account",
@@ -1444,7 +1451,10 @@
       "autoApproveStopped": "Niet automatisch goedgekeurd: een auto is dan al geboekt ({reference})",
       "declined": "Afgewezen door het team, {amount} terugbetaald",
       "trailerAdded": "Bagageaanhanger toegevoegd",
-      "trailerRemoved": "Bagageaanhanger verwijderd"
+      "trailerRemoved": "Bagageaanhanger verwijderd",
+      "cpAddedBalance": "Persoonsbeveiliging toegevoegd: {amount}, betaald met het restbedrag",
+      "cpAddedSeparate": "Persoonsbeveiliging toegevoegd: {amount}, apart gefactureerd",
+      "cpCancelled": "Persoonsbeveiliging geannuleerd: {amount}"
     },
     "corporate": {
       "title": "Zakelijke contacten",
@@ -1746,7 +1756,13 @@
       "serviceErrorVehicle": "Kies het voertuig voor het onderhoud.",
       "serviceErrorPast": "Kies vandaag of een latere datum.",
       "serviceErrorDuplicate": "Dit voertuig heeft op die dag al onderhoud.",
-      "serviceBookingsThatDay": "Onderhoud ingepland. Let op: al {count} boeking(en) van dit model op die dag. Kijk op de dagplanning."
+      "serviceBookingsThatDay": "Onderhoud ingepland. Let op: al {count} boeking(en) van dit model op die dag. Kijk op de dagplanning.",
+      "labelModelPick": "Model",
+      "modelOther": "Anders: vul de gegevens zelf in",
+      "modelPickHint": "Kies een model om de standaardgegevens en tarieven in te vullen. U kunt alles nog aanpassen voor het opslaan.",
+      "modelPriced": "Ingevuld vanuit de {model}. Boekingen van deze auto gebruiken het tarief van de {model}; de tarieven hier worden bij de auto bewaard.",
+      "labelRange": "Bereik (km)",
+      "rangeInvalid": "Vul het bereik in hele kilometers in (0 tot 2000)."
     },
     "partnerCard": {
       "title": "Zakelijke partner",
@@ -2293,7 +2309,7 @@
     "phName": "Uw naam",
     "labelPosition": "Functie binnen het bedrijf",
     "phPosition": "bijv. Hoofd Travel",
-    "consentLabel": "Houd mij per e-mail op de hoogte van diensten en nieuws van Ecram Execs. Ik kan dit altijd intrekken.",
+    "consentLabel": "Houd mij per e-mail op de hoogte van diensten en nieuws van Ecram Execs. Ik kan dit altijd intrekken, met de afmeldlink in elke nieuwsbrief of door te mailen naar enquiries@ecramexecs.com.",
     "privacyNote": "Uw gegevens worden gebruikt om uw toegang te verifiëren en, alleen als u het vakje hierboven aanvinkt, om u op de hoogte te houden.",
     "privacyLink": "Privacybeleid",
     "sendCode": "Verificatiecode versturen",
@@ -2792,7 +2808,7 @@
     "hearCorporate": "Zakelijke partner",
     "hearOther": "Anders",
     "hearOtherDetail": "Vertel ons waar",
-    "marketingConsent": "Mail mij nieuws en aanbiedingen. Ik kan dit op elk moment intrekken.",
+    "marketingConsent": "Mail mij nieuws en aanbiedingen. Ik kan dit op elk moment intrekken, met de afmeldlink in elke nieuwsbrief of door te mailen naar enquiries@ecramexecs.com.",
     "closeProtection": "Voeg persoonsbeveiliging toe. Ons team neemt dit privé op.",
     "notesPlaceholder": "Kinderzitje, grote bagage, een voorkeursroute",
     "privacyNote": "Geen account nodig. Wij gebruiken uw gegevens alleen om uw boeking te regelen.",
@@ -3006,6 +3022,14 @@
     "payConsentFull": "Ik ga akkoord met de Algemene Voorwaarden. De servicekosten in dit bedrag worden niet terugbetaald.",
     "payConsentNeeded": "Vink eerst het vakje aan om akkoord te gaan.",
     "payRestOn": "Servicekosten {fee} betaald. Resterend saldo {amount} onbetaald, gepland voor {date}.",
-    "payRestOpen": "Servicekosten {fee} betaald. Resterend saldo {amount} onbetaald."
+    "payRestOpen": "Servicekosten {fee} betaald. Resterend saldo {amount} onbetaald.",
+    "cpLabel": "Persoonsbeveiliging",
+    "cpInTotal": "{amount}, inbegrepen in de prijs hierboven",
+    "cpSeparate": "{amount}, apart gefactureerd",
+    "cpAcceptText": "Aan uw boeking is persoonsbeveiliging ({amount}) toegevoegd. Gaat u ermee akkoord dat de kaart waarmee u betaalde hiervoor ook wordt belast, samen met de rest van de boeking?",
+    "cpAcceptTextOn": "Aan uw boeking is persoonsbeveiliging ({amount}) toegevoegd. Gaat u ermee akkoord dat de kaart waarmee u betaalde hiervoor ook wordt belast, met het restbedrag op {date}?",
+    "cpAccept": "Ja, voeg het toe aan de kaartbetaling",
+    "cpAccepted": "Dank u: het wordt met het restbedrag betaald.",
+    "cpAcceptFailed": "Dat lukte niet. Herlaad de pagina en probeer het opnieuw, of stuur ons hieronder een bericht."
   }
 }

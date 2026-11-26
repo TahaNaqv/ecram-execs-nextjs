@@ -228,6 +228,8 @@ export type VehicleRow = {
   rateWeekday: number | null;
   rateSaturday: number | null;
   rateSunday: number | null;
+  /** The printed model it was registered as (lib/fleet/vehicles.ts), or null for a car typed in by hand */
+  modelKey: string | null;
   updatedAt: Date;
 };
 
@@ -263,6 +265,7 @@ export const getAllVehicles = cache(async (): Promise<VehicleRow[]> => {
       rateWeekday: v.rateWeekday,
       rateSaturday: v.rateSaturday,
       rateSunday: v.rateSunday,
+      modelKey: v.modelKey,
       updatedAt: v.updatedAt,
     })
     .from(v)

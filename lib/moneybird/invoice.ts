@@ -34,6 +34,11 @@ export type InvoiceBooking = {
   locale: Locale;
   quotedAmount: string | null;
   priceEstimate: Price | null;
+  /**
+   * Charges added after booking that joined its total (close protection, lib/payments/charges.ts "balance"): each its own
+   * line at its own VAT, VAT-inclusive cents. The rest of the amount is invoiced as before.
+   */
+  charges?: { description: string; cents: number; vatBasisPoints: number }[];
 };
 
 export type InvoiceLabels = { services: Record<string, string>; addOns: ExtraNames };
@@ -100,6 +105,19 @@ function snapshotLines(p: Price, r: InvoiceBooking, labels: InvoiceLabels): Invo
  * proportion; and one 9% line when there is no snapshot at all (a bespoke programme).
  */
 export function invoiceLines(r: InvoiceBooking, labels: InvoiceLabels, cents: number): InvoiceLine[] {
+  const charges = (r.charges ?? []).filter((charge) => charge.cents > 0 && (charge.vatBasisPoints === 2100 || charge.vatBasisPoints === 900));
+  const chargeCents = charges.reduce((sum, charge) => sum + charge.cents, 0);
+  if (chargeCents > 0 && cents > chargeCents) {
+    return [
+      ...invoiceLines({ ...r, charges: undefined }, labels, cents - chargeCents),
+      ...charges.map((charge) => ({
+        description: `${r.reference} · ${charge.description}`,
+        cents: charge.cents,
+        rate: (charge.vatBasisPoints === 900 ? "low" : "high") as Rate,
+        ledger: "extras" as const,
+      })),
+    ];
+  }
   const words = INVOICE_WORDS[r.locale];
   const p = r.priceEstimate;
   const exact = p ? snapshotLines(p, r, labels) : null;

@@ -48,6 +48,10 @@ export function canOpenAdminPath(role: StaffRole, stored: readonly string[] | nu
   if (pathname.startsWith("/admin/staff")) return mayCreateAccounts(role, stored);
   if (pathname.startsWith("/admin/templates")) return can(role, stored, "templates");
   if (pathname.startsWith("/admin/desk")) return role === "owner";
+  // Outside tools (bank, Moneybird, Mollie, E-Flux): the same people who handle the money; owners edit the list
+  // The newsletter list: with the corporate partners, who already have their mailing list export
+  if (pathname.startsWith("/admin/newsletter")) return can(role, stored, "corporate");
+  if (pathname.startsWith("/admin/quick-links")) return can(role, stored, "financials");
   return false;
 }
 
@@ -65,6 +69,8 @@ const NAV_HREFS = [
   "/admin/staff",
   "/admin/templates",
   "/admin/desk",
+  "/admin/quick-links",
+  "/admin/newsletter",
 ] as const;
 
 /** Menu entries this sign-in must not see. */

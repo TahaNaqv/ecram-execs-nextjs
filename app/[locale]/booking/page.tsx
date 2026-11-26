@@ -17,6 +17,8 @@ import { getGuestBooking, guestMessages } from "@/lib/quotes/guest";
 import { customerInvoices, payable } from "@/lib/moneybird/customer";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
 import { openCheckoutFor, paymentView } from "@/lib/mollie/pay";
+import { chargesFor, chargesToAccept } from "@/lib/admin/charges";
+import { balanceDueOn } from "@/lib/payments/schedule";
 import { GUEST_MESSAGEABLE } from "@/lib/quotes/constants";
 import { labelledRoute } from "@/lib/quotes/route-labels";
 import { stopsWithWaits } from "@/lib/quotes/stops";
@@ -48,12 +50,23 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       </div>
     );
   }
-  const [messages, invoices, payment, checkout] = await Promise.all([
+  const [messages, invoices, payment, checkout, charges] = await Promise.all([
     guestMessages(booking.id),
     customerInvoices(booking.id),
     paymentView(booking.id, locale),
     openCheckoutFor(booking.id),
+    chargesFor(booking.id),
   ]);
+  // Close protection added after booking: shown with how it is paid; a card payment's guest agrees to the card paying it
+  const activeCharges = charges.filter((charge) => charge.status === "active");
+  const balanceOn = balanceDueOn(booking.paymentPlan, booking.pickupAt);
+  const accept = chargesToAccept(booking, activeCharges).map((charge) => ({
+    id: charge.id,
+    text: interpolate(balanceOn ? t.cpAcceptTextOn : t.cpAcceptText, {
+      amount: formatCents(charge.amountCents, locale),
+      date: balanceOn ? new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${balanceOn}T12:00:00Z`)) : "",
+    }),
+  }));
   const latest = invoices.find((inv) => inv.kind === "invoice") ?? null;
   const invoice = latest
     ? { number: latest.number, href: payable(latest) ? (latest.paymentUrl ?? latest.url) : latest.url, pay: payable(latest), emailed: latest.delivery !== "Manual" }
@@ -118,6 +131,10 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
     { label: d.booking.reviewDistance, value: routeLine },
     { label: t.labelCars, value: cars ?? "" },
     { label: t.labelPrice, value: price ?? "" },
+    ...activeCharges.map((charge) => ({
+      label: t.cpLabel,
+      value: interpolate(charge.billing === "balance" ? t.cpInTotal : t.cpSeparate, { amount: formatCents(charge.amountCents, locale) }),
+    })),
   ].filter((f) => f.value);
 
   return (
@@ -137,6 +154,7 @@ async function Booking({ searchParams }: Pick<PageProps<"/[locale]/booking">, "s
       bookingCopy={d.booking}
       savedReceipt={savedReceipt}
       invoice={invoice}
+      chargesToAccept={accept}
       awaitingInvoice={booking.status === "confirmed" && !invoice && moneybirdConfigured()}
       payment={payment}
       checkoutUrl={checkout.url}

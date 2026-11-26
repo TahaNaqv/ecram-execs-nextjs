@@ -1,5 +1,6 @@
 "use server";
 
+import { balanceChargesCents, repricedAmount } from "@/lib/admin/charges";
 import { and, eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
@@ -54,8 +55,8 @@ export async function updateCars(_prev: CarsState, formData: FormData): Promise<
   const segment = before.priceEstimate?.segment ?? (before.corporateContactId ? "corporate" : "public");
   const price = await priceForRequest({ ...before, vehicle: fleet.vehicle ?? null, vehicles: fleet.vehicles }, segment);
   if (price && before.priceEstimate?.purpose) price.purpose = before.priceEstimate.purpose;
-  const fromRateCard = before.quotedAmount == null || before.quotedAmount === storedQuoteEuros(before.priceEstimate);
-  const quotedAmount = fromRateCard ? storedQuoteEuros(price) : before.quotedAmount;
+  // The rate card's own total follows the new price (with any close protection added on top); a typed total is kept
+  const quotedAmount = repricedAmount({ quotedAmount: before.quotedAmount, snapshotEuros: storedQuoteEuros(before.priceEstimate) }, storedQuoteEuros(price), await balanceChargesCents(before.id));
 
   const from = carsKey(fleetPicks(before.vehicles).length > 0 ? fleetPicks(before.vehicles) : before.vehicle && before.vehicle !== "advise" ? [{ key: before.vehicle, count: before.vehicleCount }] : []);
   const to = carsKey(cars);
@@ -96,8 +97,8 @@ export async function removeTrailer(_prev: CarsState, formData: FormData): Promi
   const segment = before.priceEstimate?.segment ?? (before.corporateContactId ? "corporate" : "public");
   const price = await priceForRequest({ ...before, extras }, segment);
   if (price && before.priceEstimate?.purpose) price.purpose = before.priceEstimate.purpose;
-  const fromRateCard = before.quotedAmount == null || before.quotedAmount === storedQuoteEuros(before.priceEstimate);
-  const quotedAmount = fromRateCard ? storedQuoteEuros(price) : before.quotedAmount;
+  // The rate card's own total follows the new price (with any close protection added on top); a typed total is kept
+  const quotedAmount = repricedAmount({ quotedAmount: before.quotedAmount, snapshotEuros: storedQuoteEuros(before.priceEstimate) }, storedQuoteEuros(price), await balanceChargesCents(before.id));
 
   const saved = await db.transaction(async (tx) => {
     const [row] = await tx

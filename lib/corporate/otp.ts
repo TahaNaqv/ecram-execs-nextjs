@@ -28,7 +28,7 @@ export const VERIFIED_COOKIE = "ee_cp_verified";
 export const ACCESS_COOKIE = "ee_cp_access";
 
 /** Which wording of the marketing consent the person agreed to; bump when the form's text changes. */
-export const CONSENT_TEXT_VERSION = "2026-10";
+export const CONSENT_TEXT_VERSION = "2026-11"; // 27 Nov 2026: the label names how to withdraw (unsubscribe link, or email)
 
 /**
  * A six-digit code has only a million possibilities, so a stored plain hash could be reversed in an

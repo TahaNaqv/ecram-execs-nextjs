@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
-import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
+import { switchedOffKeys } from "@/lib/fleet/vehicles";
 
 /**
  * Which vehicles the booking form must not offer: the cars the team has switched off. Whether a car is free at a given time
@@ -12,8 +11,8 @@ import { normalizeVehicleKey } from "@/lib/fleet/vehicles";
 export async function GET() {
   let unavailable: string[] = [];
   try {
-    const rows = await db.select({ id: vehicles.id }).from(vehicles).where(ne(vehicles.status, "available"));
-    unavailable = rows.map((r) => normalizeVehicleKey(r.id) ?? r.id);
+    const rows = await db.select({ id: vehicles.id, modelKey: vehicles.modelKey, status: vehicles.status }).from(vehicles);
+    unavailable = switchedOffKeys(rows);
   } catch (error) {
     console.error("Failed to read vehicle availability:", error);
   }

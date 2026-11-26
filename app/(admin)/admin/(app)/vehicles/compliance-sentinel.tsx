@@ -13,6 +13,8 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { amsterdamToday } from "@/lib/admin/financials-shared";
 import { customerHourly, formatCents, formatCurrency, type DayKind } from "@/lib/pricing/rates";
+import { MODEL_TEMPLATES, modelTemplate, type ModelTemplate } from "@/lib/fleet/templates";
+import { vehicleModel } from "@/lib/fleet/vehicles";
 import { pushToast } from "../../_components/action-feedback";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
@@ -130,6 +132,48 @@ function rateFigure(cents: number | null, weekday: number | null, weekend: boole
   return `${formatCents(cents, "nl")}${copy.ratePerHour}`;
 }
 
+/** The key the rate card knows a car by: its registered model, else its own id. */
+const rateKey = (car: { id: string; modelKey: string | null }) => car.modelKey ?? car.id;
+
+/** Fills the register form from a model: name, specs and rates (VAT-inclusive euros), all still editable before saving. */
+function fillFromModel(form: HTMLFormElement | null, template: ModelTemplate) {
+  if (!form) return;
+  const set = (name: string, value: number | string | null) => {
+    const input = form.elements.namedItem(name);
+    if (input instanceof HTMLInputElement) input.value = value == null ? "" : String(value);
+  };
+  const euros = (cents: number | null) => (cents == null ? "" : (cents / 100).toFixed(2));
+  set("name", template.name);
+  set("seats", template.seats);
+  set("luggage", template.luggage);
+  set("evRangeKm", template.rangeKm);
+  set("rateWeekday", euros(template.rates.public.weekday));
+  set("rateSaturday", euros(template.rates.public.saturday));
+  set("rateSunday", euros(template.rates.public.sunday));
+}
+
+function ModelField({ initial, formRef, copy }: { initial: string; formRef: React.RefObject<HTMLFormElement | null>; copy: VehicleCopy }) {
+  const [model, setModel] = useState(initial);
+  const chosen = modelTemplate(model);
+  return (
+    <div className="min-w-0">
+      <label className={labelClass} htmlFor="vehicle-model">{copy.labelModelPick}</label>
+      <AdminSelect
+        id="vehicle-model"
+        name="modelKey"
+        value={model}
+        onChange={(value) => {
+          setModel(value);
+          const template = modelTemplate(value);
+          if (template) fillFromModel(formRef.current, template);
+        }}
+        options={[{ value: "", label: copy.modelOther }, ...MODEL_TEMPLATES.map((template) => ({ value: template.key, label: template.name }))]}
+      />
+      <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{chosen ? interpolate(copy.modelPriced, { model: chosen.name }) : copy.modelPickHint}</p>
+    </div>
+  );
+}
+
 function shownRate(id: string, day: DayKind, stored: number | null): number | null {
   return customerHourly(id, "public", day) ?? stored;
 }
@@ -187,7 +231,7 @@ function ShowcaseStage({
       <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-100 px-4 py-3">
         <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{copy.labelSeats} {vehicle.seats ?? "—"}</span>
         <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{copy.labelLuggage} {vehicle.luggage ?? "—"}</span>
-        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{rateFigure(shownRate(vehicle.id, "weekday", vehicle.rateWeekday), shownRate(vehicle.id, "weekday", vehicle.rateWeekday), false, copy)}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900">{rateFigure(shownRate(rateKey(vehicle), "weekday", vehicle.rateWeekday), shownRate(rateKey(vehicle), "weekday", vehicle.rateWeekday), false, copy)}</span>
         <Link href="/admin/requests/schedule" className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white">{copy.calendarLink}</Link>
         <span className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-2 py-1">
           <AvailabilitySwitch on={vehicle.status === "available"} onClick={onToggle} onLabel={copy.setUnavailable} offLabel={copy.setAvailable} />
@@ -246,6 +290,7 @@ export function FleetComplianceSentinel({
   const [selectedId, setSelectedId] = useState<string | null>(vehicles[0]?.id ?? null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editor, setEditor] = useState<VehicleRow | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -471,16 +516,16 @@ export function FleetComplianceSentinel({
                         </td>
                         <td className="px-3 py-3.5 font-mono text-zinc-700">{`${veh.evRangeKm} km`}</td>
                         <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-900">
-                          <span className="block">{rateFigure(shownRate(veh.id, "weekday", veh.rateWeekday), shownRate(veh.id, "weekday", veh.rateWeekday), false, copy)}</span>
-                          {corporateRate(veh.id, "weekday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(veh.id, "weekday", copy)}</span> : null}
+                          <span className="block">{rateFigure(shownRate(rateKey(veh), "weekday", veh.rateWeekday), shownRate(rateKey(veh), "weekday", veh.rateWeekday), false, copy)}</span>
+                          {corporateRate(rateKey(veh), "weekday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(rateKey(veh), "weekday", copy)}</span> : null}
                         </td>
                         <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">
-                          <span className="block">{rateFigure(shownRate(veh.id, "saturday", veh.rateSaturday), shownRate(veh.id, "weekday", veh.rateWeekday), true, copy)}</span>
-                          {corporateRate(veh.id, "saturday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(veh.id, "saturday", copy)}</span> : null}
+                          <span className="block">{rateFigure(shownRate(rateKey(veh), "saturday", veh.rateSaturday), shownRate(rateKey(veh), "weekday", veh.rateWeekday), true, copy)}</span>
+                          {corporateRate(rateKey(veh), "saturday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(rateKey(veh), "saturday", copy)}</span> : null}
                         </td>
                         <td className="px-3 py-3.5 whitespace-nowrap tabular-nums text-zinc-700">
-                          <span className="block">{rateFigure(shownRate(veh.id, "sunday", veh.rateSunday), shownRate(veh.id, "weekday", veh.rateWeekday), true, copy)}</span>
-                          {corporateRate(veh.id, "sunday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(veh.id, "sunday", copy)}</span> : null}
+                          <span className="block">{rateFigure(shownRate(rateKey(veh), "sunday", veh.rateSunday), shownRate(rateKey(veh), "weekday", veh.rateWeekday), true, copy)}</span>
+                          {corporateRate(rateKey(veh), "sunday", copy) ? <span className="mt-1 block text-[11px] font-normal text-zinc-500">{corporateRate(rateKey(veh), "sunday", copy)}</span> : null}
                         </td>
                         <td className="px-4 py-3.5 text-center">
                           <AvailabilitySwitch on={isAvailable} onClick={() => handleToggle(veh.id, veh.status)} onLabel={copy.setUnavailable} offLabel={copy.setAvailable} />
@@ -612,6 +657,7 @@ export function FleetComplianceSentinel({
             </button>
             <h3 className="text-base font-semibold text-zinc-950 mb-4">{editor ? copy.editTitle : copy.registerTitle}</h3>
             <form
+              ref={formRef}
               key={editor?.id ?? "new"}
               onSubmit={(e) => {
                 e.preventDefault();
@@ -628,6 +674,7 @@ export function FleetComplianceSentinel({
                       : result.error === "too-large" ? copy.imageSize
                       : result.error === "rate" ? copy.rateInvalid
                       : result.error === "seats" || result.error === "luggage" ? copy.seatsInvalid
+                      : result.error === "range" ? copy.rangeInvalid
                       : result.error === "apk-past" ? copy.apkPast
                       : result.error === "insurance-past" ? copy.insurancePast
                       : copy.formError;
@@ -639,6 +686,7 @@ export function FleetComplianceSentinel({
               className="min-w-0 space-y-4"
             >
               {editor ? <input type="hidden" name="id" value={editor.id} /> : null}
+              <ModelField initial={editor ? (vehicleModel(editor) ?? "") : ""} formRef={formRef} copy={copy} />
               <div>
                 <label className={labelClass} htmlFor="vehicle-name">{copy.labelModel}</label>
                 <input
@@ -688,7 +736,7 @@ export function FleetComplianceSentinel({
                   <AdminDateField id="vehicle-insurance-expiry" name="insuranceExpiry" min={today} placement="above" locale={locale} copy={dateCopy} defaultValue={editor?.insuranceExpiry ?? ""} />
                 </div>
               </div>
-              <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-2">
+              <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-3">
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-seats">{copy.labelSeats}</label>
                   <input id="vehicle-seats" name="seats" type="number" min={1} max={16} defaultValue={editor?.seats ?? ""} className={fieldClass} />
@@ -697,23 +745,27 @@ export function FleetComplianceSentinel({
                   <label className={labelClass} htmlFor="vehicle-luggage">{copy.labelLuggage}</label>
                   <input id="vehicle-luggage" name="luggage" type="number" min={0} max={30} defaultValue={editor?.luggage ?? ""} className={fieldClass} />
                 </div>
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="vehicle-range">{copy.labelRange}</label>
+                  <input id="vehicle-range" name="evRangeKm" type="number" min={0} max={2000} defaultValue={editor?.evRangeKm ?? ""} className={fieldClass} />
+                </div>
               </div>
               <div className="grid min-w-0 grid-cols-1 items-start gap-4 sm:grid-cols-3">
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-weekday">{copy.labelRateWeekday}</label>
-                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" placeholder="165.00" defaultValue={editor && shownRate(editor.id, "weekday", editor.rateWeekday) != null ? shownRate(editor.id, "weekday", editor.rateWeekday)! / 100 : ""} className={fieldClass} />
-                  {editor && corporateRate(editor.id, "weekday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(editor.id, "weekday", copy)}</p> : null}
+                  <input id="vehicle-rate-weekday" name="rateWeekday" inputMode="decimal" placeholder="165.00" defaultValue={editor && shownRate(rateKey(editor), "weekday", editor.rateWeekday) != null ? shownRate(rateKey(editor), "weekday", editor.rateWeekday)! / 100 : ""} className={fieldClass} />
+                  {editor && corporateRate(rateKey(editor), "weekday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(rateKey(editor), "weekday", copy)}</p> : null}
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-saturday">{copy.labelRateSaturday}</label>
-                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" placeholder="185.00" defaultValue={editor ? (shownRate(editor.id, "saturday", editor.rateSaturday) == null ? "" : shownRate(editor.id, "saturday", editor.rateSaturday)! / 100) : ""} className={fieldClass} />
-                  {editor && corporateRate(editor.id, "saturday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(editor.id, "saturday", copy)}</p> : null}
+                  <input id="vehicle-rate-saturday" name="rateSaturday" inputMode="decimal" placeholder="185.00" defaultValue={editor ? (shownRate(rateKey(editor), "saturday", editor.rateSaturday) == null ? "" : shownRate(rateKey(editor), "saturday", editor.rateSaturday)! / 100) : ""} className={fieldClass} />
+                  {editor && corporateRate(rateKey(editor), "saturday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(rateKey(editor), "saturday", copy)}</p> : null}
                   <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{copy.rateHint}</p>
                 </div>
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="vehicle-rate-sunday">{copy.labelRateSunday}</label>
-                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" placeholder="195.00" defaultValue={editor ? (shownRate(editor.id, "sunday", editor.rateSunday) == null ? "" : shownRate(editor.id, "sunday", editor.rateSunday)! / 100) : ""} className={fieldClass} />
-                  {editor && corporateRate(editor.id, "sunday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(editor.id, "sunday", copy)}</p> : null}
+                  <input id="vehicle-rate-sunday" name="rateSunday" inputMode="decimal" placeholder="195.00" defaultValue={editor ? (shownRate(rateKey(editor), "sunday", editor.rateSunday) == null ? "" : shownRate(rateKey(editor), "sunday", editor.rateSunday)! / 100) : ""} className={fieldClass} />
+                  {editor && corporateRate(rateKey(editor), "sunday", copy) ? <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{corporateRate(rateKey(editor), "sunday", copy)}</p> : null}
                   <p className="m-0 mt-1.5 text-[12px] leading-4 text-zinc-600">{copy.rateHint}</p>
                 </div>
               </div>

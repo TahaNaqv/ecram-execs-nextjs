@@ -2,7 +2,7 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { bagCapacity, FLEET, normalizeVehicleKey, type OfferedVehicle } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, normalizeVehicleKey, vehicleModel, type OfferedVehicle } from "@/lib/fleet/vehicles";
 import type { DayKind } from "@/lib/pricing/rates";
 
 /** Tagged so an admin edit can refresh the public fleet without rebuilding the site. */
@@ -14,6 +14,7 @@ export type CustomRates = Record<string, Partial<Record<DayKind, number>>>;
 
 type CatalogRow = {
   id: string;
+  modelKey: string | null;
   name: string;
   status: string;
   images: string[] | null;
@@ -40,6 +41,7 @@ async function readListedRows(): Promise<CatalogRow[]> {
   return db
     .select({
       id: schema.vehicles.id,
+      modelKey: schema.vehicles.modelKey,
       name: schema.vehicles.name,
       status: schema.vehicles.status,
       images: schema.vehicles.images,
@@ -74,7 +76,7 @@ export async function bookableFleet(): Promise<OfferedVehicle[]> {
     rates: null,
   }));
   for (const row of await listedRows()) {
-    const known = normalizeVehicleKey(row.id);
+    const known = vehicleModel(row);
     if (known) {
       const offer = offers.find((item) => item.key === known);
       if (!offer) continue;
@@ -106,7 +108,7 @@ export async function customRates(): Promise<CustomRates> {
   const rates: CustomRates = {};
   for (const row of await listedRows()) {
     const priced = ratesOf(row);
-    if (normalizeVehicleKey(row.id) || !priced) continue;
+    if (vehicleModel(row) || !priced) continue;
     rates[row.id] = priced;
   }
   return rates;

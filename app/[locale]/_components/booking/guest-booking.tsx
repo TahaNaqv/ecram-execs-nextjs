@@ -11,6 +11,7 @@ import { sendGuestMessage, type GuestMessageState } from "@/lib/quotes/guest-act
 import { BookingStatusBadge, DownloadableReceiptCard, parseRideReceipt, RouteMap, storedRideReceipt, type RideReceipt } from "./booking-flow";
 import type { BookingCopy } from "./copy";
 import { PayButton } from "../pay-button";
+import { AcceptCharge } from "./accept-charge";
 import type { PaymentView } from "@/lib/mollie/pay";
 
 type Copy = Dictionary["guestBooking"];
@@ -70,6 +71,7 @@ export function GuestBookingView({
   checkoutUrl = null,
   paymentStatus = null,
   payBlocked = false,
+  chargesToAccept = [],
 }: {
   reference: string;
   linkKey: string;
@@ -101,6 +103,8 @@ export function GuestBookingView({
   paymentStatus?: string | null;
   /** The payment tab was blocked, so Pay now on this screen is the way through. */
   payBlocked?: boolean;
+  /** Close protection added to the booking that the saved card should also pay: the guest agrees here */
+  chargesToAccept?: { id: string; text: string }[];
 }) {
   const router = useRouter();
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
@@ -299,6 +303,19 @@ export function GuestBookingView({
           </a>
         )}
       </div>
+
+      {chargesToAccept.map((charge) => (
+        <AcceptCharge
+          key={charge.id}
+          reference={reference}
+          linkKey={linkKey}
+          locale={locale}
+          chargeId={charge.id}
+          text={charge.text}
+          button={t.cpAccept}
+          done={t.cpAccepted}
+        />
+      ))}
 
       {reviewing && (
         <div className="flex items-center gap-3 rounded-[16px] border border-solid border-ink-150 bg-white px-4 py-3.5 text-ink-950">

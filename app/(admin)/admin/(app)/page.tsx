@@ -16,7 +16,7 @@ import { serviceLabel } from "@/lib/quotes/constants";
 import { ActivityIcon, BatteryIcon, BriefcaseIcon, CalendarIcon, CarIcon, EuroIcon, InboxIcon, MapIcon } from "../_components/icons";
 import { StatusBadge } from "../_components/status-badge";
 import { Card, CardHeader, EmptyState, PageBody, PageHeader, Skeleton, StatCard, StatCardSkeleton } from "../_components/ui";
-import { QUICK_LINKS } from "@/lib/admin/quick-links";
+import { quickLinks } from "@/lib/admin/quick-links";
 import { operationsTodos } from "@/lib/admin/todos";
 import { amsterdamToday, daySchedule } from "@/lib/admin/schedule";
 import { DayMap } from "./requests/schedule/day-map";
@@ -82,7 +82,9 @@ export default function DashboardPage() {
 
 async function TodoList() {
   const admin = await requireAdmin();
-  const items = (await operationsTodos()).filter((item) => canOpenAdminPath(admin.role, admin.permissions, item.href));
+  const showLinks = canOpenAdminPath(admin.role, admin.permissions, "/admin/quick-links");
+  const [todos, links] = await Promise.all([operationsTodos(), showLinks ? quickLinks() : Promise.resolve([])]);
+  const items = todos.filter((item) => canOpenAdminPath(admin.role, admin.permissions, item.href));
   return (
     <Card className="mt-4">
       <CardHeader title="To do" />
@@ -99,8 +101,8 @@ async function TodoList() {
         </ul>
       )}
       <div className="flex flex-wrap gap-3 border-t border-zinc-100 px-5 py-3">
-        {can(admin.role, admin.permissions, "financials") && QUICK_LINKS.map(([label, href]) => (
-          <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="text-[13px] text-zinc-950 underline underline-offset-2">{label}</a>
+        {links.map((link) => (
+          <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className="text-[13px] text-zinc-950 underline underline-offset-2">{link.label}</a>
         ))}
       </div>
     </Card>

@@ -46,6 +46,10 @@ const guestColumns = {
   pickupPlaceId: q.pickupPlaceId,
   destinationPlaceId: q.destinationPlaceId,
   updatedAt: q.updatedAt,
+  // For close protection added later: whether the saved card's customer still has to agree to it (lib/admin/charges.ts)
+  paymentPlan: q.paymentPlan,
+  consentedCents: q.consentedCents,
+  balanceAttemptedAt: q.balanceAttemptedAt,
 };
 
 export type GuestBooking = NonNullable<Awaited<ReturnType<typeof getGuestBooking>>>;

@@ -367,6 +367,29 @@ export function normalizeVehicleKey(key: string | null | undefined): VehicleKey 
   return (VEHICLE_KEYS as readonly string[]).includes(s) ? (s as VehicleKey) : ID_ALIASES[s];
 }
 
+/**
+ * The printed model a registered car (a vehicles row) belongs to: the model chosen when it was registered (model_key,
+ * since 27 Nov 2026), else what its id says (cars added earlier got their name as id). Undefined for a car of its own.
+ */
+export function vehicleModel(row: { id: string; modelKey?: string | null }): VehicleKey | undefined {
+  return normalizeVehicleKey(row.modelKey) ?? normalizeVehicleKey(row.id);
+}
+
+/**
+ * The keys the booking form must not offer, from the register: a car of its own when it is switched off, a model only when
+ * none of its cars is available (several cars can share a model, 27 Nov 2026).
+ */
+export function switchedOffKeys(rows: { id: string; modelKey?: string | null; status: string }[]): string[] {
+  const available = new Set<string>();
+  const off = new Set<string>();
+  for (const row of rows) {
+    const key = vehicleModel(row) ?? row.id;
+    if (row.status === "available") available.add(key);
+    else off.add(key);
+  }
+  return [...off].filter((key) => !available.has(key));
+}
+
 export const vehicleByKey = (key: string | null | undefined) => {
   const normalized = normalizeVehicleKey(key) ?? key;
   return FLEET.find((v) => v.key === normalized);

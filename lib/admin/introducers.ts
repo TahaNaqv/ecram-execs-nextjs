@@ -2,12 +2,19 @@ import "server-only";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { Price } from "@/lib/pricing/rates";
+import { amsterdamToday } from "@/lib/drivers/time";
+import { commissionBasisPoints, nextRateChange } from "./commission";
 
 export type IntroducerRow = {
   id: string;
   name: string;
   email: string | null;
-  commissionPercent: number;
+  /** YYYY-MM-DD; the tenure schedule counts from here */
+  startDate: string;
+  /** Today's rate under the schedule, in basis points (250 = 2.5%) */
+  rateBp: number;
+  /** When the rate next steps down, or null once it is locked at 0.5% */
+  nextChange: { on: string; basisPoints: number } | null;
   active: boolean;
   lastInvoiceRequestedAt: Date | null;
   partners: { id: string; name: string }[];
@@ -33,7 +40,7 @@ export async function introducerBoard(): Promise<IntroducerRow[]> {
       requestId: schema.quoteRequests.id,
       contactId: schema.quoteRequests.corporateContactId,
       amountCents: schema.payments.amountCents,
-      price: schema.quoteRequests.priceEstimate,
+      paidAt: schema.payments.paidAt,
     })
     .from(schema.payments)
     .innerJoin(schema.quoteRequests, eq(schema.quoteRequests.id, schema.payments.requestId))
@@ -46,32 +53,37 @@ export async function introducerBoard(): Promise<IntroducerRow[]> {
       ),
     );
 
-  const byBooking = new Map<string, { contactId: string; paidCents: number; price: Price | null }>();
+  // Each payment earns the rate of the day it was received, so a month that spans an anniversary is split correctly
+  const byContact = new Map<string, { paidAt: Date | null; netCents: number }[]>();
   for (const row of paid) {
     if (!row.contactId) continue;
-    const current = byBooking.get(row.requestId) ?? { contactId: row.contactId, paidCents: 0, price: null };
-    current.paidCents += row.amountCents;
-    if (row.price && typeof row.price === "object" && "total" in row.price) current.price = row.price as Price;
-    byBooking.set(row.requestId, current);
-  }
-  const netByContact = new Map<string, number>();
-  for (const booking of byBooking.values()) {
-    netByContact.set(booking.contactId, (netByContact.get(booking.contactId) ?? 0) + netExcludingRideVat(booking.price, booking.paidCents));
+    const list = byContact.get(row.contactId) ?? [];
+    list.push({ paidAt: row.paidAt, netCents: netExcludingRideVat(null, row.amountCents) });
+    byContact.set(row.contactId, list);
   }
 
+  const today = amsterdamToday();
   return people.map((person) => {
+    const startDate = person.startDate ?? amsterdamToday(person.createdAt);
     const mine = partners.filter((partner) => partner.introducerId === person.id);
-    const monthNetCents = mine.reduce((sum, partner) => sum + (netByContact.get(partner.id) ?? 0), 0);
+    const payments = mine.flatMap((partner) => byContact.get(partner.id) ?? []);
+    const monthNetCents = payments.reduce((sum, payment) => sum + payment.netCents, 0);
+    const commissionTimes10k = payments.reduce(
+      (sum, payment) => sum + payment.netCents * commissionBasisPoints(startDate, amsterdamToday(payment.paidAt ?? new Date())),
+      0,
+    );
     return {
       id: person.id,
       name: person.name,
       email: person.email,
-      commissionPercent: person.commissionPercent,
+      startDate,
+      rateBp: commissionBasisPoints(startDate, today),
+      nextChange: nextRateChange(startDate, today),
       active: person.active,
       lastInvoiceRequestedAt: person.lastInvoiceRequestedAt,
       partners: mine.map((partner) => ({ id: partner.id, name: partner.company || partner.name })),
       monthNetCents,
-      monthCommissionCents: Math.round((monthNetCents * person.commissionPercent) / 100),
+      monthCommissionCents: Math.round(commissionTimes10k / 10_000),
     };
   });
 }

@@ -176,6 +176,11 @@ export const vehicles = pgTable("vehicles", {
   rateWeekday: integer("rate_weekday"),
   rateSaturday: integer("rate_saturday"),
   rateSunday: integer("rate_sunday"),
+  /**
+   * The printed model (lib/fleet/vehicles.ts VEHICLE_KEYS) chosen when the car was registered: it counts as one more car
+   * of that model, priced by the model's rate card. Null for a car typed in by hand, priced by its own rates.
+   */
+  modelKey: text("model_key"),
   /** Shown on the booking form. Operations-only cars stay off the public fleet. */
   listed: boolean("listed").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -677,7 +682,12 @@ export const introducers = pgTable("introducers", {
   /** The introducer's own company, if any */
   company: text("company"),
   notes: text("notes"),
-  /** Percent of the net (ex-VAT) payments received from introduced partners. */
+  /**
+   * The start of the introducer's tenure: their commission steps down by tenure year from this date (lib/admin/commission.ts,
+   * 2.5% → 0.5%). Existing introducers were given the day they were added (migration 0038).
+   */
+  startDate: date("start_date"),
+  /** No longer used: the commission follows the tenure schedule since 27 Nov 2026. Kept for the history. */
   commissionPercent: integer("commission_percent").notNull().default(10),
   active: boolean("active").notNull().default(true),
   /** When the monthly invoice request was last emailed to this introducer. */
@@ -837,17 +847,33 @@ export const conciergeMessages = pgTable(
   ],
 );
 
-/** Every saved version of the terms and conditions, newest last: the live text is in app_settings "terms_en". */
+/**
+ * The legal documents edited in Settings, every version: the Terms & Conditions ("terms") and the Privacy Policy
+ * ("privacy"). A draft is only seen in the admin; the published version with the latest published_at is the one on the
+ * website (lib/legal/documents.ts). The table kept its first name from when it held only the terms.
+ */
 export const termsVersions = pgTable(
   "terms_versions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    doc: text("doc", { enum: ["terms", "privacy"] }).notNull().default("terms"),
+    status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
     version: text("version").notNull(),
     body: text("body").notNull(),
+    /** The date the page shows ("effective" for the terms, "last updated" for the privacy policy) */
+    effectiveOn: date("effective_on"),
     savedBy: uuid("saved_by").references(() => adminUsers.id, { onDelete: "set null" }),
     savedAt: timestamp("saved_at", { withTimezone: true }).notNull().defaultNow(),
+    publishedBy: uuid("published_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
   },
-  (t) => [index("terms_versions_saved_at_idx").on(t.savedAt), uniqueIndex("terms_versions_version_key").on(t.version)],
+  (t) => [
+    index("terms_versions_saved_at_idx").on(t.savedAt),
+    uniqueIndex("terms_versions_doc_version_key").on(t.doc, t.version),
+    index("terms_versions_live_idx").on(t.doc, t.status, t.publishedAt),
+    check("terms_versions_doc_check", sql`${t.doc} in ('terms', 'privacy')`),
+    check("terms_versions_status_check", sql`${t.status} in ('draft', 'published')`),
+  ],
 );
 
 /** A service day booked for a car (APK, tyres...): the car takes no bookings that day. */
@@ -866,6 +892,89 @@ export const vehicleServices = pgTable(
   },
   (t) => [index("vehicle_services_date_idx").on(t.serviceDate), uniqueIndex("vehicle_services_vehicle_day_key").on(t.vehicleId, t.serviceDate)],
 );
+
+/**
+ * Charges the team adds to a booking after it was made: close protection (the client, 27 Nov 2026), at an amount the team
+ * types after arranging it. How it is collected is decided when it is added (lib/payments/charges.ts): more than 30 days
+ * before the ride, and not yet paid in full, it joins the booking's total ("balance": the balance charged 30 days before
+ * the ride, and the booking's invoice); otherwise it is a charge of its own ("separate": its own Moneybird invoice).
+ */
+export const bookingCharges = pgTable(
+  "booking_charges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => quoteRequests.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["close_protection"] }).notNull().default("close_protection"),
+    description: text("description").notNull(),
+    /** Euro cents including VAT */
+    amountCents: integer("amount_cents").notNull(),
+    /** VAT in basis points: 2100 = 21% */
+    vatBasisPoints: integer("vat_basis_points").notNull().default(2100),
+    billing: text("billing", { enum: ["balance", "separate"] }).notNull(),
+    status: text("status", { enum: ["active", "cancelled"] }).notNull().default("active"),
+    /** "balance": when the customer agreed on their booking page to the card being charged for it too */
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    /** "separate": its own Moneybird invoice */
+    moneybirdId: text("moneybird_id"),
+    invoiceNumber: text("invoice_number"),
+    invoiceState: text("invoice_state"),
+    invoiceUrl: text("invoice_url"),
+    invoicedAt: timestamp("invoiced_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    /** When a run took the invoice on (invoice_state "claimed"); a claim older than ten minutes was a run that stopped */
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    cancelledBy: uuid("cancelled_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("booking_charges_request_idx").on(t.requestId),
+    check("booking_charges_amount_check", sql`${t.amountCents} > 0`),
+    check("booking_charges_billing_check", sql`${t.billing} in ('balance', 'separate')`),
+    check("booking_charges_status_check", sql`${t.status} in ('active', 'cancelled')`),
+  ],
+);
+
+export type BookingCharge = typeof bookingCharges.$inferSelect;
+
+/**
+ * The newsletter list (the client, 27 Nov 2026): everyone who agreed to receive news and offers, from a booking's tick, a
+ * corporate partner's sign-up, or added by the team with their consent. One row per address (lower case). "unsubscribed"
+ * withdrew (a link in Mailchimp, or the team on their request); "suppressed" asked to be removed and is never added again,
+ * not even by a new tick. Mirrored to Mailchimp when it is connected (lib/marketing/mailchimp.ts).
+ */
+export const marketingContacts = pgTable(
+  "marketing_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    name: text("name"),
+    source: text("source", { enum: ["booking", "corporate", "manual", "mailchimp"] }).notNull(),
+    /** The booking reference or partner the consent came with */
+    sourceRef: text("source_ref"),
+    status: text("status", { enum: ["subscribed", "unsubscribed", "suppressed"] }).notNull().default("subscribed"),
+    consentedAt: timestamp("consented_at", { withTimezone: true }),
+    unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+    /** Mailchimp: true while the change still has to be sent there */
+    syncPending: boolean("sync_pending").notNull().default(true),
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    syncError: text("sync_error"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("marketing_contacts_email_key").on(t.email),
+    index("marketing_contacts_status_idx").on(t.status),
+    check("marketing_contacts_status_check", sql`${t.status} in ('subscribed', 'unsubscribed', 'suppressed')`),
+  ],
+);
+
+export type MarketingContact = typeof marketingContacts.$inferSelect;
 
 /** Settings the team changes in the admin, one row per key (the fleet's base: lib/fleet/base.ts). */
 export const appSettings = pgTable(

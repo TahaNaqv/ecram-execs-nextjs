@@ -50,10 +50,10 @@ export async function saveIntroducer(formData: FormData): Promise<SaveResult> {
     if (digits < 6 || digits > 15) return { error: "The phone number must have between 6 and 15 digits." };
   }
 
-  const percentText = String(formData.get("percent") ?? "").trim();
-  if (!/^\d{1,3}$/.test(percentText)) return { error: "Commission must be a whole number from 0 to 100." };
-  const percent = Number(percentText);
-  if (percent > 100) return { error: "Commission must be a whole number from 0 to 100." };
+  // The commission follows the tenure schedule from this date (lib/admin/commission.ts)
+  const startDate = String(formData.get("startDate") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`))) return { error: "Enter the introducer's start date." };
+  if (startDate < "2000-01-01" || startDate > "2100-12-31") return { error: "Enter a start date between 2000 and 2100." };
 
   const notes = String(formData.get("notes") ?? "").trim();
   if (notes.length > 500) return { error: "Notes can be at most 500 characters." };
@@ -85,7 +85,7 @@ export async function saveIntroducer(formData: FormData): Promise<SaveResult> {
     company: company || null,
     email: email || null,
     phone: phone || null,
-    commissionPercent: percent,
+    startDate,
     notes: notes || null,
     active,
   };
