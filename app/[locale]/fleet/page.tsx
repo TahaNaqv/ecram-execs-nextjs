@@ -179,8 +179,6 @@ async function FleetList() {
       key: TRAILER_KEY,
       name: d.addOns.trailer,
       images: TRAILER_GALLERY,
-      // The dealer's photos show its silver demo model, not the black one: no "in obsidian black"
-      alt: d.addOns.trailer,
       note: d.fleetPage.trailerWith,
       rows: [
         [d.fleetPage.trailerCapacity, d.fleetPage.trailerCapacityValue],
