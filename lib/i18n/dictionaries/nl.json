@@ -2701,7 +2701,7 @@
     "fewerSmallBags": "Eén kleine tas minder",
     "moreSmallBags": "Eén kleine tas meer",
     "partyHint": "Grote koffers volgen de auto. Kleine tassen gaan mee in het interieur.",
-    "partyLarge": "Meer dan 7 passagiers reizen in meerdere auto's: die kiest u in de volgende stap.",
+    "partyLarge": "Meer dan {seats} passagiers reizen in meerdere auto's: die kiest u in de volgende stap.",
     "convoyLine": "Meerdere voertuigen: {cars} nodig voor {party}.",
     "convoyChosen": "Uw auto's: {cars} voor {party}.",
     "convoyCars": "{count} × {car}",

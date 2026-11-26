@@ -2700,7 +2700,7 @@
     "fewerSmallBags": "One fewer small bag",
     "moreSmallBags": "One more small bag",
     "partyHint": "Large suitcases follow the car. Small bags ride in the cabin.",
-    "partyLarge": "More than 7 passengers travel in several cars: you choose them on the next step.",
+    "partyLarge": "More than {seats} passengers travel in several cars: you choose them on the next step.",
     "convoyLine": "Multi-vehicle convoy: {cars} required for {party}.",
     "convoyChosen": "Your cars: {cars} for {party}.",
     "convoyCars": "{count} × {car}",

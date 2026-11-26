@@ -256,7 +256,7 @@ export function GuestsPicker({ id, pax, bags, small, set, onChange, copy: t, ton
               </span>
               <Stepper admin={admin || matchField} value={Math.min(small, MAX_SMALL_BAGS)} label={t.smallBags} min={0} max={MAX_SMALL_BAGS} less={t.fewerSmallBags} more={t.moreSmallBags} onChange={(n) => onChange({ pax, bags, small: Math.min(MAX_SMALL_BAGS, n) })} />
             </div>
-            <p className={`m-0 leading-snug ${admin ? "mt-2 text-xs text-zinc-500" : "mt-1 text-[11px] text-ink-600"}`}>{pax > LARGEST_CAR_SEATS ? t.partyLarge : t.partyHint}</p>
+            <p className={`m-0 leading-snug ${admin ? "mt-2 text-xs text-zinc-500" : "mt-1 text-[11px] text-ink-600"}`}>{pax > LARGEST_CAR_SEATS ? interpolate(t.partyLarge, { seats: LARGEST_CAR_SEATS }) : t.partyHint}</p>
             <button
               type="button"
               onClick={done}
