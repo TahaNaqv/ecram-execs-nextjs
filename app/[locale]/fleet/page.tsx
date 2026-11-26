@@ -99,11 +99,13 @@ function VehicleCard({ card, index, d }: { card: Card; index: number; d: Diction
   return (
     <article
       aria-labelledby={headingId}
-      className={`grid overflow-hidden border border-ink-800 bg-ink-900 ${card.images.length > 0 ? "md:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : ""}`}
+      className={`grid overflow-hidden border border-ink-800 bg-ink-900 [container-type:inline-size] ${card.images.length > 0 ? "md:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : ""}`}
     >
-      {/* A car an admin listed without photos gets no empty photo panel */}
+      {/* A car an admin listed without photos gets no empty photo panel. On wide screens the panel grows with the text beside it,
+          but never taller than 3:2 (39.5% of the card's width, the panel being 59.2% of it): a long text column (the eSprinter's
+          rates) made it nearly square and cut off the front and back of the van */}
       {card.images.length > 0 && (
-        <div className="relative aspect-[16/10] w-full bg-ink-850 md:aspect-auto md:min-h-[380px]">
+        <div className="relative aspect-[16/10] w-full bg-ink-850 md:aspect-auto md:min-h-[min(380px,39.5cqw)] md:max-h-[39.5cqw]">
           <VehicleGallery
             name={card.name}
             images={card.images}
