@@ -8,7 +8,7 @@ const IMAGES = [
   "/assets/Sprinter_van_studio_render_5ce5b996.jpg",
   "/assets/Black_high-roof_Sprinter_van_022d1a11.jpg",
   "/assets/Studio_render_of_black_van_3e9c41b4.jpg",
-  "/assets/Luxury_Sprinter_van_interior_render_aeb794b0.jpg",
+  "/assets/esprinter-interior-16-seats-black.jpg",
   "/assets/Black_Sprinter_van_studio_render_00dc9925.jpg",
 ];
 
