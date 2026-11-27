@@ -47,6 +47,8 @@ export type OfferedVehicle = {
   bags?: number | null;
   /** Public hourly rate in euro cents. Absent for a car on the printed rate card. */
   rates?: { weekday: number; saturday: number; sunday: number } | null;
+  /** Shown but not bookable yet: when it is expected ("Q2 2027"), as the team set it (lib/fleet/catalog.ts comingSoon) */
+  expected?: string | null;
 };
 
 export type FleetVehicle = {
@@ -65,8 +67,9 @@ export type FleetVehicle = {
   drivetrain: "bev" | "phev" | "ice";
   specs?: VehicleSpecs;
   /**
-   * When a vehicle is not on the road yet: the expected launch, as the client words it (e.g. "Q2 2027"), shown in red on
-   * the fleet page. Absent means available now (shown in green). It does not change what the booking form offers.
+   * When a vehicle is not on the road yet: the expected launch, as the client words it (e.g. "Q2 2027"). The default only:
+   * the team switches a model between "coming soon" and bookable on the admin vehicles page (lib/fleet/catalog.ts
+   * comingSoon), and a coming-soon model is shown greyed out on the booking form and cannot be booked (27 Nov 2026).
    */
   expected?: string;
   /** Has no tow bar: the luggage trailer cannot be booked behind it (the Audi e-tron GT, the client 26 Nov 2026) */
@@ -234,13 +237,11 @@ export const FLEET: FleetVehicle[] = [
     key: "hongqi_e_hs9",
     name: "Hongqi E-HS9",
     images: [
-      // 23 Nov 2026: the fleet car is the Black Edition, with black rims and a black grille (the red stripe and the red wheel
-      // caps stay). black-1 to 4 are v2 and gallery-2 to 4 with the chrome rims and grille recoloured gloss black; gallery-5
-      // (the rear) shows neither. A new picture needs a new filename: /assets is cached for 7 days.
-      "/assets/fleet-hongqi-e-hs9-black-1.jpg",
-      "/assets/fleet-hongqi-e-hs9-black-2.jpg",
-      "/assets/fleet-hongqi-e-hs9-black-3.jpg",
-      "/assets/fleet-hongqi-e-hs9-black-4.jpg",
+      // 23 Nov 2026: the fleet car is the Black Edition, with a black grille (the red stripe stays). 27 Nov 2026: the rims are
+      // polished silver like the Range Rover's (the client). silver-1 is black-1 with the rims redrawn (vidIQ). black-2 to 4
+      // still have black rims, so they are left out until they are redrawn the same way (the files stay, as the references);
+      // gallery-5 (the rear) shows no rims. A new picture needs a new filename: /assets is cached for 7 days.
+      "/assets/fleet-hongqi-e-hs9-silver-1.jpg",
       "/assets/fleet-hongqi-e-hs9-gallery-5.jpg",
       "/assets/fleet-hongqi-e-hs9-gallery-6.jpg",
       "/assets/fleet-hongqi-e-hs9-gallery-7.jpg",
@@ -273,7 +274,7 @@ export const FLEET: FleetVehicle[] = [
       "/assets/Sprinter_van_studio_render_5ce5b996.jpg",
       "/assets/Black_high-roof_Sprinter_van_022d1a11.jpg",
       "/assets/Studio_render_of_black_van_3e9c41b4.jpg",
-      "/assets/esprinter-interior-16-seats-black.jpg",
+      "/assets/esprinter-interior-16-seats-showroom.jpg",
       "/assets/Black_Sprinter_van_studio_render_00dc9925.jpg",
     ],
     drivetrain: "bev",
@@ -323,7 +324,8 @@ export const UPCOMING: UpcomingVehicle[] = [
   {
     key: "mercedes_e_class_electric",
     name: "Mercedes-Benz E-Class Electric",
-    images: ["/assets/fleet-mercedes-e-class-electric-covered.jpg"],
+    // 27 Nov 2026: in the showroom of the other cars' pictures (the client), the cover and logo unchanged
+    images: ["/assets/fleet-mercedes-e-class-electric-showroom.jpg"],
     expected: "Q4 2027",
   },
 ];

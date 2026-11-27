@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { dashboardFigures, fleetStatus, recentRequests, upcomingPickups } from "@/lib/admin/dashboard";
+import { modelTally } from "@/lib/fleet/tally";
 import { formatEuro, formatRelative, pickupParts } from "@/lib/admin/format";
 import { systemHealth, type HealthKey, type HealthState } from "@/lib/admin/health";
 import { unseenPartnerMessages } from "@/lib/admin/portal";
@@ -314,6 +315,19 @@ async function Fleet() {
           </Link>
         }
       />
+      {rows.length > 0 ? (
+        <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-zinc-100 px-5 py-2.5" aria-label={d.fleetPerModel}>
+          {modelTally(rows).map((entry) => (
+            <span
+              key={entry.key}
+              title={interpolate(d.fleetPerModelTitle, { active: entry.active, units: entry.units })}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${entry.active > 0 ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-zinc-100 text-zinc-500 ring-zinc-200"}`}
+            >
+              <span className="font-semibold tabular-nums">{entry.active}×</span> {entry.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState icon={<CarIcon size={18} />} title={d.fleetEmpty} />
       ) : (

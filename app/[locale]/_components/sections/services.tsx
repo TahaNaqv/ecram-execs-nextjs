@@ -10,7 +10,8 @@ export async function Services() {
   // photographs for Business Travel (the arrival) and Close Protection. Business Travel shows the Cadillac Escalade IQ since 23 Nov 2026
   // (service-airport-newv8, generated with Gamma; its seats seen through the windscreen recoloured black); the crop keeps the
   // traveller and the car's front in view. Bespoke Programmes shows a black Range Rover by an Amsterdam canal since the same day
-  // (service-bespoke-v8, 1600px square, generated with Gamma). Close Protection shows the new VLE by a canal since 23 Nov 2026
+  // (service-bespoke-v8, 1600px square, generated with Gamma); on 27 Nov 2026 the car became the fleet's full-size Range Rover EV in
+  // the same scene, as the client asked (service-bespoke-v9, redrawn with vidIQ). Close Protection shows the new VLE by a canal since 23 Nov 2026
   // (service-protection-v2; it replaced v1 under a new filename, as /assets and the image optimiser cache for 7 days).
   const quote = { label: d.common.requestQuote, href: "#enquire" };
   const items: PictureItem[] = [
@@ -21,7 +22,7 @@ export async function Services() {
     { key: "corporate", numeral: "III", title: s.corporateTitle, text: s.corporateText, points: [s.corporateP1, s.corporateP2, s.corporateP3], image: "/assets/service-corporate-v5.jpg", focus: "62% 40%", brightness: 1.15, cta: { label: d.whoWeServe.cta, href: localizedPath("/corporate-partner", locale) } },
     { key: "private", numeral: "IV", title: s.privateTitle, text: s.privateText, points: [s.privateP1, s.privateP2, s.privateP3], image: "/assets/service-private-v5.jpg", focus: "52% 62%", brightness: 1.15, cta: quote },
     { key: "hotels", numeral: "V", title: s.hotelsTitle, text: s.hotelsText, points: [s.hotelsP1, s.hotelsP2, s.hotelsP3], image: "/assets/service-hotels-v8.jpg", focus: "45% 55%", brightness: 1.1, cta: quote },
-    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke-v8.jpg", focus: "50% 60%", cta: quote },
+    { key: "bespoke", numeral: "VI", title: s.bespokeTitle, text: s.bespokeText, points: [s.bespokeP1, s.bespokeP2, s.bespokeP3], image: "/assets/service-bespoke-v9.jpg", focus: "50% 60%", cta: quote },
   ];
   return (
     <section className="border-b border-b-ink-850" id="services">

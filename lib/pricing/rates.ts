@@ -67,8 +67,8 @@ const KM_PER_HOUR: Record<VehicleKey, number> = {
 /** Euro cents per kilometre beyond the allowance, the same for every car. */
 const EXTRA_KM_RATE: Record<Segment, number> = { corporate: 150, public: 175 };
 
-/** The fewest hours a booking is billed for: a 45-minute ride is billed as two hours. */
-export const MIN_HOURS = 2;
+/** The fewest hours a booking is billed for: a 45-minute ride is billed as four hours (the client, 27 Nov 2026; it was two). */
+export const MIN_HOURS = 4;
 /** Dutch VAT on passenger transport (the low rate), on the rides. */
 export const VAT_RATE = 0.09;
 /** Added once to every booking, after the rides' VAT, as the client's rate card works it out. */

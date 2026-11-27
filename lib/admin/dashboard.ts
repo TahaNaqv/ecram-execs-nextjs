@@ -141,7 +141,7 @@ export const upcomingPickups = cache(async (): Promise<UpcomingPickup[]> => {
   });
 });
 
-export type FleetRow = { id: string; name: string; available: boolean; nextAt: string | null; batterySoC: number; rangeKm: number };
+export type FleetRow = { id: string; name: string; modelKey: string | null; available: boolean; nextAt: string | null; batterySoC: number; rangeKm: number };
 
 /** Every registered vehicle, whether it is switched on, and the time of its next confirmed booking. */
 export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
@@ -162,7 +162,7 @@ export const fleetStatus = cache(async (): Promise<FleetRow[]> => {
     const have = next.get(key);
     if (!have || b.next < have) next.set(key, b.next);
   }
-  return all.map((v) => ({ id: v.id, name: v.name, available: v.status === "available", nextAt: next.get(vehicleModel(v) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
+  return all.map((v) => ({ id: v.id, name: v.name, modelKey: v.modelKey, available: v.status === "available", nextAt: next.get(vehicleModel(v) ?? v.id) ?? null, batterySoC: v.batterySoC, rangeKm: v.evRangeKm }));
 });
 
 /** Finished bookings, newest first. A booking that is still new stays in New Incoming Requests. */

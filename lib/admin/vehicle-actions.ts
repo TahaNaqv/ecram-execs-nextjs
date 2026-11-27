@@ -151,7 +151,10 @@ export async function addVehicle(formData: FormData): Promise<{ ok: boolean; err
         if (modelKey && modelKey !== existingId) await rekeyBookings(tx, existingId, modelKey);
       });
     } else {
-      await db.insert(vehicles).values({ id, status: "unavailable", ...catalog });
+      // A car of its own starts switched off until the team has checked it. Another unit of a model the fleet already runs
+      // starts on, so it counts in that model's live tally (and its booking capacity) at once (the client, 27 Nov 2026);
+      // the team switches it off if it is not on the road yet.
+      await db.insert(vehicles).values({ id, status: modelKey ? "available" : "unavailable", ...catalog });
     }
   } catch (error) {
     console.error("Error saving vehicle:", error);

@@ -3,6 +3,7 @@ import { applyPatch, assess, cleanDraft, forModel, todayLabel, unavailableVehicl
 import { BOOKING_TOOL, SHOW_CARS_TOOL } from "@/lib/concierge/booking-tool";
 import { faqsFrom } from "@/lib/concierge/faqs";
 import { bookingByChat, fleetNames, siteGuide } from "@/lib/concierge/guide";
+import { comingSoon } from "@/lib/fleet/catalog";
 import { bestMatch } from "@/lib/concierge/match";
 import { recordTurn, SESSION_ID } from "@/lib/concierge/store";
 import type { ConciergeMessageMeta } from "@/lib/db/schema";
@@ -204,9 +205,12 @@ export async function POST(req: Request) {
 
     const faqKnowledgeBase = faqs.map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
 
+    // Models shown on the site but not bookable yet (the client, 27 Nov 2026): the concierge says when they are expected
+    const soon = await comingSoon();
+    const notYet = Object.entries(soon).map(([key, when]) => `${vehicleByKey(key)?.name ?? key} (expected ${when})`);
     const systemPrompt = `You are the AI Concierge for Ecram Execs, an ultra-luxury electric executive chauffeur service in the Netherlands.
 Our Fleet: 100% electric luxury obsidian black vehicles (${fleetNames()}).
-Our Services:
+${notYet.length > 0 ? `Not bookable yet: ${notYet.join(", ")}. Never offer or book these; if asked, say when they are expected and offer another car.\n` : ""}Our Services:
 - Airport transfers (Schiphol AMS, Rotterdam The Hague RTM, Eindhoven EIN, and private aviation / FBOs like Jet Aviation). Includes real-time flight tracking, arrivals meet & greet, luggage handling.
 - Business & Corporate travel (hourly, multi-stop, corporate accounts with centralized billing).
 - Private occasions & bespoke travel programs across the Netherlands and Europe.

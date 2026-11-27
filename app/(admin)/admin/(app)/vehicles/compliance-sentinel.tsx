@@ -15,6 +15,7 @@ import { amsterdamToday } from "@/lib/admin/financials-shared";
 import { customerHourly, formatCents, formatCurrency, type DayKind } from "@/lib/pricing/rates";
 import { MODEL_TEMPLATES, modelTemplate, type ModelTemplate } from "@/lib/fleet/templates";
 import { vehicleModel } from "@/lib/fleet/vehicles";
+import { modelTally, tallyKey } from "@/lib/fleet/tally";
 import { pushToast } from "../../_components/action-feedback";
 
 type VehicleCopy = Dictionary["admin"]["vehicles"];
@@ -316,7 +317,12 @@ export function FleetComplianceSentinel({
   ];
   const permitLabel = (status: string) => permitOptions.find((option) => option.value === status)?.label ?? status;
   const [serviceDate, setServiceDate] = useState("");
-  const selected = vehicleList.find((vehicle) => vehicle.id === selectedId) ?? vehicleList[0] ?? null;
+  const tally = modelTally(vehicleList);
+  const [modelFilter, setModelFilter] = useState<string | null>(null);
+  // A filter on a model whose last unit was removed falls back to the whole fleet
+  const filter = modelFilter && tally.some((entry) => entry.key === modelFilter) ? modelFilter : null;
+  const shown = filter ? vehicleList.filter((vehicle) => tallyKey(vehicle) === filter) : vehicleList;
+  const selected = shown.find((vehicle) => vehicle.id === selectedId) ?? shown[0] ?? null;
 
   const handleToggle = (vehId: string, currentStatus: string) => {
     const nextStatus = currentStatus === "available" ? "unavailable" : "available";
@@ -440,13 +446,51 @@ export function FleetComplianceSentinel({
         </div>
       </div>
 
+      {tally.length > 0 ? (
+        <section aria-label={copy.tallyTitle}>
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="m-0 text-[13px] font-semibold text-zinc-950">{copy.tallyTitle}</h2>
+            <span className="text-[11px] text-zinc-500">{copy.tallyHint}</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {tally.map((entry) => {
+              const off = entry.units - entry.active;
+              const chosen = filter === entry.key;
+              return (
+                <button
+                  key={entry.key}
+                  type="button"
+                  aria-pressed={chosen}
+                  onClick={() => setModelFilter(chosen ? null : entry.key)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border bg-white px-3.5 py-2.5 text-left transition ${chosen ? "border-zinc-950 ring-1 ring-zinc-950" : "border-zinc-200 hover:border-zinc-300"}`}
+                >
+                  <span className={`text-2xl font-semibold tabular-nums ${entry.active > 0 ? "text-zinc-950" : "text-zinc-400"}`}>{entry.active}×</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-zinc-950">{entry.name}</span>
+                    <span className={`block text-[11px] ${off > 0 ? "text-amber-700" : "text-zinc-500"}`}>
+                      {interpolate(off > 0 ? copy.tallySomeOff : copy.tallyAllOn, { units: entry.units, off })}
+                      {entry.key.startsWith("car:") ? ` · ${copy.tallyOwnCar}` : ""}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {filter ? (
+            <button type="button" onClick={() => setModelFilter(null)} className="mt-2 cursor-pointer text-xs font-semibold text-zinc-600 underline hover:text-zinc-950">
+              {copy.tallyShowAll}
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
       <div className="flex min-h-[32rem] w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           {vehicleList.length === 0 ? (
             <p className="p-8 text-center text-sm text-zinc-400">{copy.emptyFleet}</p>
           ) : view === "showcase" && selected ? (
             <div className="grid items-stretch gap-4 bg-zinc-50 p-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
               <div className="flex h-[36rem] flex-col overflow-y-auto rounded-2xl border border-zinc-200 bg-white">
-                {vehicleList.map((veh) => {
+                {shown.map((veh) => {
                   const on = veh.status === "available";
                   const active = veh.id === selected.id;
                   return (
@@ -498,7 +542,7 @@ export function FleetComplianceSentinel({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicleList.map((veh) => {
+                  {shown.map((veh) => {
                     const isAvailable = veh.status === "available";
                     return (
                       <tr key={veh.id} className="transition-colors hover:bg-zinc-50/60">
@@ -569,7 +613,7 @@ export function FleetComplianceSentinel({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {vehicleList.map((veh) => (
+                  {shown.map((veh) => (
                     <tr key={veh.id} className="hover:bg-zinc-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-medium text-zinc-950">{veh.name}</td>
                       <td className="px-3 py-3.5 font-mono text-zinc-700">{formatStoredDate(veh.apkExpiry, locale)}</td>

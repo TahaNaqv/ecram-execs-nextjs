@@ -9,6 +9,9 @@ import { formatStamp } from "@/lib/corporate/format";
 import { fleetBaseSetting } from "@/lib/fleet/base-store";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { FleetBaseCard } from "./base-card";
+import { ComingSoonCard } from "./coming-soon-card";
+import { comingSoon, MAX_EXPECTED_LENGTH } from "@/lib/fleet/catalog";
+import { FLEET } from "@/lib/fleet/vehicles";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { admin } = await adminDictionary();
@@ -32,7 +35,7 @@ async function VehiclesContent() {
     description:
       "Manage luxury electric vehicle inventory, ILT compliance telemetry, and automated driver credential blocks.",
   };
-  const [vehicles, base, usage, services] = await Promise.all([getAllVehicles(), fleetBaseSetting(), getFleetUsage(), getUpcomingServices()]);
+  const [vehicles, base, usage, services, soon] = await Promise.all([getAllVehicles(), fleetBaseSetting(), getFleetUsage(), getUpcomingServices(), comingSoon()]);
   const saved = base.updatedAt
     ? interpolate(base.updatedBy ? admin.vehicles.baseSavedBy : admin.vehicles.baseSavedAt, { name: base.updatedBy ?? "", when: formatStamp(base.updatedAt, me.locale) })
     : null;
@@ -41,6 +44,8 @@ async function VehiclesContent() {
     <div className="p-6 md:p-8 w-full space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{t.title}</h1>
       <FleetBaseCard key={`${base.base?.address ?? ""}|${base.base?.placeId ?? ""}`} base={base.base} saved={saved} locale={me.locale} copy={admin.vehicles} />
+      {/* Keyed on what is saved: after Save the form is rebuilt from the stored values (a form action resets its inputs) */}
+      <ComingSoonCard key={JSON.stringify(soon)} models={FLEET.map((vehicle) => ({ key: vehicle.key, name: vehicle.name, expected: soon[vehicle.key] ?? null }))} max={MAX_EXPECTED_LENGTH} copy={admin.vehicles} />
       <FleetComplianceSentinel
         vehicles={vehicles}
         services={services}

@@ -151,7 +151,8 @@ async function FleetList() {
         name: offer.name,
         images: (offer.images ?? vehicle?.images ?? []).slice(0, MAX_GALLERY_IMAGES),
         rows: specRows(offer, vehicle, d, locale),
-        expected: vehicle?.expected,
+        // As the team set it on the vehicles page (lib/fleet/catalog.ts comingSoon), the same as the booking form
+        expected: offer.expected ?? undefined,
       };
     }),
     // The luggage trailer (the client, 26 Nov 2026): booked with a car, shown beside them. No price here, as for the cars

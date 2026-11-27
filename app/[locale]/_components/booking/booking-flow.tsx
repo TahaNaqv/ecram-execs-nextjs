@@ -169,8 +169,8 @@ export function BookingFlow({
   messages,
   fleetDict,
   vehicleAdvise,
-  vehicles,
-  initialTrip,
+  vehicles: offered,
+  initialTrip: givenTrip,
   initialStep,
   result,
   submit,
@@ -219,6 +219,11 @@ export function BookingFlow({
   /** Same key in both languages, so switching EN/NL keeps the trip the visitor already entered. */
   persistKey: string;
 }) {
+  // A model coming soon (the client, 27 Nov 2026: the VLE 300 until Q2 2027) is shown greyed out and never chosen,
+  // recommended or carried in from a link
+  const vehicles = offered.filter((v) => !v.expected);
+  const soonCars = offered.filter((v) => v.expected);
+  const initialTrip = withoutCars(givenTrip, soonCars);
   const [trip, setTrip] = useState<Trip>(initialTrip);
   const [draft, setDraft] = useState<Trip>(initialTrip);
   const [journeyEdit, setJourneyEdit] = useState(0);
@@ -397,6 +402,7 @@ export function BookingFlow({
           segment={segmentOf(variant)}
           locale={locale}
           vehicles={vehicles}
+          soon={soonCars}
           copy={t}
           error={result.fieldErrors.vehicle}
           onDetails={setDetails}
@@ -555,7 +561,16 @@ function trailerBlockReason(trip: Trip, t: { trailerNeedsCar: string; trailerNoT
   return carsTowTrailer(keys) ? null : t.trailerNoTow;
 }
 
-function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, error, onDetails, onCars, onAdvise, onTrailer, onBack, onNext }: {
+/** The trip without any car that cannot be booked (a model coming soon). */
+function withoutCars(trip: Trip, notBookable: OfferedVehicle[]): Trip {
+  if (notBookable.length === 0) return trip;
+  const keys = new Set(notBookable.map((v) => normalizeVehicleKey(v.key) ?? v.key));
+  const blocked = (key: string) => keys.has(normalizeVehicleKey(key) ?? key);
+  if (!blocked(trip.vehicle) && !trip.cars.some((car) => blocked(car.key))) return trip;
+  return { ...trip, vehicle: blocked(trip.vehicle) ? "" : trip.vehicle, cars: trip.cars.filter((car) => !blocked(car.key)) };
+}
+
+function CarStep({ headingRef, trip, segment, locale, vehicles, soon, copy: t, names, error, onDetails, onCars, onAdvise, onTrailer, onBack, onNext }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   trip: Trip;
   /** The add-ons' words: the luggage trailer is offered here too, beside the cars */
@@ -564,6 +579,8 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, 
   segment: Segment;
   locale: Locale;
   vehicles: OfferedVehicle[];
+  /** Shown greyed out with when they are expected, not choosable */
+  soon: OfferedVehicle[];
   copy: BookingCopy;
   error?: string;
   onDetails: (v: FleetVehicle) => void;
@@ -794,6 +811,51 @@ function CarStep({ headingRef, trip, segment, locale, vehicles, copy: t, names, 
       <p className="m-0 mt-2 text-[13px] text-ink-600">{t.carsSeveral}</p>
       <ul aria-labelledby="booking-car" className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {[...offeredCars].sort((a, b) => Number(b.vehicle.key === recommendation?.key) - Number(a.vehicle.key === recommendation?.key)).map(card)}
+        {soon.flatMap((offer) => {
+          const known = FLEET.find((vehicle) => vehicle.key === normalizeVehicleKey(offer.key));
+          if (!known) return [];
+          const image = offer.images?.[0] ?? known.images[0];
+          const seats = offer.seats ?? known.specs?.passengers ?? null;
+          return [
+            <li key={known.key} className="relative">
+              <div aria-disabled="true" className="box-border flex h-full flex-col rounded-2xl border border-solid border-ink-225 bg-white p-2 text-ink-950">
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={image} alt="" className="aspect-[16/9.5] w-full rounded-[11px] object-cover opacity-60 grayscale-[35%]" />
+                ) : (
+                  <span className="block aspect-[16/9.5] w-full rounded-[11px] bg-ink-100" />
+                )}
+                <span className="flex min-w-0 items-center justify-between gap-3 px-1.5 pt-3 pb-1.5">
+                  <span className="min-w-0 text-[15px] font-semibold text-ink-700">{known.name}</span>
+                  {seats !== null && (
+                    <span className="flex shrink-0 items-center gap-1.5 text-[13px] whitespace-nowrap text-ink-600">
+                      <SeatIcon />
+                      {interpolate(t.seatsUpTo, { seats })}
+                    </span>
+                  )}
+                </span>
+                <span className="px-1.5 pb-1 text-[13px] text-ink-600">{t.carNotYetBookable}</span>
+                <span className="m-1.5 mt-auto box-border flex h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-ink-225 text-[14px] font-semibold text-ink-600">
+                  {interpolate(t.carExpected, { when: offer.expected ?? "" })}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onDetails(known)}
+                aria-label={interpolate(t.carDetails, { car: known.name })}
+                className="absolute top-[18px] right-[18px] grid size-9 cursor-pointer place-items-center rounded-full border-0 bg-[#ffffff] text-[#10224f] shadow-sm hover:bg-[#e8eeff]"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 11v6M12 7.5v.5" />
+                </svg>
+              </button>
+              <span className="pointer-events-none absolute top-[18px] left-[18px] inline-flex h-8 items-center rounded-full bg-[#ffffff] px-3 text-[11px] font-semibold tracking-[0.14em] whitespace-nowrap text-[#10224f] uppercase shadow-sm">
+                {t.carComingSoon}
+              </span>
+            </li>,
+          ];
+        })}
         <li>
           {/* We choose the car. The car we would book is marked on its own card above */}
           <button
@@ -1208,7 +1270,11 @@ function Summary({ trip, copy: t, locale, chosen, vehicleAdvise, portal, gallery
   else if (convoy) rows.push([t.reviewVehicle, convoy]);
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip, vehicles);
-  const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
+  // Suggested from the cars that can be booked now: a model coming soon is left out of `vehicles`
+  const advised =
+    trip.vehicle === "advise" && picks.length === 0
+      ? suggestVehicle(FLEET.filter((car) => vehicles.some((offer) => (normalizeVehicleKey(offer.key) ?? offer.key) === car.key)), { pax: trip.pax, bags: trip.bags })
+      : undefined;
   const shown = picks.length > 0 ? vehicleByKey(picks[0].key) : chosen ?? advised;
   const extra = picks[0] ? vehicles.find((item) => item.key === picks[0].key) : undefined;
   const displayName = advised?.name || label || shown?.name || extra?.name || vehicleAdvise;

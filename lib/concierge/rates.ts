@@ -30,7 +30,7 @@ export function publicRateCard(locale: Locale): string {
       const per = locale === "nl" ? "per uur op" : "per hour on";
       return [`${formatCents(rate, locale)} ${per} ${dayWord(day, locale)}`];
     });
-    const minimum = locale === "nl" ? "Minimaal 2 uur." : "Minimum 2 hours.";
+    const minimum = locale === "nl" ? "Minimaal 4 uur." : "Minimum 4 hours.";
     const inclusive = customerHourly(car.key, "public", "weekday") != null;
     const km = kmPerHour(car.key);
     const allowance = inclusive && km != null
@@ -65,8 +65,8 @@ export function namedCarRateReply(message: string, locale: Locale): string | nul
     : "";
   if (locale === "nl") {
     const vat = inclusive ? "De uurtarieven zijn inclusief 9% btw." : "Het totaal van een rit komt van dit tarief; 9% btw en de servicefee komen erbij.";
-    return `${car.name}: ${euro("weekday")} per uur op een weekdag, ${euro("saturday")} op zaterdag en ${euro("sunday")} op zondag. Minimaal 2 uur. ${vat}${allowance}`;
+    return `${car.name}: ${euro("weekday")} per uur op een weekdag, ${euro("saturday")} op zaterdag en ${euro("sunday")} op zondag. Minimaal 4 uur. ${vat}${allowance}`;
   }
   const vat = inclusive ? "These hourly rates include 9% VAT." : "A journey total uses this rate card; 9% BTW / VAT and the service fee are added.";
-  return `${car.name}: ${euro("weekday")} per hour on a weekday, ${euro("saturday")} on Saturday and ${euro("sunday")} on Sunday. The minimum is 2 hours. ${vat}${allowance}`;
+  return `${car.name}: ${euro("weekday")} per hour on a weekday, ${euro("saturday")} on Saturday and ${euro("sunday")} on Sunday. The minimum is 4 hours. ${vat}${allowance}`;
 }

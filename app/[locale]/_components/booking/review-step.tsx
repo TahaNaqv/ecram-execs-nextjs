@@ -7,6 +7,7 @@ const routeEstimates = new Map<string, { meters: number; seconds: number }>();
 import {
   FLEET,
   MAX_GALLERY_IMAGES,
+  normalizeVehicleKey,
   fitConvoy,
   suggestVehicle,
   vehicleByKey,
@@ -707,7 +708,11 @@ export function ReviewStep({
   const activeSingleVehicle = picks.length === 1 ? vehicleByKey(picks[0].key) : undefined;
   const label = selectionLabel(t, trip);
   const mix = previewCars(trip, vehicles);
-  const advised = trip.vehicle === "advise" && picks.length === 0 ? suggestVehicle(FLEET, { pax: trip.pax, bags: trip.bags }) : undefined;
+  // Suggested from the cars that can be booked now: a model coming soon is left out of `vehicles`
+  const advised =
+    trip.vehicle === "advise" && picks.length === 0
+      ? suggestVehicle(FLEET.filter((car) => vehicles.some((offer) => (normalizeVehicleKey(offer.key) ?? offer.key) === car.key)), { pax: trip.pax, bags: trip.bags })
+      : undefined;
   const lead = picks.length > 0 ? vehicleByKey(picks[0].key) : plan?.vehicle ?? activeSingleVehicle ?? propChosen ?? advised;
   const extra = picks[0] ? vehicles.find((item) => item.key === picks[0].key) : undefined;
   const name = advised?.name || label || lead?.name || extra?.name || vehicleAdvise;

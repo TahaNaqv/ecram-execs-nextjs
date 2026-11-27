@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
+import { amsterdamToday } from "@/lib/admin/financials-shared";
 import { LegalText } from "@/lib/legal/legal-text";
 import { pushToast } from "../../_components/action-feedback";
+import { AdminDateField } from "../../_components/admin-fields";
 import { AdminModal } from "../../_components/admin-modal";
 import { EyeIcon } from "../../_components/icons";
 import { btn, field, fieldLabel } from "../../_components/ui";
@@ -14,6 +16,7 @@ type Draft = { id: string | null; version: string; effectiveOn: string; body: st
 
 const DATE = new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "UTC" });
 const showDate = (iso: string) => (iso ? DATE.format(new Date(`${iso}T00:00:00Z`)) : "—");
+const DATE_COPY = { chooseDate: "Choose a date", previousMonth: "Previous month", nextMonth: "Next month" };
 
 function form(entries: Record<string, string>) {
   const data = new FormData();
@@ -38,12 +41,15 @@ export function LegalEditor({ doc, name, versions, publicPath }: { doc: Doc; nam
   const closeViewer = useCallback(() => setViewing(null), []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
+  const dateLabel = doc === "terms" ? "Effective" : "Last updated";
   const unsaved = editing !== null && (saved === null || editing.version !== saved.version || editing.effectiveOn !== saved.effectiveOn || editing.body !== saved.body);
 
   function open(entry: LegalVersionView) {
-    const draft = { id: entry.id, version: entry.version, effectiveOn: entry.status === "draft" ? entry.effectiveOn : "", body: entry.body };
+    // Every version is dated (the client, 27 Nov 2026): a draft without a date yet starts on today
+    const draft = { id: entry.id, version: entry.version, effectiveOn: (entry.status === "draft" && entry.effectiveOn) || amsterdamToday(), body: entry.body };
     setEditing(draft);
-    setSaved(draft);
+    // A date filled in here and not stored yet counts as a change, so Publish saves the date on screen
+    setSaved({ ...draft, effectiveOn: entry.status === "draft" ? entry.effectiveOn : "" });
   }
 
   async function save(): Promise<string | null> {
@@ -141,7 +147,9 @@ export function LegalEditor({ doc, name, versions, publicPath }: { doc: Doc; nam
                       Version {entry.version}
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Draft</span>
                     </p>
-                    <p className="m-0 mt-0.5 text-xs text-zinc-500">Saved {entry.savedAt} · {entry.savedBy}</p>
+                    <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                      {entry.effectiveOn ? `${dateLabel} ${showDate(entry.effectiveOn)} · ` : ""}Saved {entry.savedAt} · {entry.savedBy}
+                    </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <button type="button" disabled={pending} onClick={() => open(entry)} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>
@@ -170,16 +178,15 @@ export function LegalEditor({ doc, name, versions, publicPath }: { doc: Doc; nam
                   className={`${field} h-10`}
                 />
               </label>
-              <label className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5">
                 <span className={fieldLabel}>{doc === "terms" ? "Effective date" : "Last updated"}</span>
-                <input
-                  type="date"
-                  value={editing.effectiveOn}
-                  onChange={(event) => setEditing({ ...editing, effectiveOn: event.target.value })}
-                  className={`${field} h-10`}
-                />
-                <span className="text-xs text-zinc-500">Left empty, it becomes the day you publish.</span>
-              </label>
+                <AdminDateField value={editing.effectiveOn} onChange={(effectiveOn) => setEditing({ ...editing, effectiveOn })} locale="en" copy={DATE_COPY} />
+                <span className="text-xs text-zinc-500">
+                  {doc === "terms"
+                    ? `Printed on the page as “Version ${editing.version || "…"}, effective ${showDate(editing.effectiveOn)}”. It can be a day ahead.`
+                    : `Printed on the page as “Last updated ${showDate(editing.effectiveOn)}”.`}
+                </span>
+              </div>
             </div>
             <label className="flex flex-col gap-1.5">
               <span className={fieldLabel}>Text</span>
@@ -207,7 +214,7 @@ export function LegalEditor({ doc, name, versions, publicPath }: { doc: Doc; nam
               <button type="button" disabled={pending} onClick={() => setViewing({ version: editing.version, body: editing.body, draft: true })} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
                 <EyeIcon size={14} /> Preview
               </button>
-              <button type="button" disabled={pending || !editing.body.trim()} onClick={() => setConfirm({ kind: "publish", entry: null })} className={`${btn.base} ${btn.primary} ${btn.md}`}>
+              <button type="button" disabled={pending || !editing.body.trim() || !editing.effectiveOn} onClick={() => setConfirm({ kind: "publish", entry: null })} className={`${btn.base} ${btn.primary} ${btn.md}`}>
                 Publish to website
               </button>
               <button
@@ -241,6 +248,7 @@ export function LegalEditor({ doc, name, versions, publicPath }: { doc: Doc; nam
                     {entry.current && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Live</span>}
                   </p>
                   <p className="m-0 mt-0.5 text-xs text-zinc-500">
+                    {entry.effectiveOn ? `${dateLabel} ${showDate(entry.effectiveOn)} · ` : ""}
                     {entry.publishedAt ? `Published ${entry.publishedAt} · ${entry.publishedBy}` : `Saved ${entry.savedAt} · ${entry.savedBy}`}
                     {doc === "terms" && entry.bookings > 0 ? ` · ${entry.bookings === 1 ? "1 booking" : `${entry.bookings} bookings`}` : ""}
                   </p>
@@ -290,7 +298,7 @@ export function LegalEditor({ doc, name, versions, publicPath }: { doc: Doc; nam
           <>
             <p className="m-0 text-sm text-zinc-700">
               {confirm.kind === "publish"
-                ? `The website shows this text straight away${doc === "terms" ? ", and new bookings agree to this version" : ""}.`
+                ? `The website shows this text straight away, dated ${showDate(editing?.effectiveOn ?? "")} (${doc === "terms" ? "effective date" : "last updated"})${doc === "terms" ? ", and new bookings agree to this version" : ""}.`
                 : confirm.entry?.current
                   ? `This is the live version. The website goes back to the version published before it. This cannot be undone.`
                   : "This cannot be undone."}

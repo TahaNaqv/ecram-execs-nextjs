@@ -42,6 +42,7 @@ export async function saveLegalDraft(formData: FormData): Promise<SettingsResult
   if (!body) return { error: "The text cannot be empty." };
   if (body.length > MAX_LENGTH) return { error: "The text is too long." };
   if (effectiveOn === undefined) return { error: "The date is not a valid date." };
+  if (effectiveOn === null) return { error: "Choose the date for this version." };
 
   const result = await db.transaction(async (tx) => {
     await tx.execute(lock(doc));

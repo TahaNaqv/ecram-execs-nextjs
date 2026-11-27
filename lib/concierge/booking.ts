@@ -3,6 +3,7 @@ import { capacityProblem, tripFields, emptyTrip, MAX_BAGS, MAX_PASSENGERS, MAX_S
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
 import { bagCapacity, FLEET, VEHICLE_CHOICES, normalizeVehicleKey, suggestVehicle, switchedOffKeys } from "@/lib/fleet/vehicles";
+import { comingSoon } from "@/lib/fleet/catalog";
 import type { Locale } from "@/lib/i18n/config";
 import { cleanPhoneInput } from "@/lib/phone";
 import { plain } from "./plain";
@@ -273,16 +274,18 @@ export function todayLabel() {
 }
 
 /**
- * The cars the team has switched off, which the booking form does not offer (the same rule as /api/vehicles/unavailable).
- * If the table cannot be read nothing is hidden, as there.
+ * The cars the team has switched off, which the booking form does not offer (the same rule as /api/vehicles/unavailable),
+ * and the models coming soon (shown greyed out there, lib/fleet/catalog.ts comingSoon). If the table cannot be read no
+ * switched-off car is hidden, as there.
  */
 export async function unavailableVehicleKeys(): Promise<ReadonlySet<string>> {
+  const soon = Object.keys(await comingSoon());
   try {
     const rows = await db.select({ id: vehicles.id, modelKey: vehicles.modelKey, status: vehicles.status }).from(vehicles);
-    return new Set(switchedOffKeys(rows));
+    return new Set([...switchedOffKeys(rows), ...soon]);
   } catch (error) {
     console.error("Failed to read vehicle availability:", error);
-    return new Set();
+    return new Set(soon);
   }
 }
 

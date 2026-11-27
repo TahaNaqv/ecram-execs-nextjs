@@ -2,7 +2,7 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { bagCapacity, FLEET, normalizeVehicleKey, vehicleModel, type OfferedVehicle } from "@/lib/fleet/vehicles";
+import { bagCapacity, FLEET, normalizeVehicleKey, VEHICLE_KEYS, vehicleModel, type OfferedVehicle } from "@/lib/fleet/vehicles";
 import type { DayKind } from "@/lib/pricing/rates";
 
 /** Tagged so an admin edit can refresh the public fleet without rebuilding the site. */
@@ -65,8 +65,50 @@ async function listedRows(): Promise<CatalogRow[]> {
   }
 }
 
+/**
+ * Models shown but not yet bookable, with when they are expected ("Q2 2027"), the client 27 Nov 2026: the booking form shows
+ * them greyed out and the server refuses them. The team switches a model between "coming soon" and bookable on the
+ * vehicles page (app_settings "coming_soon"); until it is first saved, the `expected` printed in lib/fleet/vehicles.ts applies.
+ */
+export type ComingSoon = Record<string, string>;
+export const COMING_SOON_KEY = "coming_soon";
+export const MAX_EXPECTED_LENGTH = 40;
+
+export const PRINTED_COMING_SOON: ComingSoon = Object.fromEntries(FLEET.flatMap((vehicle) => (vehicle.expected ? [[vehicle.key, vehicle.expected]] : [])));
+
+/** Only printed models, each with a short wording; anything else stored is ignored. */
+export function cleanComingSoon(value: unknown): ComingSoon {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const clean: ComingSoon = {};
+  for (const [key, expected] of Object.entries(value as Record<string, unknown>)) {
+    if (!(VEHICLE_KEYS as readonly string[]).includes(key) || typeof expected !== "string") continue;
+    const text = expected.trim().replace(/\s+/g, " ").slice(0, MAX_EXPECTED_LENGTH);
+    if (text) clean[key] = text;
+  }
+  return clean;
+}
+
+async function readComingSoon(): Promise<ComingSoon> {
+  "use cache";
+  cacheTag(FLEET_CACHE_TAG);
+  cacheLife("hours");
+  const [row] = await db.select({ value: schema.appSettings.value }).from(schema.appSettings).where(eq(schema.appSettings.key, COMING_SOON_KEY)).limit(1);
+  return row ? cleanComingSoon(row.value) : PRINTED_COMING_SOON;
+}
+
+/** The models not bookable yet. If the setting cannot be read, the printed default holds (a car is never opened by an error). */
+export async function comingSoon(): Promise<ComingSoon> {
+  try {
+    return await readComingSoon();
+  } catch (error) {
+    console.error("[fleet] coming-soon models could not be read", error);
+    return PRINTED_COMING_SOON;
+  }
+}
+
 /** The printed fleet, plus vehicles an admin has listed. A listed car whose name matches a printed model updates that model's photographs. */
 export async function bookableFleet(): Promise<OfferedVehicle[]> {
+  const soon = await comingSoon();
   const offers: OfferedVehicle[] = FLEET.map((vehicle) => ({
     key: vehicle.key,
     name: vehicle.name,
@@ -74,6 +116,7 @@ export async function bookableFleet(): Promise<OfferedVehicle[]> {
     seats: vehicle.specs?.passengers ?? null,
     bags: bagCapacity(vehicle),
     rates: null,
+    expected: soon[vehicle.key] ?? null,
   }));
   for (const row of await listedRows()) {
     const known = vehicleModel(row);
@@ -114,10 +157,12 @@ export async function customRates(): Promise<CustomRates> {
   return rates;
 }
 
-/** Custom keys in a booking that are not a listed, available vehicle. */
+/** Keys in a booking that cannot be booked: a custom key that is not a listed, available vehicle, or a model coming soon. */
 export async function unknownFleetKeys(keys: string[]): Promise<string[]> {
+  const soon = await comingSoon();
+  const notYet = keys.filter((key) => key && soon[normalizeVehicleKey(key) ?? ""]);
   const custom = keys.filter((key) => key && key !== "advise" && !normalizeVehicleKey(key));
-  if (custom.length === 0) return [];
+  if (custom.length === 0) return notYet;
   const known = new Set((await listedRows()).filter((row) => row.status === "available").map((row) => row.id));
-  return custom.filter((key) => !known.has(key));
+  return [...notYet, ...custom.filter((key) => !known.has(key))];
 }
