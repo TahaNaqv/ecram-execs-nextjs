@@ -56,3 +56,6 @@ next-env.d.ts
 
 # Local preview config (machine-specific)
 .claude/launch.json
+
+# Brand kit handed out to partners: logos, palette sheet (generated, not part of the site)
+/brand-kit/

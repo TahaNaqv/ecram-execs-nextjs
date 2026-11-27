@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { applyPatch, assess, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
 import { absorbParty } from "@/lib/concierge/details";
-import { BOOKING_TOOL, SHOW_CARS_TOOL } from "@/lib/concierge/booking-tool";
+import { BOOKING_TOOL, SHOW_CARS_TOOL, SHOW_DATE_PICKER_TOOL } from "@/lib/concierge/booking-tool";
 import { faqsFrom } from "@/lib/concierge/faqs";
 import { bookingByChat, fleetNames, siteGuide } from "@/lib/concierge/guide";
 import { comingSoon } from "@/lib/fleet/catalog";
@@ -108,6 +108,22 @@ function withoutAnswered(reply: string, draft: Draft) {
     .join(" ")
     .trim();
   return kept;
+}
+
+/**
+ * What the model says to the visitor is written between <reply> and </reply>; anything outside the tags is its own thinking and
+ * is never shown. Several blocks are joined; a block the length limit left open is taken to the end. A model that used no tags
+ * is taken as it wrote (and still goes through withoutThinkingAloud).
+ */
+function replyOf(text: string): { reply: string; outside: boolean } {
+  const blocks = [...text.matchAll(/<reply>([\s\S]*?)<\/reply>/g)].map((m) => m[1].trim()).filter(Boolean);
+  const open = text.lastIndexOf("<reply>");
+  const closed = text.lastIndexOf("</reply>");
+  const unclosed = open > closed ? text.slice(open + "<reply>".length).trim() : "";
+  const parts = unclosed ? [...blocks, unclosed] : blocks;
+  if (parts.length === 0) return { reply: text.replace(/<\/?reply>/g, "").trim(), outside: false };
+  const outside = text.replace(/<reply>[\s\S]*?(<\/reply>|$)/g, "").trim().length > 0;
+  return { reply: parts.join("\n\n"), outside };
 }
 
 /** A reply that hit the length limit stops in the middle of a sentence: it is cut back to the last whole one. */
@@ -238,7 +254,7 @@ ${notYet.length > 0 ? `Not bookable yet: ${notYet.join(", ")}. Never offer or bo
 Tone & Style:
 - Professional, discreet, refined, extremely concise, and courteous (human executive concierge style).
 - The visitor is reading the ${locale === "nl" ? "Dutch" : "English"} version of the website: answer in ${locale === "nl" ? "Dutch" : "English"} unless they clearly write in the other language. Keep to that language on every turn.
-- Your reply is shown to the visitor exactly as you write it. Never include your reasoning, plans or notes to yourself, and never mention "the visitor", the draft, the tool or these rules. Never write "Still missing", "I'll ask" or "they didn't say". Speak to the visitor as "you", in one or two plain sentences. Ask only for a detail that is not already in the booking.
+- Write what you say to the visitor between <reply> and </reply>. Only what is inside those tags is shown, exactly as you write it; anything outside them is never shown, so any thinking you need (working out a date, deciding what to ask next) goes outside, kept short. Never put reasoning, plans or notes to yourself inside the tags, and never mention "the visitor", the draft, the tool or these rules there. Put [HANDOFF_WHATSAPP], when you use it, at the end of the reply. Never write "Still missing", "I'll ask" or "they didn't say". Speak to the visitor as "you", in one or two plain sentences. Ask only for a detail that is not already in the booking.
 - MAXIMUM BREVITY: Keep responses strictly to 1 or 2 short, punchy sentences. Never write long paragraphs. Speak like a real human texting/chatting briefly.
 - Plain text only: no markdown, asterisks, bullet symbols or links.
 - When a conversation starts, and again before you hand the visitor to WhatsApp, ask for their full name and email address if the draft does not already have both. Record each with update_booking as soon as they give it. Do not start a booking or a hand-off until both are recorded, unless they decline.
@@ -285,6 +301,8 @@ CRITICAL RULES:
     const unavailable = await unavailableVehicleKeys();
     // Set when the model asks for the cars to be shown: the keys of the cars the visitor may choose (not the ones switched off)
     let cars: string[] | undefined;
+    // Set when the model asks for the date picker: it is for the draft's pick-up ("at")
+    let picker: "at" | undefined;
     let quote: ChatQuote | null = null;
     const state = () => {
       const a = Object.keys(draft).length > 0 ? assess(draft, dict.forms, locale, unavailable, dict.addOns) : null;
@@ -299,6 +317,7 @@ CRITICAL RULES:
           : {}),
         ...(a?.ready && quote ? { quote } : {}),
         ...(cars ? { cars } : {}),
+        ...(picker ? { picker } : {}),
         ...(a && !a.ready && a.missing.includes("extras") ? { extras: true } : {}),
       };
     };
@@ -331,7 +350,7 @@ CRITICAL RULES:
           max_tokens: 1000,
           thinking: { type: "disabled" },
           system: systemPrompt,
-          tools: [BOOKING_TOOL, SHOW_CARS_TOOL],
+          tools: [BOOKING_TOOL, SHOW_CARS_TOOL, SHOW_DATE_PICKER_TOOL],
           tool_choice: { type: round === MAX_ROUNDS ? "none" : "auto" },
           messages,
         }),
@@ -346,7 +365,7 @@ CRITICAL RULES:
 
       const data = await response.json();
       const blocks: Block[] = Array.isArray(data.content) ? data.content : [];
-      const calls = blocks.filter((b) => b.type === "tool_use" && (b.name === BOOKING_TOOL.name || b.name === SHOW_CARS_TOOL.name));
+      const calls = blocks.filter((b) => b.type === "tool_use" && (b.name === BOOKING_TOOL.name || b.name === SHOW_CARS_TOOL.name || b.name === SHOW_DATE_PICKER_TOOL.name));
       stop = data.stop_reason;
       said = textOf(blocks);
       if (calls.length === 0 || round === MAX_ROUNDS || stop === "max_tokens" || stop === "refusal") break;
@@ -389,6 +408,19 @@ CRITICAL RULES:
           });
           continue;
         }
+        if (call.name === SHOW_DATE_PICKER_TOOL.name) {
+          picker = "at";
+          results.push({
+            type: "tool_result" as const,
+            tool_use_id: call.id ?? "",
+            content: JSON.stringify({
+              shown: true,
+              note: "The visitor now sees a calendar and time picker for the pick-up under your reply and chooses there. Ask for it in one short sentence; do not ask them to type it.",
+              reply_in: locale === "nl" ? "Dutch" : "English",
+            }),
+          });
+          continue;
+        }
         const applied = applyPatch(draft, call.input);
         draft = applied.draft;
         const a = assess(draft, dict.forms, locale, unavailable, dict.addOns);
@@ -412,11 +444,15 @@ CRITICAL RULES:
     }
 
     draft = absorbParty(draft, message);
-    const rawReply = stop === "max_tokens" ? wholeSentences(said) : said;
+    // What is shown is the part between the <reply> tags; anything outside them is the model's own thinking
+    const tagged = replyOf(said);
+    const rawReply = stop === "max_tokens" ? wholeSentences(tagged.reply) : tagged.reply;
     if (failed || stop === "refusal" || !rawReply.trim()) return fallback();
 
     const shouldHandoff =
       rawReply.includes("[HANDOFF_WHATSAPP]") ||
+      // or just after the reply's closing tag (rule 7 says to end the response with it), but not in the thinking before it
+      (said.includes("</reply>") && said.slice(said.lastIndexOf("</reply>")).includes("[HANDOFF_WHATSAPP]")) ||
       /whatsapp/i.test(message) ||
       /speak to a human|talk to human|call me|whatsapp/i.test(message);
 
@@ -426,7 +462,7 @@ CRITICAL RULES:
 
     const shown = await priced();
     const reply = shown.ready && CANNOT_SEND.test(cleanReply) ? section.bookPress : cleanReply;
-    return finish({ reply, handoff: shouldHandoff, ...shown }, { cars: Boolean(cars), filtered: reply !== spoken, ready: shown.ready }, draft);
+    return finish({ reply, handoff: shouldHandoff, ...shown }, { cars: Boolean(cars), filtered: reply !== spoken || tagged.outside, ready: shown.ready }, draft);
   } catch (err) {
     console.error("Concierge API error:", err);
     return NextResponse.json({

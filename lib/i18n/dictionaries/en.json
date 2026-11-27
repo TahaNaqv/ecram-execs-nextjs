@@ -591,7 +591,10 @@
     "carMessage": "I would like the {car}.",
     "carAnyMessage": "I have no preference for the car.",
     "newChat": "New conversation",
-    "storedNote": "Chats are saved for {days} days, or for a year when they lead to a confirmed booking."
+    "storedNote": "Chats are saved for {days} days, or for a year when they lead to a confirmed booking.",
+    "pickerPickup": "Pick-up date and time",
+    "pickerUse": "Use this date and time",
+    "pickerMessagePickup": "Pick-up: {when}."
   },
   "finalCta": {
     "eyebrow": "TAILORED TO YOUR JOURNEY",

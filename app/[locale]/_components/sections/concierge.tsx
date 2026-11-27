@@ -51,6 +51,7 @@ export async function Concierge() {
               card={card}
               fleetDict={d.fleetSection}
               addOns={d.addOns}
+              dateTimeCopy={d.dateTimePicker}
               privacyHref={localizedPath("/privacy", locale)}
               keepDays={RETENTION.chatDays}
               panelTitle={d.conciergeSection.panelTitle}

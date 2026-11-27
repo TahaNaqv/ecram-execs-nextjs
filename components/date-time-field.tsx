@@ -87,6 +87,8 @@ export function DateTimeField({
   fillCell = false,
   appearance = "site",
   onValueChange,
+  defaultOpen = false,
+  onDone,
 }: {
   id: string;
   name?: string;
@@ -107,6 +109,10 @@ export function DateTimeField({
   /** The public booking popup is navy. The admin form uses the light admin panel instead. */
   appearance?: "site" | "admin";
   onValueChange?: (value: string) => void;
+  /** Shows the calendar as soon as the field appears, without taking the keyboard's focus (a field that is the answer to a question). */
+  defaultOpen?: boolean;
+  /** Called with the date and time when the visitor presses Done in the calendar. */
+  onDone?: (value: string) => void;
 }) {
   const initial = useMemo(() => parseDateTime(defaultValue ?? ""), [defaultValue]);
   const [day, setDay] = useState<Day | null>(initial?.day ?? null);
@@ -124,6 +130,8 @@ export function DateTimeField({
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const focusGrid = useRef(false);
+  // Opened by `defaultOpen` (the answer to a question in the chat) rather than by the visitor
+  const openedByItself = useRef(false);
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   // Nudge left only when a left-aligned card would leave the screen, and cap its height to the room below the field.
@@ -184,7 +192,7 @@ export function DateTimeField({
     setText(nextDay ? display(nextDay, nextTime) : "");
   };
 
-  const openPicker = () => {
+  const openPicker = (focus = true) => {
     const { day: now, time: clockNow } = nowInNetherlands();
     setToday(now);
     setClock(clockNow);
@@ -195,9 +203,18 @@ export function DateTimeField({
     const start = day && !before(day, now) ? day : now;
     setView({ y: start.y, m: start.m });
     setActive(start);
-    focusGrid.current = true;
+    focusGrid.current = focus;
+    openedByItself.current = !focus;
     setOpen(true);
   };
+  // As the answer to a question the calendar is already open, and the visitor's own typing is not interrupted
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!defaultOpen || opened.current) return;
+    opened.current = true;
+    openPicker(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the field first appears
+  }, [defaultOpen]);
   const closePicker = (returnFocus: boolean) => {
     setOpen(false);
     if (returnFocus) input.current?.focus();
@@ -244,7 +261,9 @@ export function DateTimeField({
       const spaceBelow = Math.floor(window.innerHeight - field.bottom - 16);
       if (!lifted && spaceBelow < 320 && field.top > 96) {
         lifted = true;
-        window.scrollTo({ top: Math.max(0, window.scrollY + field.top - 96) });
+        // Opened by itself, the page moves only as far as the calendar needs, so the question above the field stays in view
+        const by = openedByItself.current ? Math.min(field.top - 96, 360 - spaceBelow) : field.top - 96;
+        window.scrollTo({ top: Math.max(0, window.scrollY + by) });
       }
       const room = Math.max(280, Math.floor(window.innerHeight - fieldEl.getBoundingClientRect().bottom - 16));
       const next = { top: Math.round(field.bottom + 6), left: Math.round(left), width: Math.round(width), maxH: room };
@@ -588,7 +607,10 @@ export function DateTimeField({
           </div>
           <button
             type="button"
-            onClick={() => closePicker(true)}
+            onClick={() => {
+              closePicker(true);
+              if (value) onDone?.(value);
+            }}
             className={
               admin
                 ? "mt-1.5 h-9 w-full cursor-pointer rounded-lg border-0 bg-zinc-950 text-[13px] font-semibold text-white [-webkit-text-fill-color:#ffffff] hover:bg-zinc-800"

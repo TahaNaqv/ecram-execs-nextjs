@@ -334,7 +334,7 @@ test("add-ons are asked once the ride and contact details are in, then itemised 
 test("the model can have the cars shown; the server offers only the cars the team has not switched off", async ({ playwright, baseURL }) => {
   model.script.push({ content: [{ type: "tool_use", id: "toolu_cars", name: "show_cars", input: {} }] }, { content: [model.say("Here are our cars.")] });
   const shown = await ask(playwright, baseURL, { message: "which cars do you have?", locale: "en" });
-  expect(model.calls[0].body.tools?.map((t) => t.name)).toEqual(["update_booking", "show_cars"]);
+  expect(model.calls[0].body.tools?.map((t) => t.name)).toEqual(["update_booking", "show_cars", "show_date_picker"]);
   expect(shown.reply).toBe("Here are our cars.");
   expect((shown as unknown as { cars: string[] }).cars).toEqual(FLEET.map((v) => v.key));
   const result = JSON.parse((model.calls[1].body.messages.at(-1)!.content as { content: string }[])[0].content);
@@ -645,4 +645,57 @@ test("a refresh keeps the conversation of that tab; a new conversation starts a 
   await page.reload();
   await expect(log).toContainText("hello again", { timeout: 15_000 });
   await expect(log).not.toContainText("Schiphol for two please");
+});
+
+test("the model can ask for the date picker for the pick-up; nothing is shown unless it asks", async ({ playwright, baseURL }) => {
+  model.script.push({ content: [{ type: "tool_use", id: "toolu_date", name: "show_date_picker", input: {} }] }, { content: [model.say("When would you like to be collected?")] });
+  const pickup = (await ask(playwright, baseURL, { message: "a car please", locale: "en" })) as unknown as { picker?: string };
+  expect(pickup.picker).toBe("at");
+  const result = JSON.parse((model.calls[1].body.messages.at(-1)!.content as { content: string }[])[0].content);
+  expect(result).toMatchObject({ shown: true, reply_in: "English" });
+  // The tool is for the pick-up only: the client takes no return journeys
+  const tool = model.calls[0].body.tools?.find((t) => t.name === "show_date_picker") as { input_schema: { properties: object } } | undefined;
+  expect(tool?.input_schema.properties).toEqual({});
+
+  // Nothing is shown unless the model asks
+  model.reset();
+  expect(((await ask(playwright, baseURL, { message: "hello", locale: "en" })) as unknown as { picker?: string }).picker).toBeUndefined();
+});
+
+test("the calendar comes up in the chat when the pick-up date is asked for; choosing in it is the visitor's answer", async ({ page }) => {
+  test.slow();
+  const day = (offset: number) => amsterdamNow(offset * 24 * 60).slice(0, 10);
+
+  model.script.push({ content: [{ type: "tool_use", id: "toolu_date", name: "show_date_picker", input: {} }] }, { content: [model.say("When would you like to be collected?")] });
+  await page.goto("/en");
+  const box = page.locator("input[name=message]");
+  const log = page.getByRole("log");
+  await box.fill("I need a car from Schiphol to the Hague");
+  await box.press("Enter");
+  await expect(log).toContainText("When would you like to be collected?", { timeout: 15_000 });
+
+  // The calendar is already open, with the question above it, and nothing before today can be chosen
+  const dialog = page.getByRole("dialog", { name: en.dateTimePicker.dialog });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByText(en.conciergeSection.pickerPickup)).toBeVisible();
+  // Yesterday cannot be chosen (its cell is disabled, or it is in last month and not shown at all)
+  if ((await dialog.locator(`[data-day="${day(-1)}"]`).count()) > 0) await expect(dialog.locator(`[data-day="${day(-1)}"]`)).toBeDisabled();
+
+  // Choosing a day and a time (09:00, so AM, then 9 on the 12-hour clock) and pressing Done is the answer
+  const tomorrow = day(1);
+  model.script.push({ content: [model.say("Noted, tomorrow at nine.")] });
+  if ((await dialog.locator(`[data-day="${tomorrow}"]`).count()) === 0) await dialog.getByRole("button", { name: en.dateTimePicker.nextMonth }).click();
+  await dialog.locator(`[data-day="${tomorrow}"]`).click();
+  await dialog.locator('[data-time-part="period"][data-value="AM"]').click();
+  await dialog.locator('[data-time-part="hour"][data-value="9"]').click();
+  await dialog.locator('[data-time-part="minute"][data-value="0"]').click();
+  await dialog.getByRole("button", { name: en.dateTimePicker.done }).click();
+
+  // It is said in the chat as the visitor's own words, and the model gets it in the draft
+  await expect(log).toContainText(en.conciergeSection.pickerMessagePickup.split("{when}")[0], { timeout: 15_000 });
+  await expect(log).toContainText("09:00");
+  await expect(log).toContainText("Noted, tomorrow at nine.", { timeout: 15_000 });
+  expect(String(model.calls.at(-1)!.body.messages[0].content)).toContain(`"at":"${tomorrow}T09:00"`);
+  // The question is gone once answered
+  await expect(page.getByText(en.conciergeSection.pickerPickup)).toHaveCount(0);
 });

@@ -591,7 +591,10 @@
     "carMessage": "Ik wil graag de {car}.",
     "carAnyMessage": "Ik heb geen voorkeur voor de auto.",
     "newChat": "Nieuw gesprek",
-    "storedNote": "Gesprekken worden {days} dagen bewaard, of een jaar als ze tot een bevestigde boeking leiden."
+    "storedNote": "Gesprekken worden {days} dagen bewaard, of een jaar als ze tot een bevestigde boeking leiden.",
+    "pickerPickup": "Datum en tijd van ophalen",
+    "pickerUse": "Gebruik deze datum en tijd",
+    "pickerMessagePickup": "Ophalen: {when}."
   },
   "finalCta": {
     "eyebrow": "AFGESTEMD OP UW RIT",

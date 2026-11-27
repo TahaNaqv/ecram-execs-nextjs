@@ -178,7 +178,40 @@ test("what the model wrote to itself is never shown to the visitor", async ({ pl
   expect(plain.json.reply).toBe(ordinary);
 
   // The rule is in the model's instructions
-  expect(calls[0].body.system).toContain("Never include your reasoning");
+  expect(calls[0].body.system).toContain("Never put reasoning, plans or notes to yourself inside the tags");
+});
+
+test("only what the model writes between the reply tags is shown; its thinking outside them never is", async ({ playwright, baseURL }) => {
+  const say = async (text: string, message = "Can you help?", stop?: string) => {
+    answer = { status: 200, text, stop };
+    return (await ask(playwright, baseURL, { message, locale: "en" })).json;
+  };
+  // The rule is in the instructions
+  await say("Certainly.");
+  expect(calls[0].body.system).toContain("between <reply> and </reply>");
+
+  // Thinking outside the tags is dropped, however it is worded
+  expect((await say("Tomorrow is Tuesday. The date is 27 October. <reply>Certainly. Where would you like to be collected?</reply>")).reply).toBe("Certainly. Where would you like to be collected?");
+  // Several blocks are joined, and nothing between them is kept (the answered-question filter then runs them on as one paragraph)
+  expect((await say("<reply>Good day.</reply> now I will ask about luggage <reply>How many large bags?</reply>")).reply).toBe("Good day. How many large bags?");
+  // A reply the length limit left open is taken to its last whole sentence
+  expect((await say("thinking <reply>Noted. Your pick-up is tomorrow. And the retu", "Can you help?", "max_tokens")).reply).toBe("Noted. Your pick-up is tomorrow.");
+  // The hand-over token counts inside the reply or just after it, and is not shown
+  const handoff = await say("<reply>Our team will help you on WhatsApp.</reply> [HANDOFF_WHATSAPP]");
+  expect(handoff.reply).toBe("Our team will help you on WhatsApp.");
+  expect(handoff.handoff).toBe(true);
+  const inside = await say("<reply>Our team will help you on WhatsApp. [HANDOFF_WHATSAPP]</reply>");
+  expect(inside.reply).toBe("Our team will help you on WhatsApp.");
+  expect(inside.handoff).toBe(true);
+  // A mention in its thinking before the reply is not a hand-over
+  const thought = await say("No need for [HANDOFF_WHATSAPP] here. <reply>Certainly, where to?</reply>");
+  expect(thought.reply).toBe("Certainly, where to?");
+  expect(thought.handoff).toBe(false);
+  // Reasoning written inside the tags is still caught by the sentence filter, and a reply with no tags at all is shown as it is
+  expect((await say("<reply>The visitor wants a car. Certainly, where to?</reply>")).reply).toBe("Certainly, where to?");
+  expect((await say("Certainly, where to?")).reply).toBe("Certainly, where to?");
+  // Nothing inside the tags: the matching stored answer, not the thinking
+  expect((await say("The visitor wants to know the price. <reply></reply>", "How much does a journey cost?")).reply).toBe(en.conciergeSection.faq15A);
 });
 
 test("when the model is down, the visitor still gets the answer to how to book, in English too", async ({ playwright, baseURL }) => {

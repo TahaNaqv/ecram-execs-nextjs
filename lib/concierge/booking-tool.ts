@@ -86,3 +86,16 @@ export const SHOW_CARS_TOOL = {
     "Do not list or describe the cars in words when you use it.",
   input_schema: { type: "object", additionalProperties: false, properties: {} },
 } as const;
+
+/**
+ * The third tool: the visitor is shown a calendar and time picker in the chat for the pick-up, and chooses there instead of
+ * typing. The date and time chosen arrive as the visitor's message and in the booking draft. Pick-up only: the client takes
+ * no return journeys (lib/concierge/booking.ts).
+ */
+export const SHOW_DATE_PICKER_TOOL = {
+  name: "show_date_picker",
+  description:
+    "Show the visitor a calendar and time picker under your reply, to choose the pick-up date and time. " +
+    "Use it every time you ask for the pick-up date and time, instead of asking them to type it. They may still type a date and time in their own words: accept that too.",
+  input_schema: { type: "object", additionalProperties: false, properties: {} },
+} as const;

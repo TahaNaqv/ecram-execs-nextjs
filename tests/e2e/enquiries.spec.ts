@@ -55,12 +55,14 @@ test.beforeEach(async () => {
   await db.end();
 });
 
-test("the menu lists Enquiries between the dashboard and the requests", async ({ page }) => {
+test("the menu lists Enquiries between the dashboard and the requests, with no counter beside it", async ({ page }) => {
+  // An enquiry is waiting, and the menu still shows only the word
+  await seedBooking({ contactId: null, email: newEmail("menu-counter"), status: "new" });
   await signIn(page);
   const menu = page.getByRole("navigation", { name: en.admin.nav.sectionsLabel });
   const labels = await menu.getByRole("link").allInnerTexts();
   expect(labels[0]).toContain(en.admin.nav.dashboard);
-  expect(labels[1]).toContain(en.admin.nav.enquiries);
+  expect(labels[1].trim()).toBe(en.admin.nav.enquiries);
   expect(labels[2]).toContain(en.admin.nav.requests);
   await menu.getByRole("link", { name: new RegExp(`^${en.admin.nav.enquiries}`) }).click();
   await expect(page).toHaveURL(/\/admin\/enquiries$/);

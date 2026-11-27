@@ -170,13 +170,3 @@ function summarise(queue: Queue, all: Row[], nowMs: number): QueueSummary {
     answered: answered.sort((a, b) => b.respondedMs - a.respondedMs).slice(0, 5),
   };
 }
-
-/** The number of enquiries waiting for a first answer, for the menu. */
-export const waitingEnquiries = cache(async () => {
-  await requireAdmin();
-  const [row] = Array.from(
-    await db.execute<{ n: number }>(sql`
-      select count(*)::int as n from quote_requests where status = 'new' and source in ('website', 'website-bespoke', 'website-corporate', 'portal', 'admin')`),
-  );
-  return row?.n ?? 0;
-});

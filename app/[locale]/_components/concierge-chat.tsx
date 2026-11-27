@@ -8,9 +8,11 @@ import { submitQuote } from "@/lib/quotes/actions";
 import { markBookingSent } from "./booking/sent";
 import { capacityProblem } from "./booking/trip";
 import type { FleetDictionary } from "./booking/vehicle-details";
+import type { DateTimeCopy } from "@/components/date-time-field";
 import { CarCarousel } from "./concierge-cars";
 import { ExtrasCarousel } from "./concierge-extras";
 import { extrasLine, type ExtraNames, type ExtraPick } from "@/lib/pricing/extras";
+import { DatePrompt } from "./concierge-date";
 import type { Locale } from "@/lib/i18n/config";
 
 type Message = {
@@ -23,6 +25,8 @@ type Message = {
   extras?: boolean;
   /** The sent booking's own page, where its review is followed (the private link) */
   link?: string;
+  /** A date and time picker for the pick-up under this message */
+  picker?: "at";
 };
 
 
@@ -55,6 +59,9 @@ type Copy = {
   carAnyMessage: string;
   newChat: string;
   storedNote: string;
+  pickerPickup: string;
+  pickerUse: string;
+  pickerMessagePickup: string;
   faqLabel: string;
   inputLabel: string;
   inputPlaceholder: string;
@@ -184,7 +191,7 @@ function WhatsAppIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns, privacyHref, keepDays, panelTitle, panelSubtitle }: { copy: Copy; locale: string; card: CardCopy; fleetDict: FleetDictionary; addOns: ExtraNames; privacyHref: string; keepDays: number; panelTitle: string; panelSubtitle: string }) {
+export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns, dateTimeCopy, privacyHref, keepDays, panelTitle, panelSubtitle }: { copy: Copy; locale: string; card: CardCopy; fleetDict: FleetDictionary; addOns: ExtraNames; dateTimeCopy: DateTimeCopy; privacyHref: string; keepDays: number; panelTitle: string; panelSubtitle: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       from: "agent",
@@ -325,6 +332,7 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
           handoff: data.handoff ?? false,
           cars: Array.isArray(data.cars) && data.cars.length > 0 ? data.cars : undefined,
           extras: data.extras === true,
+          picker: data.picker === "at" ? "at" : undefined,
         },
       ]);
     } catch {
@@ -380,6 +388,22 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
     sendMessage(line ?? cardCopy.extrasSkip, next);
   }
 
+  /** The visitor chooses a date and time in the calendar: it goes into the draft and is said in the chat as their own words. */
+  function chooseDate(value: string) {
+    const when = new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC", // the date and time are read as they are written: Netherlands time, whatever zone this browser is in
+    }).format(new Date(`${value}:00Z`));
+    const next = { ...draft, at: value };
+    setDraft(next);
+    sendMessage(interpolate(copy.pickerMessagePickup, { when }), next);
+  }
+
   /** The visitor picks a car in the carousel: it goes into the draft and is said in the chat as their own words. */
   function chooseCar(choice: string, name: string | null) {
     const pax = typeof draft.passengers === "number" ? draft.passengers : 1;
@@ -432,7 +456,6 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
   const lastCars = messages.map((m) => Boolean(m.cars)).lastIndexOf(true);
   const lastExtras = messages.map((m) => Boolean(m.extras)).lastIndexOf(true);
   const extrasOpen = draft.extras === undefined;
-
   return (
     <div className="flex flex-col flex-1 min-h-[460px] max-h-[560px]">
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-b-ink-600 bg-[linear-gradient(180deg,var(--color-ink-800),var(--color-ink-900))] px-[22px] py-4">
@@ -562,6 +585,16 @@ export function ConciergeChat({ copy, locale, card: cardCopy, fleetDict, addOns,
                       next: copy.carNext,
                       slide: copy.carSlide,
                     }}
+                  />
+                </div>
+              )}
+              {/* A date and time to choose: only under the last message of the chat, so it is gone once the visitor has answered */}
+              {m.picker && i === messages.length - 1 && !waiting && (
+                <div className="self-stretch">
+                  <DatePrompt
+                    locale={locale}
+                    onChoose={chooseDate}
+                    copy={{ label: copy.pickerPickup, use: copy.pickerUse, picker: dateTimeCopy }}
                   />
                 </div>
               )}

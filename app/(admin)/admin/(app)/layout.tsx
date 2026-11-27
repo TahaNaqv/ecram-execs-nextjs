@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { canOpenAdminPath, hiddenAdminHrefs } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { applicationCounts } from "@/lib/admin/applications";
-import { waitingEnquiries } from "@/lib/admin/sla";
 import { logout } from "../actions";
 import { AdminChrome } from "../_components/admin-nav";
 import { adminDictionary } from "@/lib/i18n/get-dictionary";
@@ -47,11 +46,6 @@ async function Chrome() {
         hidden={hidden}
         copy={{ ...t.nav, openMenu: t.common.openMenu, closeMenu: t.common.closeMenu }}
         badges={{
-          "/admin/enquiries": (
-            <Suspense fallback={null}>
-              <WaitingEnquiriesBadge />
-            </Suspense>
-          ),
           "/admin/drivers/applications": (
             <Suspense fallback={null}>
               <NewApplicationsBadge />
@@ -74,24 +68,6 @@ function ChromeFallback() {
       <div className="sticky top-0 z-30 h-14 border-b border-zinc-800 bg-zinc-950 lg:hidden" />
       <div className="fixed inset-y-0 left-0 hidden w-64 bg-zinc-950 lg:block" />
     </>
-  );
-}
-
-/** Enquiries from the website still waiting for a first answer: the number beside Enquiries in the menu. */
-async function WaitingEnquiriesBadge() {
-  let waiting = 0;
-  try {
-    waiting = await waitingEnquiries();
-  } catch (error) {
-    rethrowControlFlow(error);
-    logServerError("admin", error, { surface: "enquiries-badge" });
-    return null;
-  }
-  if (!waiting) return null;
-  return (
-    <span className="rounded-full bg-white px-1.5 py-px text-[11px] font-semibold tabular-nums text-zinc-950" title={`${waiting} new`}>
-      {waiting}
-    </span>
   );
 }
 
