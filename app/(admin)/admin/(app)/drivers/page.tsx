@@ -46,6 +46,8 @@ export default async function DriversPage({ searchParams }: PageProps<"/admin/dr
       name: driver.name,
       phone: driver.phone,
       partner: driver.partner,
+      status: driver.status,
+      nextDue: driver.nextDue ? { key: driver.nextDue.key, date: driver.nextDue.date, tier: driver.nextDue.tier } : null,
       onShift: Boolean(driver.shiftStartedAt),
       startedAt: driver.shiftStartedAt ? driver.shiftStartedAt.toISOString() : null,
       vehicleLabel: links.map((row) => row.vehicleLabel).join(", ") || null,
@@ -79,7 +81,11 @@ export default async function DriversPage({ searchParams }: PageProps<"/admin/dr
       locale={locale}
       rows={rows}
       archived={archived.map((driver) => ({ id: driver.id, name: driver.name, phone: driver.phone }))}
-      drivers={board.drivers}
+      drivers={board.drivers.map((person) => {
+        // The link form says who cannot be linked yet; the server refuses them either way
+        const status = [...onShift, ...offShift].find((row) => row.id === person.id)?.status ?? "pending";
+        return status === "active" ? person : { ...person, name: `${person.name} (${status === "suspended" ? dict.driverProfile.statusSuspended : dict.driverProfile.statusPending})` };
+      })}
       vehicles={board.vehicles}
       links={links}
       adminLocale={who?.locale === "nl" ? "nl" : "en"}

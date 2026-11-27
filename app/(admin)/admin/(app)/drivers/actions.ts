@@ -8,8 +8,10 @@ import { db, schema } from "@/lib/db";
 import { SHIFT_CAP_MS } from "@/lib/drivers/shifts";
 import { amsterdamWallToUtc } from "@/lib/drivers/time";
 import { digitsOnly, phoneLengthOk } from "@/lib/phone";
+import { COMPLIANCE_LABELS } from "@/lib/drivers/compliance";
+import { checkDispatch, dispatchMessage } from "@/lib/drivers/dispatch";
 
-const { drivers, driverShifts, driverAssignments, driverBreakBlocks, vehicles } = schema;
+const { drivers, driverShifts, driverAssignments, driverBreakBlocks } = schema;
 
 const addSchema = z
   .object({
@@ -34,16 +36,6 @@ export async function addDriver(_prev: AddDriverState, formData: FormData): Prom
   await db.insert(drivers).values(parsed.data);
   refresh();
   return { ok: true };
-}
-
-export async function updateDriver(formData: FormData) {
-  await requireArea("/admin/drivers");
-  const id = driverId(formData);
-  if (!id.success) return;
-  const parsed = addSchema.safeParse({ name: formData.get("name") ?? "", phone: formData.get("phone") ?? "", phoneCountry: "31" });
-  if (!parsed.success) return;
-  await db.update(drivers).set(parsed.data).where(eq(drivers.id, id.data));
-  refresh();
 }
 
 const driverId = (formData: FormData) => z.uuid().safeParse(formData.get("driverId"));
@@ -118,13 +110,12 @@ export async function assignDriverVehicle(formData: FormData): Promise<{ ok: tru
   // A link that has already ended is no use to plan with
   if (end.getTime() <= Date.now()) return { error: "This time has already passed." };
   const notes = String(formData.get("notes") ?? "").trim().slice(0, 500) || null;
-  const [car] = await db.select({ id: vehicles.id }).from(vehicles).where(eq(vehicles.id, vehicle.data)).limit(1);
-  const [person] = await db.select({ id: drivers.id }).from(drivers).where(and(eq(drivers.id, driver.data), eq(drivers.active, true))).limit(1);
-  if (!car) return { error: "That vehicle no longer exists." };
-  if (!person) return { error: "That driver is archived or no longer exists." };
   // One check and save at a time, so two people linking the same car at once cannot both pass the check
   const clash = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('driver-assignments'))`);
+    // The dispatch guardrails (the client, 28 Nov 2026): valid documents, the eSprinter and the trailer licences
+    const blocked = await checkDispatch(tx, driver.data, vehicle.data, start, end);
+    if (blocked) return { kind: "blocked" as const, blocked };
     const [taken] = await tx
       .select({ driverId: driverAssignments.driverId, vehicleId: driverAssignments.vehicleId, driverName: drivers.name })
       .from(driverAssignments)
@@ -136,7 +127,7 @@ export async function assignDriverVehicle(formData: FormData): Promise<{ ok: tru
         ),
       )
       .limit(1);
-    if (taken) return taken;
+    if (taken) return { kind: "taken" as const, taken };
     await tx.insert(driverAssignments).values({
       driverId: driver.data,
       vehicleId: vehicle.data,
@@ -147,9 +138,11 @@ export async function assignDriverVehicle(formData: FormData): Promise<{ ok: tru
     });
     return null;
   });
+  if (clash?.kind === "blocked") return { error: dispatchMessage(clash.blocked, COMPLIANCE_LABELS) };
   if (clash) {
-    return clash.vehicleId === vehicle.data && clash.driverId !== driver.data
-      ? { error: `This vehicle is already linked to ${clash.driverName} at that time.` }
+    const taken = clash.taken;
+    return taken.vehicleId === vehicle.data && taken.driverId !== driver.data
+      ? { error: `This vehicle is already linked to ${taken.driverName} at that time.` }
       : { error: "This driver is already linked to a vehicle at that time." };
   }
   refreshDrivers();

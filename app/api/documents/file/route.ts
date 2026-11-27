@@ -18,11 +18,13 @@ export async function GET(request: Request) {
   if (!bytes) return new Response("Not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
 
   const ext = extensionOf(claim.path);
+  // A driver's photo may be shown in the admin as a picture; a JPG or PNG cannot run script. Everything else is a download.
+  const inline = ext !== "pdf" && new URL(request.url).searchParams.get("inline") === "1";
   return new Response(new Uint8Array(bytes), {
     headers: {
       "Content-Type": CONTENT_TYPES[ext],
       // A download, not a page: a stored PDF is applicant-supplied and must not run in the same origin as the admin panel
-      "Content-Disposition": `attachment; filename="${claim.path.split("/")[1]}"`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${claim.path.split("/")[1]}"`,
       "Content-Length": String(bytes.length),
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, no-store",

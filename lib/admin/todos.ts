@@ -5,6 +5,9 @@ import { db, schema } from "@/lib/db";
 import { STOCKED_EXTRA_KEYS } from "@/lib/pricing/extras";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
 import { invoiceWorkflows } from "@/lib/moneybird/client";
+import { COMPLIANCE_LABELS, driverCompliance } from "@/lib/drivers/compliance";
+import { complianceColumns, ownVehiclesByDriver } from "@/lib/drivers/dispatch";
+import { amsterdamToday } from "@/lib/drivers/time";
 
 export type TodoItem = { href: string; title: string; detail: string };
 
@@ -21,14 +24,23 @@ export async function operationsTodos(): Promise<TodoItem[]> {
   const horizon = soon();
   const items: TodoItem[] = [];
 
-  const licences = await db
-    .select({ name: schema.drivers.name, taxipas: schema.drivers.taxipasExpiry, vog: schema.drivers.vogExpiry })
-    .from(schema.drivers)
-    .where(and(eq(schema.drivers.active, true), sql`${schema.drivers.taxipasExpiry} <= ${horizon} or ${schema.drivers.vogExpiry} <= ${horizon}`))
-    .limit(8);
-  for (const row of licences) {
-    items.push({ href: "/admin/drivers", title: `Licence due: ${row.name}`, detail: `Chauffeur card ${row.taxipas ?? "—"} · VOG ${row.vog ?? "—"}` });
+  // Driver documents (lib/drivers/compliance.ts): expired ones suspend the driver, the rest show 60, 30 and 7 days ahead
+  const people = await db.select(complianceColumns).from(schema.drivers).where(eq(schema.drivers.active, true));
+  const own = await ownVehiclesByDriver(people.map((p) => p.id));
+  const amsterdam = amsterdamToday();
+  const driverTodos: (TodoItem & { rank: number })[] = [];
+  const label = (e: { key: string; vehicleLabel?: string }) => `${COMPLIANCE_LABELS[e.key as keyof typeof COMPLIANCE_LABELS] ?? e.key}${e.vehicleLabel ? ` (${e.vehicleLabel})` : ""}`;
+  for (const person of people) {
+    const standing = driverCompliance(person, own.get(person.id) ?? [], amsterdam);
+    if (standing.expired.length > 0) {
+      driverTodos.push({ rank: -1, href: `/admin/drivers/${person.id}`, title: `Driver suspended: ${person.name}`, detail: standing.expired.map((e) => `${label(e)} expired ${e.date}`).join(" · ") });
+    } else if (standing.dueSoon.length > 0) {
+      driverTodos.push({ rank: standing.dueSoon[0].days, href: `/admin/drivers/${person.id}`, title: `Licence due: ${person.name}`, detail: standing.dueSoon.map((e) => `${label(e)} ${e.date} (${e.days} days)`).join(" · ") });
+    }
   }
+  // Suspended first, then the nearest expiry
+  driverTodos.sort((a, b) => a.rank - b.rank);
+  for (const item of driverTodos.slice(0, 8)) items.push({ href: item.href, title: item.title, detail: item.detail });
 
   const cars = await db
     .select({ name: schema.vehicles.name, plate: schema.vehicles.licensePlate, apk: schema.vehicles.apkExpiry, insurance: schema.vehicles.insuranceExpiry })

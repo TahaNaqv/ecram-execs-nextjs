@@ -484,11 +484,119 @@ export const drivers = pgTable("drivers", {
   partner: boolean("partner").notNull().default(false),
   vehicle: text("vehicle"),
   active: boolean("active").notNull().default(true),
+  /** The Kiwa Chauffeurskaart's expiry (named after the old "taxipas"). */
   taxipasExpiry: date("taxipas_expiry"),
+  /** No longer used: the VOG is judged by its issue date and verification (vogIssuedOn, vogVerified). */
   vogExpiry: date("vog_expiry"),
+  /** A freelancer's taxi and passenger insurance (Taxiverzekering + SVI). */
   insuranceExpiry: date("insurance_expiry"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  // ── Driver profile (the client, 28 Nov 2026; lib/drivers/compliance.ts judges it) ──
+  email: text("email"),
+  address: text("address"),
+  dateOfBirth: date("date_of_birth"),
+  emergencyName: text("emergency_name"),
+  emergencyPhone: text("emergency_phone"),
+  /** agency: drives our cars, through a supplier agency. freelance: a ZZP driver with their own car. */
+  driverType: text("driver_type").notNull().default("agency"),
+  /** What the team set. Expired documents suspend the driver on top of this, and missing details keep them pending. */
+  accountStatus: text("account_status").notNull().default("pending"),
+  statusNote: text("status_note"),
+  languages: jsonb("languages").$type<string[]>().notNull().default([]),
+  bio: text("bio"),
+  /** Security / defensive driving training, for close protection jobs. */
+  securityTrained: boolean("security_trained").notNull().default(false),
+  licenceNumber: text("licence_number"),
+  licenceCountry: text("licence_country"),
+  licenceExpiry: date("licence_expiry"),
+  catB: boolean("cat_b").notNull().default(false),
+  /** BE / Code 96: may tow the Debon C255 luggage trailer. */
+  catBeCode96: boolean("cat_be_code96").notNull().default(false),
+  /** D1 / D + Code 95: may drive the 16-seat eSprinter. */
+  catDCode95: boolean("cat_d_code95").notNull().default(false),
+  code95Expiry: date("code95_expiry"),
+  /** Confirmed the licence carries no private-use-only codes (100, 101, 105). */
+  noPrivateCodes: boolean("no_private_codes").notNull().default(false),
+  kiwaCardNumber: text("kiwa_card_number"),
+  kiwaCardType: text("kiwa_card_type"),
+  cdtCheckedOn: date("cdt_checked_on"),
+  vogIssuedOn: date("vog_issued_on"),
+  vogVerified: boolean("vog_verified").notNull().default(false),
+  medicalStatus: text("medical_status").notNull().default("missing"),
+  agencyName: text("agency_name"),
+  agencyContact: text("agency_contact"),
+  agencyContractRef: text("agency_contract_ref"),
+  agencyRateTier: text("agency_rate_tier"),
+  timesheetId: text("timesheet_id"),
+  evInduction: boolean("ev_induction").notNull().default(false),
+  trailerInduction: boolean("trailer_induction").notNull().default(false),
+  /** The models an agency driver may drive (lib/fleet/vehicles.ts keys, or a car's own id when it has no model). */
+  authorisedModels: jsonb("authorised_models").$type<string[]>().notNull().default([]),
+  tradeName: text("trade_name"),
+  kvk: text("kvk"),
+  btwId: text("btw_id"),
+  iban: text("iban"),
+  /** Kiwa Vergunning voor taxivervoer (the P-number). */
+  permitNumber: text("permit_number"),
+  permitExpiry: date("permit_expiry"),
+  ondernemerskaartNumber: text("ondernemerskaart_number"),
+  ondernemerskaartExpiry: date("ondernemerskaart_expiry"),
+  insurer: text("insurer"),
+  insurancePolicy: text("insurance_policy"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+}, (t) => [
+  check("drivers_type_known", sql`${t.driverType} in ('agency', 'freelance')`),
+  check("drivers_status_known", sql`${t.accountStatus} in ('active', 'pending', 'suspended')`),
+  check("drivers_medical_known", sql`${t.medicalStatus} in ('missing', 'submitted', 'approved')`),
+  check("drivers_kiwa_type_known", sql`${t.kiwaCardType} is null or ${t.kiwaCardType} in ('full', 'limited')`),
+]);
+
+/** A driver's photo and scans, one of each kind; a new upload replaces the old one. Files live in lib/storage.ts. */
+export const driverDocuments = pgTable(
+  "driver_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => drivers.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    path: text("path").notNull().unique(),
+    fileName: text("file_name").notNull(),
+    size: integer("size").notNull(),
+    contentType: text("content_type").notNull(),
+    uploadedBy: uuid("uploaded_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("driver_documents_driver_kind_idx").on(t.driverId, t.kind),
+    index("driver_documents_uploaded_by_idx").on(t.uploadedBy),
+    check("driver_documents_kind_known", sql`${t.kind} in ('photo', 'kiwafront', 'kiwaback', 'zzpagreement', 'permit', 'ondernemerskaart', 'insurance')`),
+  ],
+);
+
+/** A freelance driver's own car, shown to clients when the driver takes a job. */
+export const driverVehicles = pgTable(
+  "driver_vehicles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => drivers.id, { onDelete: "cascade" }),
+    make: text("make").notNull(),
+    model: text("model"),
+    colour: text("colour"),
+    /** The blue taxi plate (blauw kenteken), as the RDW writes it. */
+    plate: text("plate").notNull(),
+    passengers: integer("passengers"),
+    luggage: integer("luggage"),
+    apkExpiry: date("apk_expiry"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("driver_vehicles_driver_idx").on(t.driverId)],
+);
 
 export const driverShifts = pgTable(
   "driver_shifts",
@@ -994,6 +1102,8 @@ export type Vehicle = typeof vehicles.$inferSelect;
 export type VehicleFinancial = typeof vehicleFinancials.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
 export type DriverShift = typeof driverShifts.$inferSelect;
+export type DriverDocument = typeof driverDocuments.$inferSelect;
+export type DriverVehicle = typeof driverVehicles.$inferSelect;
 export type DriverAssignment = typeof driverAssignments.$inferSelect;
 export type DriverBreakBlock = typeof driverBreakBlocks.$inferSelect;
 export type DriverApplication = typeof driverApplications.$inferSelect;

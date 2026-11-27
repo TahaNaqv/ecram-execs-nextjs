@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { formatDate, formatEuro, formatRelative, formatTimestamp, pickupInstant, pickupParts } from "@/lib/admin/format";
 import { chatForRequest } from "@/lib/admin/chats";
 import { linkedDriversAt } from "@/lib/admin/driver-board";
+import { trailerLicenceGaps } from "@/lib/drivers/dispatch";
 import { parseInstant } from "@/lib/drivers/time";
 import { getRequest } from "@/lib/admin/queries";
 import { bookingServiceName, isCorporateBooking } from "@/lib/quotes/audience";
@@ -138,13 +139,15 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
     events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
   };
   const totalCents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
-  const [chatId, invoiceOpen, paidOnline, linked, conflict, paidSoFar] = await Promise.all([
+  const [chatId, invoiceOpen, paidOnline, linked, conflict, paidSoFar, trailerGaps] = await Promise.all([
     chatForRequest(r.id),
     invoiceBlocksDelete(r.id),
     paymentBlocksDelete(r.id),
     linkedDriversAt(parseInstant(r.pickupAt)),
     holdConflict(r),
     payState(r, totalCents),
+    // Trailer bookings: a linked driver without BE / Code 96 (the client, 28 Nov 2026)
+    r.status === "cancelled" || r.status === "completed" ? Promise.resolve([] as string[]) : trailerLicenceGaps(r, parseInstant(r.pickupAt)),
   ]);
   const deleteBlocked = invoiceOpen || paidOnline;
   const phone = typeof r.phone === "string" ? r.phone : "";
@@ -399,6 +402,11 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
 
         {/* Right Column Stack */}
         <div className="flex min-h-0 w-full flex-col gap-4">
+          {trailerGaps.length > 0 && (
+            <p role="alert" className="m-0 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {interpolate(d.admin.driverProfile.boardTrailerWarning, { reference: r.reference, driver: trailerGaps.join(", ") })}
+            </p>
+          )}
           {canEditCars(r) && (
             <CarsEditor
               key={r.status}

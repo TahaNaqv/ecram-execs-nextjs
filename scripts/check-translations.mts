@@ -16,6 +16,11 @@ import nl from "../lib/i18n/dictionaries/nl.json" with { type: "json" };
  */
 const ALLOW_IDENTICAL = new Set([
   "admin.vehicles.labelModelPick", // "Model" is Dutch too
+  // Driver profile: IBAN, APK and "Model" are the same in Dutch
+  "admin.driverProfile.iban",
+  "admin.driverProfile.model",
+  "admin.driverProfile.labels.apk",
+  "admin.driverProfile.labels.iban",
   // Moneybird invoices: "Open" and "Postcode" are Dutch too, and the error carries Moneybird's own (English) message
   "admin.financials.moneybirdStates.open",
   "admin.moneybird.error",

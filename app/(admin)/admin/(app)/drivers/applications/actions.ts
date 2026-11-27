@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema } from "@/lib/db";
 import { APPLICATION_STATUSES, makeLabel } from "@/lib/partners/criteria";
 import { lookupVehicle } from "@/lib/partners/rdw";
+import { normaliseKvk, normalisePlate } from "@/lib/drivers/compliance";
 import { removeFiles } from "@/lib/storage";
 
 const { driverApplications: a, drivers, driverShifts } = schema;
@@ -44,10 +45,23 @@ export async function updateApplication(_prev: UpdateApplicationState, formData:
         await tx.update(drivers).set({ active: true }).where(eq(drivers.id, driverId));
       } else {
         const vehicle = [before.make && `${makeLabel(before.make)} ${before.model ?? ""}`.trim(), before.plate].filter(Boolean).join(" · ");
+        // A partner applicant drives their own car: a freelance / ZZP profile, filled in from what they sent (28 Nov 2026)
         [{ driverId }] = await tx
           .insert(drivers)
-          .values({ name: before.name, phone: before.phone, partner: true, vehicle })
+          .values({ name: before.name, phone: before.phone, partner: true, vehicle, driverType: "freelance", email: before.email, kvk: normaliseKvk(before.kvk) })
           .returning({ driverId: drivers.id });
+        const plate = normalisePlate(before.plate);
+        if (plate && before.make) {
+          await tx.insert(schema.driverVehicles).values({
+            driverId,
+            make: makeLabel(before.make),
+            model: before.model,
+            colour: before.colour,
+            plate,
+            passengers: before.seats ? Math.max(1, before.seats - 1) : null,
+            apkExpiry: before.apkExpires,
+          });
+        }
       }
     } else if (before.status === "approved" && status !== "approved" && driverId) {
       await tx

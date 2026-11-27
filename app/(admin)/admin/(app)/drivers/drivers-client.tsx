@@ -11,7 +11,7 @@ import { ActionForm } from "../../_components/action-feedback";
 import { AddDriverForm } from "./add-driver-form";
 import { LinkVehicleForm, type BoardLink } from "./link-vehicle-form";
 import type { Locale } from "@/lib/i18n/config";
-import { adjustDriverShift, endShift, removeDriverAssignment, removeDriverBreak, saveDriverBreak, setDriverActive, startShift, updateDriver } from "./actions";
+import { adjustDriverShift, endShift, removeDriverAssignment, removeDriverBreak, saveDriverBreak, setDriverActive, startShift } from "./actions";
 
 export type DeskBreak = { id: string; label: string };
 
@@ -20,6 +20,8 @@ export type DeskRow = {
   name: string;
   phone: string | null;
   partner: boolean;
+  status: "active" | "pending" | "suspended";
+  nextDue: { key: string; date: string; tier: number } | null;
   onShift: boolean;
   startedAt: string | null;
   vehicleLabel: string | null;
@@ -33,6 +35,12 @@ export type DeskRow = {
   shift: { id: string; status: string; startDate: string; startTime: string; endDate: string; endTime: string } | null;
   breaks: DeskBreak[];
 };
+
+const statusTone = {
+  active: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  pending: "bg-amber-50 text-amber-900 ring-amber-200",
+  suspended: "bg-red-50 text-red-800 ring-red-200",
+} as const;
 
 const toneClass = {
   green: "bg-emerald-50 text-emerald-800 ring-emerald-200",
@@ -129,6 +137,7 @@ export function DriversClient({
   dict: Dictionary["admin"];
 }) {
   const t = dict.drivers;
+  const p = dict.driverProfile;
   const [addOpen, setAddOpen] = useState(false);
   const [linkFor, setLinkFor] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -195,7 +204,17 @@ export function DriversClient({
               rows.map((row) => (
                 <tr key={row.id} className="border-b border-zinc-100 last:border-0">
                   <td className="px-4 py-3 align-top">
-                    <p className="text-sm font-medium text-zinc-950">{row.name}</p>
+                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-zinc-950">
+                      <Link href={`/admin/drivers/${row.id}`} className="hover:underline">{row.name}</Link>
+                      <span className={`inline-flex rounded-full px-1.5 py-px text-[11px] font-medium ring-1 ring-inset ${statusTone[row.status]}`}>
+                        {{ active: p.statusActive, pending: p.statusPending, suspended: p.statusSuspended }[row.status]}
+                      </span>
+                      {row.nextDue ? (
+                        <span className={`text-[11px] font-normal ${row.nextDue.tier === 7 ? "text-red-700" : "text-amber-800"}`}>
+                          {(p.labels as Record<string, string>)[row.nextDue.key] ?? row.nextDue.key}: {interpolate(p.boardDue, { date: row.nextDue.date })}
+                        </span>
+                      ) : null}
+                    </p>
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {row.phone ? <a href={`tel:${row.phone.replace(/\s/g, "")}`} className="hover:underline">{row.phone}</a> : t.noPhone}
                       <span className="mx-1.5 text-zinc-300">·</span>
@@ -231,6 +250,7 @@ export function DriversClient({
                   </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-wrap gap-1.5">
+                      <Link href={`/admin/drivers/${row.id}`} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>{p.openProfile}</Link>
                       <button type="button" onClick={() => setEditId(row.id)} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>{t.edit}</button>
                       <button type="button" onClick={() => { setLinkFor(row.id); }} className={`${btn.base} ${btn.secondary} ${btn.sm}`}>{t.linkVehicle}</button>
                       <ActionForm action={setDriverActive} tone="delete" success="Deleted!">
@@ -253,7 +273,7 @@ export function DriversClient({
           <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
             {archived.map((driver) => (
               <li key={driver.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-sm text-zinc-500">{driver.name}{driver.phone ? ` · ${driver.phone}` : ""}</span>
+                <Link href={`/admin/drivers/${driver.id}`} className="text-sm text-zinc-500 hover:underline">{driver.name}{driver.phone ? ` · ${driver.phone}` : ""}</Link>
                 <ActionForm action={setDriverActive} tone="status" success="Driver restored!">
                   <input type="hidden" name="driverId" value={driver.id} />
                   <input type="hidden" name="active" value="true" />
@@ -301,18 +321,7 @@ export function DriversClient({
       {editing ? (
         <Dialog title={editing.name} closeLabel={t.close} onClose={() => setEditId(null)}>
           <div className="flex flex-col gap-5">
-            <ActionForm action={updateDriver} success="Saved!" inline="Saved!" className="grid gap-3 sm:grid-cols-2">
-              <input type="hidden" name="driverId" value={editing.id} />
-              <label className="flex flex-col gap-1.5">
-                <span className={fieldLabel}>{dict.common.driverName}</span>
-                <input name="name" required defaultValue={editing.name} className={`${field} h-10`} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={fieldLabel}>{dict.common.phone}</span>
-                <input name="phone" required defaultValue={editing.phone ?? ""} className={`${field} h-10`} />
-              </label>
-              <button className={`${btn.base} ${btn.secondary} ${btn.md} w-fit`}>{t.edit}</button>
-            </ActionForm>
+            <Link href={`/admin/drivers/${editing.id}`} className={`${btn.base} ${btn.secondary} ${btn.md} w-fit`}>{p.openProfile}</Link>
             {editing.shift ? (
               <ActionForm action={adjustDriverShift} success="Shift updated!" inline="Saved!" className="grid gap-3 border-t border-zinc-100 pt-4 sm:grid-cols-2">
                 <input type="hidden" name="shiftId" value={editing.shift.id} />

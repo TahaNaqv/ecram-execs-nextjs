@@ -26,7 +26,9 @@ try {
   const rows = await sql<{ documents: { path: string }[] | null }[]>`select documents from driver_applications where documents is not null`;
   // Invoices attached to bookings live here too, and are claimed by their rows
   const invoices = await sql<{ path: string }[]>`select path from booking_invoices`;
-  const claimed = new Set([...rows.flatMap((r) => (r.documents ?? []).map((d) => d.path.split("/")[0])), ...invoices.map((i) => i.path.split("/")[0])]);
+  // And drivers' photos and scans (lib/admin/driver-profile-actions.ts)
+  const scans = await sql<{ path: string }[]>`select path from driver_documents`;
+  const claimed = new Set([...rows.flatMap((r) => (r.documents ?? []).map((d) => d.path.split("/")[0])), ...[...invoices, ...scans].map((i) => i.path.split("/")[0])]);
 
   const folders = (await readdir(dir).catch(() => [] as string[])).filter((name) => FOLDER.test(name));
   let removed = 0;
