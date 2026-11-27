@@ -181,13 +181,13 @@ export function ReissueButton({ requestId, copy: t }: { requestId: string; copy:
   const [state, action, pending] = useActionState<MoneybirdState, FormData>(reissueInvoice, {});
   useActionNotice(state, "Invoice request synced!");
   return (
-    <form action={action} className="flex flex-col gap-2">
+    <form action={action} className="inline-flex flex-col">
       <input type="hidden" name="requestId" value={requestId} />
-      <button disabled={pending} className={`${btn.base} ${btn.primary} ${btn.md} self-start`}>
+      <button disabled={pending} className={`${btn.base} ${btn.primary} h-9 px-3`}>
         {pending ? t.syncing : t.syncInvoice}
       </button>
-      {state.ok && <p className="m-0 text-xs text-emerald-700">{t.synced}</p>}
-      {state.error && <p className="m-0 text-xs text-red-700">{state.error}</p>}
+      {state.ok && <p className="m-0 mt-1 text-xs text-emerald-700">{t.synced}</p>}
+      {state.error && <p className="m-0 mt-1 text-xs text-red-700">{state.error}</p>}
     </form>
   );
 }
@@ -196,13 +196,13 @@ export function RetryButton({ requestId, copy: t, force = false }: { requestId: 
   const [state, action, pending] = useActionState<MoneybirdState, FormData>(retryInvoice, {});
   useActionNotice(state, "Invoice request synced!");
   return (
-    <form action={action} className="flex flex-col gap-2">
+    <form action={action} className="inline-flex flex-col">
       <input type="hidden" name="requestId" value={requestId} />
       {force && <input type="hidden" name="force" value="1" />}
-      <button disabled={pending} className={`${btn.base} ${btn.secondary} ${btn.sm} self-start`}>
+      <button disabled={pending} className={`${btn.base} ${btn.secondary} h-9 px-3`}>
         {pending ? t.retrying : force ? t.makeInvoice : t.retry}
       </button>
-      {state.error && <p className="m-0 text-xs text-red-700">{state.error}</p>}
+      {state.error && <p className="m-0 mt-1 text-xs text-red-700">{state.error}</p>}
     </form>
   );
 }

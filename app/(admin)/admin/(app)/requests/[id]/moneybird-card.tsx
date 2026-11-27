@@ -63,10 +63,10 @@ export async function MoneybirdHeaderActions({ r }: { r: QuoteRequest }) {
   return (
     <>
       {customerUrl ? (
-        <a href={customerUrl} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.secondary} ${btn.md}`}>{t.viewInvoice}</a>
+        <a href={customerUrl} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.secondary} h-9 px-3`}>{t.viewInvoice}</a>
       ) : null}
       {inMoneybird ? (
-        <a href={inMoneybird} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} ${btn.md}`}>{t.openInMoneybird}</a>
+        <a href={inMoneybird} target="_blank" rel="noreferrer" className={`${btn.base} ${btn.primary} h-9 px-3`}>{t.openInMoneybird}</a>
       ) : null}
       {canRetry ? <RetryButton requestId={r.id} copy={t} force={!live && !automatic} /> : null}
       {differs && live && connected ? <ReissueButton requestId={r.id} copy={t} /> : null}

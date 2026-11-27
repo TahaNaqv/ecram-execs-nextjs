@@ -18,7 +18,7 @@ import { confirmIfAutomatic, consentFromForm, markAnnounced, payAtBooking, planF
 import { guestPath } from "./guest-link";
 
 import { readStops } from "./stops";
-import { parseInstant } from "@/lib/drivers/time";
+import { pickupNeedsMoreNotice } from "@/lib/drivers/time";
 import { interpolate } from "@/lib/i18n/interpolate";
 import { quoteSchema, type QuoteField } from "./validation";
 
@@ -117,8 +117,7 @@ export async function submitQuote(prev: QuoteFormState, formData: FormData): Pro
     return null;
   });
   if (!rules) return fail(t.quoteServerError);
-  const pickup = parseInstant(parsed.data.pickupAt);
-  if (pickup && pickup.getTime() < Date.now() + rules.minNoticeHours * 3_600_000) {
+  if (pickupNeedsMoreNotice(parsed.data.pickupAt, new Date(), rules.minNoticeHours)) {
     const message = interpolate(rules.minNoticeHours === 1 ? t.quoteTooSoonOne : t.quoteTooSoon, { hours: rules.minNoticeHours });
     return fail(message, { pickupAt: message });
   }

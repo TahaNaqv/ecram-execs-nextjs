@@ -72,6 +72,7 @@ type ChatQuote = {
   lines: { label: string; amount: string; divider?: boolean }[];
   totalLabel: string;
   total: string;
+  notice?: string;
 };
 
 const isQuote = (value: unknown): value is ChatQuote => {
@@ -684,6 +685,7 @@ function FareBreakdown({ quote, titled }: { quote: ChatQuote; titled: boolean })
         <span>{quote.totalLabel}</span>
         <span className="font-mono tabular-nums">{quote.total}</span>
       </div>
+      {quote.notice ? <p className="m-0 mt-2 text-xs leading-5 text-ink-300">{quote.notice}</p> : null}
     </div>
   );
 }

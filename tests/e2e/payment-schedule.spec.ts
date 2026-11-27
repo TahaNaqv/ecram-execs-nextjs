@@ -1,29 +1,33 @@
 import { expect, test } from "@playwright/test";
-import { addMonths, balanceDueOn, chargeAllowed, confirmsAutomatically, feeWithVatCents, noticeOn, planFor, requiresManualConfirmation, upfrontCents } from "../../lib/payments/schedule";
+import { addDays, addMonths, balanceDueOn, chargeAllowed, checkoutSettlement, confirmsAutomatically, feeWithVatCents, isShortNotice, noticeOn, planFor, requiresManualConfirmation, upfrontCents } from "../../lib/payments/schedule";
 
 /**
  * Launch payment rules (lib/payments/schedule.ts), at their edges. Pure: no page, no database.
- * A: 6 calendar months or more ahead (confirmed on its own, then the service fee, rest 30 days before).
- * B: 31 days up to 6 months (a person confirms first, then the fee, rest 30 days before).
- * C: 30 days or less (a person confirms first, then the full amount).
+ * A: 180 days or more ahead (confirmed on its own, then the service fee, rest 30 days before).
+ * B: 31 to 179 days (a person confirms first, then the fee, rest 30 days before).
+ * C: 30 days or less, including under 6 days (a person confirms first, then the full amount).
  * Nothing is collected before the booking is confirmed.
  */
 test.describe("payment plan", () => {
-  test("30 days or less is C, 31 days is B", () => {
+  test("30 days or less is C, 31 days is B, and under 6 days is still C", () => {
     expect(planFor("2027-01-15T10:00", "2026-12-16")).toBe("C"); // 30 days
     expect(planFor("2027-01-16T10:00", "2026-12-16")).toBe("B"); // 31 days
     expect(planFor("2026-12-16T23:00", "2026-12-16")).toBe("C"); // today
+    expect(planFor(`${addDays("2026-12-16", 5)}T10:00`, "2026-12-16")).toBe("C");
+    expect(isShortNotice(`${addDays("2026-12-16", 5)}T10:00`, "2026-12-16")).toBe(true);
+    expect(isShortNotice(`${addDays("2026-12-16", 6)}T10:00`, "2026-12-16")).toBe(false);
   });
 
-  test("exactly 6 calendar months ahead is A, a day less is B", () => {
-    expect(planFor("2027-05-15T08:00", "2026-11-15")).toBe("A");
-    expect(planFor("2027-05-14T08:00", "2026-11-15")).toBe("B");
+  test("180 days ahead is A, a day less is B", () => {
+    expect(planFor(`${addDays("2026-11-15", 180)}T08:00`, "2026-11-15")).toBe("A");
+    expect(planFor(`${addDays("2026-11-15", 179)}T08:00`, "2026-11-15")).toBe("B");
   });
 
-  test("two months ahead is still reviewed by hand, like every ride under six months", () => {
+  test("60 to 179 days is reviewed by hand, then the fee, with the rest 30 days before", () => {
     expect(planFor(`${addMonths("2026-11-15", 2)}T10:00`, "2026-11-15")).toBe("B");
-    expect(planFor("2027-01-14T10:00", "2026-11-15")).toBe("B"); // 60 days
-    expect(planFor("2027-01-13T10:00", "2026-11-15")).toBe("B"); // 59 days
+    expect(planFor(`${addDays("2026-11-15", 60)}T10:00`, "2026-11-15")).toBe("B");
+    expect(planFor(`${addDays("2026-11-15", 59)}T10:00`, "2026-11-15")).toBe("B");
+    expect(planFor(`${addDays("2026-11-15", 179)}T10:00`, "2026-11-15")).toBe("B");
   });
 
   test("only a ride six months ahead confirms itself, and nothing is charged before confirmation", () => {
@@ -46,8 +50,9 @@ test.describe("payment plan", () => {
   test("month ends and leap years clamp to the month's last day", () => {
     expect(addMonths("2026-08-31", 6)).toBe("2027-02-28");
     expect(addMonths("2027-08-31", 6)).toBe("2028-02-29");
-    expect(planFor("2027-02-28T09:00", "2026-08-31")).toBe("A");
-    expect(planFor("2027-02-27T09:00", "2026-08-31")).toBe("B");
+    expect(planFor("2027-02-28T09:00", "2026-08-31")).toBe("A"); // 181 days
+    expect(planFor("2027-02-27T09:00", "2026-08-31")).toBe("A"); // 180 days
+    expect(planFor("2027-02-26T09:00", "2026-08-31")).toBe("B"); // 179 days
   });
 
   test("no date, no plan (a bespoke programme is quoted by hand)", () => {
@@ -70,5 +75,15 @@ test.describe("payment plan", () => {
     expect(upfrontCents("B", 45752, price)).toBe(1250);
     expect(upfrontCents("C", 45752, price)).toBe(45752);
     expect(upfrontCents("B", 1000, price)).toBe(1000);
+  });
+
+  test("the receipt takes nothing today unless the booking confirms itself", () => {
+    const price = { fee: 1250, feeVat: 263 };
+    const far = checkoutSettlement(`${addDays("2026-11-15", 180)}T08:00`, "2026-11-15", 45752, price);
+    expect(far).toMatchObject({ dueTodayKind: "fee", dueTodayCents: 1250, remainingCents: 45752 - 1250, remainingOn: addDays(addDays("2026-11-15", 180), -30) });
+    const mid = checkoutSettlement(`${addDays("2026-11-15", 60)}T08:00`, "2026-11-15", 45752, price);
+    expect(mid).toMatchObject({ dueTodayKind: "pending", dueTodayCents: 0, remainingCents: 45752 - 1250 });
+    const soon = checkoutSettlement(`${addDays("2026-11-15", 5)}T08:00`, "2026-11-15", 45752, price);
+    expect(soon).toMatchObject({ dueTodayKind: "pending", dueTodayCents: 0, remainingCents: 45752, remainingOn: null });
   });
 });

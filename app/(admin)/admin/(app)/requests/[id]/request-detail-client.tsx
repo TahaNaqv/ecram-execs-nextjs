@@ -25,9 +25,9 @@ import { browserMapKey, routeMapLinks } from "@/lib/fleet/map";
 import { AutoPricingGateway } from "../../../_components/auto-pricing-gateway";
 import { lineDay, type Price } from "@/lib/pricing/rates";
 
-const PIPELINE: RequestStatus[] = ["new", "confirmed", "completed", "cancelled"];
+const PIPELINE: RequestStatus[] = ["new", "contacted", "confirmed", "quoted", "completed"];
 
-function Pipeline({ status }: { status: RequestStatus }) {
+function Pipeline({ status, labels }: { status: RequestStatus; labels: Record<RequestStatus, string> }) {
   if (status === "cancelled") {
     return (
       <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
@@ -35,9 +35,9 @@ function Pipeline({ status }: { status: RequestStatus }) {
       </div>
     );
   }
-  const at = status === "contacted" || status === "quoted" ? 0 : PIPELINE.indexOf(status);
+  const at = Math.max(0, PIPELINE.indexOf(status));
   return (
-    <ol className="grid grid-cols-4 gap-1" aria-label="Progress">
+    <ol className="grid grid-cols-5 gap-1" aria-label="Progress">
       {PIPELINE.map((s, i) => {
         const done = i < at;
         const current = i === at;
@@ -45,12 +45,12 @@ function Pipeline({ status }: { status: RequestStatus }) {
           <li key={s} aria-current={current ? "step" : undefined} className="min-w-0">
             <span className={`block h-1 rounded-full ${i <= at ? "bg-zinc-950" : "bg-zinc-200"}`} />
             <span
-              className={`mt-2 flex items-center gap-1 truncate text-[11px] font-medium sm:text-xs ${
+              className={`mt-2 flex items-start gap-1 text-[11px] font-medium leading-tight sm:text-xs ${
                 current ? "text-zinc-950" : done ? "text-zinc-600" : "text-zinc-400"
               }`}
             >
-              {done && <CheckIcon size={12} className="hidden shrink-0 sm:block" />}
-              {s}
+              {done && <CheckIcon size={12} className="mt-0.5 hidden shrink-0 sm:block" />}
+              <span className="min-w-0">{labels[s]}</span>
             </span>
           </li>
         );
@@ -127,7 +127,7 @@ export function RequestDetailClient({ initialData, dictionary }: { initialData: 
       </div>
 
       <div className="mt-6">
-        <Pipeline status={r.status} />
+        <Pipeline status={r.status} labels={d.admin.statuses} />
       </div>
 
       <div className="mt-6">

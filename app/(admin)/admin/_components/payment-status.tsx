@@ -24,12 +24,12 @@ export function paymentStanding(stored: string | null | undefined, paid = false,
   return "OPEN";
 }
 
-export function PaymentStatusBadge({ status, title, size = "sm" }: { status: string; title?: string; size?: "sm" | "md" }) {
+export function PaymentStatusBadge({ status, title, size = "sm", label }: { status: string; title?: string; size?: "sm" | "md"; label?: string }) {
   const key = paymentStanding(status);
   const cls = size === "md" ? "px-2.5 py-0.5 text-xs" : "px-2 py-0.5 text-[11px]";
   return (
     <span title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full font-semibold ring-1 ring-inset ${cls} ${TONE[key]}`}>
-      {LABEL[key]}
+      {label ?? LABEL[key]}
     </span>
   );
 }

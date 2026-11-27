@@ -113,6 +113,15 @@ export function GuestBookingView({
   const [checking, setChecking] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const safeCheckout = checkoutHref(checkoutUrl);
+  const openedPay = useRef<string | null>(null);
+  const invoicePayUrl = invoice?.pay ? checkoutHref(invoice.href) ?? (invoice.href?.startsWith("https://") ? invoice.href : null) : null;
+  useEffect(() => {
+    const url = safeCheckout || invoicePayUrl;
+    if (!url || openedPay.current === url) return;
+    openedPay.current = url;
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (opened) opened.opener = null;
+  }, [safeCheckout, invoicePayUrl]);
   // The receipt this tab kept when the booking was sent (none on the server, nor in another browser)
   const storedReceipt = useSyncExternalStore(noSubscription, () => storedRideReceipt(reference), () => null);
   const receipt = useMemo(() => parseRideReceipt(storedReceipt) ?? savedReceipt, [storedReceipt, savedReceipt]);

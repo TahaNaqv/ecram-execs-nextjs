@@ -46,7 +46,7 @@ import { mollieConfig } from "@/lib/mollie/config";
 import { can } from "@/lib/admin/access";
 import { requireAdmin } from "@/lib/auth/session";
 import { holdConflict } from "@/lib/fleet/availability";
-import { BALANCE_DAYS_BEFORE, balanceDueOn, daysBetween, rideDay } from "@/lib/payments/schedule";
+import { amsterdamDay, BALANCE_DAYS_BEFORE, balanceDueOn, daysBetween, leadNotice, rideDay } from "@/lib/payments/schedule";
 import { chargesFor } from "@/lib/admin/charges";
 import { moneybirdConfigured } from "@/lib/moneybird/config";
 import { amsterdamToday } from "@/lib/admin/financials-shared";
@@ -131,18 +131,20 @@ async function payState(r: QuoteRequest, totalCents: number): Promise<PayState> 
 
 async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/admin/requests/[id]">, "params"> & { fromEnquiries: boolean }) {
   const { id } = await params;
-  const data = await getRequest(id);
+  const [data, d, admin] = await Promise.all([getRequest(id), adminDictionary(), requireAdmin()]);
   if (!data) notFound();
   const { request: r, events } = data as { 
     request: QuoteRequest; 
     events: Array<{ id: string; event: string; params: Record<string, string | number | null>; createdAt: Date; by: string | null }> 
   };
-  const d = await adminDictionary();
-  const [chatId, invoiceOpen, paidOnline, linked] = await Promise.all([
+  const totalCents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
+  const [chatId, invoiceOpen, paidOnline, linked, conflict, paidSoFar] = await Promise.all([
     chatForRequest(r.id),
     invoiceBlocksDelete(r.id),
     paymentBlocksDelete(r.id),
     linkedDriversAt(parseInstant(r.pickupAt)),
+    holdConflict(r),
+    payState(r, totalCents),
   ]);
   const deleteBlocked = invoiceOpen || paidOnline;
   const phone = typeof r.phone === "string" ? r.phone : "";
@@ -150,16 +152,26 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
   const guestName = typeof r.name === "string" && r.name.trim() ? r.name : "—";
   const history = Array.isArray(events) ? events : [];
   const price = r.priceEstimate && typeof r.priceEstimate === "object" ? r.priceEstimate : null;
-  const admin = await requireAdmin();
-  const conflict = await holdConflict(r);
-  const totalCents = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate ?? null }) ?? 0;
-  const paidSoFar = await payState(r, totalCents);
-  const paymentBadgeStatus = paidSoFar?.kind === "fee" ? "PARTIAL" : paidSoFar?.kind === "full" ? "PAID" : r.paymentStatus;
+  const feeOnly = paidSoFar?.kind === "fee";
+  const paymentBadgeStatus = feeOnly ? "PARTIAL" : paidSoFar?.kind === "full" ? "PAID" : r.paymentStatus;
+  const bookedOn = amsterdamDay(r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt));
+  const notice = leadNotice(r.pickupAt, bookedOn);
+  const leadCopy =
+    notice === "short"
+      ? d.admin.review.windowShort
+      : notice === "month"
+        ? d.admin.review.windowMonth
+        : notice === "mid"
+          ? d.admin.review.windowMid
+          : notice === "long"
+            ? d.admin.review.windowSix
+            : null;
   const waNumber = phone.replace(/[^\d]/g, "");
   const waText = encodeURIComponent(`Dear ${guestName}, thank you for your request ${r.reference} with Ecram Execs.`);
   const mailto = `mailto:${email}?subject=${encodeURIComponent(`Your Ecram Execs booking ${r.reference}`)}`;
   const tel = `tel:${phone.replace(/\s/g, "")}`;
   const rd = d.admin.requestDetail;
+  const statusLabels = feeOnly && r.status === "confirmed" ? { ...d.admin.statuses, confirmed: rd.pipelineConfirmedBalance } : d.admin.statuses;
   // The embedded map needs a browser key (restricted to this site and to the Maps Embed API); without one only the link is shown
   const links = routeMapLinks(r, browserMapKey());
   const routeMap = links ? { ...links, openLabel: rd.routeOpen, noKey: rd.routeNoKey, frameTitle: rd.routeFrameTitle } : null;
@@ -178,43 +190,52 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
   return (
     <div className="mt-4 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 items-start gap-4">
           <Avatar name={guestName} size="lg" />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{guestName}</h1>
-              <LiveStatusBadge requestId={r.id} status={r.status} labels={d.admin.statuses} size="md" />
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{guestName}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <LiveStatusBadge requestId={r.id} status={r.status} labels={statusLabels} size="md" />
               <UrgentBadge request={r} size="md" />
-              {paymentBadgeStatus ? <PaymentStatusBadge status={paymentBadgeStatus} size="md" title={paidSoFar?.kind === "fee" ? interpolate(d.admin.review.payFee, { amount: paidSoFar.paid, rest: paidSoFar.rest ?? "" }) : undefined} /> : null}
-              <span className="inline-flex items-center gap-1.5 text-sm text-zinc-700">
-                {bookingServiceName(r, d.services)}
-                <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
-                  {isCorporateBooking(r) ? d.admin.requests.segmentBusiness : d.admin.requests.segmentPublic}
-                </span>
-              </span>
+              {paymentBadgeStatus ? (
+                <PaymentStatusBadge
+                  status={paymentBadgeStatus}
+                  size="md"
+                  label={feeOnly ? interpolate(d.admin.review.serviceFeeBadge, { amount: paidSoFar?.paid ?? "" }) : undefined}
+                  title={feeOnly ? interpolate(d.admin.review.payFee, { amount: paidSoFar?.paid ?? "", rest: paidSoFar?.rest ?? "" }) : undefined}
+                />
+              ) : null}
             </div>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
-              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">{r.reference}</span>
+            <p className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
+              <span>{bookingServiceName(r, d.services)}</span>
+              <span className="inline-flex items-center rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
+                {isCorporateBooking(r) ? d.admin.requests.segmentBusiness : d.admin.requests.segmentPublic}
+              </span>
+            </p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-500">
+              <span className="whitespace-nowrap rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">{r.reference}</span>
               <span aria-hidden="true">·</span>
-              <span title={formatTimestamp(r.createdAt)}>{interpolate(rd.receivedRelative, { when: formatRelative(r.createdAt) })}</span>
+              <span className="whitespace-nowrap" title={formatTimestamp(r.createdAt)}>
+                {interpolate(rd.receivedRelative, { when: formatRelative(r.createdAt) })}
+              </span>
               <span aria-hidden="true">·</span>
-              <span>{interpolate(rd.viaSource, { source: r.source })}</span>
+              <span className="whitespace-nowrap">{interpolate(rd.viaSource, { source: r.source })}</span>
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:flex">
+        <div className="flex flex-wrap items-center justify-end gap-2 xl:max-w-xl xl:shrink-0">
           <Suspense fallback={null}>
             <MoneybirdHeaderActions r={r} />
           </Suspense>
-          <a href={mailto} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+          <a href={mailto} className={`${btn.base} ${btn.secondary} h-9 px-3`}>
             <MailIcon /> {rd.emailAction}
           </a>
-          <a href={tel} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+          <a href={tel} className={`${btn.base} ${btn.secondary} h-9 px-3`}>
             <PhoneIcon /> {rd.callAction}
           </a>
           {chatId && (
-            <Link href={`/admin/chats/${chatId}`} className={`${btn.base} ${btn.secondary} ${btn.md}`}>
+            <Link href={`/admin/chats/${chatId}`} className={`${btn.base} ${btn.secondary} h-9 px-3`}>
               <ChatIcon /> {d.admin.chats.chatLink}
             </Link>
           )}
@@ -223,24 +244,44 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
               href={`https://wa.me/${waNumber}?text=${waText}`}
               target="_blank"
               rel="noreferrer"
-              className={`${btn.base} ${btn.md} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700`}
+              className={`${btn.base} h-9 bg-emerald-600 px-3 text-white shadow-sm hover:bg-emerald-700`}
             >
               <ChatIcon /> WhatsApp
             </a>
           )}
         </div>
       </div>
-      {paidSoFar?.kind === "fee" && (r.status === "confirmed" || r.status === "completed") && (
-        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-950 ring-1 ring-inset ring-amber-200">
-          {interpolate(d.admin.review.payFee, { amount: paidSoFar.paid, rest: paidSoFar.rest ?? "" })}
+      {(feeOnly && r.status === "confirmed") || leadCopy ? (
+        <div
+          className={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
+            feeOnly && r.status === "confirmed" ? "bg-amber-50 text-amber-950 ring-amber-200" : "bg-zinc-50 text-zinc-800 ring-zinc-200"
+          }`}
+        >
+          {feeOnly && r.status === "confirmed" ? (
+            <p className="font-medium leading-5">{interpolate(d.admin.review.payFee, { amount: paidSoFar?.paid ?? "", rest: paidSoFar?.rest ?? "" })}</p>
+          ) : null}
+          {leadCopy ? <p className={feeOnly && r.status === "confirmed" ? "mt-1 leading-5 text-amber-900/80" : "leading-5"}>{leadCopy}</p> : null}
+        </div>
+      ) : null}
+      {r.invoiceTermsDays ? (
+        <p className={`${(feeOnly && r.status === "confirmed") || leadCopy ? "mt-2" : "mt-4"} rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-950 ring-1 ring-inset ring-sky-200`}>
+          {interpolate(d.admin.review.invoiceOnConfirm, { days: r.invoiceTermsDays })}
         </p>
-      )}
+      ) : null}
 
       <div className="mt-6">
         <LivePipeline
           requestId={r.id}
           status={r.status}
-          labels={d.admin.statuses}
+          payment={paidSoFar?.kind === "full" ? "full" : feeOnly ? "fee" : "none"}
+          steps={{
+            pending: rd.pipelinePending,
+            discussion: d.admin.statuses.contacted,
+            confirmed: rd.pipelineConfirmed,
+            payment: d.admin.statuses.quoted,
+            paid: rd.pipelineSettled,
+            completed: rd.pipelineCompleted,
+          }}
           progressLabel={d.admin.common.progress}
           cancelledNote={rd.cancelledNote}
         />
@@ -325,9 +366,9 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
       </div>
 
       {/* Two-column grid layout with balanced stack columns */}
-      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* Left Column Stack */}
-        <div className="flex min-h-0 w-full flex-col gap-6">
+        <div className="flex min-h-0 w-full flex-col gap-4">
           <Suspense fallback={<Skeleton className="h-40" />}>
             <MessagesCard requestId={r.id} guest={!r.corporateContactId} />
           </Suspense>
@@ -357,7 +398,7 @@ async function RequestDetailBody({ params, fromEnquiries }: Pick<PageProps<"/adm
         </div>
 
         {/* Right Column Stack */}
-        <div className="flex min-h-0 w-full flex-col gap-6">
+        <div className="flex min-h-0 w-full flex-col gap-4">
           {canEditCars(r) && (
             <CarsEditor
               key={r.status}

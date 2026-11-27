@@ -2,23 +2,28 @@ import type { Price } from "@/lib/pricing/rates";
 import { SERVICE_FEE_CENTS, SERVICE_FEE_VAT_RATE, centsOf } from "@/lib/pricing/rates";
 
 /**
- * When a booking is paid, and whether it is approved by itself (launch rules):
+ * When a booking is paid, and whether it is approved by itself (launch rules).
+ * Lead time is the ride's calendar day minus the day the booking is made.
  *
  * | plan | the ride is…                         | confirmation                         | once confirmed                                      |
- * | A    | 6 calendar months or more away       | automatic, as soon as it is booked   | the €12.50 service fee, then the rest 30 days before |
- * | B    | 31 days up to 6 months away          | a person confirms it first           | the €12.50 service fee, then the rest 30 days before |
- * | C    | 30 days or less away                 | a person confirms it first           | the full amount                                     |
+ * | A    | 180 days or more away                | automatic, as soon as it is booked   | the €12.50 service fee, then the rest 30 days before |
+ * | B    | 31 to 179 days away                  | a person confirms it first           | the €12.50 service fee, then the rest 30 days before |
+ * | C    | 30 days or less, including under 6   | a person confirms it first           | the full amount                                     |
  *
- * Nothing is taken until the booking is confirmed. Plan A confirms itself, then the fee is charged.
- * Plans B and C wait for a person. The fee (B) or the full amount (C) is charged only after that.
- * A corporate booking can invoice the balance on 7, 14 or 30 day terms.
+ * Nothing is taken when the booking is submitted. Plan A confirms itself, then the fee is charged.
+ * Plans B and C wait for a person. Under 6 days is still plan C: nothing at submission, the full amount after confirmation.
+ * A corporate booking can invoice the balance on 7, 14 or 30 day terms once it is confirmed. The service fee alone is not "paid in full".
  *
  * The plan is fixed when the booking is made (stored on it). The dates that follow from it are worked out from the ride's
  * date each time, so a changed ride date moves them. All dates are Amsterdam calendar days, "YYYY-MM-DD"; pure, no clock.
  */
 export type PaymentPlan = "A" | "B" | "C";
 export const BALANCE_DAYS_BEFORE = 30;
+export const AUTO_APPROVE_DAYS = 180;
+/** Kept for callers that still speak in months. Plan A is `AUTO_APPROVE_DAYS`, not this many calendar months. */
 export const AUTO_APPROVE_MONTHS = 6;
+/** Under this many days the booking waits for a person, and the full amount is charged only after they confirm. */
+export const SHORT_NOTICE_DAYS = 6;
 /** The customer is told this many days before the balance is charged. */
 export const NOTICE_DAYS_BEFORE_CHARGE = 5;
 
@@ -50,9 +55,73 @@ export const rideDay = (pickupAt: string) => pickupAt.slice(0, 10);
 /** The plan for a booking made `today` for a ride at `pickupAt`; null without a date (a bespoke programme is quoted by hand). */
 export function planFor(pickupAt: string | null | undefined, today: string): PaymentPlan | null {
   if (!pickupAt) return null;
-  const ride = rideDay(pickupAt);
-  if (daysBetween(today, ride) <= BALANCE_DAYS_BEFORE) return "C";
-  return ride >= addMonths(today, AUTO_APPROVE_MONTHS) ? "A" : "B";
+  const ahead = daysBetween(today, rideDay(pickupAt));
+  if (ahead <= BALANCE_DAYS_BEFORE) return "C";
+  if (ahead >= AUTO_APPROVE_DAYS) return "A";
+  return "B";
+}
+
+/** Less than 6 days out: still plan C, and nothing is taken until a person confirms the booking. */
+export function isShortNotice(pickupAt: string | null | undefined, today: string): boolean {
+  if (!pickupAt) return false;
+  return daysBetween(today, rideDay(pickupAt)) < SHORT_NOTICE_DAYS;
+}
+
+/** Calendar days from the day the request was created to the pickup day. Not "today", so the notice does not change as the ride approaches. */
+export function leadDays(pickupAt: string | null | undefined, createdOn: string): number | null {
+  if (!pickupAt || !/^\d{4}-\d{2}-\d{2}$/.test(createdOn)) return null;
+  return daysBetween(createdOn, rideDay(pickupAt));
+}
+
+export type LeadNotice = "short" | "month" | "mid" | "long";
+
+/** Which admin notice applies. `createdOn` is the request's creation day, not the day the page is opened. */
+export function leadNotice(pickupAt: string | null | undefined, createdOn: string): LeadNotice | null {
+  const ahead = leadDays(pickupAt, createdOn);
+  if (ahead == null) return null;
+  if (ahead < SHORT_NOTICE_DAYS) return "short";
+  if (ahead <= BALANCE_DAYS_BEFORE) return "month";
+  if (ahead < AUTO_APPROVE_DAYS) return "mid";
+  return "long";
+}
+
+export type CheckoutSettlement = {
+  totalCents: number;
+  /** What leaves the customer's account on the day they book. Zero while the booking waits for a person. */
+  dueTodayCents: number;
+  /** fee: the service fee, taken because the booking confirms itself. pending: nothing until a person confirms. full: the whole amount, taken because confirmation and payment happen together. */
+  dueTodayKind: "fee" | "pending" | "full";
+  remainingCents: number;
+  /** The day the rest is charged, or null when that rest is the full amount taken on confirmation. */
+  remainingOn: string | null;
+};
+
+/**
+ * What the receipt shows at booking. Plan A takes the fee today. Plans B and C take nothing today.
+ * Plan B's remainder is dated 30 days before the ride. Plan C's remainder is the full amount, due on confirmation.
+ */
+export function checkoutSettlement(
+  pickupAt: string | null | undefined,
+  today: string,
+  totalCents: number,
+  price: Pick<Price, "fee" | "feeVat"> | null | undefined,
+): CheckoutSettlement | null {
+  const schedule = launchSchedule(pickupAt, today, totalCents, price);
+  if (!schedule.plan || totalCents <= 0) return null;
+  const remainingOn = schedule.scheduledBalanceDate ? schedule.scheduledBalanceDate.toISOString().slice(0, 10) : null;
+  if (schedule.plan === "A") {
+    return {
+      totalCents,
+      dueTodayCents: schedule.upfrontCents,
+      dueTodayKind: "fee",
+      remainingCents: schedule.scheduledBalanceCents,
+      remainingOn,
+    };
+  }
+  if (schedule.plan === "B") {
+    return { totalCents, dueTodayCents: 0, dueTodayKind: "pending", remainingCents: schedule.scheduledBalanceCents, remainingOn };
+  }
+  return { totalCents, dueTodayCents: 0, dueTodayKind: "pending", remainingCents: totalCents, remainingOn: null };
 }
 
 /** The service fee itself, in cents. Always €12.50 (1250), never the fee plus its 21% VAT. */
@@ -79,9 +148,9 @@ export function invoiceTerms(days: number | null | undefined): 7 | 14 | 30 | nul
 
 export type LaunchSchedule = {
   plan: PaymentPlan | null;
-  /** Six months or more ahead: confirmed as soon as it is booked. */
+  /** 180 days or more ahead: confirmed as soon as it is booked. */
   autoConfirmed: boolean;
-  /** Under six months: a person confirms it before any charge. */
+  /** Under 180 days: a person confirms it before any charge. */
   requiresManualApproval: boolean;
   /** Charged once confirmed. The fee, or the whole amount within 30 days. */
   upfrontCents: number;
@@ -120,12 +189,12 @@ export function balanceDueOn(plan: PaymentPlan | null, pickupAt: string | null |
   return addDays(rideDay(pickupAt), -BALANCE_DAYS_BEFORE);
 }
 
-/** Six months or more ahead: the booking confirms itself. Anything nearer waits for the team. */
+/** 180 days or more ahead: the booking confirms itself. Anything nearer waits for the team. */
 export function confirmsAutomatically(plan: PaymentPlan | null | undefined): boolean {
   return plan === "A";
 }
 
-/** Under six months (plans B and C): no charge until a person confirms the booking. */
+/** Under 180 days (plans B and C): no charge until a person confirms the booking. */
 export function requiresManualConfirmation(plan: PaymentPlan | null | undefined): boolean {
   return plan === "B" || plan === "C";
 }

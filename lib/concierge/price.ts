@@ -6,6 +6,7 @@ import type { Dictionary } from "@/lib/i18n/types";
 import { extraName, type ExtraNames } from "@/lib/pricing/extras";
 import { priceForRequest } from "@/lib/pricing/quote";
 import { receiptLineItems } from "@/lib/pricing/receipt-lines";
+import { amsterdamDay, planFor } from "@/lib/payments/schedule";
 import { formatCents, type Price } from "@/lib/pricing/rates";
 
 /** The fare the concierge card shows. Amounts are already formatted, so the chat does not calculate. */
@@ -16,6 +17,8 @@ export type ChatQuote = {
   lines: { label: string; amount: string; divider?: boolean }[];
   totalLabel: string;
   total: string;
+  /** Lead-time line, the same rule as the website checkout. */
+  notice?: string;
 };
 
 /**
@@ -49,14 +52,14 @@ export async function quoteDraft(draft: Draft, booking: Dictionary["booking"], n
       "public",
     );
     if (!price) return null;
-    return present(price, booking, names, locale);
+    return present(price, booking, names, locale, draft.at);
   } catch (error) {
     console.error("[concierge] could not price the draft", error);
     return null;
   }
 }
 
-function present(price: Price, booking: Dictionary["booking"], names: ExtraNames, locale: Locale): ChatQuote {
+function present(price: Price, booking: Dictionary["booking"], names: ExtraNames, locale: Locale, pickupAt?: string): ChatQuote {
   // The same lines, in the same order, as the receipt a booking made on the website can be downloaded as
   const items = receiptLineItems(price, booking, (price.extras ?? []).map((line) => extraName(names, line))) ?? [];
   return {
@@ -65,5 +68,10 @@ function present(price: Price, booking: Dictionary["booking"], names: ExtraNames
     lines: items.map((line) => ({ label: line.label, amount: formatCents(line.cents, locale), ...(line.divider ? { divider: true } : {}) })),
     totalLabel: booking.priceTotal,
     total: `${price.exact ? "" : `${booking.priceFromWord} `}${formatCents(price.total, locale)}`,
+    notice: (() => {
+      const plan = planFor(pickupAt, amsterdamDay(new Date()));
+      if (!plan) return undefined;
+      return plan === "C" ? booking.payNoticeFull : booking.payNoticeFee;
+    })(),
   };
 }

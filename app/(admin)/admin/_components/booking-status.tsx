@@ -28,7 +28,9 @@ export function useBookingStatus(requestId: string, initial: RequestStatus): Req
 
   useEffect(() => {
     const override = published.get(requestId);
-    if (override && override !== initial && initial !== "new") {
+    // A status just chosen on this page (including In discussion) stays until the server reports it.
+    // Once the server matches, the override is dropped so a later reload is not stuck on the old step.
+    if (override && override !== initial) {
       setStatus(override);
       return;
     }
@@ -72,18 +74,32 @@ export function LiveStatusBadge({
   );
 }
 
-const PIPELINE: RequestStatus[] = ["new", "contacted", "quoted", "confirmed", "completed"];
+/** New, In discussion, Confirmed, Payment, Completed. A service fee does not move the bar onto Payment. */
+const PIPELINE = ["new", "contacted", "confirmed", "quoted", "completed"] as const;
+
+export type PipelinePayment = "none" | "fee" | "full";
+
+const pipelineIndex = (status: RequestStatus): number => {
+  if (status === "completed") return 4;
+  if (status === "quoted") return 3;
+  if (status === "confirmed") return 2;
+  if (status === "contacted") return 1;
+  return 0;
+};
 
 export function LivePipeline({
   requestId,
   status,
-  labels,
+  payment = "none",
+  steps,
   progressLabel,
   cancelledNote,
 }: {
   requestId: string;
   status: RequestStatus;
-  labels: Record<RequestStatus, string>;
+  /** full: the trip balance is in, so the Payment step reads as paid. fee: only the service fee; the bar stays on Confirmed. */
+  payment?: PipelinePayment;
+  steps: { pending: string; discussion: string; confirmed: string; payment: string; paid: string; completed: string };
   progressLabel: string;
   cancelledNote: string;
 }) {
@@ -91,9 +107,10 @@ export function LivePipeline({
   if (live === "cancelled") {
     return <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">{cancelledNote}</div>;
   }
-  const at = PIPELINE.indexOf(live);
+  const at = pipelineIndex(live);
+  const labels = [steps.pending, steps.discussion, steps.confirmed, payment === "full" && at >= 3 ? steps.paid : steps.payment, steps.completed];
   return (
-    <ol className="grid grid-cols-5 gap-1" aria-label={progressLabel}>
+    <ol className="grid grid-cols-5 gap-3" aria-label={progressLabel}>
       {PIPELINE.map((step, i) => {
         const done = i < at;
         const current = i === at;
@@ -101,12 +118,12 @@ export function LivePipeline({
           <li key={step} aria-current={current ? "step" : undefined} className="min-w-0">
             <span className={`block h-1 rounded-full ${i <= at ? "bg-zinc-950" : "bg-zinc-200"}`} />
             <span
-              className={`mt-2 flex items-center gap-1 truncate text-[11px] font-medium sm:text-xs ${
+              className={`mt-2 flex items-start gap-1 text-[11px] font-medium leading-tight sm:text-xs ${
                 current ? "text-zinc-950" : done ? "text-zinc-600" : "text-zinc-400"
               }`}
             >
-              {done && <CheckIcon size={12} className="hidden shrink-0 sm:block" />}
-              {labels[step] ?? step}
+              {done && <CheckIcon size={12} className="mt-0.5 shrink-0" />}
+              <span className="min-w-0">{labels[i]}</span>
             </span>
           </li>
         );

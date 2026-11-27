@@ -74,14 +74,15 @@ async function Detail({ params }: Pick<PageProps<"/admin/chats/[id]">, "params">
         </span>
         <span aria-hidden="true">·</span>
         <span className="uppercase">{chat.locale}</span>
-        {chat.visitorName ? <span>{c.visitorName}: {chat.visitorName}</span> : null}
-        {chat.visitorEmail ? <span className="break-all">{c.visitorEmail}: {chat.visitorEmail}</span> : null}
+        <span>{c.visitorName}: {chat.visitorName ?? "—"}</span>
+        <span className="break-all">{c.visitorEmail}: {chat.visitorEmail ?? "—"}</span>
+        {chat.followUp ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">{c.followRequired}</span> : null}
       </p>
       <form action={setChatFollowUp} className="mt-3">
         <input type="hidden" name="id" value={chat.id} />
         <input type="hidden" name="followUp" value={chat.followUp ? "0" : "1"} />
         <button className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${chat.followUp ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-zinc-50 text-zinc-600 ring-zinc-200"}`}>
-          {chat.followUp ? c.followNeeded : c.followResolved}
+          {chat.followUp ? c.followRequired : c.followResolved}
         </button>
       </form>
 

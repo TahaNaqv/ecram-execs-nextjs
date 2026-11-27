@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { payBooking, payPartnerBooking, type PayState } from "@/lib/mollie/actions";
+import { dropPayTab, holdPayTab, sendPayTab } from "./booking/pay-tab";
 
 /**
  * "Pay €X now": opens Mollie's payment page for an approved booking. For a website guest (`guest`, with the private link's
@@ -32,6 +33,10 @@ export function PayButton({
 }) {
   const [state, action, pending] = useActionState<PayState, FormData>(who === "guest" ? payBooking : payPartnerBooking, {});
   useEffect(() => {
+    if (state.error || state.notice) {
+      dropPayTab();
+      return;
+    }
     if (!state.checkout) return;
     try {
       const next = new URL(state.checkout);
@@ -40,13 +45,21 @@ export function PayButton({
       const mollie = next.protocol === "https:" && (next.hostname === "mollie.com" || next.hostname.endsWith(".mollie.com"));
       const sameSite = next.origin === window.location.origin;
       const localCheckout = (next.protocol === "http:" || next.protocol === "https:") && local(next.hostname) && local(here);
-      if (mollie || sameSite || localCheckout) window.location.assign(next.toString());
+      if (!(mollie || sameSite || localCheckout)) {
+        dropPayTab();
+        return;
+      }
+      const url = next.toString();
+      if (!sendPayTab(url)) {
+        const opened = window.open(url, "_blank", "noopener,noreferrer");
+        if (opened) opened.opener = null;
+      }
     } catch {
-      /* a checkout address that is not a URL is not opened */
+      dropPayTab();
     }
-  }, [state.checkout]);
+  }, [state.checkout, state.error, state.notice]);
   return (
-    <form action={action} className="flex flex-col gap-2">
+    <form action={action} onSubmit={() => holdPayTab(pendingLabel)} className="flex flex-col gap-2">
       <input type="hidden" name={who === "guest" ? "ref" : "reference"} value={reference} />
       {linkKey && <input type="hidden" name="k" value={linkKey} />}
       <input type="hidden" name="locale" value={locale} />

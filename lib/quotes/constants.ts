@@ -3,10 +3,11 @@ export const REQUEST_STATUSES = ["new", "contacted", "quoted", "confirmed", "com
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 /**
- * Statuses the dashboard offers, in the order the team moves a booking:
- * new, in discussion (contacted), payment (quoted), confirmed, completed. Cancelled leaves the sequence.
+ * Statuses the dashboard offers, in the order the team moves a booking.
+ * Confirmation comes before payment: new, in discussion, confirmed, then payment (quoted) or an invoice, then completed.
+ * Cancelled leaves the sequence. A service-fee payment does not move a booking to paid.
  */
-export const ACTIVE_STATUSES = ["new", "contacted", "quoted", "confirmed", "completed", "cancelled"] as const;
+export const ACTIVE_STATUSES = ["new", "contacted", "confirmed", "quoted", "completed", "cancelled"] as const;
 export type ActiveStatus = (typeof ACTIVE_STATUSES)[number];
 
 /** Statuses in which a website visitor can still write about their booking on its private page. */

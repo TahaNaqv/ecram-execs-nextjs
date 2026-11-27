@@ -85,14 +85,38 @@ export async function deleteSupplier(formData: FormData): Promise<Result> {
   refresh();
 }
 
+/** Confirmed and completed bookings hold their add-ons. Anything earlier, or a cancellation, does not. */
+const holdsStock = (status: string | null | undefined) => status === "confirmed" || status === "completed";
+
+async function moveStock(picks: ExtraPick[] | null | undefined, direction: "take" | "return") {
+  await Promise.all(
+    (picks ?? []).map(async (extra) => {
+      if (!known(extra.key)) return;
+      const count = Math.max(1, extra.count || 1);
+      const delta = direction === "take" ? -count : count;
+      await db
+        .update(schema.addonStock)
+        .set({ onHand: sql`greatest(${schema.addonStock.onHand} + ${delta}, 0)` })
+        .where(eq(schema.addonStock.key, extra.key));
+    }),
+  );
+}
+
 /** Takes the booked quantity off the shelf. Missing stock rows are left alone. */
 export async function allocateAddons(picks: ExtraPick[] | null | undefined) {
-  for (const extra of picks ?? []) {
-    if (!known(extra.key)) continue;
-    const count = Math.max(1, extra.count || 1);
-    await db
-      .update(schema.addonStock)
-      .set({ onHand: sql`greatest(${schema.addonStock.onHand} - ${count}, 0)` })
-      .where(eq(schema.addonStock.key, extra.key));
-  }
+  await moveStock(picks, "take");
+}
+
+/** Puts a previously confirmed booking's add-ons back. */
+export async function releaseAddons(picks: ExtraPick[] | null | undefined) {
+  await moveStock(picks, "return");
+}
+
+/** Deducts only when a booking becomes confirmed, and restores when it leaves confirmed without being completed. */
+export async function syncAddonStock(from: string | null | undefined, to: string | null | undefined, picks: ExtraPick[] | null | undefined) {
+  const held = holdsStock(from);
+  const hold = holdsStock(to);
+  if (held === hold) return;
+  if (hold) await allocateAddons(picks);
+  else await releaseAddons(picks);
 }

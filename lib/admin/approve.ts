@@ -101,9 +101,13 @@ export async function setBookingStatus(
   const followUp = async () => {
     if (sendMail) {
       try {
-        // "New" has not been confirmed: the customer gets the acknowledgement, never "your booking is confirmed"
+        // "New" has not been confirmed: the customer gets the acknowledgement, never "your booking is confirmed".
+        // The confirmation letter is sent only on the transition into Confirmed.
+        const confirmingMail = newStatus === "confirmed" && current.status !== "confirmed";
         if (newStatus === "new") await emailBookingRecorded(updated);
-        else if (updated.corporateContactId && updated.source !== "website-corporate") {
+        else if (newStatus === "confirmed" && !confirmingMail) {
+          /* already confirmed: a repeated save is not another confirmation */
+        } else if (updated.corporateContactId && updated.source !== "website-corporate") {
           const [partner] = await db
             .select({ email: schema.corporateContacts.email, name: schema.corporateContacts.name, locale: schema.corporateContacts.locale })
             .from(schema.corporateContacts)
@@ -133,6 +137,8 @@ export async function setBookingStatus(
     // Confirmed: charge the saved card when there is one. Otherwise the customer pays on the booking page.
     if (newStatus === "confirmed" && updated.paymentPlan) await collectConfirmedCharge(updated.id);
   };
+  const { syncAddonStock } = await import("@/app/(admin)/admin/(app)/addons/actions");
+  await syncAddonStock(current.status, updated.status, updated.extras).catch((err) => console.error("[addons] stock", err));
   console.info(`[status] ${updated.reference}: ${current.status} → ${newStatus}${sendMail ? " (customer told)" : ""}${adminId ? "" : " (automatic)"}`);
   return { status: "ok", request: updated, followUp };
 }

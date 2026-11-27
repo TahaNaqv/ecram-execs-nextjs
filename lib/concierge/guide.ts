@@ -22,14 +22,14 @@ const quote = (label: string) => `"${label}"`;
  */
 /** Paying at booking (the client's rules of 15 Nov 2026), while online payment is on. */
 const PAY_AT_BOOKING =
-  "Payment is by card when booking, on the secure payment page of Mollie, our payment provider. For a ride more than 30 days ahead the visitor pays the service fee of €12.50 now, which is not refundable; the rest of the price is charged to the same card 30 days before the ride, and the visitor is emailed 5 days before that. For a ride 30 days or less ahead the full price is paid when booking. If the team cannot take a booking, everything paid is refunded, the service fee too.";
+  "Payment is by card on the secure payment page of Mollie, our payment provider, and nothing is taken when the booking is submitted. Lead time is the ride date minus today. Under 6 days, and any ride 30 days or less ahead: a person confirms the booking, then the full price is charged. From 31 to 179 days ahead: a person confirms it, then the €12.50 service fee is charged, and the rest is charged to the same card 30 days before the ride. 180 days or more ahead: the booking is confirmed automatically and the €12.50 service fee is charged then; the rest is charged 30 days before the ride. The visitor is emailed 5 days before that later charge. The service fee is not refundable. Paying only the service fee does not make the booking paid. If the team cannot take a booking, everything paid is refunded, the service fee too.";
 const PAY_AFTER_APPROVAL =
   "Payment comes after approval: the details follow once the booking is approved. There is no payment before the booking manager has reviewed it.";
 
 export function siteGuide(dict: Dictionary): string {
   const payNow = mollieConfigured();
   const line7Paid =
-    "7. What follows: the visitor pays by card (see payment below) and lands on their booking's page, and gets an email with a link back to it. A booking made 6 months or more ahead is confirmed automatically as soon as the service fee is paid. Every other booking is reviewed by hand by the booking manager, who then approves it or opens a conversation on that page to discuss it (for example to offer other cars).";
+    "7. What follows: the visitor lands on their booking's page, and gets an email with a link back to it. A booking made 180 days or more ahead is confirmed automatically, and the service fee is charged then. Every other booking is reviewed by hand by the booking manager, who confirms it before any charge, or opens a conversation on that page to discuss it (for example to offer other cars).";
   const b = dict.booking;
   const p = dict.portal;
   const c = dict.corporatePartner;

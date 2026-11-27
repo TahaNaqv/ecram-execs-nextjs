@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { ACTIVE_STATUSES, type RequestStatus } from "@/lib/quotes/constants";
+import { publishBookingStatus } from "../../../_components/booking-status";
 import { updateRequest, type UpdateState } from "../../../actions";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../../_components/icons";
 import { btn, field, fieldLabel } from "../../../_components/ui";
@@ -30,6 +31,16 @@ export function UpdateForm({ id, status, quotedAmount, priced = false, internalN
     setShownFor(status);
     setChosen(status);
   }
+  const publishedSave = useRef(state);
+  useEffect(() => {
+    if (state.error) {
+      publishBookingStatus(id, status);
+      return;
+    }
+    if (!state.ok || publishedSave.current === state) return;
+    publishedSave.current = state;
+    if ((ACTIVE_STATUSES as readonly string[]).includes(chosen)) publishBookingStatus(id, chosen as RequestStatus);
+  }, [state, id, chosen, status]);
   return (
     <form
       action={action}
@@ -50,7 +61,7 @@ export function UpdateForm({ id, status, quotedAmount, priced = false, internalN
           {copy.status}
         </label>
         <div className="relative">
-          <select id="req-status" name="status" value={(ACTIVE_STATUSES as readonly string[]).includes(chosen) ? chosen : "new"} onChange={(event) => { setChosen(event.target.value); setWarn(event.target.value === "cancelled" && status !== "cancelled" ? warn : false); }} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
+          <select id="req-status" name="status" value={(ACTIVE_STATUSES as readonly string[]).includes(chosen) ? chosen : "new"} onChange={(event) => { const next = event.target.value; setChosen(next); setWarn(next === "cancelled" && status !== "cancelled" ? warn : false); if ((ACTIVE_STATUSES as readonly string[]).includes(next)) publishBookingStatus(id, next as RequestStatus); }} className={`${field} h-10 cursor-pointer appearance-none pr-9`}>
             {ACTIVE_STATUSES.filter((s) => s !== "cancelled" || s === status).map((s) => (
               <option key={s} value={s}>
                 {statusLabels[s]}

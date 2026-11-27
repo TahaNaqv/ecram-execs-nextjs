@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/db";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { STOCKED_EXTRA_KEYS } from "@/lib/pricing/extras";
-import { PageBody, PageHeader } from "../../_components/ui";
+import { Card, PageBody, PageHeader, Skeleton } from "../../_components/ui";
 import { addonLabel, LOW_STOCK } from "./addon-rules";
 import { StockCard, SuppliersCard, type StockRow, type SupplierRow } from "./addons-manager";
 
@@ -19,7 +19,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function AddonsPage() {
   return (
-    <Suspense fallback={<PageBody><div className="min-h-[40vh]" aria-busy="true" /></PageBody>}>
+    <Suspense
+      fallback={
+        <PageBody>
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2" aria-busy="true">
+            <Card><div className="flex flex-col gap-3 p-5"><Skeleton className="h-5 w-40" /><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div></Card>
+            <Card><div className="flex flex-col gap-3 p-5"><Skeleton className="h-5 w-32" /><Skeleton className="h-16 w-full" /></div></Card>
+          </div>
+        </PageBody>
+      }
+    >
       <Addons />
     </Suspense>
   );

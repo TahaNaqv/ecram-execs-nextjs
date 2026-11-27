@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { applyPatch, assess, cleanDraft, forModel, todayLabel, unavailableVehicleKeys, type Draft } from "@/lib/concierge/booking";
+import { absorbParty } from "@/lib/concierge/details";
 import { BOOKING_TOOL, SHOW_CARS_TOOL } from "@/lib/concierge/booking-tool";
 import { faqsFrom } from "@/lib/concierge/faqs";
 import { bookingByChat, fleetNames, siteGuide } from "@/lib/concierge/guide";
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
 
     const faqs = faqsFrom(section);
     const conversationHistory = cleanHistory(body?.conversationHistory, message);
-    const incoming = cleanDraft(body?.draft);
+    const incoming = absorbParty(cleanDraft(body?.draft), message);
 
     // Every answer to a chat with a session is saved for RETENTION.chatDays days, after it has gone out (lib/concierge/store.ts)
     const finish = (payload: { reply: string; handoff: boolean } & Record<string, unknown>, meta: ConciergeMessageMeta = {}, draftNow: Draft = incoming) => {
@@ -392,6 +393,7 @@ CRITICAL RULES:
       messages.push({ role: "user", content: results });
     }
 
+    draft = absorbParty(draft, message);
     const rawReply = stop === "max_tokens" ? wholeSentences(said) : said;
     if (failed || stop === "refusal" || !rawReply.trim()) return fallback();
 

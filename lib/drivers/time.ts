@@ -48,6 +48,22 @@ export function utcToAmsterdamParts(instant: Date): { date: string; time: string
 }
 
 /**
+ * The minimum-notice rule applies only when the pickup calendar day is today in Amsterdam.
+ * A later day is never "too soon", whatever the clock time is. Today is compared as a real instant against now plus the notice.
+ */
+export function pickupNeedsMoreNotice(pickupAt: string | null | undefined, now: Date, hours: number): boolean {
+  if (!pickupAt || hours <= 0) return false;
+  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(pickupAt.trim());
+  if (!match) return false;
+  const date = match[1];
+  const time = match[2];
+  if (date !== amsterdamToday(now)) return false;
+  const pickup = amsterdamWallToUtc(date, time);
+  if (!pickup) return false;
+  return pickup.getTime() < now.getTime() + hours * 3_600_000;
+}
+
+/**
  * A pick-up as stored. A value with a zone is an absolute instant. A bare wall clock
  * ("2026-11-25 08:30:00" or "2026-11-25T08:30") is Amsterdam local time.
  */

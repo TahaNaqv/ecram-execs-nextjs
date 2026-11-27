@@ -44,9 +44,11 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
     : seeded;
   for (let attempt = 1; ; attempt++) {
     try {
-      return await db.transaction(async (tx) => {
+      const request = await db.transaction(async (tx) => {
         await lockFleet(tx);
-        if (!(await fleetSlotFree(tx, values))) throw new NoVehicleError();
+        // A request that is not confirmed yet is always accepted. A car or add-on clash is settled on the admin schedule,
+        // not by refusing the visitor's checkout.
+        if (values.status === "confirmed" && !(await fleetSlotFree(tx, values))) throw new NoVehicleError();
         if (values.status === "confirmed") {
           const clash = await clashingReference(tx, {
             vehicle: values.vehicle ?? null,
@@ -66,10 +68,13 @@ export async function createQuoteRequest(input: NewQuoteRequest, events: NewEven
           .values({ ...values, reference: makeReference("EE") })
           .returning();
         if (events.length > 0) await tx.insert(schema.requestEvents).values(events.map((e) => ({ ...e, requestId: request.id })));
-        const { allocateAddons } = await import("@/app/(admin)/admin/(app)/addons/actions");
-        await allocateAddons(request.extras).catch((err) => console.error("[addons] allocate", err));
         return request;
       });
+      if (request.status === "confirmed" || request.status === "completed") {
+        const { allocateAddons } = await import("@/app/(admin)/admin/(app)/addons/actions");
+        await allocateAddons(request.extras).catch((err) => console.error("[addons] allocate", err));
+      }
+      return request;
     } catch (err) {
       if (!isUniqueViolation(err) || attempt === 3) throw err;
     }

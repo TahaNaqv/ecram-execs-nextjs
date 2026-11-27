@@ -518,9 +518,10 @@ export async function collectConfirmedCharge(requestId: string): Promise<void> {
 
 /**
  * Synchronizes quoteRequests.paymentStatus with the booking's Mollie payments.
- * Sets to "PAID" if any paid payment exists in the current mode,
- * "UNPAID" if the latest attempt failed/canceled/expired,
- * or "OPEN" if a payment is in progress or pending.
+ * Sets "PAID" only when the paid amount covers the booking total.
+ * A €12.50 service fee on its own is "PARTIAL": the booking stays confirmed until the rest is in.
+ * "UNPAID" when the latest attempt failed, was canceled, or expired.
+ * "OPEN" when a payment is in progress or still to be taken.
  *
  * Worked out from our own payment rows only, which hold what Mollie's API said. A status in a request (the return link,
  * the webhook) is never trusted: Mollie sends neither, and anyone can type or post one (fixed 24 Nov 2026).

@@ -172,8 +172,9 @@ async function Row({ row, nowMs, locale, copy }: { row: ChatRow; nowMs: number; 
       <Link href={`/admin/chats/${row.id}`} className="flex min-w-0 flex-1 flex-col gap-1.5 px-5 py-4 transition-colors hover:bg-zinc-50">
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
           <span>{formatRelative(new Date(row.lastMs), nowMs, locale)}</span>
-          {row.visitorName ? <span className="font-medium text-zinc-800">{row.visitorName}</span> : null}
-          {row.visitorEmail ? <span className="break-all">{row.visitorEmail}</span> : null}
+          <span className="font-medium text-zinc-800">{c.visitorName}: {row.visitorName ?? "—"}</span>
+          <span className="break-all">{c.visitorEmail}: {row.visitorEmail ?? "—"}</span>
+          {row.followUp ? <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-800 ring-1 ring-inset ring-amber-200">{c.followRequired}</span> : null}
           <span aria-hidden="true">·</span>
           <span>{row.messages === 1 ? c.messageOne : interpolate(c.messageMany, { count: row.messages })}</span>
           <span aria-hidden="true">·</span>
@@ -190,7 +191,7 @@ async function Row({ row, nowMs, locale, copy }: { row: ChatRow; nowMs: number; 
         <input type="hidden" name="id" value={row.id} />
         <input type="hidden" name="followUp" value={row.followUp ? "0" : "1"} />
         <button className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${row.followUp ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-zinc-50 text-zinc-600 ring-zinc-200"}`}>
-          {row.followUp ? c.followNeeded : c.followResolved}
+          {row.followUp ? c.followRequired : c.followResolved}
         </button>
       </form>
     </li>

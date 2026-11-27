@@ -213,14 +213,14 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
   const serviceLabels = dict.services;
   const t = dict.admin;
   // Requests on this page where a partner/guest has written and nobody on the team has opened it yet
-  const unseen = await unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id));
   const amounts = new Map(rows.map((r: QuoteRequest) => [r.id, listedAmount(r)] as const));
   // Paid at booking, but the payment never came in (the checkout was left, or the booking came by chat or phone)
-  const [{ paidCents, waiting }, invoices] = await Promise.all([
+  const [unseen, { paidCents, waiting }, invoices] = await Promise.all([
+    unseenPartnerMessages(rows.map((r: QuoteRequest) => r.id)),
     paymentSets(rows as QuoteRequest[]),
     moneybirdLinks(rows.map((r: QuoteRequest) => r.id)),
   ]);
-  const paymentStandingFor = (r: QuoteRequest): { status: PaymentStanding; title?: string } => {
+  const paymentStandingFor = (r: QuoteRequest): { status: PaymentStanding; title?: string; label?: string } => {
     const received = paidCents.get(r.id) ?? 0;
     const total = invoiceCents({ quotedAmount: r.quotedAmount, priceEstimate: r.priceEstimate }) ?? 0;
     if (received > 0 && total > received) {
@@ -228,14 +228,14 @@ async function Requests({ searchParams }: { searchParams: Promise<Search> }) {
       const paidLabel = formatEuro((received / 100).toFixed(2));
       const feeOnly = received === serviceFeeCents(r.priceEstimate);
       const title = interpolate(feeOnly ? t.requests.feePaidNote : t.requests.partPaidNote, { paid: paidLabel, rest });
-      return { status: "PARTIAL", title };
+      return { status: "PARTIAL" as const, title, label: feeOnly ? interpolate(t.review.serviceFeeBadge, { amount: paidLabel }) : undefined };
     }
     if (received > 0 && total > 0 && received >= total) return { status: "PAID" };
     return { status: paymentStanding(r.paymentStatus, false, waiting.has(r.id)), title: waiting.has(r.id) ? t.requests.notPaidNote : undefined };
   };
   const paymentStatusBadge = (r: QuoteRequest) => {
     const standing = paymentStandingFor(r);
-    return <PaymentStatusBadge status={standing.status} title={standing.title} />;
+    return <PaymentStatusBadge status={standing.status} title={standing.title} label={standing.label} />;
   };
   const messageBell = (id: string) => {
     const n = unseen.get(id) ?? 0;

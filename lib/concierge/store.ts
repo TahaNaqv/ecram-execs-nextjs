@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import type { ConciergeMessageMeta } from "@/lib/db/schema";
 import type { Locale } from "@/lib/i18n/config";
 import { CHAT_BOOKING_STATUSES, RETENTION } from "@/lib/retention";
+import { needsFollowUp } from "./details";
 import { plain } from "./plain";
 
 /**
@@ -75,9 +76,10 @@ export async function recordTurn(turn: Turn): Promise<void> {
       // One row per chat; two requests at once for the same chat queue up on it, so each gets its own positions.
       // (`xmax = 0` is true only for a row this statement inserted, which is how a new chat is told from a new turn.)
       const lead = visitorLead(turn.draft, turn.visitor);
+      const follow = needsFollowUp(turn.visitor, turn.draft, Boolean(turn.meta.handoff));
       const [chat] = await tx
         .insert(c)
-        .values({ sessionId: turn.session, locale: turn.locale, ipHash: turn.ipHash, messageCount: 2, draft, ...lead })
+        .values({ sessionId: turn.session, locale: turn.locale, ipHash: turn.ipHash, messageCount: 2, draft, followUp: follow, ...lead })
         .onConflictDoUpdate({
           target: c.sessionId,
           set: {
@@ -87,6 +89,7 @@ export async function recordTurn(turn: Turn): Promise<void> {
             locale: turn.locale,
             ...(lead.visitorName ? { visitorName: lead.visitorName } : {}),
             ...(lead.visitorEmail ? { visitorEmail: lead.visitorEmail } : {}),
+            ...(follow ? { followUp: true } : {}),
           },
         })
         .returning({ id: c.id, messageCount: c.messageCount, started: sql<boolean>`(xmax = 0)` });

@@ -106,7 +106,9 @@ function partnerEmailKind(from: RequestStatus, to: RequestStatus, fromAmount: st
   if (from !== to) {
     if (to === "contacted") return from === "new" ? "contacted" : null; // "we have picked it up": only on the first step, not when a booking moves back
     if (to === "quoted") return toAmount !== null ? "quoted" : null; // a quote with no amount is nothing to answer
-    return to === "confirmed" || to === "completed" || to === "cancelled" ? to : null;
+    // The confirmation letter is only for the step into Confirmed. Completed, In discussion and Payment do not send it.
+    if (to === "confirmed") return from === "confirmed" ? null : "confirmed";
+    return to === "completed" || to === "cancelled" ? to : null;
   }
   // The same status with a different amount on a quoted booking is a new offer
   return to === "quoted" && toAmount !== null && Number(fromAmount ?? Number.NaN) !== Number(toAmount) ? "quoted" : null;
@@ -173,25 +175,30 @@ export async function updateRequest(_prev: UpdateState, formData: FormData): Pro
   if (saved && "clash" in saved) return { error: hasTrailer(before.extras) ? `That car, or the luggage trailer, is already booked at that time (${saved.clash}). Give this booking another car, or remove the trailer, first.` : `That car is already booked at that time (${saved.clash}). Give this booking another car first.` };
   if (!saved) return changedMeanwhile;
 
+  const confirmingMail = told === "confirmed" && saved.status === "confirmed" && before.status !== "confirmed";
+  const toldNow = told === "confirmed" ? (confirmingMail ? told : null) : told;
+
   // A partner is told when their booking is picked up, quoted, confirmed, completed or cancelled: whatever the team changed
   // An introduction is a request too, but it is not a booking the partner can open: no booking emails for it
-  if (told && saved.corporateContactId && saved.source !== "website-corporate") {
+  if (toldNow && saved.corporateContactId && saved.source !== "website-corporate") {
     const [partner] = await db
       .select({ email: schema.corporateContacts.email, name: schema.corporateContacts.name, locale: schema.corporateContacts.locale })
       .from(schema.corporateContacts)
       .where(eq(schema.corporateContacts.id, saved.corporateContactId))
       .limit(1);
-    if (partner) after(() => emailPartnerBooking({ request: saved, to: partner, kind: told }));
-  } else if (told && !saved.corporateContactId && ENQUIRY_SOURCES.has(saved.source)) {
+    if (partner) after(() => emailPartnerBooking({ request: saved, to: partner, kind: toldNow! }));
+  } else if (toldNow && !saved.corporateContactId && ENQUIRY_SOURCES.has(saved.source)) {
     // Someone who asked on the website has no account to be told in, so the email carries the news itself (QA round 3, tab 2 bug 7).
     // Bookings the team keyed in (source "admin") are not mailed: the team spoke to them, and chose at the time whether to tell them.
-    after(() => emailEnquiryStatus({ request: saved, kind: told }));
+    after(() => emailEnquiryStatus({ request: saved, kind: toldNow }));
   }
   if (before.status !== saved.status || before.quotedAmount !== saved.quotedAmount) {
     syncAfter(saved.id, { deliver: notifiesPartner || notifiesGuest ? "Email" : "Manual" });
   }
   // Cancelled: no checkout is left open and the saved card is not charged again
   if (saved.status === "cancelled" && before.status !== "cancelled") after(() => stopPaying(saved.id, saved.reference));
+  const { syncAddonStock } = await import("@/app/(admin)/admin/(app)/addons/actions");
+  await syncAddonStock(before.status, saved.status, saved.extras).catch((err) => console.error("[addons] stock", err));
   revalidatePath("/admin/corporate");
   revalidatePath("/admin");
   if (saved.corporateContactId) revalidatePath(`/admin/corporate/${saved.corporateContactId}`);

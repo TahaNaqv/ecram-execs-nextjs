@@ -219,7 +219,8 @@ function Block({
   statuses: Record<RequestStatus, string>;
 }) {
   const top = (b.start / 60) * HOUR_PX;
-  const height = Math.max(((b.tripEnd - b.start) / 60) * HOUR_PX, 52);
+  const span = ((b.tripEnd - b.start) / 60) * HOUR_PX;
+  const height = Math.max(span, 96);
   const bufferHeight = ((b.end - b.tripEnd) / 60) * HOUR_PX;
   const width = 100 / lanes;
   const route = [b.from, b.to].filter(Boolean).join(" → ");
@@ -229,25 +230,25 @@ function Block({
       <Link
         href={`/admin/requests/${b.id}`}
         title={[b.reference, who, route, statuses[b.status], b.clash ? t.clash : ""].filter(Boolean).join("\n")}
-        className={`absolute z-[1] overflow-hidden rounded-md border px-2 py-1 text-[11px] leading-snug shadow-sm transition-shadow hover:z-[5] hover:shadow-md ${TONE[b.status]} ${b.clash ? "ring-2 ring-red-500" : ""}`}
-        style={{ top, height, left: `calc(${lane * width}% + 3px)`, width: `calc(${width}% - 6px)` }}
+        className={`absolute z-[1] overflow-y-auto rounded-md border px-2 py-1.5 text-[11px] leading-snug shadow-sm transition-shadow [scrollbar-width:thin] hover:z-[5] hover:shadow-md ${TONE[b.status]} ${b.clash ? "ring-2 ring-red-500" : ""}`}
+        style={{ top, height, left: `calc(${lane * width}% + 4px)`, width: `calc(${width}% - 8px)` }}
       >
-        <span className="block font-semibold tabular-nums">
+        <span className="block whitespace-normal break-words font-semibold tabular-nums">
           {b.clipsStart ? "…" : clock(b.start)} – {b.clipsEnd && b.tripEnd >= 24 * 60 ? "…" : clock(b.tripEnd)}
           {b.leg === "return" && <span className="ml-1 font-medium opacity-80">· {t.returnLeg}</span>}
           {b.status !== "confirmed" && b.status !== "completed" && <span className="ml-1 font-medium">· {t.holdPending}</span>}
           {b.status === "confirmed" && <span className="ml-1 font-medium">· {t.holdBooked}</span>}
         </span>
         {b.clash && <span className="sr-only">{t.clash}</span>}
-        <span className="block truncate font-mono">{b.reference}</span>
-        <span className="block truncate">{who}</span>
-        {route && <span className="block truncate text-[10.5px] opacity-80">{route}</span>}
+        <span className="mt-0.5 block whitespace-normal break-all font-mono">{b.reference}</span>
+        <span className="block whitespace-normal break-words">{who}</span>
+        {route && <span className="block whitespace-normal break-words text-[10.5px] opacity-80">{route}</span>}
       </Link>
       {bufferHeight > 0 && b.status === "confirmed" && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute rounded-b-md border border-t-0 border-emerald-300/70 bg-[repeating-linear-gradient(45deg,transparent_0,transparent_4px,rgb(167_243_208/0.6)_4px,rgb(167_243_208/0.6)_8px)]"
-          style={{ top: top + height, height: Math.max(0, bufferHeight - (height - ((b.tripEnd - b.start) / 60) * HOUR_PX)), left: `calc(${lane * width}% + 3px)`, width: `calc(${width}% - 6px)` }}
+          style={{ top: top + height, height: Math.max(0, bufferHeight - (height - span)), left: `calc(${lane * width}% + 4px)`, width: `calc(${width}% - 8px)` }}
         />
       )}
     </>

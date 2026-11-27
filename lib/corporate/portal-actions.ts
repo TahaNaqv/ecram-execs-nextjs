@@ -227,6 +227,8 @@ export async function respondToQuote(_prev: PortalState, formData: FormData): Pr
   }
 
   const done = request;
+  const { syncAddonStock } = await import("@/app/(admin)/admin/(app)/addons/actions");
+  await syncAddonStock("quoted", done.status, done.extras).catch((err) => console.error("[addons] stock", err));
   const locale = formLocale(formData);
   after(() =>
     Promise.all([

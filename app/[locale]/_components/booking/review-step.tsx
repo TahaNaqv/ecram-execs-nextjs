@@ -1188,6 +1188,11 @@ export function ReviewStep({
                 copy={t}
                 locale={locale}
               />
+              {payPlan && (
+                <p className="m-0 mt-3 text-[13px] leading-snug text-ink-800">
+                  {payPlan === "C" ? t.payNoticeFull : t.payNoticeFee}
+                </p>
+              )}
             </div>
             <div className="shrink-0 border-0 border-t border-solid border-ink-150 pt-3">
               <label htmlFor={`${uid}-agree`} className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug">
@@ -1214,16 +1219,22 @@ export function ReviewStep({
               </label>
               {payPlan && upfront != null && (
                 <div className="mt-2 flex flex-col gap-1 pl-[26px] text-[12.5px] leading-snug text-ink-700">
-                  <p className="m-0">
-                    {payPlan === "C"
-                      ? interpolate(t.payNowFull, { amount: formatCents(upfront, locale) })
-                      : interpolate(t.payNowFee, {
+                  {payPlan === "C" ? (
+                    <p className="m-0">{interpolate(t.payNowFull, { amount: formatCents(upfront, locale) })}</p>
+                  ) : timing?.autoConfirmed ? (
+                    <p className="m-0">{t.payAutoApproved}</p>
+                  ) : (
+                    <>
+                      <p className="m-0">
+                        {interpolate(t.payNowFee, {
                           amount: formatCents(upfront, locale),
                           rest: formatCents(restCents, locale),
                           date: restOn ? longDate(restOn) : "",
                         })}
-                  </p>
-                  <p className="m-0">{timing?.autoConfirmed ? t.payAutoApproved : t.payReviewed}</p>
+                      </p>
+                      <p className="m-0">{t.payReviewed}</p>
+                    </>
+                  )}
                 </div>
               )}
               {mustAgree && (

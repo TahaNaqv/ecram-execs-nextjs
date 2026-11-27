@@ -7,6 +7,7 @@ import { bagCapacity, carsTowTrailer, FLEET, LARGEST_CAR_SEATS, normalizeVehicle
 import { interpolate } from "@/lib/i18n/interpolate";
 import type { Locale } from "@/lib/i18n/config";
 import { receiptLineItems, type ReceiptLine } from "@/lib/pricing/receipt-lines";
+import { amsterdamDay, checkoutSettlement, type CheckoutSettlement } from "@/lib/payments/schedule";
 import { customerHourly, displayHourly, formatCents, hoursByDay, kmPerHour, MIN_HOURS, type Price, type Segment, SERVICE_FEE_CENTS } from "@/lib/pricing/rates";
 import { EXTRAS, extraName, TRAILER_KEY, TRAILER_SUITCASES } from "@/lib/pricing/extras";
 import { labelledRoute } from "@/lib/quotes/route-labels";
@@ -1360,6 +1361,8 @@ export type RideReceipt = {
   vehicle?: string;
   /** Passenger and luggage line, for the receipt itinerary. */
   passengers?: string;
+  /** What is taken today and what remains, from the lead-time plan at booking. */
+  settlement?: CheckoutSettlement;
 };
 
 const detailValue = (entry: DetailsEntry, key: string) => (entry.fields.find(([name]) => name === key)?.[1] ?? "").trim();
@@ -1420,6 +1423,7 @@ function buildRideReceipt({
     extraNames: (quoted?.extras ?? []).map((line) => extraName(addOns, line)),
     vehicle: receiptVehicle(trip, t),
     passengers: partyLine(t, trip.pax, trip.bags, trip.small),
+    settlement: quoted && quoted.total > 0 ? checkoutSettlement(trip.at, amsterdamDay(), quoted.total, quoted) ?? undefined : undefined,
   };
 }
 
@@ -1536,6 +1540,44 @@ function receiptLines(p: Price | null, serverTotal: number | null, names: string
   return receiptLineItems(p, t, names) ?? [];
 }
 
+function readSettlement(value: CheckoutSettlement | undefined): CheckoutSettlement | null {
+  if (!value) return null;
+  if (value.dueTodayKind !== "fee" && value.dueTodayKind !== "pending" && value.dueTodayKind !== "full") return null;
+  if (![value.totalCents, value.dueTodayCents, value.remainingCents].every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  if (value.remainingOn != null && !/^\d{4}-\d{2}-\d{2}$/.test(value.remainingOn)) return null;
+  return value;
+}
+
+function settlementRows(
+  settlement: CheckoutSettlement | null,
+  t: BookingCopy,
+  locale: Locale,
+  euro: (cents: number) => string,
+): { label: string; value: string }[] {
+  if (!settlement) return [];
+  const due =
+    settlement.dueTodayKind === "fee"
+      ? interpolate(t.receiptDueTodayFee, { amount: euro(settlement.dueTodayCents) })
+      : settlement.dueTodayKind === "full"
+        ? interpolate(t.receiptDueTodayFull, { amount: euro(settlement.dueTodayCents) })
+        : interpolate(t.receiptDueTodayPending, { amount: euro(settlement.dueTodayCents) });
+  const rows = [{ label: t.receiptDueToday, value: due }];
+  if (settlement.remainingCents > 0) {
+    const date = settlement.remainingOn
+      ? new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+          new Date(`${settlement.remainingOn}T12:00:00Z`),
+        )
+      : "";
+    rows.push({
+      label: date
+        ? interpolate(t.receiptRemaining, { amount: euro(settlement.remainingCents), date })
+        : interpolate(t.receiptRemainingOnConfirm, { amount: euro(settlement.remainingCents) }),
+      value: "",
+    });
+  }
+  return rows;
+}
+
 /** Small pill button on the side that opens the complete styled booking confirmation receipt modal */
 export function DownloadableReceiptCard({
   copy: t,
@@ -1573,6 +1615,8 @@ export function DownloadableReceiptCard({
   const quoted = receipt?.price ?? null;
   const totalAmount = price?.total ?? quoted?.total ?? 0;
   const euro = (cents: number) => formatCents(cents, locale);
+  const settlement = readSettlement(receipt?.settlement);
+  const settlementLines = settlementRows(settlement, t, locale, euro);
   const lines = receiptLines(quoted, price?.total ?? null, receipt?.extraNames ?? [], t).map(({ label, cents, divider }) => ({ label, value: euro(cents), divider }));
   const total = euro(totalAmount);
   const clientName = receipt?.passengerName || name;
@@ -1595,7 +1639,7 @@ export function DownloadableReceiptCard({
         dropoff: receipt?.dropoff ? `${t.reviewDropoff}: ${receipt.dropoff}` : undefined,
         vehicle: receipt?.vehicle,
         passengers: receipt?.passengers,
-        lines,
+        lines: [...lines, ...settlementLines.map((line) => ({ label: line.label, value: line.value || "—" }))],
         total,
       }),
     );
@@ -1673,9 +1717,19 @@ export function DownloadableReceiptCard({
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#06144a] px-3.5 py-3">
-                <span className="font-serif text-[12px] tracking-wide text-zinc-200 uppercase">{t.priceTotal}</span>
-                <span className="font-medium text-[#ffffff] tabular-nums">{total}</span>
+                <span className="font-serif text-[12px] tracking-wide text-zinc-200 uppercase">{t.receiptSettlementTotal}</span>
+                <span className="font-medium text-[#ffffff] tabular-nums">{settlement ? euro(settlement.totalCents) : total}</span>
               </div>
+              {settlementLines.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl bg-[#f8fafc] px-3.5 py-3 text-[#0f172a]">
+                  {settlementLines.map((line) => (
+                    <div key={line.label} className="flex items-start justify-between gap-3 text-[13px] leading-snug">
+                      <span className={`min-w-0 ${line.value ? "font-medium" : "font-semibold"}`}>{line.label}</span>
+                      {line.value ? <span className="shrink-0 text-right font-semibold tabular-nums">{line.value}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <p className="m-0 mt-3 text-center text-[11px] text-zinc-400">Ecram Execs · Amsterdam, Netherlands</p>
             </div>
