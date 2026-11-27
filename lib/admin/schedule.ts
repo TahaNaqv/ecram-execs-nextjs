@@ -33,6 +33,9 @@ export type DayBlock = {
   name: string;
   entity: string | null;
   passengers: number | null;
+  luggage: number | null;
+  /** airport_transfer, hourly, and the other service keys */
+  service: string;
   /** Another confirmed booking holds this car at the same time (only old data can do this) */
   clash: boolean;
 };
@@ -110,6 +113,7 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         pickupPlaceId: q.pickupPlaceId,
         destinationPlaceId: q.destinationPlaceId,
         passengers: q.passengers,
+        luggage: q.luggage,
         name: q.name,
         entity: q.entity,
       })
@@ -179,6 +183,8 @@ export async function daySchedule(date: string): Promise<DaySchedule> {
         name: row.name,
         entity: row.entity,
         passengers: row.passengers,
+        luggage: row.luggage,
+        service: row.service,
         clash: false,
       };
       // Each column gets its own copy: a clash is marked per car

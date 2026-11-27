@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { cache } from "react";
 import { bookingEuros } from "@/lib/admin/queries";
 import { bookingTotalEuros } from "@/lib/pricing/rates";
@@ -416,7 +416,11 @@ function asBookingSummary(row: {
 export const getCorporatePartners = cache(async (): Promise<CorporatePartnerRow[]> => {
   await requireAdmin();
   const [contacts, introducerRows] = await Promise.all([
-    db.select().from(c).orderBy(asc(c.companyName)),
+    db
+      .select()
+      .from(c)
+      .where(and(isNotNull(c.verifiedAt), isNotNull(c.passwordHash), or(isNull(c.lockedUntil), lt(c.lockedUntil, new Date()))))
+      .orderBy(asc(c.companyName)),
     db.select({ id: schema.introducers.id, name: schema.introducers.name }).from(schema.introducers),
   ]);
   const introducerNames = new Map(introducerRows.map((person) => [person.id, person.name]));
@@ -513,7 +517,7 @@ export type CorporatePartnerDetail = {
 export const getCorporatePartnerDetail = cache(async (id: string): Promise<CorporatePartnerDetail | null> => {
   await requireAdmin();
   const [contact] = await db.select().from(c).where(eq(c.id, id)).limit(1);
-  if (!contact) return null;
+  if (!contact?.verifiedAt || !contact.passwordHash) return null;
 
   const bookings = await db.select().from(q).where(eq(q.corporateContactId, id)).orderBy(desc(q.createdAt));
   const totalSpend = bookings.reduce((sum, b) => sum + (b.status === "cancelled" ? 0 : bookingEurosOf(b)), 0);

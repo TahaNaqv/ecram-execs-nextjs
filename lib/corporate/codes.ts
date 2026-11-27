@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, count, desc, eq, gt, lt } from "drizzle-orm";
+import { and, count, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { db, schema } from "@/lib/db";
 import { sendVerificationCode } from "@/lib/email";
@@ -21,6 +21,28 @@ export const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
 
 /** What the person typed on the sign-up form. It waits on the challenge and only takes effect when the code is entered. */
 export type Pending = { name: string; position: string; consent: boolean };
+
+/** The full registration. Stored on the challenge until the code and password are both done. */
+export type SignupDraft = {
+  email: string;
+  name: string;
+  position: string;
+  companyName: string;
+  kvkNumber: string | null;
+  signatory: string;
+  pointOfCall: string;
+  phone: string;
+  billingStreet: string;
+  billingPostcode: string;
+  billingCity: string;
+  billingCountry: string;
+  vatNumber: string | null;
+  invoiceEmail: string | null;
+  locale: "en" | "nl";
+  marketingConsent: boolean;
+  ipHash: string;
+  userAgent: string | null;
+};
 
 export type IssueResult = "ok" | "rate" | "wait" | "fail";
 
@@ -114,5 +136,69 @@ export async function issueCode(
   // Opportunistic cleanup, as admin sessions do
   await db.delete(schema.corporateChallenges).where(lt(schema.corporateChallenges.expiresAt, minutesAgo(60 * 24)));
   await db.delete(schema.corporateAccess).where(lt(schema.corporateAccess.expiresAt, new Date()));
+  return "ok";
+}
+
+/** Emails a sign-up code without creating a partner. The account row is inserted only after the password is set. */
+export async function issueSignupCode(draft: SignupDraft): Promise<IssueResult> {
+  const isDev = process.env.NODE_ENV !== "production";
+  const sameEmail = sql`${schema.corporateChallenges.pendingSignup}->>'email' = ${draft.email}`;
+  if (!isDev) {
+    if (await ipLimited(draft.ipHash)) return "rate";
+    const [{ n }] = await db
+      .select({ n: count() })
+      .from(schema.corporateChallenges)
+      .where(and(eq(schema.corporateChallenges.purpose, "signup"), sameEmail, gt(schema.corporateChallenges.createdAt, minutesAgo(CONTACT_LIMIT.windowMinutes))));
+    if (n >= CONTACT_LIMIT.max) return "rate";
+    const [latest] = await db
+      .select({ createdAt: schema.corporateChallenges.createdAt })
+      .from(schema.corporateChallenges)
+      .where(and(eq(schema.corporateChallenges.purpose, "signup"), sameEmail))
+      .orderBy(desc(schema.corporateChallenges.createdAt))
+      .limit(1);
+    if (latest && Date.now() - latest.createdAt.getTime() < RESEND_SECONDS * 1000) return "wait";
+  }
+
+  const id = randomUUID();
+  const code = newCode();
+  const expiresAt = new Date(Date.now() + CODE_MINUTES * 60_000);
+  await db.insert(schema.corporateChallenges).values({
+    id,
+    contactId: null,
+    codeHmac: codeHmac(id, code),
+    purpose: "signup",
+    pendingSignup: draft,
+    pendingName: draft.name,
+    pendingPosition: draft.position,
+    pendingConsent: draft.marketingConsent,
+    expiresAt,
+    ipHash: draft.ipHash,
+  });
+
+  let sent = false;
+  try {
+    sent = await sendVerificationCode({
+      email: draft.email,
+      name: draft.name,
+      code,
+      locale: draft.locale,
+      minutes: CODE_MINUTES,
+      purpose: "signup",
+    });
+  } catch (err) {
+    console.error("[corporate] sendVerificationCode error:", err);
+  }
+  if (!sent) {
+    if (isDev) {
+      console.warn(`[corporate] [DEV MODE] Verification code dispatch failed, bypassing for local development. Code: ${code}`);
+      sent = true;
+    } else {
+      await db.update(schema.corporateChallenges).set({ consumedAt: new Date() }).where(eq(schema.corporateChallenges.id, id));
+      return "fail";
+    }
+  }
+  const jar = await cookies();
+  jar.set(CHALLENGE_COOKIE, id, cookieOptions(new Date(Date.now() + 60 * 60_000)));
+  jar.delete(VERIFIED_COOKIE);
   return "ok";
 }

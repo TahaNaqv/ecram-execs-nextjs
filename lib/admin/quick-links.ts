@@ -18,6 +18,27 @@ export const DEFAULT_QUICK_LINKS: QuickLink[] = [
 export const QUICK_LINKS_KEY = "quick_links";
 export const MAX_QUICK_LINKS = 30;
 
+/**
+ * The draft the editor submits, in order. Blank rows are dropped. A half-filled row is an error, so a save never
+ * stores a link with no name or no address.
+ */
+export function readQuickLinkDraft(raw: unknown): { links: QuickLink[] } | { error: string } {
+  if (!Array.isArray(raw) || raw.length > 100) return { error: "The list could not be read. Reload the page." };
+  const links: QuickLink[] = [];
+  for (const [i, item] of raw.entries()) {
+    const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const label = typeof record.label === "string" ? record.label.trim() : "";
+    const hrefText = typeof record.href === "string" ? record.href : "";
+    if (!label && !hrefText.trim()) continue;
+    if (links.length >= MAX_QUICK_LINKS) return { error: `At most ${MAX_QUICK_LINKS} links.` };
+    if (!label || label.length > 60) return { error: `Link ${i + 1}: give it a name of at most 60 characters.` };
+    const href = cleanHref(hrefText);
+    if (!href) return { error: `${label}: enter a web address (https://…).` };
+    links.push({ label, href });
+  }
+  return { links };
+}
+
 /** An https address, or null. Only web addresses are kept, so a link can never run script. */
 export function cleanHref(raw: string): string | null {
   const text = raw.trim();

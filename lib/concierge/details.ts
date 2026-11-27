@@ -51,9 +51,24 @@ export function readPartyDetails(message: string): PartyBits {
     return out;
   }
 
-  const passengers = clamp(Number(text.match(PAX)?.[1]), 1, MAX_PASSENGERS);
+  const together = text.match(
+    /\b(\d{1,2})\s*(?:passengers?|passngers?|passangers?|persons?|percons?|people|pax)\s*,?\s*(?:and\s+|with\s+)?(\d{1,2})\s*(?:large\s+)?(?:bags?|suitcases?|luggage)\b/i,
+  );
+  if (together) {
+    const passengers = clamp(Number(together[1]), 1, MAX_PASSENGERS);
+    const bags = clamp(Number(together[2]), 0, MAX_BAGS);
+    if (passengers !== undefined) out.passengers = passengers;
+    if (bags !== undefined) out.bags = bags;
+  }
+
+  const passengers = out.passengers ?? clamp(Number(text.match(PAX)?.[1]), 1, MAX_PASSENGERS);
   if (passengers !== undefined) out.passengers = passengers;
-  else if (ALONE.test(text) || /\b1\s+percon\b/i.test(text)) out.passengers = 1;
+  else if (ALONE.test(text) || /\b1\s+(?:percon|person)\s+only\b/i.test(text)) out.passengers = 1;
+
+  if (!out.phone) {
+    const bare = text.match(/\b(\d{8,15})\b/);
+    if (bare) out.phone = bare[1];
+  }
 
   if (NO_BAGS.test(text)) out.bags = 0;
   else {

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq, gt, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
@@ -14,7 +14,7 @@ import { invoiceTerms } from "@/lib/payments/schedule";
 import { readStops } from "@/lib/quotes/stops";
 import { getCorporateContact } from "./access";
 import { contactColumns } from "./columns";
-import { issueCode, ipLimited, minutesAgo } from "./codes";
+import { issueCode, issueSignupCode, ipLimited, minutesAgo } from "./codes";
 import { CHALLENGE_COOKIE, RESET_IP_LIMIT } from "./otp";
 import type { CorporateState } from "./state";
 import {
@@ -64,56 +64,29 @@ export async function requestCode(_prev: CorporateState, formData: FormData): Pr
 
     const { ipHash, userAgent } = await visitor();
     const isDev = process.env.NODE_ENV !== "production";
-    // Before anything is written: contact rows can't be created without limit by repeating this form
     if (!isDev && (await ipLimited(ipHash))) return fail(c.rateLimited);
 
-    // A request is only a request. It does not read or attach any existing booking. An existing contact is left exactly as it is — nobody can rewrite
-    // someone else's details, or record consent on their behalf, by typing their address — and what was
-    // typed waits on the challenge until the code is entered. An address that already has an account gets the same
-    // code and the same screens: entering the code sets a new password for it, which only the address's owner can do.
-    await db
-      .insert(schema.corporateContacts)
-      .values({
-        email,
-        emailDomain: email.split("@")[1],
-        name,
-        position,
-        companyName,
-        kvkNumber: kvkNumber || null,
-        signatory,
-        pointOfCall,
-        phone: storedPhone,
-        billingStreet,
-        billingPostcode: billingPostcode.toUpperCase(),
-        billingCity,
-        billingCountry,
-        vatNumber: billingVat,
-        invoiceEmail: billingEmail,
-        locale,
-        ipHash,
-        userAgent,
-      })
-      .onConflictDoNothing({ target: schema.corporateContacts.email });
-    const [contact] = await db.select(contactColumns).from(schema.corporateContacts).where(eq(schema.corporateContacts.email, email)).limit(1);
-    // An unfinished sign-up can be started again. Keep the billing details from this attempt. A finished account was refused above;
-    // the password check here covers one that was completed between the two reads.
-    if (contact) {
-      await db
-        .update(schema.corporateContacts)
-        .set({
-          billingStreet,
-          billingPostcode: billingPostcode.toUpperCase(),
-          billingCity,
-          billingCountry,
-          vatNumber: billingVat,
-          invoiceEmail: billingEmail,
-          phone: storedPhone,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(schema.corporateContacts.id, contact.id), isNull(schema.corporateContacts.passwordHash)));
-    }
-
-    const result = await issueCode(contact, ipHash, { name, position, consent: marketingConsent }, "signup");
+    // Nothing is written to the partner table until the email code is confirmed and a password is chosen.
+    const result = await issueSignupCode({
+      email,
+      name,
+      position,
+      companyName,
+      kvkNumber: kvkNumber || null,
+      signatory,
+      pointOfCall,
+      phone: storedPhone,
+      billingStreet,
+      billingPostcode: billingPostcode.toUpperCase(),
+      billingCity,
+      billingCountry,
+      vatNumber: billingVat || null,
+      invoiceEmail: billingEmail || null,
+      locale: locale === "nl" ? "nl" : "en",
+      marketingConsent,
+      ipHash,
+      userAgent: userAgent ?? null,
+    });
     if (result === "rate") return fail(c.rateLimited);
     if (result === "wait") return fail(c.resendWait);
     if (result === "fail") return fail(c.sendFailed);
@@ -174,18 +147,36 @@ export async function resendCode(_prev: CorporateState, formData: FormData): Pro
     const [row] = await db
       .select({ contact: contactColumns, previous: schema.corporateChallenges })
       .from(schema.corporateChallenges)
-      .innerJoin(schema.corporateContacts, eq(schema.corporateChallenges.contactId, schema.corporateContacts.id))
+      .leftJoin(schema.corporateContacts, eq(schema.corporateChallenges.contactId, schema.corporateContacts.id))
       .where(eq(schema.corporateChallenges.id, id))
       .limit(1);
     if (!row) return { status: "locked", message: c.codeExpired };
+    const contact = row.contact?.id ? row.contact : null;
 
     const { ipHash } = await visitor();
+    const pendingSignup = row.previous.pendingSignup as { email?: string; name?: string; position?: string; locale?: "en" | "nl" } | null;
+    if (!contact && row.previous.purpose === "signup" && pendingSignup?.email) {
+      const result = await issueSignupCode({
+        ...(pendingSignup as Parameters<typeof issueSignupCode>[0]),
+        email: pendingSignup.email,
+        name: pendingSignup.name ?? row.previous.pendingName ?? "",
+        position: pendingSignup.position ?? row.previous.pendingPosition ?? "",
+        locale: pendingSignup.locale === "nl" ? "nl" : "en",
+        marketingConsent: row.previous.pendingConsent,
+        ipHash,
+      });
+      if (result === "rate") return fail(c.rateLimited);
+      if (result === "wait") return fail(c.resendWait);
+      if (result === "fail") return fail(c.sendFailed);
+      return { status: "sent", email: pendingSignup.email, notice: c.codeSentAgain };
+    }
+    if (!contact) return { status: "locked", message: c.codeExpired };
     const result = await issueCode(
-      row.contact,
+      contact,
       ipHash,
       {
-        name: row.previous.pendingName ?? row.contact.name,
-        position: row.previous.pendingPosition ?? row.contact.position,
+        name: row.previous.pendingName ?? contact.name,
+        position: row.previous.pendingPosition ?? contact.position,
         consent: row.previous.pendingConsent,
       },
       row.previous.purpose,
@@ -193,7 +184,7 @@ export async function resendCode(_prev: CorporateState, formData: FormData): Pro
     if (result === "rate") return fail(c.rateLimited);
     if (result === "wait") return fail(c.resendWait);
     if (result === "fail") return fail(c.sendFailed);
-    return { status: "sent", email: row.contact.email, notice: c.codeSentAgain };
+    return { status: "sent", email: contact.email, notice: c.codeSentAgain };
   } catch (err) {
     console.error("[corporate] resend failed", err);
     return fail(c.serverError);

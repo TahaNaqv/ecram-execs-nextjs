@@ -1416,7 +1416,7 @@
     "statuses": {
       "new": "New",
       "contacted": "In discussion",
-      "quoted": "Payment",
+      "quoted": "Paid",
       "confirmed": "Confirmed",
       "completed": "Completed",
       "cancelled": "Cancelled"

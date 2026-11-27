@@ -179,13 +179,37 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
   if (!verifiedValid(id, jar.get(VERIFIED_COOKIE)?.value)) return { status: "locked", message: c.codeExpired };
 
   try {
-    // Read first, change nothing: whose code this is, and whether a password is about to be replaced
-    const [before] = await db
-      .select({ email: schema.corporateContacts.email, hadPassword: sql<boolean>`(${schema.corporateContacts.passwordHash} is not null)` })
-      .from(schema.corporateChallenges)
-      .innerJoin(schema.corporateContacts, eq(schema.corporateChallenges.contactId, schema.corporateContacts.id))
-      .where(eq(schema.corporateChallenges.id, id))
-      .limit(1);
+    // Read first, change nothing: whose code this is, and whether a password is about to be replaced.
+    // A new sign-up has no partner row yet; the details sit on the challenge until this step.
+    const [challengeRow] = await db.select().from(schema.corporateChallenges).where(eq(schema.corporateChallenges.id, id)).limit(1);
+    if (!challengeRow) return { status: "locked", message: c.codeExpired };
+    const signup = (challengeRow.pendingSignup ?? null) as {
+      email?: string;
+      name?: string;
+      position?: string;
+      companyName?: string;
+      kvkNumber?: string | null;
+      signatory?: string;
+      pointOfCall?: string;
+      phone?: string;
+      billingStreet?: string;
+      billingPostcode?: string;
+      billingCity?: string;
+      billingCountry?: string;
+      vatNumber?: string | null;
+      invoiceEmail?: string | null;
+      locale?: "en" | "nl";
+      ipHash?: string;
+      userAgent?: string | null;
+    } | null;
+    const [linked] = challengeRow.contactId
+      ? await db
+          .select({ email: schema.corporateContacts.email, hadPassword: sql<boolean>`(${schema.corporateContacts.passwordHash} is not null)` })
+          .from(schema.corporateContacts)
+          .where(eq(schema.corporateContacts.id, challengeRow.contactId))
+          .limit(1)
+      : [];
+    const before = linked ?? (signup?.email ? { email: signup.email, hadPassword: false } : null);
     if (!before) return { status: "locked", message: c.codeExpired };
     if (password.toLowerCase() === before.email) return fail(f.checkHighlighted, { password: c.passwordSameAsEmail });
 
@@ -210,6 +234,46 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
 
       // What was typed on the sign-up form only now takes effect, with the address proven; a reset changes none of it
       const signUp = challenge.purpose === "signup";
+      let contactId = used.contactId;
+      if (signUp && !contactId && signup?.email && signup.name && signup.position && signup.companyName) {
+        const [existing] = await tx
+          .select({ id: schema.corporateContacts.id, passwordHash: schema.corporateContacts.passwordHash })
+          .from(schema.corporateContacts)
+          .where(eq(schema.corporateContacts.email, signup.email))
+          .limit(1);
+        if (existing?.passwordHash) throw new Error("CORPORATE_ALREADY_REGISTERED");
+        if (existing) {
+          contactId = existing.id;
+        } else {
+          const [created] = await tx
+            .insert(schema.corporateContacts)
+            .values({
+              email: signup.email,
+              emailDomain: signup.email.split("@")[1] || "corporate",
+              name: signup.name,
+              position: signup.position,
+              companyName: signup.companyName,
+              kvkNumber: signup.kvkNumber ?? null,
+              signatory: signup.signatory ?? null,
+              pointOfCall: signup.pointOfCall ?? null,
+              phone: signup.phone ?? null,
+              billingStreet: signup.billingStreet ?? null,
+              billingPostcode: signup.billingPostcode ?? null,
+              billingCity: signup.billingCity ?? null,
+              billingCountry: signup.billingCountry || "NL",
+              vatNumber: signup.vatNumber ?? null,
+              invoiceEmail: signup.invoiceEmail ?? null,
+              locale: signup.locale === "nl" ? "nl" : "en",
+              ipHash: signup.ipHash ?? null,
+              userAgent: signup.userAgent ?? null,
+              source: "website",
+            })
+            .returning({ id: schema.corporateContacts.id });
+          contactId = created?.id ?? null;
+        }
+        if (contactId) await tx.update(schema.corporateChallenges).set({ contactId }).where(eq(schema.corporateChallenges.id, id));
+      }
+      if (!contactId) return null;
       const [row] = await tx
         .update(schema.corporateContacts)
         .set({
@@ -232,7 +296,7 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
               }
             : {}),
         })
-        .where(eq(schema.corporateContacts.id, used.contactId))
+        .where(eq(schema.corporateContacts.id, contactId))
         .returning(contactColumns);
 
       // Verifying the address does not look up or attach any booking. A guest request that used this
@@ -258,6 +322,9 @@ export async function completeCode(_prev: CorporateState, formData: FormData): P
       });
     }
   } catch (err) {
+    if (err instanceof Error && err.message === "CORPORATE_ALREADY_REGISTERED") {
+      return fail("This email is already registered.", { password: "This email is already registered." });
+    }
     console.error("[corporate] complete failed", err);
     return fail(c.serverError);
   }

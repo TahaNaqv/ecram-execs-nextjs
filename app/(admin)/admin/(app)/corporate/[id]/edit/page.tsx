@@ -82,7 +82,6 @@ export default async function EditCorporatePartnerPage({
                   className="w-full bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-zinc-900 focus:outline-none cursor-pointer"
                 >
                   <option value="Active">{copy.statusActive}</option>
-                  <option value="Pending 2FA">{copy.statusPending}</option>
                   <option value="Suspended">{copy.statusSuspended}</option>
                 </select>
               </div>

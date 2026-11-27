@@ -103,7 +103,6 @@ export function CorporateDirectoryHub({
   const [isPending, startTransition] = useTransition();
   const [partners, setPartners] = useState<CorporatePartnerRow[]>(initialPartners);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
   
   // Pagination State (10 records per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -134,16 +133,12 @@ export function CorporateDirectoryHub({
       p.kvk.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.bookerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "All" || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredPartners.length / pageSize) || 1;
   const paginatedPartners = filteredPartners.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const totalActive = partners.filter((p) => p.status === "Active").length;
-  const totalPending = partners.filter((p) => p.status === "Pending 2FA").length;
 
   const handleAddPartner = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -233,20 +228,6 @@ export function CorporateDirectoryHub({
           </div>
 
           <div className="flex items-center gap-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1); // Reset to page 1 on filter change
-              }}
-              className="bg-white border border-zinc-200 rounded-xl px-3.5 py-2.5 text-xs font-medium text-zinc-700 focus:outline-none cursor-pointer"
-            >
-              <option value="All">{copy.statusAll}</option>
-              <option value="Active">{copy.statusActive}</option>
-              <option value="Pending 2FA">{copy.statusPending}</option>
-              <option value="Suspended">{copy.statusSuspended}</option>
-            </select>
-
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
@@ -348,10 +329,6 @@ export function CorporateDirectoryHub({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-6 font-mono text-[11px]">
-            <div>{copy.activeCount} <span className="font-bold text-emerald-700">{totalActive}</span></div>
-            <div>{copy.pendingCount} <span className="font-bold text-amber-700">{totalPending}</span></div>
-          </div>
         </div>
       </div>
 

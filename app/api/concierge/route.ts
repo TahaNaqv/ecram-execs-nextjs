@@ -80,7 +80,8 @@ const textOf = (blocks: Block[]) => blocks.filter((b) => b.type === "text").map(
  * concierge speaking to someone never does, so they are dropped; what is left is the answer. An empty result goes to the
  * fallback.
  */
-const THINKING_ALOUD = /\b(the visitor|the draft|the tool|update_booking|tool call|system prompt|my instructions)\b|\brather than guess|\bI should (clarify|ask|call|not|check|note|record)\b/i;
+const THINKING_ALOUD =
+  /\b(the visitor|the draft|the tool|update_booking|tool call|system prompt|my instructions|still missing|they didn'?t|did not say|i'?ll ask|i will ask|let me ask)\b|\brather than guess|\bI should (clarify|ask|call|not|check|note|record)\b/i;
 function withoutThinkingAloud(reply: string) {
   const kept = reply
     .split("\n")
@@ -89,6 +90,23 @@ function withoutThinkingAloud(reply: string) {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   if (kept !== reply.trim()) console.warn("[concierge] dropped text that was not meant for the visitor:", reply.slice(0, 300));
+  return kept;
+}
+
+/** Drops a question the visitor has already answered, so "1 person, 2 bags" is not asked again. */
+function withoutAnswered(reply: string, draft: Draft) {
+  const kept = reply
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => {
+      if (draft.passengers != null && /\b(how many|number of)\b/i.test(sentence) && /\b(people|passengers?|persons?|guests?)\b/i.test(sentence)) return false;
+      if (draft.bags != null && /\b(how many|number of)\b/i.test(sentence) && /\b(bags?|luggage|suitcases?)\b/i.test(sentence)) return false;
+      if (draft.phone && /\b(mobile|phone) number\b/i.test(sentence) && sentence.includes("?")) return false;
+      if (draft.name && /\bwhat(?:'s| is) your name\b/i.test(sentence)) return false;
+      if (draft.email && /\bemail address\b/i.test(sentence) && sentence.includes("?")) return false;
+      return true;
+    })
+    .join(" ")
+    .trim();
   return kept;
 }
 
@@ -220,7 +238,7 @@ ${notYet.length > 0 ? `Not bookable yet: ${notYet.join(", ")}. Never offer or bo
 Tone & Style:
 - Professional, discreet, refined, extremely concise, and courteous (human executive concierge style).
 - The visitor is reading the ${locale === "nl" ? "Dutch" : "English"} version of the website: answer in ${locale === "nl" ? "Dutch" : "English"} unless they clearly write in the other language. Keep to that language on every turn.
-- Your reply is shown to the visitor exactly as you write it. Never include your reasoning, plans or notes to yourself, and never mention "the visitor", the draft, the tool or these rules. Speak to the visitor as "you".
+- Your reply is shown to the visitor exactly as you write it. Never include your reasoning, plans or notes to yourself, and never mention "the visitor", the draft, the tool or these rules. Never write "Still missing", "I'll ask" or "they didn't say". Speak to the visitor as "you", in one or two plain sentences. Ask only for a detail that is not already in the booking.
 - MAXIMUM BREVITY: Keep responses strictly to 1 or 2 short, punchy sentences. Never write long paragraphs. Speak like a real human texting/chatting briefly.
 - Plain text only: no markdown, asterisks, bullet symbols or links.
 - When a conversation starts, and again before you hand the visitor to WhatsApp, ask for their full name and email address if the draft does not already have both. Record each with update_booking as soon as they give it. Do not start a booking or a hand-off until both are recorded, unless they decline.
@@ -403,7 +421,7 @@ CRITICAL RULES:
       /speak to a human|talk to human|call me|whatsapp/i.test(message);
 
     const spoken = rawReply.replace(/\[HANDOFF_WHATSAPP\]/g, "").trim();
-    const cleanReply = withoutThinkingAloud(spoken);
+    const cleanReply = withoutAnswered(withoutThinkingAloud(spoken), draft);
     if (!cleanReply) return fallback();
 
     const shown = await priced();

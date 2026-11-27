@@ -87,37 +87,22 @@ export function IntroducerBoard({
         description="People who introduce corporate partners. They earn a share of the net payments their partners make each month."
         actions={addButton}
       />
-      <Card className="mt-6 overflow-hidden">
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <Card className="mt-6 overflow-hidden">
           <EmptyState
             icon={<UsersIcon />}
             title="No introducers yet"
             description="Add an introducer and link the corporate partners they brought in to start tracking their commission."
             action={addButton}
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[68rem] text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50/60 text-[12px] tracking-wide text-zinc-500 uppercase">
-                  <th className="px-5 py-2.5 font-medium">Introducer</th>
-                  <th className="px-4 py-2.5 font-medium">Contact</th>
-                  <th className="px-4 py-2.5 font-medium">Corporate partners</th>
-                  <th className="px-4 py-2.5 text-right font-medium">This month</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Commission</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <IntroducerRow key={row.id} row={row} onEdit={() => open(row)} onEmail={() => setPreview(row)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <div className="mt-6 grid gap-4">
+          {rows.map((row) => (
+            <IntroducerRow key={row.id} row={row} onEdit={() => open(row)} onEmail={() => setPreview(row)} />
+          ))}
+        </div>
+      )}
       {editor ? <IntroducerDialog key={editor.key} row={editor.row} partners={partners} names={names} onClose={closeEditor} /> : null}
       {preview ? (
         <InvoicePreview
@@ -134,72 +119,70 @@ export function IntroducerBoard({
 function IntroducerRow({ row, onEdit, onEmail }: { row: IntroducerView; onEdit: () => void; onEmail: () => void }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <tr className="border-b border-zinc-100 align-top last:border-0 hover:bg-zinc-50/50">
-      <td className="max-w-[16rem] px-5 py-4">
-        <p className="m-0 truncate font-medium text-zinc-950">{row.name}</p>
-        {row.company ? <p className="m-0 mt-0.5 truncate text-xs text-zinc-500">{row.company}</p> : null}
-        {row.notes ? (
-          <p className="m-0 mt-1 line-clamp-2 text-xs text-zinc-400" title={row.notes}>
-            {row.notes}
-          </p>
-        ) : null}
-      </td>
-      <td className="max-w-[16rem] px-4 py-4">
-        {row.email ? (
-          <a href={`mailto:${row.email}`} className="flex items-center gap-1.5 truncate text-zinc-800 no-underline hover:text-zinc-950 hover:underline">
-            <MailIcon size={14} className="shrink-0 text-zinc-400" />
-            <span className="truncate">{row.email}</span>
-          </a>
-        ) : (
-          <span className="text-zinc-400">No email</span>
-        )}
-        {row.phone ? (
-          <a href={`tel:${row.phone.replace(/[^\d+]/g, "")}`} className="mt-1 flex items-center gap-1.5 text-xs text-zinc-600 no-underline hover:text-zinc-950 hover:underline">
-            <PhoneIcon size={13} className="shrink-0 text-zinc-400" />
-            {row.phone}
-          </a>
-        ) : null}
-      </td>
-      <td className="max-w-[20rem] px-4 py-4">
-        {row.partners.length === 0 ? (
-          <span className="text-zinc-400">None yet</span>
-        ) : (
-          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-            {row.partners.map((partner) => (
-              <li key={partner.id}>
-                <Link href={`/admin/corporate/${partner.id}`} className="inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-900 no-underline hover:bg-zinc-200">
-                  {partner.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </td>
-      <td className="px-4 py-4 text-right whitespace-nowrap">
-        <p className="m-0 tabular-nums text-zinc-900">{row.monthNet}</p>
-        <p className="m-0 mt-0.5 text-xs text-zinc-500">Net, ex. VAT</p>
-      </td>
-      <td className="px-4 py-4 text-right whitespace-nowrap">
-        <p className="m-0 font-medium tabular-nums text-zinc-950">{row.monthCommission}</p>
-        <p className="m-0 mt-0.5 text-xs text-zinc-500">
-          {row.tenureYear === 0 ? "Starts later" : `${row.rate} of net · year ${row.tenureYear}`}
-        </p>
-        {row.nextChange ? <p className="m-0 mt-0.5 text-xs text-zinc-400">{row.nextChange}</p> : null}
-      </td>
-      <td className="px-4 py-4">
+    <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="m-0 truncate text-base font-semibold text-zinc-950">{row.name}</h2>
+          {row.company ? <p className="m-0 mt-0.5 truncate text-sm text-zinc-500">{row.company}</p> : null}
+        </div>
         {row.active ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-emerald-700 ring-1 ring-emerald-200 ring-inset">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 ring-inset">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
             Active
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-zinc-600 ring-1 ring-zinc-200 ring-inset">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600 ring-1 ring-zinc-200 ring-inset">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-zinc-400" />
             Inactive
           </span>
         )}
-      </td>
-      <td className="px-5 py-4">
+      </header>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="min-w-0">
+          <p className="m-0 text-[11px] font-medium tracking-wide text-zinc-400 uppercase">Contact</p>
+          {row.email ? (
+            <a href={`mailto:${row.email}`} className="mt-1.5 flex items-center gap-1.5 truncate text-sm text-zinc-800 no-underline hover:text-zinc-950 hover:underline">
+              <MailIcon size={14} className="shrink-0 text-zinc-400" />
+              <span className="truncate">{row.email}</span>
+            </a>
+          ) : (
+            <p className="m-0 mt-1.5 text-sm text-zinc-400">No email</p>
+          )}
+          {row.phone ? (
+            <a href={`tel:${row.phone.replace(/[^\d+]/g, "")}`} className="mt-1 flex items-center gap-1.5 text-sm text-zinc-600 no-underline hover:text-zinc-950 hover:underline">
+              <PhoneIcon size={13} className="shrink-0 text-zinc-400" />
+              {row.phone}
+            </a>
+          ) : null}
+        </div>
+        <div className="min-w-0">
+          <p className="m-0 text-[11px] font-medium tracking-wide text-zinc-400 uppercase">Linked corporate partners</p>
+          {row.partners.length === 0 ? (
+            <p className="m-0 mt-1.5 text-sm text-zinc-400">None yet</p>
+          ) : (
+            <ul className="m-0 mt-1.5 flex list-none flex-wrap gap-1.5 p-0">
+              {row.partners.map((partner) => (
+                <li key={partner.id}>
+                  <Link href={`/admin/corporate/${partner.id}`} className="inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-900 no-underline hover:bg-zinc-200">
+                    {partner.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      {row.notes ? <p className="m-0 mt-3 line-clamp-2 text-xs text-zinc-400" title={row.notes}>{row.notes}</p> : null}
+      <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
+        <div>
+          <p className="m-0 text-[11px] font-medium tracking-wide text-zinc-400 uppercase">Net commission MTD</p>
+          <p className="m-0 mt-1 text-lg font-semibold tabular-nums text-zinc-950">{row.monthCommission}</p>
+          <p className="m-0 mt-0.5 text-xs text-zinc-500">
+            {row.monthNet} net, ex. VAT
+            {row.tenureYear === 0 ? "" : ` · ${row.rate} · year ${row.tenureYear}`}
+          </p>
+          {row.nextChange ? <p className="m-0 mt-0.5 text-xs text-zinc-400">{row.nextChange}</p> : null}
+        </div>
         {confirming ? (
           <ActionForm action={deleteIntroducer} tone="delete" success="Introducer removed!" className="flex flex-col items-end gap-2">
             <input type="hidden" name="id" value={row.id} />
@@ -214,7 +197,7 @@ function IntroducerRow({ row, onEdit, onEmail }: { row: IntroducerView; onEdit: 
         ) : (
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={onEdit} className={`${compact} border border-zinc-200 bg-white text-zinc-800 shadow-card hover:border-zinc-300 hover:bg-zinc-50`}>
+              <button type="button" onClick={onEdit} className={`${compact} border border-zinc-200 bg-white text-zinc-800 shadow-sm hover:border-zinc-300 hover:bg-zinc-50`}>
                 <PencilIcon /> Edit
               </button>
               <button
@@ -222,7 +205,7 @@ function IntroducerRow({ row, onEdit, onEmail }: { row: IntroducerView; onEdit: 
                 disabled={!row.email}
                 title={row.email ? undefined : "Add an email address first"}
                 onClick={onEmail}
-                className={`${compact} border border-zinc-200 bg-white text-zinc-800 shadow-card hover:border-zinc-300 hover:bg-zinc-50`}
+                className={`${compact} border border-zinc-200 bg-white text-zinc-800 shadow-sm hover:border-zinc-300 hover:bg-zinc-50`}
               >
                 <MailIcon size={13} /> Email invoice request
               </button>
@@ -233,8 +216,8 @@ function IntroducerRow({ row, onEdit, onEmail }: { row: IntroducerView; onEdit: 
             {row.notified ? <p className="m-0 text-[11px] text-zinc-500">Invoice request sent {row.notified}</p> : null}
           </div>
         )}
-      </td>
-    </tr>
+      </footer>
+    </article>
   );
 }
 

@@ -8,6 +8,14 @@ import { LinkIcon } from "../../_components/icons";
 import { Card, CardHeader, PageBody, PageHeader } from "../../_components/ui";
 import { QuickLinksEditor } from "./quick-links-editor";
 
+function linkHost(href: string) {
+  try {
+    return new URL(href).host;
+  } catch {
+    return href;
+  }
+}
+
 export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,8 +42,8 @@ async function QuickLinks() {
         <p className="mt-6 text-sm text-zinc-500">No links yet.</p>
       ) : (
         <ul className="m-0 mt-6 grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-3">
-          {links.map((link) => (
-            <li key={link.href}>
+          {links.map((link, index) => (
+            <li key={`${index}:${link.label}:${link.href}`}>
               <a
                 href={link.href}
                 target="_blank"
@@ -47,7 +55,7 @@ async function QuickLinks() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-zinc-950">{link.label}</span>
-                  <span className="block truncate text-xs text-zinc-500">{new URL(link.href).host}</span>
+                  <span className="block truncate text-xs text-zinc-500">{linkHost(link.href)}</span>
                 </span>
               </a>
             </li>

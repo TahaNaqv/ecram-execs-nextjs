@@ -22,9 +22,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: admin.schedule.title };
 }
 
-/** Pixels per hour on the grid. */
-const HOUR_PX = 64;
+/** Pixels per hour. Time runs left to right, so an hour is wide enough for the booking line. */
+const HOUR_PX = 176;
 const GRID_PX = 24 * HOUR_PX;
+const LABEL_PX = 176;
+const BAR_PX = 76;
+const BAR_GAP = 8;
 
 const clock = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const validDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -71,8 +74,10 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
   const sp = await searchParams;
   const today = amsterdamToday();
   const date = validDay(sp.date) ? sp.date : today;
-  const [{ admin }, schedule, who] = await Promise.all([adminDictionary(), daySchedule(date), getAdmin()]);
+  const [dict, schedule, who] = await Promise.all([adminDictionary(), daySchedule(date), getAdmin()]);
+  const admin = dict.admin;
   const t = admin.schedule;
+  const serviceName = (key: string) => (dict.services as Record<string, string>)[key] ?? key;
   const locale = who?.locale === "nl" ? "nl-NL" : "en-GB";
   const onToday = date === today;
   const heading = new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00:00Z`));
@@ -81,7 +86,6 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
     : new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`));
   const first = schedule.columns.flatMap((c) => c.blocks).reduce<number | null>((min, b) => (min === null || b.start < min ? b.start : min), null);
   const link = (day: string) => `/admin/requests/schedule?date=${day}`;
-  const cols = `4rem repeat(${schedule.columns.length}, minmax(18rem, 1fr))`;
 
   return (
     <div className="mt-6 flex flex-col gap-4">
@@ -129,31 +133,22 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
       </div>
 
       <Card className="overflow-hidden">
-        <ScrollToMorning hourPx={HOUR_PX} firstMinute={first}>
-          <div className="grid min-w-max" style={{ gridTemplateColumns: cols }}>
-            {/* Header row: sticky, so the cars stay in view while the hours scroll */}
-            <div className="sticky top-0 left-0 z-30 border-b border-r border-zinc-200 bg-zinc-50 px-2 py-3 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{t.timeColumn}</div>
-            {schedule.columns.map((c) => (
-              <div key={c.key} className="sticky top-0 z-20 border-b border-r border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center last:border-r-0">
-                <p className="text-sm font-semibold text-zinc-950">{c.key === UNASSIGNED ? t.unassigned : c.name}</p>
-                {c.driverLabel && <p className="text-[11px] font-medium text-zinc-800">{c.driverLabel}</p>}
-                <p className={`text-xs ${c.state === "available" ? "text-emerald-700" : c.state === null ? "text-zinc-500" : "text-amber-700"}`}>
-                  {c.key === UNASSIGNED ? t.unassignedNote : c.state === "available" ? t.available : c.state === "maintenance" ? t.maintenance : c.state === null ? "" : t.switchedOff}
-                </p>
+        <ScrollToMorning hourPx={HOUR_PX} firstMinute={first} labelWidth={LABEL_PX}>
+          <div className="min-w-max">
+            <div className="sticky top-0 z-30 flex border-b border-zinc-200 bg-zinc-50">
+              <div className="sticky left-0 z-40 shrink-0 border-r border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] font-medium tracking-wide text-zinc-500 uppercase" style={{ width: LABEL_PX }}>
+                {t.timeColumn}
               </div>
-            ))}
-
-            {/* The hours */}
-            <div className="sticky left-0 z-10 border-r border-zinc-200 bg-white" style={{ height: GRID_PX }}>
-              {Array.from({ length: 24 }, (_, h) => (
-                <div key={h} className="relative text-right" style={{ height: HOUR_PX }}>
-                  <span className="absolute -top-2 right-2 bg-white px-0.5 text-[11px] tabular-nums text-zinc-500">{h === 0 ? "" : `${String(h).padStart(2, "0")}:00`}</span>
-                </div>
-              ))}
+              <div className="relative h-8" style={{ width: GRID_PX }}>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <span key={h} className="absolute top-2 text-[11px] tabular-nums text-zinc-500" style={{ left: h * HOUR_PX + 4 }}>
+                    {`${String(h).padStart(2, "0")}:00`}
+                  </span>
+                ))}
+              </div>
             </div>
-
             {schedule.columns.map((c) => (
-              <Lane key={c.key} column={c} copy={t} statuses={admin.statuses} />
+              <Lane key={c.key} column={c} copy={t} statuses={admin.statuses} serviceName={serviceName} />
             ))}
           </div>
         </ScrollToMorning>
@@ -169,13 +164,11 @@ async function Day({ searchParams }: { searchParams: Promise<{ date?: string }> 
   );
 }
 
-const PENDING = "border-amber-300 bg-amber-50 text-amber-950 [background-image:repeating-linear-gradient(135deg,transparent_0,transparent_5px,rgb(253_230_138/0.7)_5px,rgb(253_230_138/0.7)_6px)]";
-
 const TONE: Record<Exclude<RequestStatus, "cancelled">, string> = {
-  new: PENDING,
-  contacted: PENDING,
-  quoted: PENDING,
-  confirmed: "border-emerald-400 bg-emerald-50 text-emerald-950",
+  new: "border-amber-400 bg-amber-50 text-amber-950",
+  contacted: "border-amber-400 bg-amber-50 text-amber-950",
+  quoted: "border-amber-400 bg-amber-50 text-amber-950",
+  confirmed: "border-emerald-500 bg-emerald-50 text-emerald-950",
   completed: "border-zinc-300 bg-zinc-100 text-zinc-600",
 };
 
@@ -183,24 +176,40 @@ function Lane({
   column,
   copy: t,
   statuses,
+  serviceName,
 }: {
   column: DayColumn;
   copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["schedule"];
   statuses: Record<RequestStatus, string>;
+  serviceName: (key: string) => string;
 }) {
   const off = column.state !== null && column.state !== "available";
   const placed = layOut(column.blocks);
+  const lanes = placed.reduce((n, b) => Math.max(n, b.lanes), 1);
+  const height = Math.max(56, lanes * (BAR_PX + BAR_GAP) + BAR_GAP);
+  const availability =
+    column.key === UNASSIGNED ? t.unassignedNote : column.state === "available" ? t.available : column.state === "maintenance" ? t.maintenance : column.state === null ? "" : t.switchedOff;
   return (
-    <div
-      className={`relative border-r border-zinc-200 last:border-r-0 ${off ? "bg-zinc-100/80" : ""}`}
-      style={{
-        height: GRID_PX,
-        backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_PX - 1}px, rgb(228 228 231) ${HOUR_PX - 1}px, rgb(228 228 231) ${HOUR_PX}px)`,
-      }}
-    >
-      {placed.map((b) => (
-        <Block key={`${b.id}-${b.leg}`} block={b} lane={b.lane} lanes={b.lanes} copy={t} statuses={statuses} />
-      ))}
+    <div className={`flex border-b border-zinc-200 last:border-b-0 ${off ? "bg-zinc-100/70" : "bg-white"}`}>
+      <div className={`sticky left-0 z-20 flex shrink-0 flex-col justify-center border-r border-zinc-200 px-3 ${off ? "bg-zinc-100" : "bg-white"}`} style={{ width: LABEL_PX }}>
+        <p className="truncate text-sm font-semibold text-zinc-950">{column.key === UNASSIGNED ? t.unassigned : column.name}</p>
+        {column.driverLabel ? <p className="truncate text-[11px] text-zinc-700">{column.driverLabel}</p> : null}
+        {availability ? (
+          <p className={`truncate text-xs ${column.state === "available" ? "text-emerald-700" : column.state === null ? "text-zinc-500" : "text-amber-700"}`}>{availability}</p>
+        ) : null}
+      </div>
+      <div
+        className="relative"
+        style={{
+          width: GRID_PX,
+          height,
+          backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${HOUR_PX - 1}px, rgb(228 228 231) ${HOUR_PX - 1}px, rgb(228 228 231) ${HOUR_PX}px)`,
+        }}
+      >
+        {placed.map((b) => (
+          <Block key={`${b.id}-${b.leg}`} block={b} lane={b.lane} copy={t} statuses={statuses} serviceName={serviceName} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -208,47 +217,46 @@ function Lane({
 function Block({
   block: b,
   lane,
-  lanes,
   copy: t,
   statuses,
+  serviceName,
 }: {
   block: DayBlock;
   lane: number;
-  lanes: number;
   copy: Awaited<ReturnType<typeof adminDictionary>>["admin"]["schedule"];
   statuses: Record<RequestStatus, string>;
+  serviceName: (key: string) => string;
 }) {
-  const top = (b.start / 60) * HOUR_PX;
-  const span = ((b.tripEnd - b.start) / 60) * HOUR_PX;
-  const height = Math.max(span, 96);
-  const bufferHeight = ((b.end - b.tripEnd) / 60) * HOUR_PX;
-  const width = 100 / lanes;
+  const left = (b.start / 60) * HOUR_PX;
+  const width = Math.max(((b.tripEnd - b.start) / 60) * HOUR_PX, 8);
+  const bufferWidth = ((b.end - b.tripEnd) / 60) * HOUR_PX;
+  const top = BAR_GAP + lane * (BAR_PX + BAR_GAP);
   const route = [b.from, b.to].filter(Boolean).join(" → ");
   const who = b.entity ? `${b.name} · ${b.entity}` : b.name;
+  const party = [b.passengers != null ? `${b.passengers} pax` : null, b.luggage != null ? `${b.luggage} bags` : null].filter(Boolean).join(" · ");
   return (
     <>
       <Link
         href={`/admin/requests/${b.id}`}
-        title={[b.reference, who, route, statuses[b.status], b.clash ? t.clash : ""].filter(Boolean).join("\n")}
-        className={`absolute z-[1] overflow-y-auto rounded-md border px-2 py-1.5 text-[11px] leading-snug shadow-sm transition-shadow [scrollbar-width:thin] hover:z-[5] hover:shadow-md ${TONE[b.status]} ${b.clash ? "ring-2 ring-red-500" : ""}`}
-        style={{ top, height, left: `calc(${lane * width}% + 4px)`, width: `calc(${width}% - 8px)` }}
+        title={[serviceName(b.service), b.reference, who, party, route, `${clock(b.start)}–${clock(b.tripEnd)}`, statuses[b.status], b.clash ? t.clash : ""].filter(Boolean).join("\n")}
+        className={`absolute z-[1] flex flex-col justify-center overflow-hidden rounded-md border px-2.5 py-1.5 text-[11px] leading-tight shadow-sm hover:z-[5] hover:shadow-md ${TONE[b.status]} ${b.clash ? "ring-2 ring-red-500" : ""}`}
+        style={{ top, left, width, height: BAR_PX }}
       >
-        <span className="block whitespace-normal break-words font-semibold tabular-nums">
-          {b.clipsStart ? "…" : clock(b.start)} – {b.clipsEnd && b.tripEnd >= 24 * 60 ? "…" : clock(b.tripEnd)}
-          {b.leg === "return" && <span className="ml-1 font-medium opacity-80">· {t.returnLeg}</span>}
-          {b.status !== "confirmed" && b.status !== "completed" && <span className="ml-1 font-medium">· {t.holdPending}</span>}
-          {b.status === "confirmed" && <span className="ml-1 font-medium">· {t.holdBooked}</span>}
+        <span className="truncate text-[10px] font-medium tracking-wide uppercase opacity-70">
+          {serviceName(b.service)}
+          {b.leg === "return" ? ` · ${t.returnLeg}` : ""}
         </span>
-        {b.clash && <span className="sr-only">{t.clash}</span>}
-        <span className="mt-0.5 block whitespace-normal break-all font-mono">{b.reference}</span>
-        <span className="block whitespace-normal break-words">{who}</span>
-        {route && <span className="block whitespace-normal break-words text-[10.5px] opacity-80">{route}</span>}
+        <span className="truncate font-mono text-xs font-semibold">{b.reference}</span>
+        <span className="truncate font-medium">{who}</span>
+        {party ? <span className="truncate opacity-80">{party}</span> : null}
+        {b.clash ? <span className="sr-only">{t.clash}</span> : null}
       </Link>
-      {bufferHeight > 0 && b.status === "confirmed" && (
+      {bufferWidth > 0 && b.status === "confirmed" && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute rounded-b-md border border-t-0 border-emerald-300/70 bg-[repeating-linear-gradient(45deg,transparent_0,transparent_4px,rgb(167_243_208/0.6)_4px,rgb(167_243_208/0.6)_8px)]"
-          style={{ top: top + height, height: Math.max(0, bufferHeight - (height - span)), left: `calc(${lane * width}% + 4px)`, width: `calc(${width}% - 8px)` }}
+          title={t.bufferNote}
+          className="pointer-events-none absolute border-y border-r border-amber-300/80 bg-zinc-200 bg-[repeating-linear-gradient(135deg,#d4d4d8_0,#d4d4d8_6px,#fde68a_6px,#fde68a_12px)]"
+          style={{ top, left: left + width, width: bufferWidth, height: BAR_PX }}
         />
       )}
     </>

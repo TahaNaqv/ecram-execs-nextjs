@@ -748,11 +748,11 @@ export const corporateChallenges = pgTable(
   "corporate_challenges",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    contactId: uuid("contact_id")
-      .notNull()
-      .references(() => corporateContacts.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").references(() => corporateContacts.id, { onDelete: "cascade" }),
     codeHmac: text("code_hmac").notNull(),
     purpose: text("purpose").$type<"signup" | "reset">().notNull().default("signup"),
+    /** Sign-up details kept until the email code and password are both done. No partner row exists before that. */
+    pendingSignup: jsonb("pending_signup").$type<Record<string, unknown>>(),
     pendingName: text("pending_name"),
     pendingPosition: text("pending_position"),
     pendingConsent: boolean("pending_consent").notNull().default(false),
