@@ -18,7 +18,9 @@ const netherlandsMinutes = () => {
   return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) / 60_000;
 };
 const boxMinutes = (text: string) => {
-  const m = /^(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/.exec(text)!;
+  const m = /^(\d{2})-(\d{2})-(\d{4}) (\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/.exec(text);
+  // The box is filled in after the page loads: until then there is no time, and a poll keeps waiting rather than failing
+  if (!m) return Number.POSITIVE_INFINITY;
   let hour = +m[4];
   if (m[6]) hour = (hour % 12) + (/^p/i.test(m[6]) ? 12 : 0);
   return Date.UTC(+m[3], +m[2] - 1, +m[1], hour, +m[5]) / 60_000;
@@ -112,13 +114,16 @@ test("bug 4: Guests and Duration show a dropdown arrow, and a press anywhere in 
   const [box, cellBox] = [await duration.boundingBox(), await cell.boundingBox()];
   expect(Math.abs(box!.width - cellBox!.width)).toBeLessThan(2);
   expect(Math.abs(box!.height - cellBox!.height)).toBeLessThan(2);
+  // Kept as a handle: once the list is open, the label "Duration" names the list too
+  const field = (await duration.elementHandle())!;
   await duration.click();
   const list = hero.getByRole("listbox", { name: b.duration });
   await expect(list).toBeVisible();
   const options = await list.getByRole("option").allTextContents();
   expect(options).toEqual(HOURLY_DURATIONS.map((h) => en.booking.hoursOption.replace("{hours}", String(h))));
-  const listBox = (await list.boundingBox())!;
-  expect(listBox.y).toBeGreaterThanOrEqual(box!.y + box!.height - 2);
+  // Measured again now: the press may have scrolled the page, which moves the field
+  const [listBox, fieldNow] = [(await list.boundingBox())!, (await field.boundingBox())!];
+  expect(listBox.y).toBeGreaterThanOrEqual(fieldNow.y + fieldNow.height - 2);
   await list.getByRole("option", { name: en.booking.hoursOption.replace("{hours}", "4"), exact: true }).click();
   await expect(cell).toContainText(en.booking.hoursOption.replace("{hours}", "4"));
 });
